@@ -1,8 +1,10 @@
 ﻿using LibFoxyProxy.Http;
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using VintageHive.Data.Cache;
+using VintageHive.Data.Config;
 using VintageHive.Processors;
+using VintageHive.Utilities;
 
 namespace VintageHive;
 
@@ -12,62 +14,61 @@ internal class Mind
 
     const string GeoIPApiUri = "https://freegeoip.app/json/";
 
-    internal static Config Config;
+    static readonly object _lock = new();
 
-    ManualResetEvent _resetEvent = new(false);
+    static Mind _instance;
+
+    readonly ManualResetEvent _resetEvent = new(false);
+
+    internal ConfigDbContext _configDb;
+
+    internal CacheDbContext _cacheDb;
 
     IPAddress _ip;
 
     HttpProxy _httpProxy;
 
-    public Mind()
+    public IConfigDb ConfigDb => _configDb;
+
+    public ICacheDb CacheDb => _cacheDb;
+
+    public static Mind Instance
     {
-        ProcessConfiguration();
+        get
+        {
+            lock (_lock)
+            {
+                if (_instance == null)
+                {
+                    _instance = new Mind();
+                }
 
-        _httpProxy = new(_ip, Config.PortHttp);
-
-        _httpProxy.Request += HttpProcessor.ProcessRequest;
+                return _instance;
+            }
+        }
     }
 
-    private void ProcessConfiguration()
+    private Mind() { }
+
+    public void Init()
     {
-        if (File.Exists(ConfigFilePath))
-        {
-            // _config = JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigFilePath));
-        }
-        
-        if (Config == null)
-        {
-            Config = new Config();
+        Resources.Initialize();
 
-            //using var httpClient = new HttpClient();            
+        _configDb = new ConfigDbContext("Data Source=config.db;Cache=Shared");
 
-            //var geoIpDataRaw = Task.Run(() => httpClient.GetStringAsync(GeoIPApiUri)).Result;
+        _cacheDb = new CacheDbContext("Data Source=cache.db;Cache=Shared");
 
-            //var geoIpData = JsonNode.Parse(geoIpDataRaw);
+        var ipAddress = ConfigDb.SettingGet<string>("ipaddress");
 
-            //Config.PublicIPAddress = geoIpData["ip"].ToString();
+        var portNum = ConfigDb.SettingGet<int>("porthttp");
 
-            //Config.CountryCode = geoIpData["country_code"].ToString();
+        _httpProxy = new(IPAddress.Parse(ipAddress), portNum);
 
-            //Config.RegionCode = geoIpData["region_code"].ToString();
+        _httpProxy.CacheDb = _cacheDb;
 
-            //Config.City = geoIpData["city"].ToString();
-
-            //Config.PostalCode = geoIpData["zip_code"].ToString();
-
-            //Config.Timezone = geoIpData["time_zone"].ToString();
-
-            //Config.Latitude = (double)geoIpData["latitude"];
-
-            //Config.Longitude = (double)geoIpData["logitude"];
-
-            var jsonString = JsonSerializer.Serialize(Config, new JsonSerializerOptions() { WriteIndented = true });
-
-            File.WriteAllText(ConfigFilePath, jsonString);
-        }
-
-        _ip = IPAddress.Parse(Config.IpAddress);
+        _httpProxy
+            .Use(IntranetProcessor.ProcessRequest)
+            .Use(InternetArchiveProcessor.ProcessRequest);
     }
 
     internal void Start()

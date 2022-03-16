@@ -1,13 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using HtmlAgilityPack;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using VintageHive.Utilities;
 
 namespace VintageHive;
 
 public static class Extensions
 {
+    public static void LoadVirtual(this HtmlDocument doc, string path)
+    {
+        if (Debugger.IsAttached)
+        {
+            doc.Load(Path.Combine("../../../Statics/", path));
+        }
+        else
+        {
+            doc.LoadHtml(Resources.GetStaticsResourceString("control/index.html"));
+        }
+    }
+
     public static bool HostContains(this Uri uri, string searchPattern)
     {
         if (uri == null)
@@ -26,5 +37,12 @@ public static class Extensions
         }
 
         return uri.Host.Contains(searchPattern);
+    }
+
+    public static int RegexIndexOf(this string str, string pattern)
+    {
+        var m = Regex.Match(str, pattern);
+
+        return m.Success ? m.Index : -1;
     }
 }
