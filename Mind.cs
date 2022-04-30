@@ -1,4 +1,6 @@
-﻿using LibFoxyProxy.Http;
+﻿using LibFoxyProxy.Ftp;
+using LibFoxyProxy.Http;
+using LibFoxyProxy.Security;
 using System.Net;
 using System.Text.Json;
 using VintageHive.Data.Cache;
@@ -27,6 +29,10 @@ internal class Mind
     IPAddress _ip;
 
     HttpProxy _httpProxy;
+
+    HttpProxy _httpsProxy;
+
+    FtpProxy _ftpProxy;
 
     public IConfigDb ConfigDb => _configDb;
 
@@ -58,22 +64,47 @@ internal class Mind
 
         _cacheDb = new CacheDbContext("Data Source=cache.db;Cache=Shared");
 
-        var ipAddress = ConfigDb.SettingGet<string>("ipaddress");
+        var ipAddressString = ConfigDb.SettingGet<string>("ipaddress");
 
-        var portNum = ConfigDb.SettingGet<int>("porthttp");
+        var ipAddress = IPAddress.Parse(ipAddressString);
 
-        _httpProxy = new(IPAddress.Parse(ipAddress), portNum);
+        var httpPort = ConfigDb.SettingGet<int>(ConfigNames.PortHttp);        
+
+        _httpProxy = new(ipAddress, httpPort, false);
 
         _httpProxy.CacheDb = _cacheDb;
 
         _httpProxy
             .Use(IntranetProcessor.ProcessRequest)
+            .Use(ProtoWebProcessor.ProcessRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
+
+        var ftpPort = ConfigDb.SettingGet<int>(ConfigNames.PortFtp);
+
+        _ftpProxy = new(ipAddress, ftpPort);
+
+        _httpsProxy = new(ipAddress, 9999, true);
+
+        using var rsaTest = new Rsa();
+
+        rsaTest.GenerateKey(512, 3);
+
+        var output = rsaTest.PEMPrivateKey();
+
+        rsaTest.GenerateKey(4096, 3);
+
+        var output2 = rsaTest.PEMPrivateKey();
+
+        Console.WriteLine(output);
     }
 
     internal void Start()
     {
         _httpProxy.Start();
+
+        _httpsProxy.Start();
+
+        _ftpProxy.Start();
 
         _resetEvent.WaitOne();
     }

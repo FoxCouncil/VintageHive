@@ -32,8 +32,6 @@ namespace VintageHive
 
         public bool InternetArchive { get; set; } = true;
 
-        public bool RemoteControl { get; set; } = true;
-
         public bool Intranet { get; set; } = true;
     }
 }

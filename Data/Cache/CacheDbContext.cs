@@ -82,4 +82,45 @@ internal class CacheDbContext : DbContextBase, ICacheDb
             transaction.Commit();
         });
     }
+
+    internal void Clear()
+    {
+        WithContext(context =>
+        {
+            // Create Tables
+            var command = context.CreateCommand();
+
+            command.CommandText = "DELETE FROM cache";
+
+            command.ExecuteNonQuery();
+        });
+    }
+
+    internal Tuple<uint, uint> GetCounters()
+    {
+        return WithContext<Tuple<uint, uint>>(context =>
+        {
+            var proxyCacheCountCommand = context.CreateCommand();
+
+            proxyCacheCountCommand.CommandText = "SELECT COUNT(*) FROM cache WHERE key LIKE 'PC-%'";
+
+            using var proxyCacheCountReader = proxyCacheCountCommand.ExecuteReader();
+
+            proxyCacheCountReader.Read();
+
+            var proxyCacheCount = (uint)proxyCacheCountReader.GetInt64(0);
+
+            var archiveAvailabilityCacheCountCommand = context.CreateCommand();
+
+            archiveAvailabilityCacheCountCommand.CommandText = "SELECT COUNT(*) FROM cache WHERE key LIKE 'AREQ-%'";
+
+            using var archiveAvailabilityCacheCountReader = archiveAvailabilityCacheCountCommand.ExecuteReader();
+
+            archiveAvailabilityCacheCountReader.Read();
+
+            var archiveAvailabilityCacheCount = (uint)archiveAvailabilityCacheCountReader.GetInt64(0);
+
+            return new Tuple<uint, uint>(proxyCacheCount, archiveAvailabilityCacheCount);
+        });
+    }
 }

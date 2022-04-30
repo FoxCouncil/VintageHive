@@ -1,0 +1,124 @@
+﻿<html>
+<head>
+    <title>VintageHive Control</title>
+</head>
+<body style="font-family:monospace;" link="blue" alink="blue" vlink="blue">
+    <table width="100%">
+        <tr>
+            <td width="30"><a href="http://home/"><img border="0" width="30" src="http://hive/assets/hive.gif"></a></td>
+            <td valign="middle" width="150"><font size="5">Control</font></td>
+            <td valign="middle" align="right">
+                <a href="http://home/">Home</a> |
+                <a href="http://news/">News</a> |
+                <a href="http://weather/">Weather</a> |
+                <a href="http://hive/">Control</a>
+            </td>
+        </tr>
+    </table>
+    <hr>
+    <table border="1" width="100%">
+        <tr>
+            <td width="33%" align="center" valign="middle"><img src="assets/disk.gif" width="16" height="16"> Cache Control</td>
+            <td width="33%" align="center">Options</td>
+        </tr>
+        <tr>
+            <td align="center" valign="top">
+                <table border="1" width="100%">
+                    <tr>
+                        <td align="center" width="50%">
+                            <h1 id="totalProxyCache">0</h1>
+                            <span>Proxy</span>
+                        </td>
+                        <td align="center">
+                            <h1 id="totalAvailabilityCache">0</h1>
+                            <span>IA Availability</span>
+                        </td>
+                    </tr>
+                </table>
+                <form action="/action/clearcache" method="post">
+                    <button type="submit">Clear Cache</button>
+                </form>
+            </td>
+            <td>
+                <table border="1" width="100%">
+                    <tr>
+                        <td>Intranet</td>
+                        <td align="center" valign="middle" width="55"><font color="green" id="toggleIntranetLabel">ON</font></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <ul>
+                                <li>
+                                    <form action="/action/toggleIntranet" method="get" style="margin:0">
+                                        <button type="submit" id="toggleIntranetButton">Turn Off</button>
+                                    </form>
+                                </li>
+                                <li><a href="http://home/">Home</a></li>
+                                <li><a href="http://news/">News</a></li>
+                                <li><a href="http://weather/">Weather</a></li>
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+                <table border="1" width="100%">
+                    <tr>
+                        <td>ProtoWeb</td>
+                        <td align="center" valign="middle" width="55"><font color="green" id="toggleProtoWebLabel">ON</font></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <ul>
+                                <li>
+                                    <form action="/action/toggleProtoWeb" method="get" style="margin:0">
+                                        <button type="submit" id="toggleProtoWebButton">Turn OFF</button>
+                                    </form>
+                                </li>
+                                <li>
+                                    <a href="http://www.inode.com/">View Site List</a>
+                                </li>
+                                <li>
+                                    <form action="http://search.inode.com/cgi-bin/search.cgi" method="get">
+                                        <span><a href="http://search.inode.com/">Search</a>:</span>
+                                        <span><input name="q" id="q" width="100"></span>
+                                        <span><button type="submit">Go</button></span>
+                                    </form>
+                                </li>
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+                <table border="1" width="100%">
+                    <tr>
+                        <td>Internet Archive</td>
+                        <td align="center" valign="middle" width="55"><font color="green" id="toggleInternetArchiveLabel">ON</font></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <ul>
+                                <li>
+                                    <form action="/action/toggleInternetArchive" method="get" style="margin:0">
+                                        <button type="submit" id="toggleInternetArchiveButton">Turn Off</button>
+                                    </form>
+                                </li>
+                                <li>
+                                    <form action="/action/setInternetArchiveYear" method="get" style="margin:0">
+                                        <span>Year</span>
+                                        <select name="year" id="internetArchiveYear" disabled="disabled">
+                                            <option value="1999">1999</option>
+                                            <option value="2000">2000</option>
+                                            <option value="2001">2001</option>
+                                        </select>
+                                        <span>
+                                            <button type="submit" disabled="disabled">Set</button>
+                                        </span>
+                                    </form>
+                                </li>
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -8,25 +8,53 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Remove="Statics\control\assets\disk.gif" />
-		<None Remove="Statics\control\assets\hive.gif" />
-		<None Remove="Statics\control\index.html" />
+		<None Remove="Statics\assets\back.gif" />
+		<None Remove="Statics\assets\disk.gif" />
+		<None Remove="Statics\assets\hive.gif" />
+		<None Remove="Statics\home\index.html" />
+		<None Remove="Statics\news\article.html" />
 		<None Remove="Statics\news\index.html" />
+		<None Remove="Statics\weather\index.html" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <EmbeddedResource Include="Statics\control\assets\hive.gif" />
+	  <EmbeddedResource Include="Statics\assets\back.gif" />
+	  <EmbeddedResource Include="Statics\assets\hive.gif" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="Statics\control\assets\disk.gif" />
-		<EmbeddedResource Include="Statics\control\index.html" />
+		<EmbeddedResource Include="Statics\assets\disk.gif" />
+		<EmbeddedResource Include="Statics\index.html" />
+		<EmbeddedResource Include="Statics\home\index.html" />
+		<EmbeddedResource Include="Statics\news\article.html" />
 		<EmbeddedResource Include="Statics\news\index.html" />
+		<EmbeddedResource Include="Statics\weather\index.html" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="HtmlAgilityPack" Version="1.11.42" />
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.3" />
 		<PackageReference Include="MimeTypesMap" Version="1.0.8" />
+		<PackageReference Include="SmartReader" Version="0.8.0" />
+		<PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />
+		<PackageReference Include="System.Text.Encoding.CodePages" Version="6.0.0" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="6.0.0" />
+		<PackageReference Include="Vereyon.Web.HtmlSanitizer" Version="1.6.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\LibFoxyProxy\LibFoxyProxy\LibFoxyProxy.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Certs\dialnine.com.crt">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Certs\dialnine.com.key">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Certs\dialnine.com.pfxp">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 </Project>

@@ -7,11 +7,13 @@ internal class ConfigDbContext : DbContextBase, IConfigDb
 {
     static readonly Dictionary<string, object> kDefaultSettings = new()
     {
-        { "ipaddress", IPAddress.Any.ToString() },
-        { "porthttp", 1990 },
-        { "internetarchiveyear", 1999 },
-        { "remotecontrol", true },
-        { "intranet", true }
+        { ConfigNames.IpAddress, IPAddress.Any.ToString() },
+        { ConfigNames.PortHttp, 1990 },
+        { ConfigNames.PortFtp, 1971 },
+        { ConfigNames.Intranet, true },
+        { ConfigNames.ProtoWeb, true },
+        { ConfigNames.InternetArchive, true },
+        { ConfigNames.InternetArchiveYear, 1999 }
     };
 
     public ConfigDbContext(string connectionString) : base(connectionString)

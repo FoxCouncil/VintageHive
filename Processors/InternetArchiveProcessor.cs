@@ -37,14 +37,29 @@ internal static class InternetArchiveProcessor
 
     const string BlockCommentRegex = @"/\*(.|\n)*?\*/";
 
+    const string ASCIIEncoding = "ISO-8859-1";
+
     const int InternetArchiveDataUrlLength = 41;
 
     public static async Task<bool> ProcessRequest(HttpRequest req, HttpResponse res)
     {
+        var isInternetArchiveEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.InternetArchive);
+
+        if (!isInternetArchiveEnabled)
+        {
+            return false;
+        }
+
         // TODO:
         // -- Pull in request details to determine content "relavence"
         // -- Detect stupid shit redirection services and fucking make it better
         // -- Allow the user to add their own redirection shitstuff <-- store in ConfigDB?
+
+        // We don't search Internet Archive for single named domains...
+        if (!req.Uri.Host.Contains('.'))
+        {
+            return false;
+        }
 
         var urlStr = req.Uri.ToString();
 
@@ -64,110 +79,39 @@ internal static class InternetArchiveProcessor
             return false;
         }
 
-        var mimeType = MimeTypesMap.GetMimeType(iaUrl.ToString());
-
-        var dataType = iaUrl.ToString()[InternetArchiveDataUrlLength..];
-
-        if (dataType == null)
-        {
-            return false;
-        }
-
-        dataType = dataType[..dataType.IndexOf('/')].ToLower();
-
-        if (dataType == "")
-        {
-            Debugger.Break();
-        }
-
         var httpClient = Clients.GetHttpClient(req);
 
-        try
+        var iaResponse = await httpClient.GetAsync(iaUrl);
+
+        var contentType = iaResponse.Content.Headers.ContentType.ToString();
+
+        res.CacheTtl = TimeSpan.FromDays(365);
+
+        res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
+
+        Console.WriteLine($"[{"InternetArchive",15} Request] ({iaUrl}) [{contentType}]");
+
+        if (contentType.StartsWith("text/html"))
         {
-            switch (dataType)
+            var iaHtmlData = await iaResponse.Content.ReadAsStringAsync();
+
+            if (!string.IsNullOrWhiteSpace(iaHtmlData))
             {
-                case "if_":
-                case "fw_":
-                case "":
-                {
-                    var iaHtmlData = await httpClient.GetStringAsync(iaUrl);
+                iaHtmlData = ScrubHtml(iaUrl, iaHtmlData);
 
-                    // Todo read incoming encoding
-                    res.SetEncoding(Encoding.GetEncoding("ISO-8859-1"));
+                res.SetBodyString(iaHtmlData.Trim(), contentType);
 
-                    if (!string.IsNullOrWhiteSpace(iaHtmlData))
-                    {
-                        iaHtmlData = ScrubHtml(iaUrl, iaHtmlData);
-
-                        res.SetBodyString(iaHtmlData.Trim(), mimeType ?? "text/html");
-
-                        return true;
-                    }
-                }
-                break;
-
-                case "oe_":
-                {
-                    var iaOctetData = await httpClient.GetByteArrayAsync(iaUrl);
-
-                    if (iaOctetData != null && iaOctetData.Length > 10)
-                    {
-                        var objectMimeType = "application/octet-stream";
-
-                        if (mimeType.StartsWith("audio"))
-                        {
-                            objectMimeType = mimeType;
-                        }
-
-                        res.SetEncoding(Encoding.GetEncoding("ISO-8859-1")).SetBodyData(iaOctetData, objectMimeType);
-
-                        return true;
-                    }
-                }
-                break;
-
-                case "im_":
-                {
-                    var iaImgData = await httpClient.GetByteArrayAsync(iaUrl);
-
-                    if (iaImgData != null && iaImgData.Length > 10)
-                    {
-                        res.SetEncoding(Encoding.GetEncoding("ISO-8859-1")).SetBodyData(iaImgData, MimeTypesMap.GetMimeType(iaUrl.ToString()));
-
-                        return true;
-                    }
-                }
-                break;
-
-                case "js_":
-                {
-                    var iaJsData = await httpClient.GetStringAsync(iaUrl);
-
-                    if (iaJsData.StartsWith(WombatJsPattern))
-                    {
-                        res.SetBodyString(string.Empty, "text/javascript");
-
-                        return true;
-                    }
-
-                    res.SetEncoding(Encoding.GetEncoding("ISO-8859-1")).SetBodyString(iaJsData, "text/javascript");
-
-                    return true;
-                }
-
-                case "cs_":
-                {
-                    var iaCssData = await httpClient.GetStringAsync(iaUrl);
-
-                    iaCssData = Regex.Replace(iaCssData, BlockCommentRegex, string.Empty);
-
-                    res.SetEncoding(Encoding.GetEncoding("ISO-8859-1")).SetBodyString(iaCssData, "text/css");
-
-                    return true;
-                }
+                return true;
             }
         }
-        catch (HttpRequestException) { }
+        else
+        {
+            var iaRawData = await iaResponse.Content.ReadAsByteArrayAsync();
+
+            res.SetBodyData(iaRawData, contentType);
+
+            return true;
+        }
 
         return false;
     }
@@ -290,11 +234,18 @@ internal static class InternetArchiveProcessor
         {
             if (metaTag.Attributes["http-equiv"].Value.ToLowerInvariant() == "refresh")
             {
+                var refreshContent = metaTag.Attributes["content"].Value;
 
+                if (refreshContent.Contains("http:"))
+                {
+                    var rContentParsed = refreshContent.Split("=", 2);
+
+                    var newUrl = rContentParsed[1][(rContentParsed[1].IndexOf("/http")+1)..];
+
+                    metaTag.Attributes["content"].Value = rContentParsed[0] + "=" + newUrl;
+                }
             }
         }
-
-        Console.WriteLine(metaTags.Count);
     }
 
     private static void AlterInternetArchiveEmbedTags(HtmlDocument doc)
