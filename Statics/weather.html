@@ -1,0 +1,121 @@
+﻿<html>
+<head>
+    <title>VintageHive Weather</title>
+    <style>
+        h1, h2, h3, h4, h5, h6, form {
+            margin: 0;
+        }
+
+        ul {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body style="font-family:monospace;">
+    <table width="100%">
+        <tr>
+            <td width="30"><a href="http://hive/"><img border="0" width="30" src="http://hive/assets/hive.gif"></a></td>
+            <td valign="middle" width="450">
+                <font size="5">Weather</font>
+                <font size="1" id="region"></font>
+            </td>
+            <td valign="middle" align="right" partial="mainmenu.html"></td>
+        </tr>
+    </table>
+    <hr>
+    <div id="content">
+        <table border="1" width="100%">
+            <tr>
+                <td id="time" align="center" width="20%"></td>
+                <td id="nw_1_day" align="center" width="20%"></td>
+                <td id="nw_2_day" align="center" width="20%"></td>
+                <td id="nw_3_day" align="center" width="20%"></td>
+                <td id="nw_4_day" align="center" width="20%"></td>
+            </tr>
+            <tr>
+                <td align="center" valign="top">
+                    <img src="#" id="cc_icon">
+                    <div>
+                        <strong><span id="cc_temp1"></span></strong>/<small id="cc_temp2"></small>
+                    </div>
+                    <font size="1" id="cc_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_1_icon">
+                    <div>
+                        <strong><span id="nw_1_temp1"></span></strong>/<small id="nw_1_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_1_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_2_icon">
+                    <div>
+                        <strong><span id="nw_2_temp1"></span></strong>/<small id="nw_2_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_2_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_3_icon">
+                    <div>
+                        <strong><span id="nw_3_temp1"></span></strong>/<small id="nw_3_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_3_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_4_icon">
+                    <div>
+                        <strong><span id="nw_4_temp1"></span></strong>/<small id="nw_4_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_4_comment"></font>
+                </td>
+            </tr>
+            <tr>
+                <td id="nw_5_day" align="center" width="20%"></td>
+                <td id="nw_6_day" align="center" width="20%"></td>
+                <td id="nw_7_day" align="center" width="20%"></td>
+                <td id="nw_8_day" align="center" width="20%"></td>
+                <td rowspan="2" align="center" width="20%">
+                    Weather Data <i>graciously provided by</i> <b>WeatherDB</b>
+                </td>
+            </tr>
+            <tr>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_5_icon">
+                    <div>
+                        <strong><span id="nw_5_temp1"></span></strong>/<small id="nw_5_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_5_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_6_icon">
+                    <div>
+                        <strong><span id="nw_6_temp1"></span></strong>/<small id="nw_6_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_6_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_7_icon">
+                    <div>
+                        <strong><span id="nw_7_temp1"></span></strong>/<small id="nw_7_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_7_comment"></font>
+                </td>
+                <td align="center" valign="top">
+                    <img src="#" id="nw_8_icon">
+                    <div>
+                        <strong><span id="nw_8_temp1"></span></strong>/<small id="nw_8_temp2"></small>
+                    </div>
+                    <font size="1" id="nw_8_comment"></font>
+                </td>
+            </tr>
+        </table>
+        <hr>
+        <form>
+            Location: <input type="text" name="location" id="location_field" size="42"> <input type="submit" value="Go">
+        </form>
+        <hr>
+        <div partial="weatherlocations.html"></div>
+    </div>
+</body>
+</html>

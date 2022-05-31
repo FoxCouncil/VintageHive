@@ -15,4 +15,8 @@ public static class ConfigNames
     public const string Intranet = "intranet";
 
     public const string ProtoWeb = "protoweb";
+
+    public const string Location = "location";
+
+    public const string RemoteAddress = "remoteaddress";
 }

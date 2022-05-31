@@ -1,21 +1,17 @@
-﻿using LibFoxyProxy.Ftp;
-using LibFoxyProxy.Http;
-using LibFoxyProxy.Security;
-using System.Net;
-using System.Text.Json;
+﻿using System.Net;
+using VintageHive.Data;
 using VintageHive.Data.Cache;
 using VintageHive.Data.Config;
 using VintageHive.Processors;
+using VintageHive.Proxy.Ftp;
+using VintageHive.Proxy.Http;
+using VintageHive.Proxy.Security;
 using VintageHive.Utilities;
 
 namespace VintageHive;
 
-internal class Mind
+class Mind
 {
-    const string ConfigFilePath = "config.json";
-
-    const string GeoIPApiUri = "https://freegeoip.app/json/";
-
     static readonly object _lock = new();
 
     static Mind _instance;
@@ -25,8 +21,6 @@ internal class Mind
     internal ConfigDbContext _configDb;
 
     internal CacheDbContext _cacheDb;
-
-    IPAddress _ip;
 
     HttpProxy _httpProxy;
 
@@ -56,7 +50,7 @@ internal class Mind
 
     private Mind() { }
 
-    public void Init()
+    public async Task Init()
     {
         Resources.Initialize();
 
@@ -64,7 +58,15 @@ internal class Mind
 
         _cacheDb = new CacheDbContext("Data Source=cache.db;Cache=Shared");
 
-        var ipAddressString = ConfigDb.SettingGet<string>("ipaddress");
+        await CheckGeoIp();
+
+        // TODO: Ugh, fix this later.
+        if (ConfigDb.SettingGet<bool>(ConfigNames.ProtoWeb))
+        {
+            ProtoWebProcessor.AvailableSites = await ProtoWebUtils.GetAvailableSites();
+        }
+
+        var ipAddressString = ConfigDb.SettingGet<string>(ConfigNames.IpAddress);
 
         var ipAddress = IPAddress.Parse(ipAddressString);
 
@@ -76,6 +78,7 @@ internal class Mind
 
         _httpProxy
             .Use(IntranetProcessor.ProcessRequest)
+            .Use(RedirectionHelper.ProcessRequest)
             .Use(ProtoWebProcessor.ProcessRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
 
@@ -96,6 +99,25 @@ internal class Mind
         var output2 = rsaTest.PEMPrivateKey();
 
         Console.WriteLine(output);
+        Console.WriteLine();
+        Console.WriteLine(output2);
+    }
+
+    public async Task CheckGeoIp()
+    {
+        var location = ConfigDb.SettingGet<string>(ConfigNames.Location);
+        var address = ConfigDb.SettingGet<string>(ConfigNames.RemoteAddress);
+
+        if (location == null || address == null)
+        {
+            var geoIpData = await Clients.GetGeoIpData();
+
+            location = $"{geoIpData.city}, {geoIpData.region}, {geoIpData.countryCode}";
+
+            ConfigDb.SettingSet(ConfigNames.Location, location);
+
+            ConfigDb.SettingSet(ConfigNames.RemoteAddress, geoIpData.query);
+        }
     }
 
     internal void Start()

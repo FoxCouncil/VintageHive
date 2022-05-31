@@ -5,30 +5,87 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>annotations</Nullable>
+		<PlatformTarget>AnyCPU</PlatformTarget>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<None Remove="Statics\assets\back.gif" />
 		<None Remove="Statics\assets\disk.gif" />
+		<None Remove="Statics\assets\error.jpg" />
 		<None Remove="Statics\assets\hive.gif" />
-		<None Remove="Statics\home\index.html" />
-		<None Remove="Statics\news\article.html" />
-		<None Remove="Statics\news\index.html" />
-		<None Remove="Statics\weather\index.html" />
+		<None Remove="Statics\assets\weather\cloudy.jpg" />
+		<None Remove="Statics\assets\weather\cloudy.png" />
+		<None Remove="Statics\assets\weather\cloudy_s_rain.jpg" />
+		<None Remove="Statics\assets\weather\cloudy_s_rain.png" />
+		<None Remove="Statics\assets\weather\cloudy_s_sunny.jpg" />
+		<None Remove="Statics\assets\weather\cloudy_s_sunny.png" />
+		<None Remove="Statics\assets\weather\cloudy_t_sunny.jpg" />
+		<None Remove="Statics\assets\weather\cloudy_t_sunny.png" />
+		<None Remove="Statics\assets\weather\fog.jpg" />
+		<None Remove="Statics\assets\weather\fog.png" />
+		<None Remove="Statics\assets\weather\partly_cloudy.jpg" />
+		<None Remove="Statics\assets\weather\partly_cloudy.png" />
+		<None Remove="Statics\assets\weather\rain.jpg" />
+		<None Remove="Statics\assets\weather\rain.png" />
+		<None Remove="Statics\assets\weather\rain_light.jpg" />
+		<None Remove="Statics\assets\weather\rain_light.png" />
+		<None Remove="Statics\assets\weather\rain_s_cloudy.jpg" />
+		<None Remove="Statics\assets\weather\rain_s_cloudy.png" />
+		<None Remove="Statics\assets\weather\snow.jpg" />
+		<None Remove="Statics\assets\weather\snow.png" />
+		<None Remove="Statics\assets\weather\snow_light.jpg" />
+		<None Remove="Statics\assets\weather\snow_light.png" />
+		<None Remove="Statics\assets\weather\snow_s_rain.jpg" />
+		<None Remove="Statics\assets\weather\snow_s_rain.png" />
+		<None Remove="Statics\assets\weather\sunny.jpg" />
+		<None Remove="Statics\assets\weather\sunny.png" />
+		<None Remove="Statics\assets\weather\sunny_s_cloudy.jpg" />
+		<None Remove="Statics\assets\weather\sunny_s_cloudy.png" />
+		<None Remove="Statics\assets\weather\thunderstorms.jpg" />
+		<None Remove="Statics\assets\weather\thunderstorms.png" />
+		<None Remove="Statics\partials\mainmenu.html" />
+		<None Remove="Statics\partials\weatherlocations.html" />
 	</ItemGroup>
 
 	<ItemGroup>
+	  <EmbeddedResource Include="Statics\assets\error.jpg" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Statics\assets\weather\cloudy.jpg" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Include="Statics\errors\404.html" />
+	  <EmbeddedResource Include="Statics\errors\500.html" />
 	  <EmbeddedResource Include="Statics\assets\back.gif" />
 	  <EmbeddedResource Include="Statics\assets\hive.gif" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<EmbeddedResource Include="Statics\assets\disk.gif" />
-		<EmbeddedResource Include="Statics\index.html" />
-		<EmbeddedResource Include="Statics\home\index.html" />
-		<EmbeddedResource Include="Statics\news\article.html" />
-		<EmbeddedResource Include="Statics\news\index.html" />
-		<EmbeddedResource Include="Statics\weather\index.html" />
+		<EmbeddedResource Include="Statics\assets\weather\cloudy_s_rain.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\cloudy_s_sunny.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\cloudy_t_sunny.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\fog.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\partly_cloudy.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\rain.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\rain_light.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\rain_s_cloudy.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\snow.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\snow_light.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\snow_s_rain.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\sunny.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\sunny_s_cloudy.jpg" />
+		<EmbeddedResource Include="Statics\assets\weather\thunderstorms.jpg" />
+		<EmbeddedResource Include="Statics\partials\weatherlocations.html" />
+		<EmbeddedResource Include="Statics\partials\mainmenu.html" />
+		<EmbeddedResource Include="Statics\settings.html" />
+		<EmbeddedResource Include="Statics\home.html" />
+		<EmbeddedResource Include="Statics\article.html" />
+		<EmbeddedResource Include="Statics\news.html" />
+		<EmbeddedResource Include="Statics\weather404.html" />
+		<EmbeddedResource Include="Statics\weather.html" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -43,10 +100,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\LibFoxyProxy\LibFoxyProxy\LibFoxyProxy.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <None Update="Certs\dialnine.com.crt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
@@ -54,6 +107,12 @@
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
 	  <None Update="Certs\dialnine.com.pfxp">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="libeay32.dll">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="ssleay32.dll">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
 	</ItemGroup>

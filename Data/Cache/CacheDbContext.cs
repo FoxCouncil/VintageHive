@@ -1,5 +1,4 @@
-﻿using LibFoxyProxy.Http;
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Cache;
 
@@ -38,7 +37,7 @@ internal class CacheDbContext : DbContextBase, ICacheDb
 
             if (!reader.Read())
             {
-                return default(T);
+                return default;
             }
 
             if (reader.GetDateTime(1) <= DateTime.UtcNow)

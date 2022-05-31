@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VintageHive.Utilities;
@@ -73,7 +74,40 @@ public static class Extensions
         }
         else
         {
-            doc.LoadHtml(Resources.GetStaticsResourceString("control/index.html"));
+            doc.LoadHtml(Resources.GetStaticsResourceString(path));
+        }
+
+        doc.ProcessPartials();
+    }
+
+    public static void ProcessPartials(this HtmlDocument doc)
+    {
+        if (doc == null)
+        {
+            return;
+        }
+
+        var nodes = doc.DocumentNode.SelectNodes("//*[@partial]");
+
+        if (nodes == null)
+        {
+            return;
+        }
+
+        foreach (var node in nodes)
+        {
+            var partial = node.GetAttributeValue("partial", "");
+
+            if (string.IsNullOrEmpty(partial) || !partial.EndsWith(".html") && !Resources.Partials.ContainsKey(partial))
+            {
+                continue;
+            }
+
+            var partialDoc = new HtmlDocument();
+
+            partialDoc.LoadVirtual($"partials/{partial}");
+
+            node.InnerHtml = partialDoc.DocumentNode.InnerHtml;
         }
     }
 
@@ -102,5 +136,34 @@ public static class Extensions
         var m = Regex.Match(str, pattern);
 
         return m.Success ? m.Index : -1;
+    }
+
+    public static Dictionary<string, string> ToDictionary(this NameValueCollection nvc)
+    {
+        var dict = new Dictionary<string, string>();
+
+        if (nvc != null)
+        {
+            foreach (string key in nvc.AllKeys)
+            {
+                if (key == null)
+                {
+                    dict.Add(nvc.ToString(), string.Empty);
+                }
+                else
+                {
+                    dict.Add(key, nvc[key]);
+                }
+            }
+        }
+
+        return dict;
+    }
+
+    public static string CleanWeatherImageUrl(this string url)
+    {
+        return url.Replace("https://ssl.gstatic.com/onebox/weather/64/", "http://hive/assets/weather/")
+            .Replace("https://ssl.gstatic.com/onebox/weather/48/", "http://hive/assets/weather/")
+            .Replace(".png", ".jpg");
     }
 }

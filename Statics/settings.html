@@ -1,29 +1,58 @@
 ﻿<html>
 <head>
     <title>VintageHive Control</title>
+    <style>
+        h1, h2, h3, h4, h5, h6, form {
+            margin: 0;
+        }
+        ul {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+    </style>
 </head>
-<body style="font-family:monospace;" link="blue" alink="blue" vlink="blue">
+<body style="font-family:monospace;">
     <table width="100%">
         <tr>
-            <td width="30"><a href="http://home/"><img border="0" width="30" src="http://hive/assets/hive.gif"></a></td>
-            <td valign="middle" width="150"><font size="5">Control</font></td>
-            <td valign="middle" align="right">
-                <a href="http://home/">Home</a> |
-                <a href="http://news/">News</a> |
-                <a href="http://weather/">Weather</a> |
-                <a href="http://hive/">Control</a>
-            </td>
+            <td width="30"><a href="http://hive/"><img border="0" width="30" src="http://hive/assets/hive.gif"></a></td>
+            <td valign="middle" width="150"><font size="5">Settings</font></td>
+            <td valign="middle" align="right" partial="mainmenu.html"></td>
         </tr>
     </table>
     <hr>
-    <table border="1" width="100%">
+    <table border="0" width="100%">
         <tr>
-            <td width="33%" align="center" valign="middle"><img src="assets/disk.gif" width="16" height="16"> Cache Control</td>
-            <td width="33%" align="center">Options</td>
+            <td width="33%" align="center" valign="middle">Options</td>
+            <td width="33%" align="center">Processors</td>
         </tr>
         <tr>
             <td align="center" valign="top">
                 <table border="1" width="100%">
+                    <tr>
+                        <td width="33%" align="center" valign="middle" colspan="2">
+                            <form action="/action/resetgeoip" method="post" style="float:right">
+                                <button type="submit" style="display:inline;margin:0">Reload</button>
+                            </form>
+                            GeoIP
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" width="50%">
+                            <h2 id="geoiplocation">-</h2>
+                            <h4 id="geoipaddress">-</h4>
+                        </td>
+                    </tr>
+                </table>
+                <hr>
+                <table border="1" width="100%">
+                    <tr>
+                        <td width="33%" align="center" valign="middle" colspan="2">
+                            <form action="/action/clearcache" method="post" style="float:right">
+                                <button type="submit" style="display:inline;margin:0">Clear Cache</button>
+                            </form>
+                            Cache Control
+                        </td>
+                    </tr>
                     <tr>
                         <td align="center" width="50%">
                             <h1 id="totalProxyCache">0</h1>
@@ -35,9 +64,6 @@
                         </td>
                     </tr>
                 </table>
-                <form action="/action/clearcache" method="post">
-                    <button type="submit">Clear Cache</button>
-                </form>
             </td>
             <td>
                 <table border="1" width="100%">
@@ -49,17 +75,15 @@
                         <td>
                             <ul>
                                 <li>
-                                    <form action="/action/toggleIntranet" method="get" style="margin:0">
+                                    <form action="/action/toggleIntranet" method="get">
                                         <button type="submit" id="toggleIntranetButton">Turn Off</button>
                                     </form>
                                 </li>
-                                <li><a href="http://home/">Home</a></li>
-                                <li><a href="http://news/">News</a></li>
-                                <li><a href="http://weather/">Weather</a></li>
                             </ul>
                         </td>
                     </tr>
                 </table>
+                <hr>
                 <table border="1" width="100%">
                     <tr>
                         <td>ProtoWeb</td>
@@ -74,7 +98,10 @@
                                     </form>
                                 </li>
                                 <li>
-                                    <a href="http://www.inode.com/">View Site List</a>
+                                    <a href="http://www.inode.com/">Site List</a>
+                                </li>
+                                <li>
+                                    <a href="http://www.inode.com/cgi-bin/webring.cgi">WebRings</a>
                                 </li>
                                 <li>
                                     <form action="http://search.inode.com/cgi-bin/search.cgi" method="get">
@@ -87,6 +114,7 @@
                         </td>
                     </tr>
                 </table>
+                <hr>
                 <table border="1" width="100%">
                     <tr>
                         <td>Internet Archive</td>
@@ -103,13 +131,10 @@
                                 <li>
                                     <form action="/action/setInternetArchiveYear" method="get" style="margin:0">
                                         <span>Year</span>
-                                        <select name="year" id="internetArchiveYear" disabled="disabled">
-                                            <option value="1999">1999</option>
-                                            <option value="2000">2000</option>
-                                            <option value="2001">2001</option>
+                                        <select name="year" id="internetArchiveYear">
                                         </select>
                                         <span>
-                                            <button type="submit" disabled="disabled">Set</button>
+                                            <button type="submit">Set</button>
                                         </span>
                                     </form>
                                 </li>

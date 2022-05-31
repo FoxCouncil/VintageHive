@@ -1,0 +1,3 @@
+﻿$selfSignedRootCA = New-SelfSignedCertificate -DnsName SelfSignedRootCA -notafter (Get-Date).AddYears(10) -KeyExportPolicy Exportable -KeyUsage CertSign,CRLSign,DigitalSignature -KeySpec KeyExchange -KeyLength 2048 -KeyUsageProperty All -KeyAlgorithm 'RSA' -HashAlgorithm 'SHA1' -Provider 'Microsoft Enhanced RSA and AES Cryptographic Provider'
+$mypwd = ConvertTo-SecureString -String "1234" -Force -AsPlainText
+$selfSignedRootCA | Export-PfxCertificate -FilePath vintagehive-ca.pfx -Password $mypwd

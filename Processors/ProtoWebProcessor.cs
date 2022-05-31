@@ -1,5 +1,5 @@
-﻿using LibFoxyProxy.Http;
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
 
 namespace VintageHive.Processors;
@@ -45,8 +45,8 @@ internal static class ProtoWebProcessor
 
                 return true;
             }
-            catch (HttpRequestException ex) { }
-            catch (Exception ext)
+            catch (HttpRequestException) { /* Ignore */ }
+            catch (Exception)
             {
                 Debugger.Break();
             }

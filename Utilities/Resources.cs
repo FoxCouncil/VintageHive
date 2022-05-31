@@ -9,7 +9,9 @@ internal static class Resources
 
     public static readonly Assembly AppResourcesPath = typeof(Resources).Assembly;
 
-    public static readonly Dictionary<string, byte[]> Statics = new Dictionary<string, byte[]>();
+    public static readonly Dictionary<string, byte[]> Statics = new();
+
+    public static readonly Dictionary<string, string> Partials = new();
 
     public static void Initialize()
     {
@@ -19,7 +21,7 @@ internal static class Resources
         {
             if (name.StartsWith(ResourcesStaticsPath, StringComparison.OrdinalIgnoreCase))
             {
-                var relativePath = name.Substring(ResourcesStaticsPath.Length);
+                var relativePath = name[ResourcesStaticsPath.Length..];
 
                 var lastPeriodCharIdx = relativePath.LastIndexOf(".");
 
@@ -27,7 +29,14 @@ internal static class Resources
 
                 relativePath = directoryPath + relativePath[lastPeriodCharIdx..];
 
-                Statics.Add(relativePath, GetManifestResourceData(name));
+                var resourceData = GetManifestResourceData(name);
+
+                Statics.Add(relativePath, resourceData);
+
+                if (relativePath.StartsWith("partials"))
+                {
+                    Partials.Add(relativePath[9..], Encoding.UTF8.GetString(resourceData));
+                }
             }
         }
     }

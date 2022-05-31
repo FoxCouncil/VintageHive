@@ -1,12 +1,12 @@
 ﻿using HeyRed.Mime;
 using HtmlAgilityPack;
-using LibFoxyProxy.Http;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using VintageHive.Processors.InternetArchive;
+using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
 
 namespace VintageHive.Processors;
@@ -37,9 +37,13 @@ internal static class InternetArchiveProcessor
 
     const string BlockCommentRegex = @"/\*(.|\n)*?\*/";
 
+    const string SignatureRegex = @"\d{14}";
+
     const string ASCIIEncoding = "ISO-8859-1";
 
     const int InternetArchiveDataUrlLength = 41;
+
+    static readonly TimeSpan CacheTtl = TimeSpan.FromDays(365);
 
     public static async Task<bool> ProcessRequest(HttpRequest req, HttpResponse res)
     {
@@ -78,56 +82,116 @@ internal static class InternetArchiveProcessor
         {
             return false;
         }
+        
+        res.Cache = false;
 
-        var httpClient = Clients.GetHttpClient(req);
+        var internetArchiveYear = Mind.Instance.ConfigDb.SettingGet<int>(ConfigNames.InternetArchiveYear);
 
-        var iaResponse = await httpClient.GetAsync(iaUrl);
+        var cacheKey = $"PC-{internetArchiveYear}-{req.Uri}";
 
-        var contentType = iaResponse.Content.Headers.ContentType.ToString();
+        var cachedResponse = Mind.Instance.CacheDb.Get<string>(cacheKey);
 
-        res.CacheTtl = TimeSpan.FromDays(365);
+        var contentType = string.Empty;
 
-        res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
+        byte[] contentData = null;
 
-        Console.WriteLine($"[{"InternetArchive",15} Request] ({iaUrl}) [{contentType}]");
+        var isCached = false;
 
-        if (contentType.StartsWith("text/html"))
+        if (cachedResponse == null)
         {
-            var iaHtmlData = await iaResponse.Content.ReadAsStringAsync();
+            var httpClient = Clients.GetHttpClient(req);
 
-            if (!string.IsNullOrWhiteSpace(iaHtmlData))
+            var iaResponse = await httpClient.GetAsync(iaUrl);
+
+            if (iaResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                iaHtmlData = ScrubHtml(iaUrl, iaHtmlData);
+                return false;
+            }
 
-                res.SetBodyString(iaHtmlData.Trim(), contentType);
+            contentType = iaResponse.Content.Headers.ContentType.ToString() ?? "text/html";
 
-                return true;
+            if (contentType.StartsWith("text/html"))
+            {
+                var iaHtmlData = await iaResponse.Content.ReadAsStringAsync();
+
+                if (!string.IsNullOrWhiteSpace(iaHtmlData))
+                {
+                    iaHtmlData = ScrubHtml(iaUrl, iaHtmlData);
+
+                    if (iaHtmlData.Contains("https"))
+                    {
+                        // Debugger.Break();
+                    }
+
+                    contentData = Encoding.ASCII.GetBytes(iaHtmlData);
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                contentData = await iaResponse.Content.ReadAsByteArrayAsync();
+            }
+
+            if (req.Uri.Host.StartsWith(InternetArchiveDataServer))
+            {
+                res.Cache = true;
+                res.CacheTtl = CacheTtl;
+            }
+            else
+            {
+                var cachedData = new InternetArchiveCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
+
+                var jsonData = JsonSerializer.Serialize<InternetArchiveCachedData>(cachedData);
+
+                Mind.Instance.CacheDb.Set<string>(cacheKey, CacheTtl, jsonData);
             }
         }
         else
         {
-            var iaRawData = await iaResponse.Content.ReadAsByteArrayAsync();
+            isCached = true;
+            
+            var cachedData = JsonSerializer.Deserialize<InternetArchiveCachedData>(cachedResponse);
 
-            res.SetBodyData(iaRawData, contentType);
-
-            return true;
+            contentType = cachedData.ContentType;
+            contentData = Convert.FromBase64String(cachedData.ContentDataBase64);
         }
 
-        return false;
+        if (contentData == null)
+        {
+            return false;
+        }
+        
+        Console.WriteLine($"[{"InternetArchive",15} Request] |{(isCached ? "HIT" : "MISS"), 4}| \\{internetArchiveYear}\\ ({req.Uri}) [{contentType}]");
+
+        if (contentType.Contains("utf8"))
+        {
+            res.SetEncoding(Encoding.UTF8);
+        }
+        else
+        {
+            res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
+        }
+
+        res.SetBodyData(contentData, contentType);        
+
+        return true;
     }
 
     static async Task<Uri> GetAvailability(HttpRequest req)
     {
         var incomingUrl = req.Uri.ToString();
 
-        var key = $"AREQ-{incomingUrl}";
+        var internetArchiveYear = Mind.Instance.ConfigDb.SettingGet<int>(ConfigNames.InternetArchiveYear);
+
+        var key = $"AREQ-{internetArchiveYear}-{incomingUrl}";
 
         var result = Mind.Instance.CacheDb.Get<string>(key);
 
         if (result == null)
         {
-            var internetArchiveYear = Mind.Instance.ConfigDb.SettingGet<int>("internetarchiveyear");
-
             var availabilityDate = $"{internetArchiveYear}{DateTime.UtcNow:MMdd}";
 
             var incomingUrlEncoded = HttpUtility.UrlEncode(incomingUrl);
@@ -192,7 +256,7 @@ internal static class InternetArchiveProcessor
 
         doc.LoadHtml(html);
 
-        StripInternetArchiveTags(doc);
+        var iaSignature = StripInternetArchiveTags(doc);
 
         AlterInternetArchiveBaseTag(doc);
         AlterInternetArchiveMetaTags(doc);
@@ -208,8 +272,16 @@ internal static class InternetArchiveProcessor
         return output;
     }
 
-    static void StripInternetArchiveTags(HtmlDocument doc)
+    static string StripInternetArchiveTags(HtmlDocument doc)
     {
+        var signature = string.Empty;
+
+        var matches = Regex.Match(doc.DocumentNode.InnerHtml, SignatureRegex);
+
+        signature = $"{FullRewritePattern}{matches.Value}/";
+
+        doc.DocumentNode.InnerHtml = doc.DocumentNode.InnerHtml.Replace(signature, string.Empty);
+
         StripInternetArchiveScriptTags(doc);
         StripInternetArchiveCSSTags(doc);
 
@@ -219,6 +291,8 @@ internal static class InternetArchiveProcessor
         {
             doc.DocumentNode.InnerHtml = doc.DocumentNode.InnerHtml.Remove(commentBegins, CommentPattern.Length);
         }
+
+        return signature;
     }
 
     private static void AlterInternetArchiveMetaTags(HtmlDocument doc)
@@ -281,7 +355,7 @@ internal static class InternetArchiveProcessor
             {
                 var linkPoint = baseTag.Attributes["href"].Value.IndexOf("/http://");
 
-                baseTag.Attributes["href"].Value = baseTag.Attributes["href"].Value.Substring(linkPoint + 1);
+                baseTag.Attributes["href"].Value = baseTag.Attributes["href"].Value[(linkPoint + 1)..];
             }
         }
     }
@@ -333,13 +407,27 @@ internal static class InternetArchiveProcessor
 
         foreach (var anchorTag in anchorTags)
         {
-            if (anchorTag.Attributes["href"] != null && (anchorTag.Attributes["href"].Value.StartsWith(RewritePattern) || anchorTag.Attributes["href"].Value.StartsWith(FullRewritePattern)))
+            if (anchorTag.Attributes["href"] != null)
             {
                 anchorTag.Attributes["href"].Value = anchorTag.Attributes["href"].Value.Replace("/https://", "/http://");
 
-                var linkPoint = anchorTag.Attributes["href"].Value.IndexOf("/http://");
+                var linkPoint = -1;
 
-                anchorTag.Attributes["href"].Value = anchorTag.Attributes["href"].Value.Substring(linkPoint + 1);
+                if (anchorTag.Attributes["href"].Value.StartsWith(RewritePattern))
+                {
+                    linkPoint = anchorTag.Attributes["href"].Value.IndexOf("/", RewritePattern.Length);
+                }
+                else if (anchorTag.Attributes["href"].Value.StartsWith(FullRewritePattern))
+                {
+                    linkPoint = anchorTag.Attributes["href"].Value.IndexOf("/", FullRewritePattern.Length);
+                }
+
+                if (linkPoint == -1)
+                {
+                    continue;
+                }
+
+                anchorTag.Attributes["href"].Value = anchorTag.Attributes["href"].Value[(linkPoint+1)..];
             }
         }
     }
@@ -355,11 +443,25 @@ internal static class InternetArchiveProcessor
 
         foreach (var areaTag in areaTags)
         {
-            if (areaTag.Attributes["href"] != null && (areaTag.Attributes["href"].Value.StartsWith(RewritePattern) || areaTag.Attributes["href"].Value.StartsWith(FullRewritePattern)))
+            if (areaTag.Attributes["href"] != null)
             {
-                var linkPoint = areaTag.Attributes["href"].Value.IndexOf("/http://");
+                var linkPoint = -1;
+                
+                if (areaTag.Attributes["href"].Value.StartsWith(RewritePattern))
+                {
+                    linkPoint = areaTag.Attributes["href"].Value.IndexOf("/", RewritePattern.Length);
+                }
+                else if (areaTag.Attributes["href"].Value.StartsWith(FullRewritePattern))
+                {
+                    linkPoint = areaTag.Attributes["href"].Value.IndexOf("/", FullRewritePattern.Length);
+                }
 
-                areaTag.Attributes["href"].Value = areaTag.Attributes["href"].Value.Substring(linkPoint + 1);
+                if (linkPoint == -1)
+                {
+                    // Debugger.Break();
+                }
+
+                areaTag.Attributes["href"].Value = areaTag.Attributes["href"].Value[(linkPoint+1)..];
             }
         }
     }
