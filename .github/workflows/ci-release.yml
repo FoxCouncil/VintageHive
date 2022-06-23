@@ -39,7 +39,7 @@ jobs:
         release_name="VintageHive-$tag-${{ matrix.target }}"
 
         # Build everything
-        dotnet publish --runtime "${{ matrix.target }}" --self-contain -c Release -o "$release_name"
+        dotnet publish --runtime "${{ matrix.target }}" --no-self-contained -c Release -o "$release_name"
 
         # Pack files
         if [ "${{ matrix.target }}" == "win-x64" ]; then
