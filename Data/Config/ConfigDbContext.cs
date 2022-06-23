@@ -86,23 +86,36 @@ internal class ConfigDbContext : DbContextBase, IConfigDb
 
             using var transaction = context.BeginTransaction();
 
-            using var updateCommand = context.CreateCommand();
-
-            updateCommand.CommandText = "UPDATE config SET value = @value WHERE key = @key";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@key", key));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
+            if (value == null)
             {
-                using var insertCommand = context.CreateCommand();
+                using var deleteCommand = context.CreateCommand();
 
-                insertCommand.CommandText = "INSERT INTO config (key, value) VALUES(@key, @value)";
+                deleteCommand.CommandText = "DELETE FROM config WHERE key = @key";
 
-                insertCommand.Parameters.Add(new SqliteParameter("@key", key));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
+                deleteCommand.Parameters.Add(new SqliteParameter("@key", key));
 
-                insertCommand.ExecuteNonQuery();
+                deleteCommand.ExecuteNonQuery();
+            }
+            else 
+            {
+                using var updateCommand = context.CreateCommand();
+
+                updateCommand.CommandText = "UPDATE config SET value = @value WHERE key = @key";
+
+                updateCommand.Parameters.Add(new SqliteParameter("@key", key));
+                updateCommand.Parameters.Add(new SqliteParameter("@value", value));
+
+                if (updateCommand.ExecuteNonQuery() == 0)
+                {
+                    using var insertCommand = context.CreateCommand();
+
+                    insertCommand.CommandText = "INSERT INTO config (key, value) VALUES(@key, @value)";
+
+                    insertCommand.Parameters.Add(new SqliteParameter("@key", key));
+                    insertCommand.Parameters.Add(new SqliteParameter("@value", value));
+
+                    insertCommand.ExecuteNonQuery();
+                }
             }
 
             transaction.Commit();

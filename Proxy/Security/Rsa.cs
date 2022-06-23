@@ -1,36 +1,54 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using static VintageHive.Proxy.Security.Native;
 
-namespace VintageHive.Proxy.Security
+namespace VintageHive.Proxy.Security;
+
+public class Rsa : NativeRef
 {
-    public class Rsa : NativeRef
+    public int Size => CheckResultSuccess(RSA_size(this));
+
+    public Rsa() : base(RSA_new()) { }
+    
+    public Rsa(IntPtr pointer, bool owner) : base(pointer, owner) { }
+
+    public void GenerateKey(int bits, int e)
     {
-        public int Size => Native.CheckResultSuccess(Native.RSA_size(this));
-
-        public Rsa() : base(Native.RSA_new()) { }
-
-        public void GenerateKey(int bits, int e)
+        if (!IsOwner)
         {
-            var result = Native.RSA_generate_key_ex(this, bits, BigNumber.Rsa3, IntPtr.Zero);
+            throw new ApplicationException("Not owner of RSA object, cannot generate a key!");
+        }
+        
+        var result = RSA_generate_key_ex(this, bits, BigNumber.Rsa3, IntPtr.Zero);
 
-            Native.CheckResultSuccess(result);
+        CheckResultSuccess(result);
+    }
+
+    public string PEMPrivateKey()
+    {
+        var writeBio = new BasicInputOutput();
+
+        var result = PEM_write_bio_RSAPrivateKey(writeBio, this, IntPtr.Zero, null, 0, IntPtr.Zero, IntPtr.Zero);
+
+        CheckResultSuccess(result);
+
+        return writeBio.ToString();
+    }
+
+    public override void Dispose()
+    {
+        RSA_free(this);
+    }
+
+    public static Rsa FromPEMPrivateKey(string key)
+    {
+        var readBio = new BasicInputOutput(key);
+
+        var rsaPtr = PEM_read_bio_RSAPrivateKey(readBio, IntPtr.Zero, null, IntPtr.Zero);
+
+        if (rsaPtr == IntPtr.Zero)
+        {
+            throw new ApplicationException("Failed to parse PEM private key!");
         }
 
-        public string PEMPrivateKey()
-        {
-            var writeBio = new BasicInputOutput();
-
-            Native.CheckResultSuccess(Native.PEM_write_bio_RSAPrivateKey(writeBio, this, IntPtr.Zero, null, 0, IntPtr.Zero, IntPtr.Zero));
-
-            return writeBio.ToString();
-        }
-
-        public override void Dispose()
-        {
-            Native.RSA_free(this);
-        }
+        return new Rsa(rsaPtr, true);
     }
 }

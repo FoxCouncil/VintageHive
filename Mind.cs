@@ -58,6 +58,8 @@ class Mind
 
         _cacheDb = new CacheDbContext("Data Source=cache.db;Cache=Shared");
 
+        CertificateAuthority.Init(_configDb);
+
         await CheckGeoIp();
 
         // TODO: Ugh, fix this later.
@@ -86,21 +88,33 @@ class Mind
 
         _ftpProxy = new(ipAddress, ftpPort);
 
-        _httpsProxy = new(ipAddress, 9999, true);
+        // _httpsProxy = new(ipAddress, 9999, true);
 
+        // ==== TESTING AREA =====
+#if DEBUG
         using var rsaTest = new Rsa();
 
         rsaTest.GenerateKey(512, 3);
 
         var output = rsaTest.PEMPrivateKey();
 
-        rsaTest.GenerateKey(4096, 3);
-
-        var output2 = rsaTest.PEMPrivateKey();
-
         Console.WriteLine(output);
         Console.WriteLine();
+
+        var rsa = Rsa.FromPEMPrivateKey(output);
+
+        var output2 = rsa.PEMPrivateKey();
+
         Console.WriteLine(output2);
+#endif
+    }
+
+    public async Task ResetGeoIP()
+    {
+        ConfigDb.SettingSet<string>(ConfigNames.Location, null);
+        ConfigDb.SettingSet<string>(ConfigNames.RemoteAddress, null);
+
+        await CheckGeoIp();
     }
 
     public async Task CheckGeoIp()
@@ -124,7 +138,7 @@ class Mind
     {
         _httpProxy.Start();
 
-        _httpsProxy.Start();
+        // _httpsProxy.Start();
 
         _ftpProxy.Start();
 

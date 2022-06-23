@@ -1,30 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
+using static VintageHive.Proxy.Security.Native;
+using static System.Text.Encoding;
 
 namespace VintageHive.Proxy.Security;
 
 internal class BasicInputOutput : NativeRef
 {
-    public uint PendingBytes => Native.BIO_ctrl_pending(this);
+    public uint PendingBytes => BIO_ctrl_pending(this);
 
-    public BasicInputOutput() : base(Native.BIO_new(Native.BIO_s_mem())) { }
+    public Encoding StringEncoding { get; private set; } = ASCII;
+
+    public BasicInputOutput() : base(BIO_new(BIO_s_mem())) { }
+
+    public BasicInputOutput(string data) : this() 
+    {
+        Write(data);
+    }
 
     public int Read(byte[] buffer, int count)
     {
-        return Native.BIO_read(Handle, buffer, count);
+        return BIO_read(Handle, buffer, count);
+    }
+
+    public int Write(string data)
+    {
+        return BIO_write(Handle, StringEncoding.GetBytes(data), data.Length);
     }
 
     public int Write(byte[] buffer, int length)
     {
-        return Native.BIO_write(Handle, buffer, length);
+        return BIO_write(Handle, buffer, length);
     }
 
     public void SetClosed()
     {
-        var ret = Native.BIO_set_close(Handle, Native.BinaryInputOutputClose);
+        var ret = BIO_set_close(Handle, BinaryInputOutputClose);
 
         if (ret != 1)
         {
@@ -42,7 +52,7 @@ internal class BasicInputOutput : NativeRef
 
             Read(bytes, bytes.Length);
 
-            output = Encoding.ASCII.GetString(bytes);
+            output = ASCII.GetString(bytes);
         }
 
         return output;
@@ -50,6 +60,6 @@ internal class BasicInputOutput : NativeRef
 
     public override void Dispose()
     {
-        Native.BIO_free(this);
+        BIO_free(this);
     }
 }

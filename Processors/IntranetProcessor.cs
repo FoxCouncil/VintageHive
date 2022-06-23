@@ -368,8 +368,6 @@ internal static class IntranetProcessor
 
     private static async Task<bool> ProcessActionRequest(HttpRequest req, HttpResponse res)
     {
-        await Task.Delay(0);
-
         var actionName = req.Uri.Segments[2];
 
         switch (actionName)
@@ -379,6 +377,15 @@ internal static class IntranetProcessor
                 Mind.Instance._cacheDb.Clear();
 
                 res.SetBodyString("Cache is cleared!" + HtmlOkayGoBack).SetFound(FoundUri);
+
+                return true;
+            }
+
+            case "resetgeoip":
+            {
+                await Mind.Instance.ResetGeoIP();
+
+                res.SetBodyString("Reset GeoIP stored location! " + HtmlOkayGoBack).SetFound(FoundUri);
 
                 return true;
             }
@@ -409,19 +416,6 @@ internal static class IntranetProcessor
                 return true;
             }
 
-            case "toggleProtoWeb":
-            {
-                var isInternetArchiveEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.ProtoWeb);
-
-                isInternetArchiveEnabled = !isInternetArchiveEnabled;
-
-                Mind.Instance.ConfigDb.SettingSet(ConfigNames.ProtoWeb, isInternetArchiveEnabled);
-
-                res.SetBodyString("Internet Archive is now " + isInternetArchiveEnabled.ToOnOff() + HtmlOkayGoBack).SetFound(FoundUri);
-
-                return true;
-            }
-
             case "setInternetArchiveYear":
             {
                 var year = req.Uri.Query.Split('=')[1];
@@ -434,6 +428,19 @@ internal static class IntranetProcessor
                 Mind.Instance.ConfigDb.SettingSet(ConfigNames.InternetArchiveYear, yearInt);
 
                 res.SetBodyString("Internet Archive year is now set to " + yearInt + HtmlOkayGoBack).SetFound(FoundUri);
+
+                return true;
+            }
+
+            case "toggleProtoWeb":
+            {
+                var isInternetArchiveEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.ProtoWeb);
+
+                isInternetArchiveEnabled = !isInternetArchiveEnabled;
+
+                Mind.Instance.ConfigDb.SettingSet(ConfigNames.ProtoWeb, isInternetArchiveEnabled);
+
+                res.SetBodyString("ProtoWeb is now " + isInternetArchiveEnabled.ToOnOff() + HtmlOkayGoBack).SetFound(FoundUri);
 
                 return true;
             }

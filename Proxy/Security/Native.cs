@@ -27,6 +27,11 @@ internal static class Native
         SSL_load_error_strings();
     }
 
+    /* Delegate (Un)Function Pointers */
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate int PEMPasswordCallback(IntPtr buf, int size, int rwflag, IntPtr userdata);
+
     /* INITS */
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
@@ -46,6 +51,30 @@ internal static class Native
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public extern static string ERR_lib_error_string(uint errorCode);
 
+    /* EVP_PKEY */
+    
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_PKEY_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void EVP_PKEY_free(IntPtr pkey);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int EVP_PKEY_set1_RSA(IntPtr pkey, IntPtr key);
+
+    /* X509 */
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_new();
+
+    /* X509 REQ */
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_REQ_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void X509_REQ_free(IntPtr a);
+
     /* RSA Methods */
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
@@ -64,6 +93,9 @@ internal static class Native
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int PEM_write_bio_RSAPrivateKey(IntPtr bp, IntPtr x, IntPtr enc, byte[] kstr, int klen, IntPtr cb, IntPtr u);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr PEM_read_bio_RSAPrivateKey(IntPtr bp, IntPtr x, PEMPasswordCallback cb, IntPtr u);
 
     /* BigNumber */
 
@@ -236,5 +268,15 @@ internal static class Native
         }
 
         return returnCode;
+    }
+
+    public static IntPtr CheckResultSuccess(IntPtr returnPtr)
+    {
+        if (returnPtr == IntPtr.Zero)
+        {
+            throw new OpenSslException();
+        }
+
+        return returnPtr;
     }
 }

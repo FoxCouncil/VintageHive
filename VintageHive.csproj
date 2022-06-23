@@ -5,7 +5,6 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>annotations</Nullable>
-		<PlatformTarget>AnyCPU</PlatformTarget>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -100,15 +99,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <None Update="Certs\dialnine.com.crt">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="Certs\dialnine.com.key">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="Certs\dialnine.com.pfxp">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
 	  <None Update="libeay32.dll">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>

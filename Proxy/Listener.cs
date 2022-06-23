@@ -69,7 +69,7 @@ public abstract class Listener
 
         socket.Listen();
 
-        Console.WriteLine($"Starting Listener...{Address}:{Port}");
+        Console.WriteLine($"Starting {GetType().Name} Listener...{Address}:{Port}");
 
         while (IsListening)
         {
@@ -110,7 +110,6 @@ public abstract class Listener
                     {
                         // We need to fake it...
                         await connection.SendAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection Established\r\n\r\n"), SocketFlags.None);
-
                     }
 
                     var networkStream = new NetworkStream(connection);
