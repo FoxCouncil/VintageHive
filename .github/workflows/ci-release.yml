@@ -1,9 +1,8 @@
-name: VintageHive Windows (x32/x64)
+name: VintageHive Release CI
 
 on:
   release:
     types: [published]
-
 
 jobs:
   release:
@@ -40,7 +39,7 @@ jobs:
         release_name="VintageHive-$tag-${{ matrix.target }}"
 
         # Build everything
-        dotnet publish --runtime "${{ matrix.target }}" -c Release -o "$release_name"
+        dotnet publish --runtime "${{ matrix.target }}" --self-contain -c Release -o "$release_name"
 
         # Pack files
         if [ "${{ matrix.target }}" == "win-x64" ]; then
