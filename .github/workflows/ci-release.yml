@@ -10,7 +10,7 @@ jobs:
     name: Release
     strategy:
       matrix:
-        kind: ['windows']
+        kind: ['linux', 'windows', 'macOS']
         include:
           - kind: linux
             os: ubuntu-latest
@@ -54,6 +54,6 @@ jobs:
     - name: Publish
       uses: softprops/action-gh-release@v1
       with:
-        files: "VintageHive*"
+        files: "VintageHive-v*"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
