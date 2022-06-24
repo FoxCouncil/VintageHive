@@ -1,4 +1,4 @@
-Vintage Hive By @FoxCouncil
+<img src="Statics/assets/hive.gif" height="30"> Vintage Hive By @FoxCouncil
 ======
 
 This project tries to help alter the modern internet to work on really old computers and systems, with a focus on cleaning the rough edges and bringing in multiple sources of archival internet data. Browse the web like you are back in 1999, or have access to modern encrypted websites from Windows 95 (_just don't login to your bank with this!_)
