@@ -101,7 +101,7 @@ internal class CacheDbContext : DbContextBase, ICacheDb
         {
             var proxyCacheCountCommand = context.CreateCommand();
 
-            proxyCacheCountCommand.CommandText = "SELECT COUNT(*) FROM cache WHERE key LIKE 'PC-%'";
+            proxyCacheCountCommand.CommandText = "SELECT COUNT(*) FROM cache WHERE key LIKE '%PC-%'";
 
             using var proxyCacheCountReader = proxyCacheCountCommand.ExecuteReader();
 

@@ -8,6 +8,8 @@ public static class ConfigNames
 
     public const string PortFtp = "portftp";
 
+    public const string PortSocks5 = "portsocks5";
+
     public const string InternetArchive = "internetarchive";
 
     public const string InternetArchiveYear = "internetarchiveyear";

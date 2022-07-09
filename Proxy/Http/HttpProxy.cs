@@ -19,8 +19,6 @@ public class HttpProxy : Listener
 
     public readonly List<VintageHiveHttpProcessDelegate> Handlers = new();
 
-    public Encoding Encoding { get; set; } = Encoding.UTF8;
-
     public ICacheDb CacheDb { get; set; }
 
     public HttpProxy(IPAddress listenAddress, int port, bool secure) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, secure) { }
@@ -38,7 +36,7 @@ public class HttpProxy : Listener
 
         var httpResponse = new HttpResponse(httpRequest);
 
-        var key = $"PC-{httpRequest.Uri}";
+        var key = $"HPC-{httpRequest.Uri}";
 
         var cachedResponse = CacheDb?.Get<string>(key);
 
@@ -104,7 +102,7 @@ public class HttpProxy : Listener
 
             try
             {
-                Console.WriteLine($"[{"Proxy Cached",15} Request] ({httpRequest.Uri}) [N/A]");
+                Console.WriteLine($"[{"HTTP Proxy Cached",15} Request] ({httpRequest.Uri}) [N/A]");
 
                 return Convert.FromBase64String(cachedResponse);
             }

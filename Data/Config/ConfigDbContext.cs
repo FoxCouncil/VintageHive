@@ -10,6 +10,7 @@ internal class ConfigDbContext : DbContextBase, IConfigDb
         { ConfigNames.IpAddress, IPAddress.Any.ToString() },
         { ConfigNames.PortHttp, 1990 },
         { ConfigNames.PortFtp, 1971 },
+        { ConfigNames.PortSocks5, 1996 },
         { ConfigNames.Intranet, true },
         { ConfigNames.ProtoWeb, true },
         { ConfigNames.InternetArchive, true },

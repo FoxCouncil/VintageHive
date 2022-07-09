@@ -103,12 +103,14 @@ internal static class InternetArchiveProcessor
 
             var iaResponse = await httpClient.GetAsync(iaUrl);
 
+            httpClient.Dispose();
+
             if (iaResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 return false;
             }
 
-            contentType = iaResponse.Content.Headers.ContentType.ToString() ?? "text/html";
+            contentType = iaResponse.Content.Headers.ContentType?.ToString() ?? "text/html";
 
             if (contentType.StartsWith("text/html"))
             {

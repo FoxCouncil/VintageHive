@@ -1,34 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 using System.Web;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
 
-public sealed class HttpRequest
+public sealed class HttpRequest : Request
 {
-    public bool IsValid { get; private set; }
-
-    public string Type { get; private set; } = "";
-
-    public Uri? Uri { get; private set; }
-
-    public string Version { get; private set; } = "";
-
-    public IReadOnlyDictionary<string, string>? Headers { get; private set; }
-
     public IReadOnlyDictionary<string, string>? QueryParams { get; private set; }
 
     public string Body { get; private set; } = "";
-
-    public ListenerSocket? ListenerSocket { get; private set; }
-
-    public Encoding? Encoding { get; private set; }
 
     public bool IsRelativeUri(string uri)
     {
@@ -44,14 +24,14 @@ public sealed class HttpRequest
     {
         if (socket == null || rawBytes == null)
         {
-            return Invalid;
+            return (HttpRequest)Invalid;
         }
 
         var rawRequest = encoding.GetString(rawBytes);
 
         if (!rawRequest.Contains("\r\n") || !rawRequest.Contains("\r\n\r\n"))
         {
-            return Invalid;
+            return (HttpRequest)Invalid;
         }
 
         var rawHeaders = rawRequest[..rawRequest.IndexOf(HttpBodySeperator)];
@@ -64,7 +44,7 @@ public sealed class HttpRequest
 
         if (httpRequestLine.Length != 3 || !HttpVerbs.Contains(httpRequestLine[0]) || !HttpVersions.Contains(httpRequestLine[2]))
         {
-            return Invalid;
+            return (HttpRequest)Invalid;
         }
 
         var headers = new Dictionary<string, string>();
@@ -120,6 +100,4 @@ public sealed class HttpRequest
 
         return newRequest;
     }
-
-    public static readonly HttpRequest Invalid = new() { IsValid = false };
 }

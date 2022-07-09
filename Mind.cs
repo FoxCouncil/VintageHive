@@ -1,11 +1,11 @@
 ﻿using System.Net;
-using VintageHive.Data;
 using VintageHive.Data.Cache;
 using VintageHive.Data.Config;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;
+using VintageHive.Proxy.Socks;
 using VintageHive.Utilities;
 
 namespace VintageHive;
@@ -24,9 +24,11 @@ class Mind
 
     HttpProxy _httpProxy;
 
-    HttpProxy _httpsProxy;
+    // HttpProxy _httpsProxy;
 
     FtpProxy _ftpProxy;
+
+    //Socks5Proxy _socks5Proxy;
 
     public IConfigDb ConfigDb => _configDb;
 
@@ -62,31 +64,36 @@ class Mind
 
         await CheckGeoIp();
 
-        // TODO: Ugh, fix this later.
-        if (ConfigDb.SettingGet<bool>(ConfigNames.ProtoWeb))
-        {
-            ProtoWebProcessor.AvailableSites = await ProtoWebUtils.GetAvailableSites();
-        }
-
         var ipAddressString = ConfigDb.SettingGet<string>(ConfigNames.IpAddress);
 
         var ipAddress = IPAddress.Parse(ipAddressString);
 
-        var httpPort = ConfigDb.SettingGet<int>(ConfigNames.PortHttp);        
+        var httpPort = ConfigDb.SettingGet<int>(ConfigNames.PortHttp);
 
-        _httpProxy = new(ipAddress, httpPort, false);
-
-        _httpProxy.CacheDb = _cacheDb;
+        _httpProxy = new(ipAddress, httpPort, false)
+        {
+            CacheDb = _cacheDb
+        };
 
         _httpProxy
             .Use(IntranetProcessor.ProcessRequest)
             .Use(RedirectionHelper.ProcessRequest)
-            .Use(ProtoWebProcessor.ProcessRequest)
+            .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
 
         var ftpPort = ConfigDb.SettingGet<int>(ConfigNames.PortFtp);
 
-        _ftpProxy = new(ipAddress, ftpPort);
+        _ftpProxy = new(ipAddress, ftpPort)
+        {
+            CacheDb = _cacheDb
+        };
+
+        _ftpProxy
+            .Use(ProtoWebProcessor.ProcessFtpRequest);
+
+        //var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
+
+        //_socks5Proxy = new(ipAddress, socks5Port);
 
         // _httpsProxy = new(ipAddress, 9999, true);
 
@@ -141,6 +148,8 @@ class Mind
         // _httpsProxy.Start();
 
         _ftpProxy.Start();
+
+        //_socks5Proxy.Start();
 
         _resetEvent.WaitOne();
     }

@@ -29,7 +29,9 @@ public static class Clients
         {
             httpClient.DefaultRequestHeaders.Clear();
 
-            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.UserAgent, request.Headers.ContainsKey(HttpHeaderName.UserAgent) ? request.Headers[HttpHeaderName.UserAgent].ToString() : "VintageHive");
+            string userAgentValue = request.Headers.ContainsKey(HttpHeaderName.UserAgent) ? request.Headers[HttpHeaderName.UserAgent].ToString() : "VintageHive";
+
+            httpClient.DefaultRequestHeaders.TryAddWithoutValidation(HttpHeaderName.UserAgent, userAgentValue);
 
             httpClient.DefaultRequestVersion = Version.Parse(request.Version.Replace("HTTP/", string.Empty));
         }

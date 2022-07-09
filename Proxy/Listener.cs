@@ -22,6 +22,8 @@ public abstract class Listener
 
     public ProtocolType ProtocolType { get; private set; }
 
+    public Encoding Encoding { get; set; } = Encoding.UTF8;
+
     public Thread ProcessThread { get; private set; }
 
     public Listener(IPAddress listenAddress, int port, SocketType type, ProtocolType protocol, bool secure = false)
