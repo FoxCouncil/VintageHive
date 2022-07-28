@@ -194,9 +194,11 @@ internal static class InternetArchiveProcessor
 
         if (result == null)
         {
-            var availabilityDate = $"{internetArchiveYear}{DateTime.UtcNow:MMdd}";
+            // var availabilityDate = $"{internetArchiveYear}{DateTime.UtcNow:ddMM}";
 
-            var incomingUrlEncoded = HttpUtility.UrlEncode(incomingUrl);
+            var availabilityDate = $"{internetArchiveYear}";
+
+            var incomingUrlEncoded = Uri.EscapeDataString(incomingUrl);
 
             var availabilityUri = string.Format(InternetArchiveAvailabilityApiUri, incomingUrlEncoded, availabilityDate);
 

@@ -8,6 +8,8 @@ internal static class Native
 
     public readonly static Version LibVersion;
 
+    public const int SHA_DIGEST_LENGTH = 20;
+
     const string CORE_DLL_NAME = "libeay32";
     const string SSL_DLL_NAME = "ssleay32";
 
@@ -51,8 +53,20 @@ internal static class Native
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public extern static string ERR_lib_error_string(uint errorCode);
 
+    /* NCONF */
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr NCONF_new(IntPtr meth);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    // TODO Load from internal memory??
+    public extern static int NCONF_load(IntPtr conf, string file, ref int eline);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void NCONF_free(IntPtr conf);
+
     /* EVP_PKEY */
-    
+
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static IntPtr EVP_PKEY_new();
 
@@ -66,6 +80,39 @@ internal static class Native
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static IntPtr X509_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_version(IntPtr x, int version);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr PEM_read_bio_X509(IntPtr bp, IntPtr x, PEMPasswordCallback cb, IntPtr u);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int PEM_write_bio_X509(IntPtr bp, IntPtr x);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void X509_free(IntPtr x);
+
+    /* X509 Name */
+
+    public const int MBSTRING_FLAG = 0x1000;
+
+    public const int MBSTRING_ASC = MBSTRING_FLAG | 1;
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_NAME_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_NAME_get_index_by_NID(IntPtr name, int nid, int lastpos);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_NAME_get_text_by_NID(IntPtr name, int nid, byte[] buf, int len);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_NAME_add_entry_by_NID(IntPtr name, int nid, int type, byte[] bytes, int len, int loc, int set);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void X509_NAME_free(IntPtr a);
 
     /* X509 REQ */
 
@@ -145,6 +192,13 @@ internal static class Native
     /* BIOs Defines */
 
     public static int BIO_set_close(IntPtr bio, int close) => BIO_ctrl(bio, BIO_CTRL_SET_CLOSE, close, IntPtr.Zero);
+
+    /* OBJ */
+
+    public const int NID_UNDEFINED = 0;
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int OBJ_txt2nid(string s);
 
     /* SSL INITS */
 

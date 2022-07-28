@@ -45,8 +45,8 @@ public abstract class Listener
             SecurityContext.SetCipherList("ALL:eNULL");
 
             // Setup Security Certificate Store
-            SecurityContext.SetCertificateChain("Certs/dialnine.com.crt");
-            SecurityContext.SetPrivateKeyFile("Certs/dialnine.com.key");
+            // SecurityContext.SetCertificateChain("Certs/dialnine.com.crt");
+            // SecurityContext.SetPrivateKeyFile("Certs/dialnine.com.key");
         }
     }
 
@@ -91,6 +91,8 @@ public abstract class Listener
             {
                 var reqBuffer = new byte[4096];
 
+                var networkStream = new NetworkStream(connection);
+
                 SslStream sslStream = null;
 
                 if (IsSecure)
@@ -114,8 +116,6 @@ public abstract class Listener
                         await connection.SendAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection Established\r\n\r\n"), SocketFlags.None);
                     }
 
-                    var networkStream = new NetworkStream(connection);
-
                     sslStream = new SslStream(SecurityContext, networkStream);
 
                     sslStream.AuthenticateAsServer();
@@ -125,6 +125,7 @@ public abstract class Listener
                 {
                     IsSecure = IsSecure,
                     RawSocket = connection,
+                    Stream = networkStream,
                     SecureStream = sslStream
                 };
 
@@ -145,7 +146,7 @@ public abstract class Listener
                     }
                 }
 
-                while (true)
+                while (connection.Connected)
                 {
                     try
                     {

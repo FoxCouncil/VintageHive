@@ -127,11 +127,9 @@ internal static class ProtoWebProcessor
                 return null;
             }
 
-            var clientStream = new NetworkStream(req.ListenerSocket.RawSocket);
+            await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());
 
-            await clientStream.WriteAsync(buffer.Take(readBytes).ToArray());
-
-            await stream.CopyToAsync(clientStream);
+            await stream.CopyToAsync(req.ListenerSocket.Stream);
 
             return null;
         }

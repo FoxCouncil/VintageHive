@@ -166,4 +166,14 @@ public static class Extensions
             .Replace("https://ssl.gstatic.com/onebox/weather/48/", "http://hive/assets/weather/")
             .Replace(".png", ".jpg");
     }
+
+    public static void Append(this MemoryStream stream, byte value)
+    {
+        stream.Append(new[] { value });
+    }
+
+    public static void Append(this MemoryStream stream, byte[] values)
+    {
+        stream.Write(values, 0, values.Length);
+    }
 }

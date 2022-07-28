@@ -1,9 +1,11 @@
 ﻿using System.Net;
 using VintageHive.Data.Cache;
 using VintageHive.Data.Config;
+using VintageHive.Data.Oscar;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
+using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Security;
 using VintageHive.Proxy.Socks;
 using VintageHive.Utilities;
@@ -22,17 +24,23 @@ class Mind
 
     internal CacheDbContext _cacheDb;
 
+    internal OscarDbContext _oscarDb;
+
     HttpProxy _httpProxy;
 
     // HttpProxy _httpsProxy;
 
     FtpProxy _ftpProxy;
 
-    //Socks5Proxy _socks5Proxy;
+    // Socks5Proxy _socks5Proxy;
+
+    OscarServer _oscarServer;
 
     public IConfigDb ConfigDb => _configDb;
 
     public ICacheDb CacheDb => _cacheDb;
+
+    public IOscarDb OscarDb => _oscarDb;
 
     public static Mind Instance
     {
@@ -59,6 +67,8 @@ class Mind
         _configDb = new ConfigDbContext("Data Source=config.db;Cache=Shared");
 
         _cacheDb = new CacheDbContext("Data Source=cache.db;Cache=Shared");
+
+        _oscarDb = new OscarDbContext("Data Source=oscar.db;Cache=Shared");
 
         CertificateAuthority.Init(_configDb);
 
@@ -91,9 +101,11 @@ class Mind
         _ftpProxy
             .Use(ProtoWebProcessor.ProcessFtpRequest);
 
-        //var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
+        _oscarServer = new(ipAddress);
 
-        //_socks5Proxy = new(ipAddress, socks5Port);
+        // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
+
+        // _socks5Proxy = new(ipAddress, socks5Port);
 
         // _httpsProxy = new(ipAddress, 9999, true);
 
@@ -149,7 +161,9 @@ class Mind
 
         _ftpProxy.Start();
 
-        //_socks5Proxy.Start();
+        // _socks5Proxy.Start();
+
+        _oscarServer.Start();
 
         _resetEvent.WaitOne();
     }

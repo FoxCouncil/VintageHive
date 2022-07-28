@@ -64,8 +64,6 @@ internal static class IntranetProcessor
 
         htmlDocument.LoadVirtual("home.html");
 
-        htmlDocument.ReplaceTextById("location", Mind.Instance.ConfigDb.SettingGet<string>(ConfigNames.Location));
-
         htmlDocument.ReplaceTextById("timestamp", DateTime.Now.ToString("dddd, MMMM dd yyyy | hh:mm tt"));
 
         var location = Mind.Instance.ConfigDb.SettingGet<string>(ConfigNames.Location);
@@ -204,7 +202,7 @@ internal static class IntranetProcessor
 
         var htmlDocument = new HtmlDocument();
 
-        var location = req.QueryParams.ContainsKey("location") ? req.QueryParams["location"] : Mind.Instance.ConfigDb.SettingGet<string>(ConfigNames.Location);
+        var location = req.QueryParams.ContainsKey("location") ? req.QueryParams["location"] : "Your Location";
 
         var weatherData = await Clients.GetWeatherData(location);
 
@@ -304,14 +302,6 @@ internal static class IntranetProcessor
 
             yearSelectEl.AppendChild(yearOptionEl);
         }
-
-        var location = Mind.Instance.ConfigDb.SettingGet<string>(ConfigNames.Location);
-
-        htmlDocument.ReplaceTextById("geoiplocation", location);
-
-        var address = Mind.Instance.ConfigDb.SettingGet<string>(ConfigNames.RemoteAddress);
-
-        htmlDocument.ReplaceTextById("geoipaddress", address);
 
         var cacheStats = CacheUtils.GetCounters();
 
