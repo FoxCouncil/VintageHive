@@ -1,0 +1,74 @@
+{% assign title = "Settings" %}
+<html>
+<head>
+    <title>VintageHive - {{ title }}</title>
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    <center>
+        [ <a href="/settings/users.html">User Manager</a> ]
+    </center>
+    <hr>
+
+    <table border="1" cellpadding="10">
+        <tr>
+            <td valign="top">
+                <font face="Courier New" size="4">Cache Control:</font>
+                <table border="1" cellpadding="5">
+                    <tr>
+                        <td align="center"><font face="Courier New" size="6">{{ cache_counters.Item1 }}</font></td>
+                        <td align="center"><font face="Courier New" size="6">{{ cache_counters.Item2 }}</font></td>
+                    </tr>
+                    <tr>
+                        <td align="center">Web Cache</td>
+                        <td align="center">Internet Archive</td>
+                    </tr>
+                </table>
+                <form action="/api/cache/clear" method="POST" enctype="application/x-www-form-urlencoded">
+                    <center><input type="submit" name="toggle" value="Clear Cache"></center>
+                </form>
+            </td>
+            <td valign="top">
+                <font face="Courier New" size="4">Internet Archive:</font>
+                <form action="/api/ia/toggle" method="POST" enctype="application/x-www-form-urlencoded">
+                    {% if ia_toggle %}
+                    <font face="Courier New" size="6" color="green">Enabled </font>
+                    {% else %}
+                    <font face="Courier New" size="6" color="red">Disabled </font>
+                    {% endif %}
+                    <input type="submit" name="toggle" value="{% if ia_toggle %}Disable{% else %}Enable{% endif %}">
+                </form>
+                {% if ia_toggle %}
+                <form action="/api/ia/setyear" method="POST" enctype="application/x-www-form-urlencoded">
+                    Year
+                    <select name="year">
+                        {% for year in ia_years %}
+                        {% if year == ia_current %}
+                        <option selected>{{ year }}</option>
+                        {% else %}
+                        <option>{{ year }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                    <input type="submit" value="Save">
+                </form>
+                {% endif %}
+            </td>
+            <td valign="top">
+                <font face="Courier New" size="4">ProtoWeb:</font>
+                <form action="/api/proto/toggle" method="POST" enctype="application/x-www-form-urlencoded">
+                    {% if proto_toggle %}
+                    <font face="Courier New" size="6" color="green">Enabled </font>
+                    {% else %}
+                    <font face="Courier New" size="6" color="red">Disabled </font>
+                    {% endif %}
+                    <input type="submit" name="toggle" value="{% if proto_toggle %}Disable{% else %}Enable{% endif %}">
+                </form>
+            </td>
+        </tr>
+    </table>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

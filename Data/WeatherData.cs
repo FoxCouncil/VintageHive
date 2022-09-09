@@ -40,6 +40,11 @@ public class CurrentConditions
     [JsonPropertyName("iconURL")]
     public string IconURL { get; set; }
 
+    public string IconURLInternal => IconURL
+        .Replace("https://ssl.gstatic.com/onebox/weather/64/", "/img/weather/")
+        .Replace("https://ssl.gstatic.com/onebox/weather/48/", "/img/weather/")
+        .Replace(".png", ".jpg");
+
     [JsonPropertyName("comment")]
     public string Comment { get; set; }
 }
@@ -60,6 +65,11 @@ public class NextDay
 
     [JsonPropertyName("iconURL")]
     public string IconURL { get; set; }
+
+    public string IconURLInternal => IconURL
+        .Replace("https://ssl.gstatic.com/onebox/weather/64/", "/img/weather/")
+        .Replace("https://ssl.gstatic.com/onebox/weather/48/", "/img/weather/")
+        .Replace(".png", ".jpg");
 }
 
 public class Temp

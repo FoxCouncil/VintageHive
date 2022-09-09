@@ -19,15 +19,6 @@ internal class OscarGenericServiceControls : IOscarService
     public const ushort SRV_FAMILIES_VERSIONS = 0x18;
     public const ushort CLI_SETxSTATUS = 0x1E;
 
-    public static readonly Dictionary<ushort, ushort> ServiceVersions = new()
-    {
-        { 0x01, 0x03 }, // Generic Service Controls
-        { 0x02, 0x01 }, // Location Services
-        { 0x03, 0x01 }, // Buddy List Management Service
-        { 0x04, 0x01 }, // ICBM (messages) Service
-        { 0x17, 0x01 }  // Authorization/Registration Service
-    };
-
     public ushort Family => FAMILY_ID;
 
     public OscarServer Server { get; }
@@ -52,7 +43,7 @@ internal class OscarGenericServiceControls : IOscarService
             {
                 var servicesSnac = new Snac(Family, SRV_FAMILIES);
 
-                foreach (KeyValuePair<ushort, ushort> versions in ServiceVersions)
+                foreach (KeyValuePair<ushort, ushort> versions in OscarServer.ServiceVersions)
                 {
                     var serviceBits = OscarUtils.GetBytes(versions.Key);
 
@@ -92,9 +83,9 @@ internal class OscarGenericServiceControls : IOscarService
                 rateInfoSnac.WriteUInt16(1);
 
                 // TODO: Be more specific about which types to rate limit
-                rateInfoSnac.WriteUInt16((ushort)(ServiceVersions.Count * 0x21));
+                rateInfoSnac.WriteUInt16((ushort)(OscarServer.ServiceVersions.Count * 0x21));
 
-                foreach (ushort serviceFamily in ServiceVersions.Keys)
+                foreach (ushort serviceFamily in OscarServer.ServiceVersions.Keys)
                 {
                     for (ushort subType = 0; subType < 0x21; subType++)
                     {
@@ -163,7 +154,7 @@ internal class OscarGenericServiceControls : IOscarService
 
                 var servicesSnac = snac.NewReply(Family, SRV_FAMILIES_VERSIONS);
 
-                foreach (KeyValuePair<ushort, ushort> versions in ServiceVersions)
+                foreach (KeyValuePair<ushort, ushort> versions in OscarServer.ServiceVersions)
                 {
                     if (!clientRequestedServiceVersions.ContainsKey(versions.Key))
                     {

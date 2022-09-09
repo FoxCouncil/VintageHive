@@ -118,34 +118,34 @@ public class SslStream : NativeRef
         }
         else if (where == Native.SSL_CB_READ_ALERT)
         {
-            //Console.WriteLine("Read alert: {0}", ret);
+            //Display.WriteLog("Read alert: {0}", ret);
         }
         else if (where == Native.SSL_CB_WRITE_ALERT)
         {
-            //Console.WriteLine("Write alert: {0}", ret);
+            //Display.WriteLog("Write alert: {0}", ret);
         }
         else if (where == Native.SSL_CB_EXIT)
         {
-            //Console.WriteLine("Exit: {0}", ret);
+            //Display.WriteLog("Exit: {0}", ret);
         }
         else if (where == Native.SSL_CB_ACCEPT_LOOP)
         {
-            //Console.WriteLine($"Accept loop: {ret}");
+            //Display.WriteLog($"Accept loop: {ret}");
         }
         else if (where == Native.SSL_CB_ACCEPT_EXIT)
         {
-            //Console.WriteLine($"Accept exit: {ret}");
+            //Display.WriteLog($"Accept exit: {ret}");
         }
         else if (where == Native.SSL_CB_CONNECT_LOOP)
         {
-            //Console.WriteLine($"Connect loop: {ret}");
+            //Display.WriteLog($"Connect loop: {ret}");
         }
         else if (where == Native.SSL_CB_CONNECT_EXIT)
         {
-            //Console.WriteLine($"Connect exit: {ret}");
+            //Display.WriteLog($"Connect exit: {ret}");
         }
 
-        // Console.WriteLine($"SSL_INFO_CB: {where} {ret}");
+        // Display.WriteLog($"SSL_INFO_CB: {where} {ret}");
     }
 
     internal void AuthenticateAsServer()

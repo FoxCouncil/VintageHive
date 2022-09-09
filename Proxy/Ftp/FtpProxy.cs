@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Text;
 using VintageHive.Data.Cache;
+using VintageHive.Network;
 using VintageHiveFtpProcessDelegate = System.Func<VintageHive.Proxy.Ftp.FtpRequest, System.Threading.Tasks.Task<byte[]>>;
 
 namespace VintageHive.Proxy.Ftp;
@@ -67,10 +68,12 @@ public class FtpProxy : Listener
                 return null;
             }
 
-            if (responseData != null)
-            {
-                CacheDb?.Set<string>(key, CacheTtl, Convert.ToBase64String(responseData));
-            }
+            /* DO NOT FUCKING CACHE FTP YET */
+            /* YOU ARE NOT GOOD ENOUGH YET */
+            //if (responseData != null)
+            //{
+            //    CacheDb?.Set<string>(key, CacheTtl, Convert.ToBase64String(responseData));
+            //}
 
             return responseData;
         }
@@ -78,7 +81,7 @@ public class FtpProxy : Listener
         {
             try
             {
-                Console.WriteLine($"[{"FTP Proxy Cached",15} Request] ({req.Uri}) [N/A]");
+                Display.WriteLog($"[{"FTP Proxy Cached",15} Request] ({req.Uri}) [N/A]");
 
                 return Convert.FromBase64String(cachedResponse);
             }

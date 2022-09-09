@@ -4,7 +4,7 @@ namespace VintageHive.Data.Cache;
 
 internal class CacheDbContext : DbContextBase, ICacheDb
 {
-    public CacheDbContext(string connectionString) : base(connectionString)
+    public CacheDbContext() : base()
     {
         WithContext(context =>
         {

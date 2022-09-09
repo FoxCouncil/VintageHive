@@ -1,0 +1,52 @@
+{% assign title = "Home" %}
+<html>
+<head>
+    <title>VintageHive - {{ title }}</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    <table width="100%">
+        <tr>
+            <td colspan="3" align="center">
+                <font face="Arial,Helvetica" size="6">T H E&nbsp;&nbsp;  D I R E C T O R Y</font>
+                <form action="http://search.inode.com/cgi-bin/search.cgi" method="get">
+                    <a href="http://search.inode.com/"><img src="img/search.gif"></a>
+                    <input type="text" name="q">
+                    <input type="submit" value="Go">
+                </form>
+                <hr>
+            </td>
+        </tr>
+        <tr>
+            <td valign="top">
+                <center><font face="Arial,Helvetica" size="4">Hot Links</font></center>
+                <ul>
+                    {% for link in directory_hotlinks %}
+                    <li><a href="{{ link.last }}">{{ link.first }}</a></li>
+                    {% endfor %}
+                </ul>
+            </td>
+            <td valign="top">
+                <center><font face="Arial,Helvetica" size="4"><a href="http://www.inode.com/">ProtoWeb HTTP</a></font></center>
+                <ul>
+                    {% for link in directory_protohttp %}
+                    <li><a href="http://{{ link }}">{{ link }}</a></li>
+                    {% endfor %}
+                </ul>
+            </td>
+            <td valign="top">
+                <center><font face="Arial,Helvetica" size="4"><a href="http://www.inode.com/">ProtoWeb FTP</a></font></center>
+                <ul>
+                    {% for link in directory_protoftp %}
+                    <li><a href="ftp://{{ link }}">{{ link }}</a></li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+    </table>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

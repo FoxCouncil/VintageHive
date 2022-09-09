@@ -1,13 +1,14 @@
-﻿using System.Net;
+﻿using Spectre.Console;
+using System.Net;
 using VintageHive.Data.Cache;
 using VintageHive.Data.Config;
+using VintageHive.Data.Contexts;
 using VintageHive.Data.Oscar;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Security;
-using VintageHive.Proxy.Socks;
 using VintageHive.Utilities;
 
 namespace VintageHive;
@@ -42,37 +43,46 @@ class Mind
 
     public IOscarDb OscarDb => _oscarDb;
 
+    public UserDbContext UserDb { get; private set; }
+
+    public IAAvailabilityCacheDbContext IAACacheDb { get; private set; }
+
     public static Mind Instance
     {
         get
         {
             lock (_lock)
             {
-                if (_instance == null)
-                {
-                    _instance = new Mind();
-                }
+                _instance ??= new Mind();
 
                 return _instance;
             }
         }
     }
 
-    private Mind() { }
+    private Mind() 
+    {
+    }
 
     public async Task Init()
-    {
+    {        
         Resources.Initialize();
 
-        _configDb = new ConfigDbContext("Data Source=config.db;Cache=Shared");
+        UserDb = new UserDbContext();
 
-        _cacheDb = new CacheDbContext("Data Source=cache.db;Cache=Shared");
+        IAACacheDb = new IAAvailabilityCacheDbContext();
 
-        _oscarDb = new OscarDbContext("Data Source=oscar.db;Cache=Shared");
+        _configDb = new ConfigDbContext();
+
+        _cacheDb = new CacheDbContext();
+
+        _oscarDb = new OscarDbContext();
 
         CertificateAuthority.Init(_configDb);
 
         await CheckGeoIp();
+
+        _ = ProtoWebUtils.UpdateSiteLists();
 
         var ipAddressString = ConfigDb.SettingGet<string>(ConfigNames.IpAddress);
 
@@ -86,8 +96,8 @@ class Mind
         };
 
         _httpProxy
-            .Use(IntranetProcessor.ProcessRequest)
-            .Use(RedirectionHelper.ProcessRequest)
+            .Use(LocalServerProcessor.ProcessRequest)
+            // .Use(IntranetProcessor.ProcessRequest)
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
 
@@ -117,14 +127,14 @@ class Mind
 
         var output = rsaTest.PEMPrivateKey();
 
-        Console.WriteLine(output);
-        Console.WriteLine();
+        Display.WriteLog(output);
+        Display.WriteLog();
 
         var rsa = Rsa.FromPEMPrivateKey(output);
 
         var output2 = rsa.PEMPrivateKey();
 
-        Console.WriteLine(output2);
+        Display.WriteLog(output2);
 #endif
     }
 

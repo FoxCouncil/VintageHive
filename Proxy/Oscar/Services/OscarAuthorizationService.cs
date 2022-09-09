@@ -11,6 +11,7 @@ public class OscarAuthorizationService : IOscarService
 
     public const ushort CLI_MD5_LOGIN = 0x02;
     public const ushort SRV_LOGIN_REPLY = 0x03;
+    public const ushort CLI_REGISTRATION_REQUEST = 0x04;
     public const ushort CLI_AUTH_REQUEST = 0x06;
     public const ushort SRV_AUTH_KEY_RESPONSE = 0x07;
 
@@ -79,6 +80,15 @@ public class OscarAuthorizationService : IOscarService
 
                     await session.SendSnac(failedAuthSnac);
                 }
+            }
+            break;
+
+            case CLI_REGISTRATION_REQUEST:
+            {
+                var tlvs = OscarUtils.DecodeTlvs(snac.RawData);
+
+                var registrationData = tlvs.GetTlv(0x01).Value;
+
             }
             break;
 

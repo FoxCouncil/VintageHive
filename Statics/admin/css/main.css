@@ -1,0 +1,75 @@
+﻿html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, embed, figure, figcaption, footer, header, hgroup, menu, nav, output, ruby, section, summary, time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	vertical-align: baseline;
+}
+
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+
+body {
+	line-height: 1;
+}
+
+ol, ul {
+	list-style: none;
+}
+
+blockquote, q {
+	quotes: none;
+}
+
+blockquote:before, blockquote:after, q:before, q:after {
+	content: '';
+	content: none;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+input {
+	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+	color: black;
+	border: .1rem solid #CCF;
+}
+
+input[type=text],input[type=password] {
+	font-size: 1.7rem;
+}
+
+input[type=submit],input[type=button] {
+	font-size: 2rem;
+	background-color: #CCC;
+	border-radius: .2rem;
+}
+
+input[type=submit]:hover,input[type=button]:hover {
+	background-color: #FFF;
+	box-shadow: white 2px 2px 1px;
+}
+
+body {
+    background: black;
+    color: lightgrey;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+#login {
+	width: 420px;
+	padding: 1rem;
+
+	margin: calc(50vh - (420px / 2)) auto 0;
+	text-align: center;
+	border: .3rem double white;
+	box-shadow: white 8px 8px 1px;
+}
+
+#login h1,
+#login input {
+	margin-bottom: 2rem;
+}

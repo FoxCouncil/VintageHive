@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using VintageHive.Data.Cache;
+using VintageHive.Network;
 using static VintageHive.Proxy.Http.HttpUtilities;
 using VintageHiveHttpProcessDelegate = System.Func<VintageHive.Proxy.Http.HttpRequest, VintageHive.Proxy.Http.HttpResponse, System.Threading.Tasks.Task<bool>>;
 
@@ -32,7 +33,7 @@ public class HttpProxy : Listener
 
     internal override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
-        var httpRequest = HttpRequest.Parse(connection, Encoding, data[..read]);
+        var httpRequest = await HttpRequest.Parse(connection, Encoding, data[..read]);
 
         var httpResponse = new HttpResponse(httpRequest);
 
@@ -56,12 +57,14 @@ public class HttpProxy : Listener
             }
             catch(Exception ex)
             {
+                Display.WriteException(ex);
+
                 ProcessErrorResponse(httpRequest, httpResponse, HttpStatusCode.InternalServerError, ex);
 
                 return httpResponse.GetResponseEncodedData();
             }
 
-            if (!handled)
+            if (!handled || (handled && httpResponse.StatusCode == HttpStatusCode.NotFound))
             {
                 // TODO: Add Error Handling...
                 handled = ProcessErrorResponse(httpRequest, httpResponse, HttpStatusCode.NotFound);
@@ -86,10 +89,26 @@ public class HttpProxy : Listener
                         buffer = httpResponse.GetResponseEncodedData();
                     }
 
+                    if (httpResponse.SessionId != Guid.Empty)
+                    {
+                        Db.Sessions.Set(httpResponse.SessionId, httpResponse.Session);
+                    }
+
                     if (httpResponse.Cache)
                     {
                         CacheDb?.Set<string>(key, httpResponse.CacheTtl, Convert.ToBase64String(buffer));
                     }
+
+                    if (httpResponse.DownloadStream != null)
+                    {
+                        await httpRequest.ListenerSocket.Stream.WriteAsync(buffer);
+
+                        await httpResponse.DownloadStream.CopyToAsync(httpRequest.ListenerSocket.Stream);
+
+                        httpResponse.DownloadStream.Close();
+
+                        return null;
+                    }    
 
                     return buffer;
                 }
@@ -98,11 +117,11 @@ public class HttpProxy : Listener
         }
         else
         {
-            // Console.WriteLine("Cache  HIT: " + key);
+            // Display.WriteLog("Cache  HIT: " + key);
 
             try
             {
-                Console.WriteLine($"[{"HTTP Proxy Cached",15} Request] ({httpRequest.Uri}) [N/A]");
+                Display.WriteLog($"[{"HTTP Proxy Cached",15} Request] ({httpRequest.Uri}) [N/A]");
 
                 return Convert.FromBase64String(cachedResponse);
             }
@@ -139,9 +158,12 @@ public class HttpProxy : Listener
             body = body.Replace("||ERROR||", exception.ToString());
         }
 
+        var endpoint = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4();
+        var endpointPort = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Port;
+
         body = body.Replace("||REQUEST||", httpRequest.Uri?.ToString());
         body = body.Replace("||VERSION||", ApplicationVersion);
-        body = body.Replace("||HOST||", httpRequest.ListenerSocket.RawSocket.LocalEndPoint?.ToString());
+        body = body.Replace("||HOST||", $"{endpoint}:{endpointPort}");
         body = body.Replace("||DATE||", date);
 
         httpResponse.SetBodyString(body, HttpContentType.Text.Html);

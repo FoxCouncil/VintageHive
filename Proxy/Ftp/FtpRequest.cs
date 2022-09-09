@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using VintageHive.Network;
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Proxy.Ftp;
@@ -56,10 +57,9 @@ public sealed class FtpRequest : Request
             Version = httpRequestLine[2],
             Headers = headers,
             ListenerSocket = socket,
-            Encoding = encoding
+            Encoding = encoding,
+            IsValid = true
         };
-
-        newRequest.IsValid = true;
 
         return newRequest;
     }

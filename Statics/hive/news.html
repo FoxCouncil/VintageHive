@@ -1,0 +1,33 @@
+{% assign title = "News" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% if article %}
+    <form action="/news.html"><img src="/img/back_arrow.gif"> <input type="submit" value="Back"></form>
+    <h1>{{ article.Title }}</h1>
+    <font face="Courier New" size="+2">{{ article.PublicationDate | format_date: "R" }}</font>
+
+    {{ article_body }}
+
+    <form action="/news.html"><img src="/img/back_arrow.gif"> <input type="submit" value="Back"></form>
+    <hr>
+    {% endif %}
+
+    <font face="serif" size="5">Latest News</font>
+
+    <ul>
+        {% for article in articles %}
+        <li>
+            <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+            <a href="/news.html?article={{ article.Id }}">{{ article.Title }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

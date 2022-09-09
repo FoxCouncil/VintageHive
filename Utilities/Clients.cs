@@ -4,7 +4,6 @@ using System.ServiceModel.Syndication;
 using System.Text.Json;
 using System.Xml;
 using VintageHive.Data;
-using VintageHive.Processors.Intranet;
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
 

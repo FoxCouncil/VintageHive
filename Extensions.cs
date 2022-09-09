@@ -29,6 +29,11 @@ public static class Extensions
         return Regex.Replace(html, stringPattern, " ");
     }
 
+    public static bool ConfirmValidPath(this string path)
+    {
+        return !string.IsNullOrEmpty(path) && path.IndexOfAny(Path.GetInvalidPathChars()) <= 0;
+    }
+
     public static string ToOnOff(this bool boolean)
     {
         return boolean ? "ON" : "OFF";

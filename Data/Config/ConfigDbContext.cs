@@ -17,7 +17,7 @@ internal class ConfigDbContext : DbContextBase, IConfigDb
         { ConfigNames.InternetArchiveYear, 1999 }
     };
 
-    public ConfigDbContext(string connectionString) : base(connectionString)
+    public ConfigDbContext() : base()
     {
         WithContext(context =>
         {

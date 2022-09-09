@@ -22,6 +22,8 @@ namespace VintageHive.Utilities
 
         const string RequestUri = "http://www.inode.com/";
 
+        static readonly object _lock = new();
+
         public static async Task UpdateSiteLists()
         {
             var proxyClient = Clients.GetProxiedHttpClient(null, MainProxyUri);
@@ -29,14 +31,16 @@ namespace VintageHive.Utilities
             proxyClient.Timeout = TimeSpan.FromSeconds(10);
 
             string site;
-
+            
             try
             {
                 site = await proxyClient.GetStringAsync(RequestUri);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                Console.WriteLine("ProtoWeb is offline! Turning it off!");
+                Display.WriteException(ex);
+
+                Display.WriteLog("ProtoWeb is offline! Turning it off!");
 
                 Mind.Instance.ConfigDb.SettingSet(ConfigNames.ProtoWeb, false);
 
@@ -56,7 +60,8 @@ namespace VintageHive.Utilities
 
             foreach (var link in httpLinks)
             {
-                var uriParsed = new Uri(link.Attributes["href"].Value.Replace("www.", string.Empty));
+                // var uriParsed = new Uri(link.Attributes["href"].Value.Replace("www.", string.Empty));
+                var uriParsed = new Uri(link.Attributes["href"].Value);
 
                 if (!httpLinksList.Contains(uriParsed.Host) && uriParsed.Scheme == "http")
                 {

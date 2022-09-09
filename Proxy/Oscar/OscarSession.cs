@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Proxy.Oscar;
+﻿using VintageHive.Network;
+
+namespace VintageHive.Proxy.Oscar;
 
 public class OscarSession
 {
@@ -48,7 +50,7 @@ public class OscarSession
 
     public async Task SendSnac(Snac snac)
     {
-        Console.WriteLine($"<- {snac}");
+        Display.WriteLog($"<- {snac}");
 
         var snacDataFlap = new Flap(FlapFrameType.Data)
         {
@@ -83,7 +85,7 @@ public class OscarSession
 
         var flaps = OscarUtils.DecodeFlaps(buffer[..read]);
 
-        Console.WriteLine($"Total {flaps.Length} flaps");
+        Display.WriteLog($"Total {flaps.Length} flaps");
 
         return flaps;
     }

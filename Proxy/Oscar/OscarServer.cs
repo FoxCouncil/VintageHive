@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using VintageHive.Proxy.Oscar.Services;
 using System.Diagnostics;
+using VintageHive.Network;
 
 namespace VintageHive.Proxy.Oscar;
 
@@ -11,6 +12,25 @@ public class OscarServer : Listener
     public static readonly List<OscarSession> Sessions = new();
 
     public static DateTimeOffset ServerTime => DateTime.Now;
+
+    public static readonly Dictionary<ushort, ushort> ServiceVersions = new()
+    {
+        { OscarGenericServiceControls.FAMILY_ID, 0x03 }, // Generic Service Controls
+        { OscarLocationService.FAMILY_ID, 0x01 }, // Location Services
+        { OscarBuddyListService.FAMILY_ID, 0x01 }, // Buddy List Management Service
+        { OscarIcbmService.FAMILY_ID, 0x01 }, // ICBM (messages) Service
+        { 0x05, 0x01 },
+        { 0x06, 0x01 },
+        { 0x08, 0x01 },
+        { OscarPrivacyService.FAMILY_ID, 0x01 }, // (PD) Permit/Deny settings for the user.
+        { 0x0A, 0x01 },
+        { 0x0B, 0x01 },
+        { 0x0C, 0x01 },
+        { 0x10, 0x01 },
+        { 0x13, 0x01 },
+        { OscarIcqService.FAMILY_ID, 0x01 }, // ICQ specific services.
+        { OscarAuthorizationService.FAMILY_ID, 0x01 }  // Authorization/Registration Service
+    };
 
     public readonly Flap HelloFlap = new(FlapFrameType.SignOn)
     {
@@ -27,6 +47,8 @@ public class OscarServer : Listener
             new OscarLocationService(this),
             new OscarBuddyListService(this),
             new OscarIcbmService(this),
+            new OscarPrivacyService(this),
+            new OscarIcqService(this),
             new OscarAuthorizationService(this)
         };
     }
@@ -82,7 +104,7 @@ public class OscarServer : Listener
                     {
                         var snacPacket = flap.GetSnac();
 
-                        Console.WriteLine($"-> {snacPacket}");
+                        Display.WriteLog($"-> {snacPacket}");
 
                         var familyProcessor = _services.FirstOrDefault(x => x.Family == snacPacket.Family);
 

@@ -1,5 +1,7 @@
-﻿using System.Text;
+﻿using System.Collections.ObjectModel;
+using System.Text;
 using System.Web;
+using VintageHive.Network;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
@@ -7,6 +9,10 @@ namespace VintageHive.Proxy.Http;
 public sealed class HttpRequest : Request
 {
     public IReadOnlyDictionary<string, string>? QueryParams { get; private set; }
+
+    public IReadOnlyDictionary<string, string>? FormData { get; private set; }
+
+    public ReadOnlyDictionary<string, string> Cookies { get; private set; }
 
     public string Body { get; private set; } = "";
 
@@ -20,7 +26,7 @@ public sealed class HttpRequest : Request
         return Uri.AbsolutePath.ToLower().Equals(uri);
     }
 
-    internal static HttpRequest Parse(ListenerSocket socket, Encoding encoding, byte[] rawBytes)
+    internal static async Task<HttpRequest> Parse(ListenerSocket socket, Encoding encoding, byte[] rawBytes)
     {
         if (socket == null || rawBytes == null)
         {
@@ -29,14 +35,26 @@ public sealed class HttpRequest : Request
 
         var rawRequest = encoding.GetString(rawBytes);
 
-        if (!rawRequest.Contains("\r\n") || !rawRequest.Contains("\r\n\r\n"))
+        if (!rawRequest.Contains("\r\n"))
         {
             return (HttpRequest)Invalid;
         }
 
-        var rawHeaders = rawRequest[..rawRequest.IndexOf(HttpBodySeperator)];
+        if (!rawRequest.Contains("\r\n\r\n"))
+        {
+            var buffer = new byte[4096];
+            var read = await socket.Stream.ReadAsync(buffer);
 
-        var rawBody = rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Trim().Replace("\0", string.Empty);
+            var extraData = encoding.GetString(buffer[..read]);
+
+            rawRequest += extraData;
+        }
+
+        var bodyPointer = rawRequest.IndexOf(HttpBodySeperator);
+
+        var rawHeaders = bodyPointer == -1 ? rawRequest : rawRequest[..bodyPointer];
+
+        var rawBody = bodyPointer == -1 ? string.Empty : rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Trim().Replace("\0", string.Empty);
 
         var parsedRequestArray = rawHeaders.Trim().Split("\r\n");
 
@@ -47,7 +65,7 @@ public sealed class HttpRequest : Request
             return (HttpRequest)Invalid;
         }
 
-        var headers = new Dictionary<string, string>();
+        var headers = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 
         foreach (var header in parsedRequestArray.Skip(1))
         {
@@ -64,7 +82,28 @@ public sealed class HttpRequest : Request
             }
         }
 
+        var requestCookies = new Dictionary<string, string>();
+
+        if (headers.ContainsKey("Cookie"))
+        {
+            var cookies = headers["Cookie"].Split("; ");
+
+            foreach (var cookie in cookies)
+            {
+                var cookieData = cookie.Split("=", 2);
+
+                requestCookies.Add(cookieData[0], cookieData[1]);
+            }
+        }
+
         var uri = httpRequestLine[1];
+
+        var formData = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+
+        if (headers.ContainsKey("Content-Type") && headers["Content-Type"] == "application/x-www-form-urlencoded")
+        {
+            formData = new Dictionary<string, string>(HttpUtility.ParseQueryString(rawBody).ToDictionary(), StringComparer.InvariantCultureIgnoreCase);
+        }
 
         Dictionary<string, string> queryParams;
 
@@ -92,7 +131,9 @@ public sealed class HttpRequest : Request
             Uri = new Uri(uri),
             Version = httpRequestLine[2],
             Headers = headers,
+            Cookies = new ReadOnlyDictionary<string, string>(requestCookies),
             QueryParams = queryParams,
+            FormData = formData,
             Body = rawBody,
             ListenerSocket = socket,            
             Encoding = encoding

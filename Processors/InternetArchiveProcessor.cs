@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Web;
 using VintageHive.Processors.InternetArchive;
 using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
@@ -13,6 +12,8 @@ namespace VintageHive.Processors;
 
 internal static class InternetArchiveProcessor
 {
+    public static readonly int[] ValidYears = Enumerable.Range(1997, 25).ToArray();
+
     const string InternetArchiveAvailabilityApiUri = "https://archive.org/wayback/available?url={0}&timestamp={1}";
 
     const string FullRewritePattern = "http://web.archive.org/web/";
@@ -166,7 +167,7 @@ internal static class InternetArchiveProcessor
             return false;
         }
         
-        Console.WriteLine($"[{"InternetArchive",15} Request] |{(isCached ? "HIT" : "MISS"), 4}| \\{internetArchiveYear}\\ ({req.Uri}) [{contentType}]");
+        Display.WriteLog($"[{"InternetArchive",15} Request] |{(isCached ? "HIT" : "MISS"), 4}| \\{internetArchiveYear}\\ ({req.Uri}) [{contentType}]");
 
         if (contentType.Contains("utf8"))
         {
@@ -202,7 +203,7 @@ internal static class InternetArchiveProcessor
 
             var availabilityUri = string.Format(InternetArchiveAvailabilityApiUri, incomingUrlEncoded, availabilityDate);
 
-            var httpClient = Clients.GetHttpClient(req);
+            using var httpClient = Clients.GetHttpClient(req);
 
             var availabilityResponseRaw = await httpClient.GetStringAsync(availabilityUri);
 

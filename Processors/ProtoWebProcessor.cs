@@ -10,11 +10,11 @@ namespace VintageHive.Processors;
 
 internal static class ProtoWebProcessor
 {
+    static byte[] RedirectPacketSignatureBytes { get; } = Encoding.ASCII.GetBytes(RedirectPacketSignature);
+
     const string FetchRequestUserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705)";
     
     const string RedirectPacketSignature = "HTTP/1.0 301 Moved Permanently\n";
-
-    static byte[] RedirectPacketSignatureBytes { get; } = Encoding.ASCII.GetBytes(RedirectPacketSignature);
 
     static List<string> AvailableHttpSites;
     
@@ -53,13 +53,15 @@ internal static class ProtoWebProcessor
 
                 res.CacheTtl = TimeSpan.FromDays(30);
 
-                Console.WriteLine($"[{"ProtoWeb HTTP", 17} Request] ({req.Uri}) [{contentType}]");
+                Display.WriteLog($"[{"ProtoWeb HTTP", 17} Request] ({req.Uri}) [{contentType}]");
 
                 return true;
             }
             catch (HttpRequestException) { /* Ignore */ }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Display.WriteException(ex);
+
                 Debugger.Break();
             }
 
@@ -83,7 +85,7 @@ internal static class ProtoWebProcessor
 
         if (AvailableFtpSites.Any(x => req.Uri.Host.EndsWith(x)))
         {
-            Console.WriteLine($"[{"ProtoWeb  FTP", 17} Request] ({req.Uri})");
+            Display.WriteLog($"[{"ProtoWeb  FTP", 17} Request] ({req.Uri})");
 
             // We're streaming the data to the client, so it's not caching.
             // We could cache the small pages, but file downloads are not appropriate for SQLite storage.
@@ -127,7 +129,7 @@ internal static class ProtoWebProcessor
                 return null;
             }
 
-            await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());
+            await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());           
 
             await stream.CopyToAsync(req.ListenerSocket.Stream);
 

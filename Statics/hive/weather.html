@@ -1,0 +1,116 @@
+{% assign title = "Weather" %}
+<html>
+<head>
+    <title>VintageHive - {{ title }}</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% if weather %}
+    <font size="4" face="Courier New">Weather for {{ weather_location | upcase }}</font>
+    <table border="1" width="100%">
+        <tr>
+            <td align="center" width="20%">{{ weather.CurrentConditions.Dayhour }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[0].Day }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[1].Day }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[2].Day }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[3].Day }}</td>
+        </tr>
+        <tr>
+            <td align="center" valign="top">
+                <img src="{{ weather.CurrentConditions.IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.CurrentConditions.Temp.C }}&#176;C</strong>/<small>{{ weather.CurrentConditions.Temp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.CurrentConditions.Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[0].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[0].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[0].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[0].Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[1].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[1].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[1].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[1].Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[2].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[2].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[2].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[2].Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[3].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[3].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[3].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[3].Comment }}</font>
+            </td>
+        </tr>
+        <tr>
+            <td align="center" width="20%">{{ weather.NextDays[4].Day }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[5].Day }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[6].Day }}</td>
+            <td align="center" width="20%">{{ weather.NextDays[7].Day }}</td>
+            <td rowspan="2" align="center" width="20%">
+                Weather Data <i>graciously provided by</i> <b>WeatherDB</b>
+            </td>
+        </tr>
+        <tr>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[4].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[4].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[4].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[4].Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[5].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[5].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[5].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[5].Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[6].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[6].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[6].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[6].Comment }}</font>
+            </td>
+            <td align="center" valign="top">
+                <img src="{{ weather.NextDays[7].IconURLInternal }}">
+                <div>
+                    <strong>{{ weather.NextDays[7].MaxTemp.C }}&#176;C</strong>/<small>{{ weather.NextDays[7].MaxTemp.F }}&#176;F</small>
+                </div>
+                <font size="1">{{ weather.NextDays[7].Comment }}</font>
+            </td>
+        </tr>
+    </table>
+    <hr>
+    <form action="/weather.html">
+        Location: <input type="text" name="location" size="42"> <input type="submit" value="Go">
+    </form>
+    <hr>
+
+    {% include 'partials/weatherlocations.html' %}
+
+    {% else %}
+
+    <center>
+        <h1 id="region"></h1>
+        <h2>Not Found <i>and/or</i> WeatherDB is down.</h2>
+    </center>
+
+    {% endif %}
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

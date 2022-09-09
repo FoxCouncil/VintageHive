@@ -5,7 +5,7 @@ namespace VintageHive.Data.Oscar
 {
     internal class OscarDbContext : DbContextBase, IOscarDb
     {
-        public OscarDbContext(string connectionString) : base(connectionString)
+        public OscarDbContext() : base()
         {
             WithContext(context =>
             {

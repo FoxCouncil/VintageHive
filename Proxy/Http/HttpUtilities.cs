@@ -20,6 +20,8 @@ namespace VintageHive.Proxy.Http
         {
             public const string ContentType = "Content-Type";
 
+            public const string ContentDisposition = "Content-Disposition";
+
             public const string ContentLength = "Content-Length";
 
             public const string Date = "Date";
