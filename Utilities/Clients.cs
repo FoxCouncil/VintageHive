@@ -65,7 +65,7 @@ public static class Clients
         {
             output.Add(new Headlines()
             {
-                Id = item.Links[0].Uri.Segments[5],
+                Id = item.Links[0].Uri.Segments[3],
                 Title = item.Title.Text,
                 Published = item.PublishDate,
                 Summary = item.Summary.Text.StripHtml()

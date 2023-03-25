@@ -51,44 +51,38 @@ namespace VintageHive.Utilities
 
             htmlDoc.LoadHtml(site);
 
-            var httpLinks = htmlDoc.DocumentNode.SelectNodes("//div/a");
+            var links = htmlDoc.DocumentNode.SelectNodes("//a");
 
             var httpLinksList = new List<string>
             {
                 "inode.com"
             };
 
-            foreach (var link in httpLinks)
-            {
-                // var uriParsed = new Uri(link.Attributes["href"].Value.Replace("www.", string.Empty));
-                var uriParsed = new Uri(link.Attributes["href"].Value);
+            var ftpLinksList = new List<string>();
 
-                if (!httpLinksList.Contains(uriParsed.Host) && uriParsed.Scheme == "http")
+            foreach (var link in links)
+            {
+                Uri uriParsed;
+                if (Uri.TryCreate(link.Attributes["href"].Value, UriKind.Absolute, out uriParsed))
                 {
-                    httpLinksList.Add(uriParsed.Host);
+                    switch (uriParsed.Scheme)
+                    {
+                        case "http":
+                            if (!httpLinksList.Contains(uriParsed.Host)) { httpLinksList.Add(uriParsed.Host); }
+                            break;
+
+                        case "ftp":
+                            if (!ftpLinksList.Contains(uriParsed.Host)) { ftpLinksList.Add(uriParsed.Host); }
+                            break;
+                    }
                 }
+
             }
 
             var rawHttpList = JsonSerializer.Serialize<List<string>>(httpLinksList);
-
-            Mind.Instance.CacheDb.Set<string>(CacheKeyHttp, TimeSpan.FromDays(7), rawHttpList);
-
-            var ftpLinks = htmlDoc.DocumentNode.SelectNodes("//li/a");
-
-            var ftpLinksList = new List<string>();
-
-            foreach (var link in ftpLinks)
-            {
-                var uriParsed = new Uri(link.Attributes["href"].Value);
-
-                if (!ftpLinksList.Contains(uriParsed.Host) && uriParsed.Scheme == "ftp")
-                {
-                    ftpLinksList.Add(uriParsed.Host);
-                }
-            }
-
             var rawFtpList = JsonSerializer.Serialize<List<string>>(ftpLinksList);
 
+            Mind.Instance.CacheDb.Set<string>(CacheKeyHttp, TimeSpan.FromDays(7), rawHttpList);
             Mind.Instance.CacheDb.Set<string>(CacheKeyFtp, TimeSpan.FromDays(7), rawFtpList);
         }
 
