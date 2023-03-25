@@ -2,7 +2,7 @@
 
 namespace VintageHive.Proxy.Security;
 
-internal static class Native
+public static class Native
 {
     public readonly static Version WrapperVersion = new(0x1000201F); // 1.0.2a
 
@@ -32,6 +32,8 @@ internal static class Native
         }
 
         CheckResultSuccess(SSL_library_init());
+
+        OPENSSL_add_all_algorithms_noconf();
 
         ERR_load_crypto_strings();
 
@@ -76,6 +78,13 @@ internal static class Native
 
     /* EVP_PKEY */
 
+    /* = Macros = */
+    public static int EVP_PKEY_assign_RSA(IntPtr pkey, IntPtr rsa)
+    {
+        return EVP_PKEY_assign(pkey, 0, rsa);
+    }
+    /* = Macros = */
+
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static IntPtr EVP_PKEY_new();
 
@@ -83,7 +92,60 @@ internal static class Native
     public extern static void EVP_PKEY_free(IntPtr pkey);
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int EVP_PKEY_assign(IntPtr pkey, KeyType type, IntPtr key);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int EVP_PKEY_set1_RSA(IntPtr pkey, IntPtr key);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_PKEY_get1_RSA(IntPtr pkey);
+
+    /* Message Digests */
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_md_null();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_md2();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_md4();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_md5();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_sha();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_sha1();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_sha224();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_sha256();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_sha384();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_sha512();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_dss();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_dss1();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_mdc2();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_ripemd160();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr EVP_ecdsa();
 
     /* X509 */
 
@@ -91,10 +153,28 @@ internal static class Native
     public extern static IntPtr X509_new();
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_sign(IntPtr x, IntPtr pkey, IntPtr md);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int X509_set_version(IntPtr x, int version);
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_subject_name(IntPtr x, IntPtr name);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_get_subject_name(IntPtr a);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_issuer_name(IntPtr x, IntPtr name);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_get_issuer_name(IntPtr a);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static IntPtr PEM_read_bio_X509(IntPtr bp, IntPtr x, PEMPasswordCallback cb, IntPtr u);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr PEM_read_bio_PUBKEY(IntPtr bp, IntPtr x, PEMPasswordCallback cb, IntPtr u);
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int PEM_write_bio_X509(IntPtr bp, IntPtr x);
@@ -110,6 +190,27 @@ internal static class Native
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static IntPtr X509_NAME_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_NAME_dup(IntPtr xn);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_serialNumber(IntPtr x, IntPtr serial);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_get_serialNumber(IntPtr x);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_notBefore(IntPtr x, IntPtr tm);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_notAfter(IntPtr x, IntPtr tm);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int X509_set_pubkey(IntPtr x, IntPtr pkey);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr X509_get_pubkey(IntPtr x);
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int X509_NAME_get_index_by_NID(IntPtr name, int nid, int lastpos);
@@ -145,6 +246,15 @@ internal static class Native
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int RSA_generate_key_ex(IntPtr rsa, int bits, IntPtr e, IntPtr callback);
 
+    //[DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    //public extern static IntPtr RSA_generate_key(int bits, IntPtr e, IntPtr callback, IntPtr callbackArgs);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int PEM_write_bio_RSA_PUBKEY(IntPtr bp, IntPtr x);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr PEM_read_bio_RSA_PUBKEY(IntPtr bp, IntPtr x, PEMPasswordCallback cb, IntPtr u);
+
     /* PEM */
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
@@ -166,6 +276,32 @@ internal static class Native
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static uint BN_get_word(IntPtr a);
+
+    /* ASN1 */
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr ASN1_INTEGER_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void ASN1_INTEGER_free(IntPtr x);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int ASN1_INTEGER_set(IntPtr a, int v);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int ASN1_INTEGER_get(IntPtr a);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr ASN1_TIME_set(IntPtr s, long t);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int ASN1_UTCTIME_print(IntPtr bp, IntPtr a);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr ASN1_TIME_new();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void ASN1_TIME_free(IntPtr x);
 
     /* BIOs */
 
@@ -216,6 +352,9 @@ internal static class Native
 
     [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int SSL_library_init();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void OPENSSL_add_all_algorithms_noconf();
 
     /* SSL Delegates */
 
@@ -332,7 +471,6 @@ internal static class Native
 
         return returnCode;
     }
-
     public static IntPtr CheckResultSuccess(IntPtr returnPtr)
     {
         if (returnPtr == IntPtr.Zero)

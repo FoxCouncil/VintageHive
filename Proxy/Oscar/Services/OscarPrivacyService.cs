@@ -49,7 +49,7 @@ internal class OscarPrivacyService : IOscarService
 
             default:
             {
-                Debugger.Break();
+                // Debugger.Break();
 
                 await Task.Delay(0);
             }

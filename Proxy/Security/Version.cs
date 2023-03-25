@@ -1,6 +1,6 @@
 ﻿namespace VintageHive.Proxy.Security;
 
-internal class Version
+public class Version
 {
     const byte PatchCharAlignmentNumber = 97;
 

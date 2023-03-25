@@ -4,7 +4,7 @@ using static System.Text.Encoding;
 
 namespace VintageHive.Proxy.Security;
 
-internal class BasicInputOutput : NativeRef
+public class BasicInputOutput : NativeRef
 {
     public uint PendingBytes => BIO_ctrl_pending(this);
 

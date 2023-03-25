@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using VintageHive.Data.Cache;
 using VintageHive.Network;
 using static VintageHive.Proxy.Http.HttpUtilities;
 using VintageHiveHttpProcessDelegate = System.Func<VintageHive.Proxy.Http.HttpRequest, VintageHive.Proxy.Http.HttpResponse, System.Threading.Tasks.Task<bool>>;
@@ -16,11 +14,7 @@ public class HttpProxy : Listener
         { HttpStatusCode.InternalServerError, new StreamReader(typeof(HttpProxy).Assembly.GetManifestResourceStream("VintageHive.Statics.errors.500.html")).ReadToEnd() }
     };
 
-    public static readonly string ApplicationVersion = typeof(HttpProxy).Assembly.GetName().Version?.ToString() ?? "NA";
-
     public readonly List<VintageHiveHttpProcessDelegate> Handlers = new();
-
-    public ICacheDb CacheDb { get; set; }
 
     public HttpProxy(IPAddress listenAddress, int port, bool secure) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, secure) { }
 
@@ -39,7 +33,7 @@ public class HttpProxy : Listener
 
         var key = $"HPC-{httpRequest.Uri}";
 
-        var cachedResponse = CacheDb?.Get<string>(key);
+        var cachedResponse = Mind.Cache.GetHttpProxy(key);
 
         if (cachedResponse == null)
         {
@@ -51,13 +45,15 @@ public class HttpProxy : Listener
                 {
                     if (handled = await handler(httpRequest, httpResponse))
                     {
+                        Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
+
                         break;
                     }
                 }
             }
             catch(Exception ex)
             {
-                Display.WriteException(ex);
+                Log.WriteException(GetType().Name, ex, connection.TraceId.ToString());
 
                 ProcessErrorResponse(httpRequest, httpResponse, HttpStatusCode.InternalServerError, ex);
 
@@ -88,15 +84,15 @@ public class HttpProxy : Listener
 
                         buffer = httpResponse.GetResponseEncodedData();
                     }
-
+                    
                     if (httpResponse.SessionId != Guid.Empty)
                     {
-                        Db.Sessions.Set(httpResponse.SessionId, httpResponse.Session);
+                        Mind.Db.WebSessionSet(httpResponse.SessionId, httpResponse.Session);
                     }
 
                     if (httpResponse.Cache)
                     {
-                        CacheDb?.Set<string>(key, httpResponse.CacheTtl, Convert.ToBase64String(buffer));
+                        Mind.Cache.SetHttpProxy(key, httpResponse.CacheTtl, Convert.ToBase64String(buffer));
                     }
 
                     if (httpResponse.DownloadStream != null)
@@ -117,12 +113,13 @@ public class HttpProxy : Listener
         }
         else
         {
-            // Display.WriteLog("Cache  HIT: " + key);
+            Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), "CACHED RESPONSE");
 
             try
             {
-                Display.WriteLog($"[{"HTTP Proxy Cached",15} Request] ({httpRequest.Uri}) [N/A]");
+                // Log.WriteLine(Log.LEVEL_REQUEST, GetType().Name, $"({httpRequest.Uri}) [N/A]", connection.TraceId.ToString());
 
+                // TODO: Store metadata about what made the cached response.
                 return Convert.FromBase64String(cachedResponse);
             }
             catch (Exception) { }
@@ -141,6 +138,10 @@ public class HttpProxy : Listener
         var date = DateTime.UtcNow.ToUniversalTime().ToString("R");
 
         httpResponse.Headers.Add(HttpHeaderName.Date, date);
+
+        Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), $"ERROR {(int)statusCode}{(exception != null ? $": {exception}" : "")}");
+        
+        Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $" Unhandled Request {(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
 
         if (!ErrorPages.ContainsKey(statusCode))
         {
@@ -161,10 +162,21 @@ public class HttpProxy : Listener
         var endpoint = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4();
         var endpointPort = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Port;
 
-        body = body.Replace("||REQUEST||", httpRequest.Uri?.ToString());
-        body = body.Replace("||VERSION||", ApplicationVersion);
+        var requestUrl = httpRequest.Uri?.ToString();
+        
+        var length = 12;
+
+        if (requestUrl.Length > length)
+        {
+            requestUrl = requestUrl[..length] + requestUrl[length..].MakeHtmlAnchorLinksHappen();
+        }
+
+        body = body.Replace("||REQUEST||", requestUrl);
+        body = body.Replace("||VERSION||", Mind.ApplicationVersion);
+        body = body.Replace("||ERROR_MESSAGE||", httpResponse.ErrorMessage);
         body = body.Replace("||HOST||", $"{endpoint}:{endpointPort}");
         body = body.Replace("||DATE||", date);
+        body = body.Replace("||TRACEID||", httpRequest.ListenerSocket.TraceId.ToString());
 
         httpResponse.SetBodyString(body, HttpContentType.Text.Html);
 

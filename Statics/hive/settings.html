@@ -6,28 +6,28 @@
 <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
     {% include 'partials/header.html' %}
 
-    <center>
-        [ <a href="/settings/users.html">User Manager</a> ]
-    </center>
-    <hr>
-
     <table border="1" cellpadding="10">
         <tr>
             <td valign="top">
-                <font face="Courier New" size="4">Cache Control:</font>
+                <font face="Courier New" size="4">Client Details:</font>
                 <table border="1" cellpadding="5">
                     <tr>
-                        <td align="center"><font face="Courier New" size="6">{{ cache_counters.Item1 }}</font></td>
-                        <td align="center"><font face="Courier New" size="6">{{ cache_counters.Item2 }}</font></td>
+                        <td align="right">ClientIP</td>
+                        <td align="center">{{ clientip }}</td>
                     </tr>
                     <tr>
-                        <td align="center">Web Cache</td>
-                        <td align="center">Internet Archive</td>
+                        <td align="right">Detected Browser</td>
+                        <td align="center">{{ browserversion }}</td>
+                    </tr>
+                    <tr>
+                        <td align="right">Detected OS</td>
+                        <td align="center">{{ osversion }}</td>
+                    </tr>
+                    <tr>
+                        <td align="right">Detected Device</td>
+                        <td align="center">{{ deviceversion }}</td>
                     </tr>
                 </table>
-                <form action="/api/cache/clear" method="POST" enctype="application/x-www-form-urlencoded">
-                    <center><input type="submit" name="toggle" value="Clear Cache"></center>
-                </form>
             </td>
             <td valign="top">
                 <font face="Courier New" size="4">Internet Archive:</font>

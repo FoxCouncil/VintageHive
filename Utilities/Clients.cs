@@ -3,7 +3,7 @@ using System.Net;
 using System.ServiceModel.Syndication;
 using System.Text.Json;
 using System.Xml;
-using VintageHive.Data;
+using VintageHive.Data.Types;
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
@@ -18,6 +18,15 @@ public static class Clients
         var result = await client.GetStringAsync(url);
 
         return JsonSerializer.Deserialize<T>(result);
+    }
+
+    internal static async Task<string> GetHttpString(string url)
+    {
+        var client = GetHttpClient();
+
+        var result = await client.GetStringAsync(url);
+
+        return result;
     }
 
     public static HttpClient GetHttpClient(HttpRequest request = null, HttpClientHandler handler = null)
@@ -65,7 +74,7 @@ public static class Clients
         {
             output.Add(new Headlines()
             {
-                Id = item.Links[0].Uri.Segments[5],
+                Id = item.Links[0].Uri.Segments.Last(),
                 Title = item.Title.Text,
                 Published = item.PublishDate,
                 Summary = item.Summary.Text.StripHtml()
@@ -81,6 +90,11 @@ public static class Clients
     {
         var url = string.Concat(GoogleArticleUrl, articleId);
 
+        return await GetReaderOutput(url);
+    }
+
+    public static async Task<Article> GetReaderOutput(string url)
+    {
         try
         {
             var article = await Reader.ParseArticleAsync(url);
@@ -101,7 +115,7 @@ public static class Clients
 
         var cacheKey = $"WEA-{url}";
 
-        var rawData = Mind.Instance.CacheDb.Get<string>(cacheKey);
+        string rawData = Mind.Cache.GetWeather(cacheKey);
 
         if (rawData == null)
         {
@@ -113,12 +127,12 @@ public static class Clients
 
                 if (result.Contains("\"status\":\"fail\""))
                 {
-                    Mind.Instance.CacheDb.Set(cacheKey, TimeSpan.FromDays(1000), result);
+                    Mind.Cache.SetWeather(cacheKey, TimeSpan.FromDays(1000), result);
 
                     return null;
                 }
 
-                Mind.Instance.CacheDb.Set(cacheKey, TimeSpan.FromMinutes(15), result);
+                Mind.Cache.SetWeather(cacheKey, TimeSpan.FromMinutes(15), result);
 
                 rawData = result;
             }

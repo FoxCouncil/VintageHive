@@ -16,11 +16,11 @@ namespace VintageHive.Utilities
 
         const string FetchRequestHeaders = "GET {{URI}} HTTP/1.1\r\nUser-Agent: {{UA}}\r\nHost: {{HOST}}:21\r\nProxy-Connection: Keep-Alive\r\n\r\n";
 
-        const string CacheKeyHttp = "PROTOWEB_SITE_HTTP_LIST";
+        const string CacheKeyHttp = "HTTP";
 
-        const string CacheKeyFtp = "PROTOWEB_SITE_FTP_LIST";
+        const string CacheKeyFtp = "FTP";
 
-        const string RequestUri = "http://www.inode.com/";
+        const string RequestUri = "http://www.inode.com/cgi-bin/sites.cgi";
 
         static readonly object _lock = new();
 
@@ -38,11 +38,11 @@ namespace VintageHive.Utilities
             }
             catch (Exception ex)
             {
-                Display.WriteException(ex);
+                Log.WriteException(nameof(ProtoWebUtils), ex, "");
 
-                Display.WriteLog("ProtoWeb is offline! Turning it off!");
+                Log.WriteLine(Log.LEVEL_INFO, nameof(ProtoWebUtils), "ProtoWeb is offline! Turning it off!", "");
 
-                Mind.Instance.ConfigDb.SettingSet(ConfigNames.ProtoWeb, false);
+                Mind.Db.ConfigSet(ConfigNames.ProtoWeb, false);
 
                 return;
             }
@@ -51,73 +51,74 @@ namespace VintageHive.Utilities
 
             htmlDoc.LoadHtml(site);
 
-            var httpLinks = htmlDoc.DocumentNode.SelectNodes("//div/a");
+            var links = htmlDoc.DocumentNode.SelectNodes("//a");
 
-            var httpLinksList = new List<string>
-            {
-                "inode.com"
-            };
+            var httpLinksList = new List<string> { "inode.com" };
+            var ftpLinksList = new List<string> { "ftp.inode.com" };
 
-            foreach (var link in httpLinks)
+            foreach (var link in links)
             {
+                if (link.Attributes["href"] == null)
+                { 
+                    continue; 
+                }
+
+                var linkVal = link.Attributes["href"].Value;
+
+                if (!linkVal.Contains('.') || !linkVal.Contains(':'))
+                {
+                    continue;
+                }
+
                 // var uriParsed = new Uri(link.Attributes["href"].Value.Replace("www.", string.Empty));
-                var uriParsed = new Uri(link.Attributes["href"].Value);
+                var uriParsed = new Uri(linkVal);
 
-                if (!httpLinksList.Contains(uriParsed.Host) && uriParsed.Scheme == "http")
+                if (uriParsed.Scheme == "http" && !httpLinksList.Contains(uriParsed.Host))
                 {
                     httpLinksList.Add(uriParsed.Host);
                 }
-            }
 
-            var rawHttpList = JsonSerializer.Serialize<List<string>>(httpLinksList);
-
-            Mind.Instance.CacheDb.Set<string>(CacheKeyHttp, TimeSpan.FromDays(7), rawHttpList);
-
-            var ftpLinks = htmlDoc.DocumentNode.SelectNodes("//li/a");
-
-            var ftpLinksList = new List<string>();
-
-            foreach (var link in ftpLinks)
-            {
-                var uriParsed = new Uri(link.Attributes["href"].Value);
-
-                if (!ftpLinksList.Contains(uriParsed.Host) && uriParsed.Scheme == "ftp")
+                if (uriParsed.Scheme == "ftp" && !ftpLinksList.Contains(uriParsed.Host))
                 {
                     ftpLinksList.Add(uriParsed.Host);
                 }
             }
 
-            var rawFtpList = JsonSerializer.Serialize<List<string>>(ftpLinksList);
+            // var rawHttpList = JsonSerializer.Serialize<List<string>>(httpLinksList);
 
-            Mind.Instance.CacheDb.Set<string>(CacheKeyFtp, TimeSpan.FromDays(7), rawFtpList);
+            Mind.Cache.SetProtowebSiteList(CacheKeyHttp, httpLinksList);
+
+            Mind.Cache.SetProtowebSiteList(CacheKeyFtp, ftpLinksList);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(ProtoWebUtils), $"Updated Sitelist HTTP:{httpLinksList.Count} FTP:{ftpLinksList.Count}", "");
         }
 
         public static async Task<List<string>> GetAvailableHttpSites()
         {
-            var rawHttpList = Mind.Instance.CacheDb.Get<string>(CacheKeyHttp);
+            var httpList = Mind.Cache.GetProtowebSiteList(CacheKeyHttp);
             
-            if (rawHttpList == null)
+            if (httpList == null || !httpList.Any())
             {
                 await UpdateSiteLists();
 
-                rawHttpList = Mind.Instance.CacheDb.Get<string>(CacheKeyHttp);
+                httpList = Mind.Cache.GetProtowebSiteList(CacheKeyHttp);
             }
 
-            return JsonSerializer.Deserialize<List<string>>(rawHttpList);
+            return httpList;
         }
 
         public static async Task<List<string>> GetAvailableFtpSites()
         {
-            var rawFtpList = Mind.Instance.CacheDb.Get<string>(CacheKeyFtp);
+            var ftpList = Mind.Cache.GetProtowebSiteList(CacheKeyFtp);
 
-            if (rawFtpList == null)
+            if (ftpList == null || !ftpList.Any())
             {
                 await UpdateSiteLists();
 
-                rawFtpList = Mind.Instance.CacheDb.Get<string>(CacheKeyFtp);
+                ftpList = Mind.Cache.GetProtowebSiteList(CacheKeyFtp);
             }
 
-            return JsonSerializer.Deserialize<List<string>>(rawFtpList);
+            return ftpList;
         }
 
         internal static string CreateFtpContentRequest(string uri, string fetchRequestUserAgent, string host)

@@ -23,7 +23,7 @@
         {% for article in articles %}
         <li>
             <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
-            <a href="/news.html?article={{ article.Id }}">{{ article.Title }}</a>
+            <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}">{{ article.Title }}</a>
         </li>
         {% endfor %}
     </ul>

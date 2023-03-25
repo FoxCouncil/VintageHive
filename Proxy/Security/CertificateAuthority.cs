@@ -1,36 +1,44 @@
-﻿using VintageHive.Data.Config;
-
-namespace VintageHive.Proxy.Security;
+﻿namespace VintageHive.Proxy.Security;
 
 internal static class CertificateAuthority
 {
     const string CA_PRIVATE_KEY = "CA_PRIVATE_KEY";
 
-    const int CA_PRIVATE_KEY_BITS = 512;
+    const int CA_PRIVATE_KEY_BITS = 1024;
 
-    const int CA_PRIVATE_KEY_E = 3;
-    
-    static IConfigDb _db;
+    static readonly BigNumber CA_PRIVATE_KEY_E = BigNumber.Rsa65537;
 
-    static Rsa _privateKey;
+    static readonly X509Name CAName = new("VintageHive Dialnine Cert Authority");
+
+    private static CryptoKey _privateKey;
+
+    private static CryptoKey _publicKey;
     
-    internal static void Init(IConfigDb configDb)
+    internal static void Init()
     {
-        _db = configDb ?? throw new ArgumentNullException(nameof(configDb));
+        //var privateKeyString = Mind.Db.ConfigGet<string>(CA_PRIVATE_KEY);
 
-        var privateKeyString = _db.SettingGet<string>(CA_PRIVATE_KEY);
+        //if (privateKeyString == null)
+        //{
+        //    Mind.Db.ConfigSet(CA_PRIVATE_KEY, privateKeyString);
+        //}
 
-        if (privateKeyString == null)
-        {
-            using var rsaTest = new Rsa();
+        using var rsaTest = new Rsa();
 
-            rsaTest.GenerateKey(CA_PRIVATE_KEY_BITS, CA_PRIVATE_KEY_E);
+        rsaTest.GenerateKey(CA_PRIVATE_KEY_BITS, CA_PRIVATE_KEY_E);
 
-            privateKeyString = rsaTest.PEMPrivateKey();
+        //var rsaTestPrivatePem = rsaTest.PEMPrivateKey();
 
-            _db.SettingSet(CA_PRIVATE_KEY, privateKeyString);
-        }
+        //var rsaTestPublicPem = rsaTest.PEMPublicKey();
 
-        _privateKey = Rsa.FromPEMPrivateKey(privateKeyString);
+        _privateKey = new CryptoKey(rsaTest);
+
+        //_publicKey = CryptoKey.FromRSAPublicKey(rsaTestPublicPem);
+
+        var caCert = new X509Certificate(CAName, CAName, _publicKey, DateTime.Now, DateTime.Now.AddYears(100));
+
+        caCert.Sign(_privateKey, MessageDigest.MD5);
+
+        var certificateString = caCert.ToPEM();
     }
 }

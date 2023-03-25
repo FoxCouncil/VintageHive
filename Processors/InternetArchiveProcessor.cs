@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using VintageHive.Processors.InternetArchive;
+using VintageHive.Data.Types;
 using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
 
@@ -14,7 +14,9 @@ internal static class InternetArchiveProcessor
 {
     public static readonly int[] ValidYears = Enumerable.Range(1997, 25).ToArray();
 
-    const string InternetArchiveAvailabilityApiUri = "https://archive.org/wayback/available?url={0}&timestamp={1}";
+    // const string InternetArchiveAvailabilityApiUri = "https://archive.org/wayback/available?timestamp={1}&url={0}";
+
+    const string WaybackCDXUrl = "http://web.archive.org/cdx/search/cdx?url={0}&from={1}&to={1}&fl=original,timestamp,mimetype,length";
 
     const string FullRewritePattern = "http://web.archive.org/web/";
 
@@ -48,7 +50,7 @@ internal static class InternetArchiveProcessor
 
     public static async Task<bool> ProcessRequest(HttpRequest req, HttpResponse res)
     {
-        var isInternetArchiveEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.InternetArchive);
+        var isInternetArchiveEnabled = Mind.Db.ConfigGet<bool>(ConfigNames.InternetArchive);
 
         if (!isInternetArchiveEnabled)
         {
@@ -77,26 +79,20 @@ internal static class InternetArchiveProcessor
         }
 
         // check to see if getting data from archive or looking in the archive for a result
-        var iaUrl = req.Uri.Host.Contains(InternetArchiveDataServer) ? req.Uri : await GetAvailability(req);
+        var iaUrl = req.Uri.Host.Contains(InternetArchiveDataServer) ? req.Uri : await GetAvailability(req, res);
 
         if (iaUrl == null || iaUrl.ToString().Length <= InternetArchiveDataUrlLength)
-        {
+        {            
             return false;
         }
         
         res.Cache = false;
 
-        var internetArchiveYear = Mind.Instance.ConfigDb.SettingGet<int>(ConfigNames.InternetArchiveYear);
+        var cachedResponse = Mind.Cache.GetWayback(iaUrl);
 
-        var cacheKey = $"PC-{internetArchiveYear}-{req.Uri}";
+        string contentType;
 
-        var cachedResponse = Mind.Instance.CacheDb.Get<string>(cacheKey);
-
-        var contentType = string.Empty;
-
-        byte[] contentData = null;
-
-        var isCached = false;
+        byte[] contentData;
 
         if (cachedResponse == null)
         {
@@ -138,25 +134,15 @@ internal static class InternetArchiveProcessor
                 contentData = await iaResponse.Content.ReadAsByteArrayAsync();
             }
 
-            if (req.Uri.Host.StartsWith(InternetArchiveDataServer))
-            {
-                res.Cache = true;
-                res.CacheTtl = CacheTtl;
-            }
-            else
-            {
-                var cachedData = new InternetArchiveCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
+            var cachedData = new ContentCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
+            
+            var jsonData = JsonSerializer.Serialize<ContentCachedData>(cachedData);
 
-                var jsonData = JsonSerializer.Serialize<InternetArchiveCachedData>(cachedData);
-
-                Mind.Instance.CacheDb.Set<string>(cacheKey, CacheTtl, jsonData);
-            }
+            Mind.Cache.SetWayback(iaUrl, CacheTtl, jsonData);
         }
         else
         {
-            isCached = true;
-            
-            var cachedData = JsonSerializer.Deserialize<InternetArchiveCachedData>(cachedResponse);
+            var cachedData = JsonSerializer.Deserialize<ContentCachedData>(cachedResponse);
 
             contentType = cachedData.ContentType;
             contentData = Convert.FromBase64String(cachedData.ContentDataBase64);
@@ -166,8 +152,6 @@ internal static class InternetArchiveProcessor
         {
             return false;
         }
-        
-        Display.WriteLog($"[{"InternetArchive",15} Request] |{(isCached ? "HIT" : "MISS"), 4}| \\{internetArchiveYear}\\ ({req.Uri}) [{contentType}]");
 
         if (contentType.Contains("utf8"))
         {
@@ -178,55 +162,47 @@ internal static class InternetArchiveProcessor
             res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
         }
 
-        res.SetBodyData(contentData, contentType);        
+        res.SetBodyData(contentData, contentType);
 
         return true;
     }
 
-    static async Task<Uri> GetAvailability(HttpRequest req)
+    static async Task<Uri> GetAvailability(HttpRequest req, HttpResponse res)
     {
+        var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(req.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
+        
         var incomingUrl = req.Uri.ToString();
+        
+        var incomingUrlEncoded = Uri.EscapeDataString(incomingUrl);
 
-        var internetArchiveYear = Mind.Instance.ConfigDb.SettingGet<int>(ConfigNames.InternetArchiveYear);
+        var availabilityUri = string.Format(WaybackCDXUrl, incomingUrlEncoded, internetArchiveYear);
 
-        var key = $"AREQ-{internetArchiveYear}-{incomingUrl}";
-
-        var result = Mind.Instance.CacheDb.Get<string>(key);
+        var result = Mind.Cache.GetWaybackAvailability(incomingUrl, internetArchiveYear);
 
         if (result == null)
         {
-            // var availabilityDate = $"{internetArchiveYear}{DateTime.UtcNow:ddMM}";
-
-            var availabilityDate = $"{internetArchiveYear}";
-
-            var incomingUrlEncoded = Uri.EscapeDataString(incomingUrl);
-
-            var availabilityUri = string.Format(InternetArchiveAvailabilityApiUri, incomingUrlEncoded, availabilityDate);
-
             using var httpClient = Clients.GetHttpClient(req);
 
             var availabilityResponseRaw = await httpClient.GetStringAsync(availabilityUri);
 
             if (!string.IsNullOrWhiteSpace(availabilityResponseRaw))
-            {
-                var availabilityResponse = JsonSerializer.Deserialize<InternetArchiveResponse>(availabilityResponseRaw);
+            {                
+                var availabilityResponse = ProcessCDX(availabilityResponseRaw);
 
-                if (availabilityResponse == null || availabilityResponse.archived_snapshots.closest == null)
+                if (availabilityResponse == null || !availabilityResponse.Any())
                 {
-                    result = string.Empty;
+                    res.ErrorMessage = $"No Internet Archive availability data found for this URL.</p><p><b>{availabilityUri}</b></p><p>[CacheMiss]";
                 }
                 else
                 {
-                    // Format, format, format!!!!!!
-                    var iaUrl = availabilityResponse.archived_snapshots.closest.url;
-                    var timestamp = availabilityResponse.archived_snapshots.closest.timestamp;
-                    var indexOfDate = iaUrl.IndexOf(timestamp) + timestamp.Length;
-                    var mimeType = MimeTypesMap.GetMimeType(iaUrl);
-
-                    Debug.Assert(indexOfDate == InternetArchiveDataUrlLength);
+                    var largestCapture = availabilityResponse.OrderByDescending(x => x.Length).First();
+                    
+                    var iaUrl = largestCapture.Url;
+                    var timestamp = largestCapture.Timestamp;
+                    var mimeType = largestCapture.MimeType;
 
                     var iaType = "if_";
-
+                    
                     if (mimeType.StartsWith("image"))
                     {
                         iaType = "im_";
@@ -240,19 +216,51 @@ internal static class InternetArchiveProcessor
                         iaType = "oe_";
                     }
 
-                    result = availabilityResponse.archived_snapshots.closest.url.Insert(InternetArchiveDataUrlLength, iaType);
+                    result = $"{FullRewritePattern}{timestamp}{iaType}/{iaUrl}";
                 }
 
-                Mind.Instance.CacheDb.Set<string>(key, TimeSpan.FromDays(1000), result);
+                Mind.Cache.SetWaybackAvailability(incomingUrl, internetArchiveYear, result, availabilityResponseRaw);
             }
         }
 
         if (string.IsNullOrWhiteSpace(result))
         {
+            if (string.IsNullOrWhiteSpace(res.ErrorMessage))
+            {
+                res.ErrorMessage = $"No Internet Archive availability data found for this URL.</p><p><b>{availabilityUri}</b></p><p>[CacheHit]";
+            }
+            
             return null;
         }
 
         return new Uri(result);
+    }
+
+    private static List<WaybackCDXResult> ProcessCDX(string availabilityResponseRaw)
+    {
+        var response = new List<WaybackCDXResult>();
+
+        var lines = availabilityResponseRaw.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length == 4)
+            {
+                var result = new WaybackCDXResult
+                {
+                    Url = parts[0],
+                    Timestamp = parts[1],
+                    MimeType = parts[2],
+                    Length = int.Parse(parts[3])
+                };
+
+                response.Add(result);
+            }
+        }
+
+        return response;
     }
 
     static string ScrubHtml(Uri iaUrl, string html)

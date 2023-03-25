@@ -42,6 +42,8 @@ namespace VintageHive.Proxy.Http
                 public const string Json = "application/json";
 
                 public const string OctetStream = "application/octet-stream";
+
+                public const string XWwwFormUrlEncoded = "application/x-www-form-urlencoded";
             }
 
             public static class Text
@@ -49,6 +51,11 @@ namespace VintageHive.Proxy.Http
                 public const string Html = "text/html";
 
                 public const string Plain = "text/plain";
+            }
+
+            public static class Multipart
+            {
+                public const string FormData = "multipart/form-data";
             }
         }
 

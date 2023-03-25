@@ -1,16 +1,127 @@
-﻿<!DOCTYPE html>
+﻿{% assign title = "Home" %}
+<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="utf-8" />
-
-    <title>Admin - Vintage Hive</title>
-
-    <link href="/css/main.css" rel="stylesheet">
+    {% include 'partials/head.html' %}
 </head>
-<body>
-    <h1>PENIS</h1>
-    <h2>{{ now }}</h2>
-    <h3>{{ Response.Session.count }}</h3>
-    <script src="/js/main.js" type="text/javascript"></script>
+<body class="d-flex flex-column">
+    {% include 'partials/header.html' %}
+
+    <h1 class="mt-3">HTTP Processors</h1>
+
+    <div class="row mt-3">
+        <div class="col-sm">
+            <div class="card">
+                <img class="card-img-top" src="/img/wayback.jpg" width="382" height="200" alt="Card image cap">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="https://www.archive.org/" target="_blank">Internet Archive</a>
+                        (<a href="https://web.archive.org/" target="_blank">Wayback Machine</a>)
+                    </h5>
+                    <p class="card-text">Millions of web sites and their associated data (images, source code, documents, etc.) are saved in a database. The service can be used to see what previous versions of web sites used to look like, to grab original source code from web sites that may no longer be directly available, or to visit web sites that no longer even exist.</p>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item h3">
+                        Global Year:
+                        <select id="ia_year">
+                            {% for year in ia_years %}
+                            {% if year == ia_current %}
+                            <option value="{{ year }}" selected>{{ year }}</option>
+                            {% else %}
+                            <option value="{{ year }}">{{ year }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </li>
+                </ul>
+                <div class="card-body d-grid gap-2">
+                    <button type="button" id="ia_toggle" class="btn btn-outline-success btn-lg">ONLINE</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm">
+            <div class="card">
+                <img class="card-img-top" src="/img/protoweb.jpg" width="382" height="200" alt="Card image cap">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="https://protoweb.org/" target="_blank">Protoweb</a>
+                    </h5>
+                    <p class="card-text">Protoweb is a free public service that hosts historical Internet websites to demonstrate the Internet in it’s early days. It is also a community driven project consisting of volunteers with the goal of rebuilding and restoring early Internet services to offer a seamless browsing experience.</p>
+                </div>
+                <ul class="list-group list-group-flush h3">
+                    <li class="list-group-item">HTTP</li>
+                </ul>
+                <div class="card-body d-grid gap-2">
+                    <button type="button" id="protoweb_toggle" class="btn btn-outline-success btn-lg">ONLINE</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm">
+            <div class="card">
+                <img class="card-img-top" src="/img/localserver.jpg" width="382" height="200" alt="Card image cap">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="/localserver.html">Local Server</a>
+                    </h5>
+                    <p class="card-text">This is your one stop shop for everything modern in a retro world.</p>
+                </div>
+                <ul class="list-group list-group-flush h3">
+                    <li class="list-group-item">News/Weather/Web</li>
+                    <li class="list-group-item">Search</li>
+                    <li class="list-group-item">Hosting</li>
+                </ul>
+                <div class="card-body d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-lg" onclick="window.location='/localserver.html'">SETTINGS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'partials/footer.html' %}
+    <script type="module">
+        const iaToggle = gei("ia_toggle");
+        const iaYearSelect = gei("ia_year");
+        const protowebToggle = gei("protoweb_toggle");
+        async function updateDashboard() {
+            try {
+                const status = await callApi('status');
+                iaToggle.innerText = onOrOff(status.ia);
+                if (status.ia) {
+                    iaToggle.classList.remove("btn-outline-danger");
+                    iaToggle.classList.add("btn-outline-success");
+                    iaYearSelect.removeAttribute("disabled");
+                } else {
+                    iaToggle.classList.add("btn-outline-danger");
+                    iaToggle.classList.remove("btn-outline-success");
+                    iaYearSelect.setAttribute("disabled", "true");
+                }
+                iaYearSelect.value = status.iayear;
+                protowebToggle.innerText = onOrOff(status.protoweb);
+                if (status.protoweb) {
+                    protowebToggle.classList.remove("btn-outline-danger");
+                    protowebToggle.classList.add("btn-outline-success");
+                } else {
+                    protowebToggle.classList.add("btn-outline-danger");
+                    protowebToggle.classList.remove("btn-outline-success");
+                }
+            } catch (e) {
+                console.log(e)
+            }
+        }
+        await updateDashboard();
+        setInterval(async () => { await updateDashboard() }, 1000);
+        iaToggle.addEventListener("click", async () => {
+            await callApi("iatoggle");
+            await updateDashboard();
+        });
+        iaYearSelect.addEventListener("change", async (e) => {
+            await callApi("iasetyear", formData({ "year": e.target.value }));
+            await updateDashboard();
+        });
+        protowebToggle.addEventListener("click", async () => {
+            await callApi("protowebtoggle");
+            await updateDashboard();
+        });
+    </script>
 </body>
 </html>

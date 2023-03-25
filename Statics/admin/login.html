@@ -1,21 +1,42 @@
-﻿<!DOCTYPE html>
+﻿{% assign title = "Login" %}
+<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="utf-8" />
-
-    <title>Login - Admin - Vintage Hive</title>
-
-    <link href="/css/main.css" rel="stylesheet">
+    {% include 'partials/head.html' %}
+    <style>
+        .form-signin {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 330px;
+            padding: 1.5rem;
+        }
+    </style>
 </head>
 <body>
-    <div id="login">
-        <h1>VintageHive Admin</h1>
-        <form action="/api/login" method="POST">
-            <input type="text" name="username" placeholder="username"><br>
-            <input type="password" name="password" placeholder="password"><br>
-            <input type="submit" value="Login">
-        </form>
+    <br>
+    <div class="container">
+        {% displayMessage %}
     </div>
-    <script src="/js/main.js" type="text/javascript"></script>
+    <main class="form-signin text-center w-100 m-auto">
+        <form action="/api/login" method="POST">
+            <img class="mb-4" src="/img/hive_login_logo.png" alt="" height="69">
+            <h1 class="h3 mb-3 fw-normal">Vintage Hive Admin</h1>
+
+            <div class="form-floating">
+                <input type="text" class="form-control" id="floatingUsername" name="username" placeholder="Username">
+                <label for="floatingUsername">Username</label>
+            </div>
+            <br>
+            <div class="form-floating">
+                <input type="password" class="form-control" id="floatingPassword" name="password" placeholder="Password">
+                <label for="floatingPassword">Password</label>
+            </div>
+            <br>
+            <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
+        </form>
+    </main>
+    {% include 'partials/footer.html' %}
 </body>
 </html>

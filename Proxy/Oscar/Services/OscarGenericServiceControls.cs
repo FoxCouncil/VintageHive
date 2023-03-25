@@ -178,7 +178,7 @@ internal class OscarGenericServiceControls : IOscarService
 
             default:
             {
-                Debugger.Break();
+                // Debugger.Break();
             }
             break;
         }

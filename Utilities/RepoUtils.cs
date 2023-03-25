@@ -10,23 +10,13 @@ namespace VintageHive.Utilities;
 
 internal static class RepoUtils
 {
-    public static Dictionary<string, Tuple<string, DirectoryInfo>> Get()
+    public static Dictionary<string, Tuple<string, string>> Get()
     {
-        var repos = new Dictionary<string, Tuple<string, DirectoryInfo>>();
-
-        var localDownloadsFolder = new DirectoryInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "download"));
-
-        if (localDownloadsFolder.Exists)
+        var repos = new Dictionary<string, Tuple<string, string>>
         {
-            repos.Add("local", new Tuple<string, DirectoryInfo>("Download Folder", localDownloadsFolder));
-        }
-
-        var vaultFolder = new DirectoryInfo("O:\\Retro\\Retro Computers\\vault");
-
-        if (vaultFolder.Exists)
-        {
-            repos.Add("vault", new Tuple<string, DirectoryInfo>("Retro Vault", vaultFolder));
-        }
+            { "local", new Tuple<string, string>("Downloads Folder", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads")) },
+            { "vault", new Tuple<string, string>("Retro Vault", "O:\\Retro\\computer\\vault") }
+        };
 
         return repos;
     }

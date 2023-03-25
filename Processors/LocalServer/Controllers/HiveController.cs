@@ -3,9 +3,10 @@ using HeyRed.Mime;
 using HtmlAgilityPack;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
-using System.Diagnostics;
-using VintageHive.Proxy.Http;
+using SmartReader;
+using System.Net;
 using VintageHive.Utilities;
+using Image = SixLabors.ImageSharp.Image;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
@@ -17,9 +18,10 @@ internal class HiveController : Controller
 
         Response.Context.SetValue("menu", new [] {
             "Download",
+            "Search",
+            "Viewer",
             "News",
             "Weather",
-            "Services",
             "Settings",
             "Help"
         });
@@ -28,22 +30,7 @@ internal class HiveController : Controller
     [Controller("/index.html")]
     public async Task Index()
     {
-        Response.Context.SetValue("directory_hotlinks", new Dictionary<string, string>() {
-            { "Cool Links", "http://www.web-search.com/cool.html" },
-            { "GatewayToTheNet.com", "http://www.gatewaytothenet.com/" },
-            { "Top10Links", "http://www.toptenlinks.com/" },
-            { "House Of Links", "http://www.ozemail.com.au/~krisp/button.html" },
-            { "The BIG EYE", "http://www.bigeye.com/" },
-            { "STARTING PAGE", "http://www.startingpage.com/" },
-            { "Hotsheet.com", "http://www.hotsheet.com/" },
-            { "Nerd World Media", "http://www.nerdworld.com/" },
-            { "Suite101.com", "http://www.suite101.com" },
-            { "RefDesk.com", "http://www.refdesk.com/" },
-            { "WWW Virtual Library", "http://vlib.org/" },
-            { "Yahoo!", "http://www.yahoo.com" },
-            { "Yahoo! Canada", "http://www.yahoo.ca" },
-            { "DogPile Open Directory", "http://opendir.dogpile.com/" }
-        });
+        Response.Context.SetValue("directory_hotlinks", Mind.Db.LinksGetAll());
 
         Response.Context.SetValue("directory_protohttp", await ProtoWebUtils.GetAvailableHttpSites());
 
@@ -77,9 +64,9 @@ internal class HiveController : Controller
             Response.Context.SetValue("reponame", repo.Item1);
             Response.Context.SetValue("reposhortname", reposhortname);
 
-            var directoryInfo = repo.Item2;
+            var directoryInfo = new DirectoryInfo(repo.Item2);
 
-            var isRootPath = true;            
+            var isRootPath = true;
 
             if (path.Length > 3)
             {
@@ -144,77 +131,141 @@ internal class HiveController : Controller
         }
     }
 
+    [Controller("/search.html")]
+    public async Task Search()
+    {
+        if (Request.QueryParams.ContainsKey("q"))
+        {
+            var keywords = Request.QueryParams["q"];
+
+            Response.Context.SetValue("keywords", keywords);
+
+            var results = await DDGUtils.Search(keywords);
+
+            Response.Context.SetValue("results", results);
+        }
+    }
+
+    [Controller("/viewer.html")]
+    public async Task Viewer()
+    {
+        if (Request.QueryParams.ContainsKey("url"))
+        {
+            var url = Request.QueryParams["url"];
+
+            Response.Context.SetValue("url", url);
+
+            Response.Context.SetValue("type", "document");
+
+            var mimetype = MimeTypesMap.GetMimeType(url);
+
+            if (mimetype.StartsWith("image"))
+            {
+                Response.Context.SetValue("type", "image");
+                Response.Context.SetValue("image", $"/api/image/fetch?url={url}");
+            }
+            else
+            {
+                var result = await Clients.GetReaderOutput(url);
+
+                var articleDocument = new HtmlDocument();
+
+                if (result == null)
+                {
+                    Response.Context.SetValue("result", "No worky! :(");
+
+                    return;
+                }
+
+                Response.Context.SetValue("doctitle", result.Title);
+
+                articleDocument.LoadHtml(result.Content);
+                
+                NormalizeAnchorLinks(articleDocument);
+
+                NormalizeImages(articleDocument);
+
+                Response.Context.SetValue("document", articleDocument.DocumentNode.OuterHtml);
+            }
+        }
+    }
+
+    private static void NormalizeAnchorLinks(HtmlDocument articleDocument)
+    {
+        var anchorNodes = articleDocument.DocumentNode.SelectNodes("//a");
+
+        if (anchorNodes != null)
+        {
+            foreach (var node in anchorNodes)
+            {
+                var href = node.GetAttributeValue("href", "");
+
+                if (!href.Any() || href[0] == '#')
+                {
+                    continue;
+                }
+
+                href = $"/viewer.html?url={WebUtility.UrlDecode(href)}";
+
+                node.SetAttributeValue("href", href);
+
+                node.SetAttributeValue("target", "");
+            }
+        }
+    }
+
+    private static void NormalizeImages(HtmlDocument articleDocument)
+    {
+        var imgNodes = articleDocument.DocumentNode.SelectNodes("//img");
+
+        if (imgNodes != null)
+        {
+            foreach (var node in imgNodes)
+            {
+                var img = node.GetAttributeValue("src", "");
+
+                if (string.IsNullOrEmpty(img))
+                {
+                    img = node.GetAttributeValue("data-src", "");
+                }
+
+                if (string.IsNullOrEmpty(img))
+                {
+                    img = node.GetAttributeValue("data-src-medium", "");
+                }
+
+                var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
+
+                var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"/api/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
+
+                if (node.ParentNode.Name == "picture")
+                {
+                    var pictureEl = node.ParentNode;
+
+                    pictureEl.ParentNode.InsertAfter(imageLinkNode, pictureEl);
+
+                    pictureEl.Remove();
+                }
+
+                node.ParentNode.InsertAfter(imageLinkNode, node);
+
+                node.Remove();
+            }
+        }
+    }
+
     [Controller("/news.html")]
     public async Task News()
     {
         var articles = await Clients.GetGoogleArticles("US");
 
         Response.Context.SetValue("articles", articles);
-
-        if (Request.QueryParams.ContainsKey("article"))
-        {
-            var id = Request.QueryParams["article"];
-
-            var article = await Clients.GetGoogleNewsArticle(id);
-
-            if (article == null)
-            {
-                return;
-            }
-
-            Response.Context.SetValue("article", article);
-
-            //var sanitizer = HtmlSanitizer.SimpleHtml5Sanitizer();
-
-            var cleanHtml = article.Content; // sanitizer.Sanitize(article.Content);
-
-            if (!string.IsNullOrWhiteSpace(cleanHtml))
-            {
-                var articleDocument = new HtmlDocument();
-
-                articleDocument.LoadHtml(cleanHtml);
-
-                var nodes = articleDocument.DocumentNode.SelectNodes("//img");
-
-                if (nodes != null)
-                {
-                    foreach (var node in nodes)
-                    {
-                        var img = node.GetAttributeValue("src", "");
-
-                        if (string.IsNullOrEmpty(img))
-                        {
-                            img = node.GetAttributeValue("data-src-medium", "");
-                        }
-
-                        var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
-
-                        var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/api/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" target=\"_blank\"><img src=\"/api/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" width=\"320\"></a>");
-
-                        if (node.ParentNode.Name == "picture")
-                        {
-                            var pictureEl = node.ParentNode;
-
-                            pictureEl.ParentNode.InsertAfter(imageLinkNode, pictureEl);
-
-                            pictureEl.Remove();
-                        }
-
-                        node.ParentNode.InsertAfter(imageLinkNode, node);
-
-                        node.Remove();
-                    }
-                }
-
-                Response.Context.SetValue("article_body", articleDocument.DocumentNode.OuterHtml);
-            }
-        }
     }
 
     [Controller("/weather.html")]
     public async Task Weather()
     {
-        var geoipLocation = Mind.Instance.ConfigDb.SettingGet<string>(ConfigNames.Location);
+        var geoipLocation = Mind.Db.ConfigGet<string>(ConfigNames.Location);
 
         var location = Request.QueryParams.ContainsKey("location") ? Request.QueryParams["location"] : geoipLocation;
 
@@ -242,19 +293,15 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        var isInternetArchiveEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.InternetArchive);
+        var isInternetArchiveEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive);
 
         Response.Context.SetValue("ia_years", InternetArchiveProcessor.ValidYears);
         Response.Context.SetValue("ia_toggle", isInternetArchiveEnabled);
-        Response.Context.SetValue("ia_current", Mind.Instance.ConfigDb.SettingGet<int>(ConfigNames.InternetArchiveYear));
+        Response.Context.SetValue("ia_current", Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear));
 
-        var isProtoWebEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.ProtoWeb);
+        var isProtoWebEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb);
 
         Response.Context.SetValue("proto_toggle", isProtoWebEnabled);
-
-        var cacheCounters = CacheUtils.GetCounters();
-
-        Response.Context.SetValue("cache_counters", cacheCounters);
     }
 
     [Controller("/settings/users.html")]
@@ -262,7 +309,7 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        var users = Mind.Instance.UserDb.List();
+        var users = Mind.Db.UserList();
 
         Response.Context.SetValue("users", users);
     }
@@ -287,7 +334,7 @@ internal class HiveController : Controller
             return;
         }
 
-        var result = Mind.Instance.UserDb.ExistsByUsername(username);
+        var result = Mind.Db.UserExistsByUsername(username);
 
         Response.SetBodyString(result.ToString().ToLower(), "text/plain");
 
@@ -308,11 +355,9 @@ internal class HiveController : Controller
 
         var password = Request.FormData["password"];
 
-        var result = Mind.Instance.UserDb.Create(username, password);
+        var result = Mind.Db.UserCreate(username, password);
 
-        Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound(Request.Headers["Referer"]);
-
-        Response.Handled = true;
+        Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound();
     }
 
     [Controller("/api/image/fetch")]
@@ -348,9 +393,12 @@ internal class HiveController : Controller
             Response.Handled = true;
 
             return;
-        }        
+        }
 
-        image.Mutate(x => x.Resize(800, 0));
+        if (image.Size().Width > 800)
+        {
+            image.Mutate(x => x.Resize(800, 0));
+        }
 
         var memoryStream = new MemoryStream();
 
@@ -359,36 +407,7 @@ internal class HiveController : Controller
         Response.SetBodyData(memoryStream.ToArray(), "image/jpeg");
 
         Response.Handled = true;
-    }
-
-    [Controller("/api/cache/clear")]
-    public async Task CacheClear()
-    {
-        await Task.Delay(0);
-
-        Mind.Instance._cacheDb.Clear();
-
-        Response.SetFound(Request.Headers["Referer"]);
-
-        Response.Handled = true;
-    }
-
-    [Controller("/api/ia/toggle")]
-    public async Task InternetArchiveToggle()
-    {
-        if (!Request.FormData.ContainsKey("toggle"))
-        {
-            await Task.Delay(0);
-
-            return;
-        }
-    
-        Mind.Instance.ConfigDb.SettingSet(ConfigNames.InternetArchive, Request.FormData["toggle"].ToLower() != "disable");
-
-        Response.SetFound(Request.Headers["Referer"]);
-
-        Response.Handled = true;
-    }
+    }   
 
     [Controller("/api/ia/setyear")]
     public async Task InternetArchiveSetYear()
@@ -402,33 +421,14 @@ internal class HiveController : Controller
 
         if (int.TryParse(Request.FormData["year"], System.Globalization.NumberStyles.Integer, null, out var year))
         {
-            var currentYear = Mind.Instance.ConfigDb.SettingGet<int>(ConfigNames.InternetArchiveYear);
+            var currentYear = Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
 
             if (year != currentYear && InternetArchiveProcessor.ValidYears.Contains(year))
             {
-                Mind.Instance.ConfigDb.SettingSet(ConfigNames.InternetArchiveYear, year);
+                Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear, year);
             }
 
-            Response.SetFound(Request.Headers["Referer"]);
-
-            Response.Handled = true;
+            Response.SetFound();
         }
-    }
-
-    [Controller("/api/proto/toggle")]
-    public async Task ProtoWebToggle()
-    {
-        if (!Request.FormData.ContainsKey("toggle"))
-        {
-            await Task.Delay(0);
-
-            return;
-        }
-
-        Mind.Instance.ConfigDb.SettingSet(ConfigNames.ProtoWeb, Request.FormData["toggle"].ToLower() != "disable");
-
-        Response.SetFound(Request.Headers["Referer"]);
-
-        Response.Handled = true;
     }
 }

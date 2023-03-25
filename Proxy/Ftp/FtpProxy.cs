@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using VintageHive.Data.Cache;
+using VintageHive.Data.Contexts;
 using VintageHive.Network;
-using VintageHiveFtpProcessDelegate = System.Func<VintageHive.Proxy.Ftp.FtpRequest, System.Threading.Tasks.Task<byte[]>>;
+using VintageHiveFtpProcessDelegate = System.Func<VintageHive.Proxy.Ftp.FtpRequest, System.Threading.Tasks.Task<bool>>;
 
 namespace VintageHive.Proxy.Ftp;
 
@@ -13,7 +13,7 @@ public class FtpProxy : Listener
     
     readonly List<VintageHiveFtpProcessDelegate> Handlers = new();
 
-    internal ICacheDb CacheDb { get; set; }
+    internal CacheDbContext CacheDb { get; set; }
 
     public FtpProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp) { }
 
@@ -35,30 +35,39 @@ public class FtpProxy : Listener
     {
         var requestData = Encoding.ASCII.GetString(data, 0, read);
 
-        var req = FtpRequest.ParseFtpOverHttp(connection, Encoding, data);
+        var req = await FtpRequest.Parse(connection, Encoding, data, read);
+
+        if (!req.IsValid)
+        {
+            return null;
+        }
         
         var key = $"FPC-{req.Uri}";
 
-        var cachedResponse = CacheDb?.Get<string>(key);
+        var cachedResponse = Mind.Cache.GetFtpProxy(key);
 
         if (cachedResponse == null)
         {
-            byte[] responseData = null;
+            bool handled;
 
             try
             {
                 foreach (var handler in Handlers)
                 {
-                    responseData = await handler(req);
-                        
-                    if (responseData != null)
+                    handled = await handler(req);
+
+                    if (handled)
                     {
+                        Mind.Db.RequestsTrack(connection, "N/A", "FTP", req.Uri.ToString(), handler.Method.DeclaringType.Name);
+
                         break;
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Log.WriteException(GetType().Name, ex, connection.TraceId.ToString());
+
                 return null;
             }
 
@@ -74,14 +83,12 @@ public class FtpProxy : Listener
             //{
             //    CacheDb?.Set<string>(key, CacheTtl, Convert.ToBase64String(responseData));
             //}
-
-            return responseData;
         }
         else
         {
             try
             {
-                Display.WriteLog($"[{"FTP Proxy Cached",15} Request] ({req.Uri}) [N/A]");
+                // Log.WriteLine(Log.LEVEL_REQUEST, GetType().Name, $"({req.Uri}) [N/A]", connection.TraceId.ToString());
 
                 return Convert.FromBase64String(cachedResponse);
             }

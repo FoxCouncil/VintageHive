@@ -30,9 +30,9 @@ public class OscarBuddyListService : IOscarService
             {
                 var buddyRightsReply = snac.NewReply(Family, SRV_BUDDYLIST_RIGHTS_REPLY);
 
-                buddyRightsReply.WriteTlv(new Tlv(0x01, OscarUtils.GetBytes((ushort)500)));
-                buddyRightsReply.WriteTlv(new Tlv(0x02, OscarUtils.GetBytes((ushort)750)));
-                buddyRightsReply.WriteTlv(new Tlv(0x03, OscarUtils.GetBytes((ushort)512)));
+                buddyRightsReply.WriteTlv(new Tlv(0x01, OscarUtils.GetBytes(500)));
+                buddyRightsReply.WriteTlv(new Tlv(0x02, OscarUtils.GetBytes(750)));
+                buddyRightsReply.WriteTlv(new Tlv(0x03, OscarUtils.GetBytes(512)));
 
                 await session.SendSnac(buddyRightsReply);
             }

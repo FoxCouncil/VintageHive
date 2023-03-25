@@ -104,7 +104,7 @@ public class OscarServer : Listener
                     {
                         var snacPacket = flap.GetSnac();
 
-                        Display.WriteLog($"-> {snacPacket}");
+                        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"-> {snacPacket}", connection.TraceId.ToString());
 
                         var familyProcessor = _services.FirstOrDefault(x => x.Family == snacPacket.Family);
 
@@ -116,7 +116,7 @@ public class OscarServer : Listener
                         {
                             // REPORT ERROR??
                             // DISCONNECT CLIENT??
-                            Debugger.Break();
+                            // Debugger.Break();
                         }
                     }
                     break;
@@ -143,7 +143,7 @@ public class OscarServer : Listener
     {
         var cookie = Encoding.ASCII.GetString(tlvs.GetTlv(0x06).Value);
 
-        var storedSession = Mind.Instance.OscarDb.GetSessionByCookie(cookie);
+        var storedSession = Mind.Db.OscarGetSessionByCookie(cookie);
 
         session.Cookie = storedSession.Cookie;
         session.ScreenName = storedSession.ScreenName;
@@ -164,7 +164,7 @@ public class OscarServer : Listener
 
             session.UserAgent = Encoding.ASCII.GetString(tlvs.GetTlv(0x03).Value);
 
-            Mind.Instance.OscarDb.SetSession(session);
+            Mind.Db.OscarSetSession(session);
 
             var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 

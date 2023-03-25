@@ -234,7 +234,7 @@ internal class OscarIcqService : IOscarService
             case CLI_UNKNOWN_TWO:
             {
                 // NOOP
-                Display.WriteLog($"Unknown ICQ Meta Request SubTYPE {icqMetaReq.RequestSubType:X4}");
+                Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Unknown ICQ Meta Request SubTYPE {icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
             }
             break;
 
@@ -244,7 +244,7 @@ internal class OscarIcqService : IOscarService
 
                 // Debugger.Break();
 
-                Display.WriteLog($"Unknown ICQ Meta Request SubTYPE {icqMetaReq.RequestSubType:X4}");
+                Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Unknown ICQ Meta Request SubTYPE {icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

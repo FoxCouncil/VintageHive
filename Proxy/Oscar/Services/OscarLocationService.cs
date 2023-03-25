@@ -32,7 +32,7 @@ public class OscarLocationService : IOscarService
             {
                 var locationRightsReply = snac.NewReply(Family, SRV_LOCATION_RIGHTS_REPLY);
 
-                locationRightsReply.WriteTlv(new Tlv(0x01, OscarUtils.GetBytes((ushort)256)));
+                locationRightsReply.WriteTlv(new Tlv(0x01, OscarUtils.GetBytes(256)));
 
                 await session.SendSnac(locationRightsReply);
             }

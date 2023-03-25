@@ -60,7 +60,7 @@
                     {% for file in files %}
                     <tr>
                         <td><img src="/img/file.gif"></td>
-                        <td><a href="download.html?repo={{ reposhortname }}&path={{ path | urlencode }}&file={{ file.Name | urlencode }}" target="_blank"><font face="Courier New">{{ file.Name }}</font></a></td>
+                        <td><a href="download.html?repo={{ reposhortname }}&path={{ path | urlencode }}&file={{ file.Name | urlencode }}"><font face="Courier New">{{ file.Name }}</font></a></td>
                         <td width="120" align="center"><font size="1">&nbsp;&nbsp;{{ file.LastWriteTime }}&nbsp;&nbsp;</font></td>
                         <td width="75" align="right"><font size="2" face="monospace">{{ file.Length | bytes }}</font></td>
                     </tr>

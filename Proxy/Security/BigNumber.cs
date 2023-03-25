@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace VintageHive.Proxy.Security
+﻿namespace VintageHive.Proxy.Security
 {
-    internal class BigNumber : NativeRef
+    public class BigNumber : NativeRef
     {
         public static BigNumber Rsa3 => new(3);
+
+        public static BigNumber Rsa7 => new(7);
+
+        public static BigNumber Rsa65537 => new(65537);
 
         public BigNumber() : base(Native.BN_new()) { }
 

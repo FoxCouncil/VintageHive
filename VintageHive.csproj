@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net7.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>annotations</Nullable>
 		<PlatformTarget>AnyCPU</PlatformTarget>
@@ -17,14 +17,26 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Remove="Statics\admin\cache.html" />
+	  <None Remove="Statics\admin\css\fontawesome.min.css" />
 	  <None Remove="Statics\admin\css\main.css" />
+	  <None Remove="Statics\admin\css\solid.min.css" />
 	  <None Remove="Statics\admin\index.html" />
 	  <None Remove="Statics\admin\js\main.js" />
+	  <None Remove="Statics\admin\localserver.html" />
 	  <None Remove="Statics\admin\login.html" />
+	  <None Remove="Statics\admin\logs.html" />
+	  <None Remove="Statics\admin\partials\footer.html" />
+	  <None Remove="Statics\admin\partials\head.html" />
+	  <None Remove="Statics\admin\partials\header.html" />
+	  <None Remove="Statics\admin\users.html" />
+	  <None Remove="Statics\admin\webfonts\fa-solid-900.ttf" />
+	  <None Remove="Statics\admin\webfonts\fa-solid-900.woff2" />
 	  <None Remove="Statics\hive\img\folder.gif" />
 	  <None Remove="Statics\hive\img\unknown.gif" />
 	  <None Remove="Statics\hive\partials\head.html" />
-	  <None Remove="Statics\hive\settings\users.html" />
+	  <None Remove="Statics\hive\search.html" />
+	  <None Remove="Statics\hive\viewer.html" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -40,10 +52,17 @@
 		<PackageReference Include="System.ServiceModel.Syndication" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encoding.CodePages" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="6.0.0" />
+		<PackageReference Include="UAParser" Version="3.1.47" />
 		<PackageReference Include="Vereyon.Web.HtmlSanitizer" Version="1.6.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Update="Certs\google.com.csr">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="Certs\privkey.key">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
 	  <None Update="libcrypto.so">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
@@ -56,6 +75,14 @@
 	  <None Update="ssleay32.dll">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
+	  <None Update="ua-regexes.yaml">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Statics\admin\img\" />
+	  <Folder Include="Statics\hive\settings\" />
 	</ItemGroup>
 	
 	

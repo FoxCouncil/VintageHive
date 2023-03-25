@@ -30,7 +30,7 @@ internal class OpenSslException : Exception
                 break;
             }
 
-            var buffer = new byte[120];
+            var buffer = new byte[240];
 
             Native.ERR_error_string_n(err, buffer, buffer.Length);
 

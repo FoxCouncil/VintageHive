@@ -47,7 +47,7 @@ public class OscarAuthorizationService : IOscarService
 
                     session.UserAgent = Encoding.ASCII.GetString(tlvs.GetTlv(0x03).Value);
 
-                    Mind.Instance.OscarDb.SetSession(session);
+                    Mind.Db.OscarSetSession(session);
 
                     var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 

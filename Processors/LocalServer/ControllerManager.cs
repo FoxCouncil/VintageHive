@@ -1,5 +1,7 @@
-﻿using System.Diagnostics;
+﻿using Fluid;
+using System.Diagnostics;
 using System.Reflection;
+using UAParser;
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Processors.LocalServer;
@@ -9,6 +11,10 @@ internal static class ControllerManager
     static readonly DirectoryInfo BaseDirectory = GetBaseDirectory();
 
     static readonly Dictionary<string, Type> _controllers = new();
+
+    static readonly string _yaml = File.ReadAllText("ua-regexes.yaml");
+    
+    static readonly Parser _parser = Parser.FromYaml(_yaml);
 
     static ControllerManager()
     {
@@ -36,6 +42,16 @@ internal static class ControllerManager
         controller.RootDirectory = new DirectoryInfo(Path.Combine(BaseDirectory.FullName, name));
         controller.Request = request;
         controller.Response = response;
+        controller.Response.Context.Options.FileProvider = new LocalServerFileProvider(controller.RootDirectory);
+
+        controller.Response.Context.SetValue("appversion", Mind.ApplicationVersion);
+
+        var clientInfo = _parser.Parse(request.UserAgent);
+
+        controller.Response.Context.SetValue("clientip", request.ListenerSocket.RemoteIP);
+        controller.Response.Context.SetValue("browserversion", clientInfo.UA.ToString());
+        controller.Response.Context.SetValue("osversion", clientInfo.OS.ToString());
+        controller.Response.Context.SetValue("deviceversion", clientInfo.Device.ToString());
 
         return controller;
     }

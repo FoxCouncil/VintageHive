@@ -48,6 +48,10 @@ public abstract class Listener
             // Setup Security Certificate Store
             // SecurityContext.SetCertificateChain("Certs/dialnine.com.crt");
             // SecurityContext.SetPrivateKeyFile("Certs/dialnine.com.key");
+            /*
+            SecurityContext.UseCertificate("Certs/dialnine.com.crt");
+            SecurityContext.UsePrivateKey("Certs/dialnine.com.key");
+            */
         }
     }
 
@@ -74,7 +78,7 @@ public abstract class Listener
 
         socket.Listen();
 
-        Display.WriteLog($"Starting {GetType().Name} Listener...{Address}:{Port}");
+        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Starting {GetType().Name} Listener...{Address}:{Port}", "");
 
         while (IsListening)
         {
@@ -194,20 +198,20 @@ public abstract class Listener
 
                         connection.Close();
                     }
-                    catch (SocketException)
+                    catch (Exception ex) when (ex is SocketException || ex is IOException)
                     {
                         /* Ignore */
                         // Display.WriteLog("Socket Exception: \n\n" + sex.Message); 
                     }
                     catch (Exception ex)
                     {
-                        Display.WriteException(ex);
+                        Log.WriteException(GetType().Name, ex, listenerSocket.TraceId.ToString());
                     }
                 }
             });
         }
 
-        Display.WriteLog("Stopping Listener...");
+        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, "Stopping Listener...", "");
 
         IsListening = false;
     }

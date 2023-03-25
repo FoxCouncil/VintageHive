@@ -1,5 +1,6 @@
 ﻿using AngleSharp.Io;
 using Fluid;
+using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Dynamic;
@@ -58,6 +59,8 @@ public sealed class HttpResponse
 
     public bool Handled { get; set; }
 
+    public string ErrorMessage { get; set; }
+
     Dictionary<string, string> _deltaCookies = new();
 
     public HttpResponse(HttpRequest request)
@@ -76,7 +79,7 @@ public sealed class HttpResponse
             {
                 SessionId = result;
 
-                Session = Db.Sessions.Get(SessionId);
+                Session = Mind.Db.WebSessionGet(SessionId);
             }
         }
     }
@@ -84,6 +87,8 @@ public sealed class HttpResponse
     public HttpResponse SetBodyString(string body, string type = HttpContentType.Text.Html)
     {
         SetBodyData(Encoding.GetBytes(body), type);
+
+        Handled = true;
 
         return this;
     }
@@ -94,6 +99,8 @@ public sealed class HttpResponse
 
         Headers.AddOrUpdate(HttpHeaderName.ContentLength, Body.Length.ToString());
         Headers.AddOrUpdate(HttpHeaderName.ContentType, type);
+
+        Handled = true;
 
         return this;
     }
@@ -148,11 +155,47 @@ public sealed class HttpResponse
         return this;
     }
 
-    public HttpResponse SetFound(string foundUri)
+    internal HttpResponse SetForbidden()
     {
+        StatusCode = HttpStatusCode.Forbidden;
+
+        return this;
+    }
+
+    public HttpResponse SetJson(object json)
+    {
+        StatusCode = HttpStatusCode.OK;
+
+        return SetBodyString(JsonConvert.SerializeObject(json), HttpContentType.Application.Json);
+    }
+
+    public HttpResponse SetJsonSuccess(object data, bool success = true)
+    {
+        return SetJson(new { success, data });
+    }
+
+    public HttpResponse SetJsonSuccess(bool success = true)
+    {
+        return SetJson(new { success });
+    }
+
+    public HttpResponse SetFound(string foundUri = null)
+    {
+        if (foundUri == null)
+        {
+            foundUri = Request.Headers["Referer"];
+        }
+
         StatusCode = HttpStatusCode.Found;
 
+        if (Body == null || Body.Length == 0)
+        {
+            SetBodyString($"<h1>arf 42{Random.Shared.NextDouble()}</h1>\r\n\r\n");
+        }
+
         Headers.AddOrUpdate(HttpHeaderName.Location, foundUri);
+
+        Handled = true;
 
         return this;
     }
@@ -185,7 +228,7 @@ public sealed class HttpResponse
             outputBuilder.Append($"{header.Key}: {header.Value}{HttpSeperator}");
         }
 
-        outputBuilder.Append($"{HttpHeaderName.Server}: VintageHive/{HttpProxy.ApplicationVersion}"); // Fuck them
+        outputBuilder.Append($"{HttpHeaderName.Server}: VintageHive/{Mind.ApplicationVersion}"); // Fuck them
 
         outputBuilder.Append(HttpBodySeperator);
 
@@ -199,15 +242,24 @@ public sealed class HttpResponse
         return headerData;
     }
 
-    private void SessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    public void InitSession()
     {
         if (SessionId == Guid.Empty)
         {
             SessionId = Guid.NewGuid();
 
-            SetCookie(SessionCookieName, SessionId.ToString() + "; HttpOnly");
+            SetCookie(SessionCookieName, SessionId.ToString() + "; Path=/; HttpOnly");
         }
+    }
 
-        Display.WriteLog($"{e.PropertyName} changed!");
+    public bool HasSession(string name) => (Session as IDictionary<string, object>).ContainsKey(name);
+
+    public void RemoveSession(string name) => (Session as IDictionary<string, object>).Remove(name);
+
+    private void SessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        InitSession();
+
+        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"{e.PropertyName} changed!", "");
     }
 }

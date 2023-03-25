@@ -10,6 +10,13 @@ public static class Extensions
 {
     private const string HtmlTagAllowList = "a|ol|ul|li|br|small|font|b|strong|i|em|blockquote|h1|h2|h3|h4|h5|h6";
 
+    public static string MakeHtmlAnchorLinksHappen(this string text)
+    {
+        return Regex.Replace(text, @"((https?|ftp)://(?:www\.|(?!www))[^\s.]+\.\S{2,}|www\.\S+\.\S{2,})", m => m.Groups[2].Success ?
+           $"<a href=\"{m.Groups[1].Value}\">{m.Groups[1].Value}</a>" :
+           $"<a href=\"http://{m.Groups[1].Value}\">{m.Groups[1].Value}</a>");
+    }
+
     public static string ReplaceNewCharsWithOldChars(this string input)
     {
         input = input.Replace("‘", "'");    

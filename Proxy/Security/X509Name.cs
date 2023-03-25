@@ -11,7 +11,9 @@ internal class X509Name : NativeRef
         set { AddEntry("CN", value); }
     }
 
-    public X509Name() : base(X509_NAME_new()) { }
+    public X509Name() : base(CheckResultSuccess(X509_NAME_new())) { }
+
+    public X509Name(IntPtr other) : base(CheckResultSuccess(X509_NAME_dup(other))) { }
 
     public X509Name(string name) : this()
     {

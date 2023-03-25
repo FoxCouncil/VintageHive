@@ -1,0 +1,119 @@
+﻿{% assign title = "Home" %}
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body class="d-flex flex-column">
+    {% include 'partials/header.html' %}
+
+    <div class="row">
+        <div class="col">
+            <h1 class="mt-3">Downloads</h1>
+            <table class="table table-dark table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Key</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Path</th>
+                        <th scope="col">Options</th>
+                    </tr>
+                </thead>
+                <tbody id="repoTable"></tbody>
+                <thead>
+                    <tr>
+                        <td scope="col"><input type="text" class="form-control"></td>
+                        <td scope="col"><input type="text" class="form-control"></td>
+                        <td scope="col"><input type="text" class="form-control"></td>
+                        <td scope="col"><input type="submit" class="btn" value="Add Repo"></td>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <h1 class="mt-3">Links</h1>
+            <table class="table table-dark table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Link</th>
+                        <th scope="col">Options</th>
+                    </tr>
+                </thead>
+                <tbody id="linksTable"></tbody>
+                <thead>
+                    <tr>
+                        <td scope="col"><i class="fa-solid fa-link"></i></td>
+                        <td scope="col"><input type="text" class="form-control"></td>
+                        <td scope="col"><input type="text" class="form-control"></td>
+                        <td scope="col"><input type="submit" class="btn" value="Add Link"></td>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+
+    {% include 'partials/footer.html' %}
+    <script type="module">
+        'use strict';
+        var linksData = await callApi("linksgetall");
+        if (linksData.success) {
+            let table = gei("linksTable");
+            let idx = 1;
+            linksData.data.forEach((link) => {
+                let row = ce("tr")
+
+                let numCol = ce("td");
+                numCol.innerText = idx++;
+                row.appendChild(numCol);
+
+                let nameCol = ce("td");
+                nameCol.innerText = link.name;
+                row.appendChild(nameCol);
+
+                let linkCol = ce("td");
+                linkCol.innerText = link.link;
+                row.appendChild(linkCol);
+
+                let optionsCol = ce("td");
+                optionsCol.innerHTML = "<i class=\"fa-solid fa-trash\"></i>";
+                row.appendChild(optionsCol);
+
+                table.appendChild(row);
+            });
+        }
+        var reposData = await callApi("getdownloadlocations");
+        if (reposData.success) {
+            let table = gei("repoTable");
+            console.log(reposData);
+            Object.entries(reposData.data).forEach(entry => {
+                const [key, repo] = entry;
+
+                let row = ce("tr")
+
+                let keyCol = ce("td");
+                keyCol.innerText = key;
+                row.appendChild(keyCol);
+
+                let nameCol = ce("td");
+                nameCol.innerText = repo.Item1;
+                row.appendChild(nameCol);
+
+                let pathCol = ce("td");
+                pathCol.innerText = repo.Item2;
+                row.appendChild(pathCol);
+
+                let optionsCol = ce("td");
+                if (key !== 'local') optionsCol.innerHTML = "<i class=\"fa-solid fa-trash\"></i>";
+                row.appendChild(optionsCol);
+
+                table.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>

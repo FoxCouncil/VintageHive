@@ -1,0 +1,41 @@
+﻿{% assign title = "Search" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    <form style="margin:0">
+        <table>
+            <tr>
+                <td><img src="img/search2.gif"></td>
+                <td><input type="text" name="q" {% if keywords %} value="{{ keywords }}" {% endif %}></td>
+                <td><input type="submit" value="Search"></td>
+            </tr>
+        </table>
+    </form>
+
+    {% if results %}
+    <hr>
+    {% for result in results %}
+    <div>
+        <div><font size="2" face="Courier New" color="#999999">{{ result.UriDisplay }}</font></div>
+        <div>
+            <a href="/viewer.html?url={{ result.Uri }}">
+                <font size="4" face="Arial" color="#AAAAFF">{{ result.Title }}</font>
+            </a>
+        </div>
+        <div>
+            <font face="Arial">{{ result.Abstract }}</font>
+        </div>
+    </div>
+    <br>
+    {% endfor %}
+
+    <font size="1" face="Courier New">Search Results Provided By: DuckDuckGo.com</font>
+    {% endif %}
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

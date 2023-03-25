@@ -6,9 +6,13 @@ namespace VintageHive.Data;
 
 internal class DbContextBase
 {
-    const string ConnectionStringFormat = "Data Source={0}.db;Cache=Shared";
+    const string FilenameStringFormat = "{0}.db";
+    const string ConnectionStringFormat = "Data Source={0};Cache=Shared";
 
+    readonly string _filename = string.Empty;
     readonly string _connectionString = string.Empty;
+
+    internal bool IsNewDb { get; private set; } = false;
 
     public DbContextBase()
     {
@@ -16,7 +20,20 @@ internal class DbContextBase
 
         var className = fullClassName.Replace("DbContext", string.Empty).ToLower();
 
-        _connectionString = string.Format(ConnectionStringFormat, className);
+        _filename = string.Format(FilenameStringFormat, className);
+
+        IsNewDb = !File.Exists(_filename);
+
+        _connectionString = string.Format(ConnectionStringFormat, _filename);
+
+        WithContext(context =>
+        {
+            var walCommand = context.CreateCommand();
+
+            walCommand.CommandText = @"PRAGMA journal_mode = 'wal'";
+
+            walCommand.ExecuteNonQuery();
+        });
     }
 
     protected T WithContext<T>(Func<IDbConnection, T> sqlTransaction)
@@ -53,5 +70,17 @@ internal class DbContextBase
         await connection.OpenAsync();
 
         await sqlTransaction(connection);
+    }
+
+    protected void CreateTable(string tableName, string tableFields)
+    {
+        WithContext(context =>
+        {
+            var createTableCommand = context.CreateCommand();
+
+            createTableCommand.CommandText = $"CREATE TABLE IF NOT EXISTS {tableName} ({tableFields})";
+
+            createTableCommand.ExecuteNonQuery();
+        });
     }
 }

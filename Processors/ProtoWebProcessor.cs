@@ -5,11 +5,17 @@ using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
 using System;
+using VintageHive.Data.Types;
+using System.Text.Json;
+using AngleSharp.Dom;
+using System.Net.Mime;
 
 namespace VintageHive.Processors;
 
 internal static class ProtoWebProcessor
 {
+    static readonly TimeSpan CacheTtl = TimeSpan.FromDays(365);
+    
     static byte[] RedirectPacketSignatureBytes { get; } = Encoding.ASCII.GetBytes(RedirectPacketSignature);
 
     const string FetchRequestUserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705)";
@@ -22,7 +28,7 @@ internal static class ProtoWebProcessor
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
-        var protoWebEnabled = Mind.Instance.ConfigDb.SettingGet<bool>(ConfigNames.ProtoWeb);
+        var protoWebEnabled = Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb);
 
         if (!protoWebEnabled)
         {
@@ -32,67 +38,92 @@ internal static class ProtoWebProcessor
         if (AvailableHttpSites == null)
         {
             AvailableHttpSites = await ProtoWebUtils.GetAvailableHttpSites();
-            
-            if (AvailableHttpSites == null)
-            {                
+
+            if (AvailableHttpSites == null || AvailableHttpSites.Count == 0)
+            {
                 return false;
             }
         }
 
         if (AvailableHttpSites.Any(x => req.Uri.Host.EndsWith(x)))
         {
-            var proxyClient = Clients.GetProxiedHttpClient(req, ProtoWebUtils.MainProxyUri);
+            res.Cache = false;
+            
+            var cachedResponse = Mind.Cache.GetProtoweb(req.Uri);
 
-            try
+            if (cachedResponse == null)
             {
-                var proxyRes = await proxyClient.GetAsync(req.Uri);
+                using var proxyClient = Clients.GetProxiedHttpClient(req, ProtoWebUtils.MainProxyUri);
 
-                var contentType = proxyRes.Content.Headers.ContentType?.ToString() ?? "text/html";
+                try
+                {
+                    var proxyRes = await proxyClient.GetAsync(req.Uri);
 
-                res.SetBodyData(await proxyClient.GetByteArrayAsync(req.Uri), contentType);
+                    var contentType = proxyRes.Content.Headers.ContentType?.ToString() ?? "text/html";
 
-                res.CacheTtl = TimeSpan.FromDays(30);
+                    byte[] contentData = await proxyClient.GetByteArrayAsync(req.Uri);
+                    
+                    res.SetBodyData(contentData, contentType);
 
-                Display.WriteLog($"[{"ProtoWeb HTTP", 17} Request] ({req.Uri}) [{contentType}]");
+                    var cachedData = new ContentCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
+
+                    var jsonData = JsonSerializer.Serialize<ContentCachedData>(cachedData);
+
+                    Mind.Cache.SetProtoweb(req.Uri, CacheTtl, jsonData);
+
+                    return true;
+                }
+                catch (HttpRequestException) { /* Ignore */ }
+                catch (Exception ex)
+                {
+                    Log.WriteException(nameof(ProtoWebProcessor), ex, req.ListenerSocket.TraceId.ToString());
+
+                    Debugger.Break();
+                }
+
+                return false;
+            }
+            else
+            {
+                var cachedData = JsonSerializer.Deserialize<ContentCachedData>(cachedResponse);
+
+                var contentType = cachedData.ContentType;
+                var contentData = Convert.FromBase64String(cachedData.ContentDataBase64);
+
+                res.SetBodyData(contentData, contentType);
 
                 return true;
             }
-            catch (HttpRequestException) { /* Ignore */ }
-            catch (Exception ex)
-            {
-                Display.WriteException(ex);
-
-                Debugger.Break();
-            }
-
-            return false;
         }
 
         return false;
     }
 
-    public static async Task<byte[]> ProcessFtpRequest(FtpRequest req)
+    public static async Task<bool> ProcessFtpRequest(FtpRequest req)
     {
+        if (req.ConnectionType != FtpRequestConnectionType.OverHttp) 
+        { 
+            return false;
+        }
+
         if (AvailableFtpSites == null)
         {
             AvailableFtpSites = await ProtoWebUtils.GetAvailableFtpSites();
 
             if (AvailableFtpSites == null)
             {
-                return null;
+                return false;
             }
         }
 
-        if (AvailableFtpSites.Any(x => req.Uri.Host.EndsWith(x)))
+        if (AvailableFtpSites.Any(req.Uri.Host.EndsWith))
         {
-            Display.WriteLog($"[{"ProtoWeb  FTP", 17} Request] ({req.Uri})");
-
             // We're streaming the data to the client, so it's not caching.
             // We could cache the small pages, but file downloads are not appropriate for SQLite storage.
             // We could possibly cache the files to disk...
             if (req.Uri.Scheme != "ftp")
             {
-                return null;
+                return false;
             }
 
             using var tcpClient = new TcpClient(ProtoWebUtils.MainProxyHost, ProtoWebUtils.MainProxyPort)
@@ -118,24 +149,31 @@ internal static class ProtoWebProcessor
             {
                 readBytes = await stream.ReadAsync(buffer);
 
-                var responseText = Encoding.ASCII.GetString(buffer, 0, readBytes);
-                
-                var location = responseText.Split("Location: ")[1].Split("\n")[0];
+                await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());
 
-                req.Uri = new Uri(location);
+                //var responseText = Encoding.ASCII.GetString(buffer, 0, readBytes);
 
-                await ProcessFtpRequest(req);
+                //var location = responseText.Split("Location: ")[1].Split("\n")[0];
 
-                return null;
+                //if (!location.Contains($"ftp://{req.Uri.Host}"))
+                //{
+                //    location = $"ftp://{req.Uri.Host}{location}";
+                //}
+
+                //req.Uri = new Uri(location);
+
+                //await ProcessFtpRequest(req);
+
+                return true;
             }
 
-            await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());           
+            await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());
 
             await stream.CopyToAsync(req.ListenerSocket.Stream);
 
-            return null;
+            return true;
         }
 
-        return null;
+        return false;
     }
 }

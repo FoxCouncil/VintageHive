@@ -1,9 +1,5 @@
-﻿using Spectre.Console;
-using System.Net;
-using VintageHive.Data.Cache;
-using VintageHive.Data.Config;
+﻿using System.Net;
 using VintageHive.Data.Contexts;
-using VintageHive.Data.Oscar;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
@@ -13,143 +9,105 @@ using VintageHive.Utilities;
 
 namespace VintageHive;
 
-class Mind
+static class Mind
 {
-    static readonly object _lock = new();
+    public static readonly string ApplicationVersion = typeof(HttpProxy).Assembly.GetName().Version?.ToString() ?? "NA";
 
-    static Mind _instance;
+    static readonly ManualResetEvent _resetEvent = new(false);
 
-    readonly ManualResetEvent _resetEvent = new(false);
+    static HttpProxy _httpProxy;
 
-    internal ConfigDbContext _configDb;
+    static HttpProxy _httpsProxy;
 
-    internal CacheDbContext _cacheDb;
+    static FtpProxy _ftpProxy;
 
-    internal OscarDbContext _oscarDb;
+    // static Socks5Proxy _socks5Proxy;
 
-    HttpProxy _httpProxy;
+    static OscarServer _oscarServer;
 
-    // HttpProxy _httpsProxy;
+    public static CacheDbContext Cache { get; private set; }
 
-    FtpProxy _ftpProxy;
+    public static HiveDbContext Db { get; private set; }
 
-    // Socks5Proxy _socks5Proxy;
-
-    OscarServer _oscarServer;
-
-    public IConfigDb ConfigDb => _configDb;
-
-    public ICacheDb CacheDb => _cacheDb;
-
-    public IOscarDb OscarDb => _oscarDb;
-
-    public UserDbContext UserDb { get; private set; }
-
-    public IAAvailabilityCacheDbContext IAACacheDb { get; private set; }
-
-    public static Mind Instance
+    public static async Task Init()
     {
-        get
-        {
-            lock (_lock)
-            {
-                _instance ??= new Mind();
-
-                return _instance;
-            }
-        }
-    }
-
-    private Mind() 
-    {
-    }
-
-    public async Task Init()
-    {        
         Resources.Initialize();
 
-        UserDb = new UserDbContext();
+        Cache = new CacheDbContext();
 
-        IAACacheDb = new IAAvailabilityCacheDbContext();
+        Db = new HiveDbContext();
 
-        _configDb = new ConfigDbContext();
+        VFS.Init();
 
-        _cacheDb = new CacheDbContext();
-
-        _oscarDb = new OscarDbContext();
-
-        CertificateAuthority.Init(_configDb);
+        // CertificateAuthority.Init();
 
         await CheckGeoIp();
 
         _ = ProtoWebUtils.UpdateSiteLists();
 
-        var ipAddressString = ConfigDb.SettingGet<string>(ConfigNames.IpAddress);
+        var ipAddressString = Db.ConfigGet<string>(ConfigNames.IpAddress);
 
         var ipAddress = IPAddress.Parse(ipAddressString);
 
-        var httpPort = ConfigDb.SettingGet<int>(ConfigNames.PortHttp);
+        var httpPort = Db.ConfigGet<int>(ConfigNames.PortHttp);
 
-        _httpProxy = new(ipAddress, httpPort, false)
-        {
-            CacheDb = _cacheDb
-        };
+        _httpProxy = new(ipAddress, httpPort, false);
 
         _httpProxy
-            .Use(LocalServerProcessor.ProcessRequest)
-            // .Use(IntranetProcessor.ProcessRequest)
+            .Use(LocalServerProcessor.ProcessHttpRequest)
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
 
-        var ftpPort = ConfigDb.SettingGet<int>(ConfigNames.PortFtp);
+        var ftpPort = Db.ConfigGet<int>(ConfigNames.PortFtp);
 
         _ftpProxy = new(ipAddress, ftpPort)
         {
-            CacheDb = _cacheDb
+            CacheDb = Cache
         };
 
         _ftpProxy
-            .Use(ProtoWebProcessor.ProcessFtpRequest);
+            .Use(ProtoWebProcessor.ProcessFtpRequest)
+            .Use(LocalServerProcessor.ProcessFtpRequest);
 
         _oscarServer = new(ipAddress);
 
+        // ==== TESTING AREA =====
+#if DEBUG
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
         // _socks5Proxy = new(ipAddress, socks5Port);
 
-        // _httpsProxy = new(ipAddress, 9999, true);
+        _httpsProxy = new(ipAddress, 9999, true);
 
-        // ==== TESTING AREA =====
-#if DEBUG
         using var rsaTest = new Rsa();
 
-        rsaTest.GenerateKey(512, 3);
+        rsaTest.GenerateKey(512, BigNumber.Rsa3);
 
         var output = rsaTest.PEMPrivateKey();
 
-        Display.WriteLog(output);
-        Display.WriteLog();
+        Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), output, "");
+        Log.WriteLine();
 
         var rsa = Rsa.FromPEMPrivateKey(output);
 
         var output2 = rsa.PEMPrivateKey();
 
-        Display.WriteLog(output2);
+        Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), output2, "");
 #endif
     }
 
-    public async Task ResetGeoIP()
+    public static async Task ResetGeoIP()
     {
-        ConfigDb.SettingSet<string>(ConfigNames.Location, null);
-        ConfigDb.SettingSet<string>(ConfigNames.RemoteAddress, null);
+        Db.ConfigSet<string>(ConfigNames.Location, null);
+        Db.ConfigSet<string>(ConfigNames.RemoteAddress, null);
 
         await CheckGeoIp();
     }
 
-    public async Task CheckGeoIp()
+    public static async Task CheckGeoIp()
     {
-        var location = ConfigDb.SettingGet<string>(ConfigNames.Location);
-        var address = ConfigDb.SettingGet<string>(ConfigNames.RemoteAddress);
+        var location = Db.ConfigGet<string>(ConfigNames.Location);
+        var address = Db.ConfigGet<string>(ConfigNames.RemoteAddress);
 
         if (location == null || address == null)
         {
@@ -157,17 +115,19 @@ class Mind
 
             location = $"{geoIpData.city}, {geoIpData.region}, {geoIpData.countryCode}";
 
-            ConfigDb.SettingSet(ConfigNames.Location, location);
+            Db.ConfigSet(ConfigNames.Location, location);
 
-            ConfigDb.SettingSet(ConfigNames.RemoteAddress, geoIpData.query);
+            Db.ConfigSet(ConfigNames.RemoteAddress, geoIpData.query);
         }
     }
 
-    internal void Start()
+    internal static void Start()
     {
         _httpProxy.Start();
 
-        // _httpsProxy.Start();
+#if DEBUG
+        _httpsProxy.Start();
+#endif
 
         _ftpProxy.Start();
 

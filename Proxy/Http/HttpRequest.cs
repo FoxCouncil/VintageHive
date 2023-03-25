@@ -1,5 +1,8 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Net.Mime;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 using VintageHive.Network;
 using static VintageHive.Proxy.Http.HttpUtilities;
@@ -8,6 +11,8 @@ namespace VintageHive.Proxy.Http;
 
 public sealed class HttpRequest : Request
 {
+    public static readonly HttpRequest Invalid = new() { IsValid = false };
+
     public IReadOnlyDictionary<string, string>? QueryParams { get; private set; }
 
     public IReadOnlyDictionary<string, string>? FormData { get; private set; }
@@ -15,6 +20,8 @@ public sealed class HttpRequest : Request
     public ReadOnlyDictionary<string, string> Cookies { get; private set; }
 
     public string Body { get; private set; } = "";
+
+    public string UserAgent => Headers[HttpHeaderName.UserAgent] ?? "NA";
 
     public bool IsRelativeUri(string uri)
     {
@@ -30,14 +37,14 @@ public sealed class HttpRequest : Request
     {
         if (socket == null || rawBytes == null)
         {
-            return (HttpRequest)Invalid;
+            return Invalid;
         }
 
         var rawRequest = encoding.GetString(rawBytes);
 
         if (!rawRequest.Contains("\r\n"))
         {
-            return (HttpRequest)Invalid;
+            return Invalid;
         }
 
         if (!rawRequest.Contains("\r\n\r\n"))
@@ -62,7 +69,7 @@ public sealed class HttpRequest : Request
 
         if (httpRequestLine.Length != 3 || !HttpVerbs.Contains(httpRequestLine[0]) || !HttpVersions.Contains(httpRequestLine[2]))
         {
-            return (HttpRequest)Invalid;
+            return Invalid;
         }
 
         var headers = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
@@ -74,11 +81,11 @@ public sealed class HttpRequest : Request
                 continue;
             }
 
-            var splitHeaderKV = header.Split(": ", 2);
+            var splitHeaderKV = header.Split(":", 2);
 
             if (!headers.ContainsKey(splitHeaderKV[0]))
             {
-                headers.Add(splitHeaderKV[0], splitHeaderKV[1]);
+                headers.Add(splitHeaderKV[0], splitHeaderKV[1].Trim());
             }
         }
 
@@ -100,9 +107,50 @@ public sealed class HttpRequest : Request
 
         var formData = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 
-        if (headers.ContainsKey("Content-Type") && headers["Content-Type"] == "application/x-www-form-urlencoded")
+        if (headers.ContainsKey("Content-Type"))
         {
-            formData = new Dictionary<string, string>(HttpUtility.ParseQueryString(rawBody).ToDictionary(), StringComparer.InvariantCultureIgnoreCase);
+            var contentType = headers["Content-Type"];
+
+            var baseContentType = contentType;
+
+            if (contentType.Contains(';'))
+            {
+                baseContentType = contentType[..contentType.IndexOf(';')];
+            }
+            
+            switch (baseContentType)
+            {
+                case HttpContentType.Application.XWwwFormUrlEncoded:
+                {
+                    formData = new Dictionary<string, string>(HttpUtility.ParseQueryString(rawBody).ToDictionary(), StringComparer.InvariantCultureIgnoreCase);
+                }
+                break;
+
+                case HttpContentType.Multipart.FormData:
+                {
+                    var baseBoundryMarker = contentType[(contentType.IndexOf(';') + 11)..];
+                    var startBoundryMarker = "--" + baseBoundryMarker;
+                    var endBoundryMarker = startBoundryMarker + "--";
+
+                    var boundries = rawBody.Split(endBoundryMarker, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                    boundries = boundries.Select(b => b.Replace(startBoundryMarker, string.Empty).Trim()).ToArray();
+
+                    var dict = new Dictionary<string, string>();
+
+                    foreach (var boundry in boundries)
+                    {
+                        var boundryLines = boundry.Split("\r\n\r\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                        var name = Regex.Match(boundryLines[0], "name=\"(.*?)\"").Groups[1].Value;
+
+                        dict.Add(name, boundryLines[1]);
+                    }
+
+                    formData = dict;
+                }
+                break;
+            }
         }
 
         Dictionary<string, string> queryParams;
@@ -135,7 +183,7 @@ public sealed class HttpRequest : Request
             QueryParams = queryParams,
             FormData = formData,
             Body = rawBody,
-            ListenerSocket = socket,            
+            ListenerSocket = socket,
             Encoding = encoding
         };
 
