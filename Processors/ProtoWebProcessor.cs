@@ -1,14 +1,11 @@
 ﻿using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
+using VintageHive.Data.Types;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
-using System;
-using VintageHive.Data.Types;
-using System.Text.Json;
-using AngleSharp.Dom;
-using System.Net.Mime;
 
 namespace VintageHive.Processors;
 
@@ -53,7 +50,7 @@ internal static class ProtoWebProcessor
 
             if (cachedResponse == null)
             {
-                using var proxyClient = Clients.GetProxiedHttpClient(req, ProtoWebUtils.MainProxyUri);
+                using var proxyClient = HttpClientUtils.GetProxiedHttpClient(req, ProtoWebUtils.MainProxyUri);
 
                 try
                 {

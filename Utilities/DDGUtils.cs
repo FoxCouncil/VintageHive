@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Net;
+﻿using System.Net;
 using System.Text.RegularExpressions;
 using VintageHive.Data.Types;
 
@@ -18,7 +16,7 @@ internal static class DDGUtils
     {
         var vqd = await GetVqd(keywords);
 
-        var idx = ((page * 20) - 20);
+        var idx = (page * 20) - 20;
 
         var getParams = $"?q={WebUtility.UrlEncode(keywords)}&l={region}&p={(int)safesearch}&s={idx}&df=&o=json&vqd={vqd}";
 
@@ -40,18 +38,18 @@ internal static class DDGUtils
 
         var rawouput = await response.Content.ReadAsStringAsync();
 
-        var json = JsonConvert.DeserializeObject<JObject>(rawouput);
+        var searchResults = System.Text.Json.JsonSerializer.Deserialize<DDGResults>(rawouput);
 
         var output = new List<SearchResult>();
 
-        foreach (var result in json["results"])
+        foreach (var result in searchResults.results)
         {
-            if (result.Count() == 1)
+            if (string.IsNullOrEmpty(result.t))
             {
                 continue;
             }
 
-            var title = result["t"].ToString();
+            var title = result.t;
 
             if (title == "EOF")
             {
@@ -60,10 +58,10 @@ internal static class DDGUtils
 
             output.Add(new SearchResult
             {
-                Title = result["t"].ToString(),
-                Abstract = result["a"].ToString(),
-                Uri = new Uri(result["c"].ToString()),
-                UriDisplay = result["d"].ToString()
+                Title = result.t,
+                Abstract = result.a,
+                Uri = new Uri(result.c),
+                UriDisplay = result.d
             });
         }
 
@@ -116,5 +114,54 @@ internal static class DDGUtils
         Off = -2,
         Moderate = -1,
         On = 1
+    }
+
+    public class DDGResults
+    {
+        public DeepAnswers deep_answers { get; set; }
+
+        public List<Result> results { get; set; }
+    }
+
+    public class Result
+    {
+        public string a { get; set; }
+
+        public object ae { get; set; }
+
+        public string b { get; set; }
+
+        public string c { get; set; }
+
+        public string d { get; set; }
+
+        public string da { get; set; }
+
+        public int h { get; set; }
+
+        public string i { get; set; }
+
+        public object k { get; set; }
+
+        public int m { get; set; }
+
+        public int o { get; set; }
+
+        public int p { get; set; }
+
+        public string s { get; set; }
+
+        public string t { get; set; }
+
+        public string u { get; set; }
+
+        public DateTime? e { get; set; }
+
+        public string n { get; set; }
+    }
+
+    public class DeepAnswers
+    {
+        public List<List<object>>? spelling { get; set; }
     }
 }

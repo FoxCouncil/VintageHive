@@ -1,8 +1,4 @@
 ﻿using HtmlAgilityPack;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
-using VintageHive.Proxy.Ftp;
 
 namespace VintageHive.Utilities
 {
@@ -26,7 +22,7 @@ namespace VintageHive.Utilities
 
         public static async Task UpdateSiteLists()
         {
-            var proxyClient = Clients.GetProxiedHttpClient(null, MainProxyUri);
+            var proxyClient = HttpClientUtils.GetProxiedHttpClient(null, MainProxyUri);
 
             proxyClient.Timeout = TimeSpan.FromSeconds(10);
 

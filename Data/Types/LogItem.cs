@@ -25,6 +25,13 @@ public class LogItem
 
     public override string ToString()
     {
-        return $"[{Timestamp:O}]{(TraceId?.Length != 0 ? $"[{TraceId}]" : "")}[{Level.ToUpper()}][{System}]{Message}";
+        var traceId = "";
+
+        if (TraceId != Guid.Empty.ToString())
+        {
+            traceId = TraceId;
+        }
+
+        return $"[{Timestamp:ddTHH:mm:ss.fffffff}]{(traceId?.Length != 0 ? $"[{traceId}]" : "")}[{Level.ToUpper()}][{System}]{Message}";
     }
 }

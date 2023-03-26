@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace VintageHive.Proxy.Oscar.Services;
+﻿namespace VintageHive.Proxy.Oscar.Services;
 
 internal class OscarGenericServiceControls : IOscarService
 {

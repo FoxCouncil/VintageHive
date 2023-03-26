@@ -2,7 +2,6 @@
 using System.Net;
 using System.Net.Sockets;
 using VintageHive.Proxy.Oscar.Services;
-using System.Diagnostics;
 using VintageHive.Network;
 
 namespace VintageHive.Proxy.Oscar;

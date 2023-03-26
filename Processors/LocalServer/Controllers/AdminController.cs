@@ -1,6 +1,5 @@
 ﻿using Fluid;
-using Newtonsoft.Json;
-using System.Collections.Generic;
+using System.Text.Json;
 using VintageHive.Utilities;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
@@ -151,7 +150,7 @@ internal class AdminController : Controller
             protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ProtoWeb)
         };
 
-        Response.SetBodyString(JsonConvert.SerializeObject(data), "application/json");
+        Response.SetBodyString(JsonSerializer.Serialize(data), "application/json");
 
         Response.Handled = true;
     }

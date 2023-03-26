@@ -41,7 +41,7 @@ static class Mind
 
         // CertificateAuthority.Init();
 
-        await CheckGeoIp();
+        await GeoIpUtils.CheckGeoIp();
 
         _ = ProtoWebUtils.UpdateSiteLists();
 
@@ -94,31 +94,6 @@ static class Mind
 
         Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), output2, "");
 #endif
-    }
-
-    public static async Task ResetGeoIP()
-    {
-        Db.ConfigSet<string>(ConfigNames.Location, null);
-        Db.ConfigSet<string>(ConfigNames.RemoteAddress, null);
-
-        await CheckGeoIp();
-    }
-
-    public static async Task CheckGeoIp()
-    {
-        var location = Db.ConfigGet<string>(ConfigNames.Location);
-        var address = Db.ConfigGet<string>(ConfigNames.RemoteAddress);
-
-        if (location == null || address == null)
-        {
-            var geoIpData = await Clients.GetGeoIpData();
-
-            location = $"{geoIpData.city}, {geoIpData.region}, {geoIpData.countryCode}";
-
-            Db.ConfigSet(ConfigNames.Location, location);
-
-            Db.ConfigSet(ConfigNames.RemoteAddress, geoIpData.query);
-        }
     }
 
     internal static void Start()

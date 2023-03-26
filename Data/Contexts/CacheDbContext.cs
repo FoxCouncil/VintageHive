@@ -1,8 +1,5 @@
 ﻿using AngleSharp.Dom;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
 
 namespace VintageHive.Data.Contexts;
 

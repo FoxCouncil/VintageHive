@@ -1,13 +1,11 @@
 ﻿using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.Dynamic;
 using System.Net;
-using System.Net.Mime;
+using System.Text.Json;
 using VintageHive.Data.Types;
 using VintageHive.Network;
-using VintageHive.Processors;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Utilities;
 
 namespace VintageHive.Data.Contexts;
 
@@ -35,14 +33,21 @@ internal class HiveDbContext : DbContextBase
 
     static readonly IReadOnlyDictionary<string, object> kDefaultGlobalSettings = new Dictionary<string, object>()
     {
+        // Networking Settings
         { ConfigNames.IpAddress, IPAddress.Any.ToString() },
         { ConfigNames.PortHttp, 1990 },
         { ConfigNames.PortFtp, 1971 },
         { ConfigNames.PortSocks5, 1996 },
+
+        // System Display Settings
+        { ConfigNames.TemperatureUnits, WeatherUtils.TemperatureUnits.Celsius },
+        { ConfigNames.DistanceUnits, WeatherUtils.DistanceUnits.Metric },
+
+        // System Services Settings
         { ConfigNames.Intranet, true },
         { ConfigNames.ProtoWeb, true },
         { ConfigNames.InternetArchive, true },
-        { ConfigNames.InternetArchiveYear, 1999 }
+        { ConfigNames.InternetArchiveYear, 1999 },
     };
 
     static readonly IReadOnlyDictionary<string, string> kDefaultLinks = new Dictionary<string, string>()
@@ -241,7 +246,7 @@ internal class HiveDbContext : DbContextBase
 
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT value FROM config WHERE key = @key";
+            command.CommandText = $"SELECT value FROM {TABLE_CONFIG} WHERE key = @key";
 
             command.Parameters.Add(new SqliteParameter("@key", key));
 
@@ -272,6 +277,11 @@ internal class HiveDbContext : DbContextBase
                 return (T)(object)reader.GetBoolean(0);
             }
 
+            if (typeof(T).FullName.Contains("Data.Types"))
+            {
+                return JsonSerializer.Deserialize<T>(reader.GetString(0));
+            }
+
             return (T)reader.GetValue(0);
         });
     }
@@ -280,6 +290,13 @@ internal class HiveDbContext : DbContextBase
     {
         WithContext(context =>
         {
+            var isJson = false;
+
+            if (typeof(T).FullName.Contains("VintageHive.Data.Types"))
+            {
+                isJson = true;
+            }
+
             key = key.ToLowerInvariant();
 
             using var transaction = context.BeginTransaction();
@@ -288,7 +305,7 @@ internal class HiveDbContext : DbContextBase
             {
                 using var deleteCommand = context.CreateCommand();
 
-                deleteCommand.CommandText = "DELETE FROM config WHERE key = @key";
+                deleteCommand.CommandText = $"DELETE FROM {TABLE_CONFIG} WHERE key = @key";
 
                 deleteCommand.Parameters.Add(new SqliteParameter("@key", key));
 
@@ -298,19 +315,19 @@ internal class HiveDbContext : DbContextBase
             {
                 using var updateCommand = context.CreateCommand();
 
-                updateCommand.CommandText = "UPDATE config SET value = @value WHERE key = @key";
+                updateCommand.CommandText = $"UPDATE {TABLE_CONFIG} SET value = @value WHERE key = @key";
 
                 updateCommand.Parameters.Add(new SqliteParameter("@key", key));
-                updateCommand.Parameters.Add(new SqliteParameter("@value", value));
+                updateCommand.Parameters.Add(new SqliteParameter("@value", isJson ? JsonSerializer.Serialize(value) : value));
 
                 if (updateCommand.ExecuteNonQuery() == 0)
                 {
                     using var insertCommand = context.CreateCommand();
 
-                    insertCommand.CommandText = "INSERT INTO config (key, value) VALUES(@key, @value)";
+                    insertCommand.CommandText = $"INSERT INTO {TABLE_CONFIG} (key, value) VALUES(@key, @value)";
 
                     insertCommand.Parameters.Add(new SqliteParameter("@key", key));
-                    insertCommand.Parameters.Add(new SqliteParameter("@value", value));
+                    insertCommand.Parameters.Add(new SqliteParameter("@value", isJson ? JsonSerializer.Serialize(value) : value));
 
                     insertCommand.ExecuteNonQuery();
                 }
@@ -333,7 +350,7 @@ internal class HiveDbContext : DbContextBase
         {
             using var insertCommand = context.CreateCommand();
 
-            insertCommand.CommandText = "INSERT INTO requests (timestamp, address, localaddress, useragent, type, request, processor, traceid) VALUES(@timestamp, @address, @localaddress, @useragent, @type, @request, @processor, @traceid)";
+            insertCommand.CommandText = $"INSERT INTO {TABLE_REQUESTS} (timestamp, address, localaddress, useragent, type, request, processor, traceid) VALUES(@timestamp, @address, @localaddress, @useragent, @type, @request, @processor, @traceid)";
 
             insertCommand.Parameters.Add(new SqliteParameter("@timestamp", DateTime.UtcNow));
             insertCommand.Parameters.Add(new SqliteParameter("@address", socket.RemoteIP));
@@ -362,7 +379,7 @@ internal class HiveDbContext : DbContextBase
             {
                 using var deleteCommand = context.CreateCommand();
 
-                deleteCommand.CommandText = "DELETE FROM links WHERE name = @name";
+                deleteCommand.CommandText = $"DELETE FROM {TABLE_LINKS} WHERE name = @name";
 
                 deleteCommand.Parameters.Add(new SqliteParameter("@name", name));
 
@@ -372,7 +389,7 @@ internal class HiveDbContext : DbContextBase
             {
                 using var updateCommand = context.CreateCommand();
 
-                updateCommand.CommandText = "UPDATE links SET link = @link WHERE name = @name";
+                updateCommand.CommandText = $"UPDATE {TABLE_LINKS} SET link = @link WHERE name = @name";
 
                 updateCommand.Parameters.Add(new SqliteParameter("@name", name));
                 updateCommand.Parameters.Add(new SqliteParameter("@link", link));
@@ -381,7 +398,7 @@ internal class HiveDbContext : DbContextBase
                 {
                     using var insertCommand = context.CreateCommand();
 
-                    insertCommand.CommandText = "INSERT INTO links (name, link) VALUES(@name, @link)";
+                    insertCommand.CommandText = $"INSERT INTO {TABLE_LINKS} (name, link) VALUES(@name, @link)";
 
                     insertCommand.Parameters.Add(new SqliteParameter("@name", name));
                     insertCommand.Parameters.Add(new SqliteParameter("@link", link));
@@ -400,7 +417,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT name, link FROM links ORDER BY name";
+            command.CommandText = $"SELECT name, link FROM {TABLE_LINKS} ORDER BY name";
 
             using var reader = command.ExecuteReader();
 
@@ -426,7 +443,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT value FROM websession WHERE key = @key AND ip = @ip AND ua = @ua";
+            command.CommandText = $"SELECT value FROM {TABLE_WEBSESSION} WHERE key = @key AND ip = @ip AND ua = @ua";
 
             command.Parameters.Add(new SqliteParameter("@key", sessionId.ToString()));
             command.Parameters.Add(new SqliteParameter("@ip", sessionId.ToString()));
@@ -441,7 +458,7 @@ internal class HiveDbContext : DbContextBase
 
             var jsonString = reader.GetString(0);
 
-            return JsonConvert.DeserializeObject<ExpandoObject>(jsonString);
+            return JsonSerializer.Deserialize<ExpandoObject>(jsonString);
         });
     }
 
@@ -449,13 +466,13 @@ internal class HiveDbContext : DbContextBase
     {
         WithContext(context =>
         {
-            var jsonString = JsonConvert.SerializeObject(data);
+            var jsonString = JsonSerializer.Serialize(data);
 
             using var transaction = context.BeginTransaction();
 
             using var updateCommand = context.CreateCommand();
 
-            updateCommand.CommandText = "UPDATE websession SET value = @value WHERE key = @key AND ip = @ip AND ua = @ua";
+            updateCommand.CommandText = $"UPDATE {TABLE_WEBSESSION} SET value = @value WHERE key = @key AND ip = @ip AND ua = @ua";
 
             updateCommand.Parameters.Add(new SqliteParameter("@key", sessionId.ToString()));
             updateCommand.Parameters.Add(new SqliteParameter("@ip", sessionId.ToString()));
@@ -466,7 +483,7 @@ internal class HiveDbContext : DbContextBase
             {
                 using var insertCommand = context.CreateCommand();
 
-                insertCommand.CommandText = "INSERT INTO websession (key, ttl, ip, ua, value) VALUES(@key, datetime(), @ip, @ua, @value)";
+                insertCommand.CommandText = $"INSERT INTO {TABLE_WEBSESSION} (key, ttl, ip, ua, value) VALUES(@key, datetime(), @ip, @ua, @value)";
 
                 insertCommand.Parameters.Add(new SqliteParameter("@key", sessionId.ToString()));
                 insertCommand.Parameters.Add(new SqliteParameter("@ip", sessionId.ToString()));
@@ -493,7 +510,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "INSERT INTO user (username, password) VALUES(@username, @password)";
+            command.CommandText = $"INSERT INTO {TABLE_USER} (username, password) VALUES(@username, @password)";
 
             command.Parameters.Add(new SqliteParameter("@username", username));
             command.Parameters.Add(new SqliteParameter("@password", password));
@@ -510,7 +527,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT username FROM user WHERE username = @username";
+            command.CommandText = $"SELECT username FROM {TABLE_USER} WHERE username = @username";
 
             command.Parameters.Add(new SqliteParameter("@username", username));
 
@@ -526,7 +543,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT * FROM user WHERE username = @username";
+            command.CommandText = $"SELECT * FROM {TABLE_USER} WHERE username = @username";
 
             command.Parameters.Add(new SqliteParameter("@username", username));
 
@@ -542,7 +559,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT * FROM user";
+            command.CommandText = $"SELECT * FROM {TABLE_USER}";
 
             using var reader = command.ExecuteReader();
 
@@ -567,7 +584,7 @@ internal class HiveDbContext : DbContextBase
 
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT vqd FROM vqd WHERE key = @key";
+            command.CommandText = $"SELECT vqd FROM {TABLE_VQD} WHERE key = @key";
 
             command.Parameters.Add(new SqliteParameter("@key", key));
 
@@ -592,7 +609,7 @@ internal class HiveDbContext : DbContextBase
 
             using var updateCommand = context.CreateCommand();
 
-            updateCommand.CommandText = "UPDATE vqd SET vqd = @vqd WHERE key = @key";
+            updateCommand.CommandText = $"UPDATE {TABLE_VQD} SET vqd = @vqd WHERE key = @key";
 
             updateCommand.Parameters.Add(new SqliteParameter("@key", key));
             updateCommand.Parameters.Add(new SqliteParameter("@vqd", vqd));
@@ -601,7 +618,7 @@ internal class HiveDbContext : DbContextBase
             {
                 using var insertCommand = context.CreateCommand();
 
-                insertCommand.CommandText = "INSERT INTO vqd (key, vqd) VALUES(@key, @vqd)";
+                insertCommand.CommandText = $"INSERT INTO {TABLE_VQD} (key, vqd) VALUES(@key, @vqd)";
 
                 insertCommand.Parameters.Add(new SqliteParameter("@key", key));
                 insertCommand.Parameters.Add(new SqliteParameter("@vqd", vqd));
@@ -621,7 +638,7 @@ internal class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = "SELECT * FROM oscar_session WHERE cookie = @cookie";
+            command.CommandText = $"SELECT * FROM {TABLE_OSCARSESSION} WHERE cookie = @cookie";
 
             command.Parameters.Add(new SqliteParameter("@cookie", cookie));
 
@@ -647,7 +664,7 @@ internal class HiveDbContext : DbContextBase
         {
             using var insertCommand = context.CreateCommand();
 
-            insertCommand.CommandText = "INSERT INTO oscar_session (cookie, screenname, useragent, timestamp) VALUES(@cookie, @screenname, @useragent, datetime('now'))";
+            insertCommand.CommandText = $"INSERT INTO {TABLE_OSCARSESSION} (cookie, screenname, useragent, timestamp) VALUES(@cookie, @screenname, @useragent, datetime('now'))";
 
             insertCommand.Parameters.Add(new SqliteParameter("@cookie", session.Cookie));
             insertCommand.Parameters.Add(new SqliteParameter("@screenname", session.ScreenName));

@@ -8,20 +8,37 @@
     {% include 'partials/header.html' %}
 
     {% if weather %}
-    <font size="4" face="Courier New">Weather for {{ weather_location | upcase }}</font>
+    <div>
+        <font size="4" face="Courier New">
+            <form action="/weather.html" height="0" style="display: inline">
+                Weather for Location:
+                <input type="text" name="location" size="42" value="{{ weather_location }}">
+                <input type="submit" value="Go"> |
+                <a href="/api/set?u=c">[&#176;C]</a> / <a href="/api/set?u=f">&#176;F</a>
+            </form>
+        </font>
+    </div>
+    <table bgcolor="#444444" border="1" width="100%">
+        <tr>
+            <td>
+                <h1>{{ weather.CurrentWeather.Weathercode }}</h1>
+                {{ weather.CurrentWeather.Temperature }}&#176;C
+            </td>
+        </tr>
+    </table>
     <table border="1" width="100%">
         <tr>
-            <td align="center" width="20%">{{ weather.CurrentConditions.Dayhour }}</td>
-            <td align="center" width="20%">{{ weather.NextDays[0].Day }}</td>
-            <td align="center" width="20%">{{ weather.NextDays[1].Day }}</td>
-            <td align="center" width="20%">{{ weather.NextDays[2].Day }}</td>
-            <td align="center" width="20%">{{ weather.NextDays[3].Day }}</td>
+            <td align="center" width="20%">{{ weather.CurrentWeather.Time }}</td>
+            <td align="center" width="20%">{{ weather.Daily.Time[0] }}</td>
+            <td align="center" width="20%">{{ weather.Daily.Time[1] }}</td>
+            <td align="center" width="20%">{{ weather.Daily.Time[2] }}</td>
+            <td align="center" width="20%">{{ weather.Daily.Time[3] }}</td>
         </tr>
         <tr>
             <td align="center" valign="top">
                 <img src="{{ weather.CurrentConditions.IconURLInternal }}">
                 <div>
-                    <strong>{{ weather.CurrentConditions.Temp.C }}&#176;C</strong>/<small>{{ weather.CurrentConditions.Temp.F }}&#176;F</small>
+                    <strong>{{ weather.CurrentWeather.Temperature }}&#176;C</strong>/<small>{{ weather.CurrentWeather.TemperatureF }}&#176;F</small>
                 </div>
                 <font size="1">{{ weather.CurrentConditions.Comment }}</font>
             </td>
@@ -60,7 +77,7 @@
             <td align="center" width="20%">{{ weather.NextDays[6].Day }}</td>
             <td align="center" width="20%">{{ weather.NextDays[7].Day }}</td>
             <td rowspan="2" align="center" width="20%">
-                Weather Data <i>graciously provided by</i> <b>WeatherDB</b>
+                Weather <i>graciously provided by</i> <b>Open-Meteo.com</b>
             </td>
         </tr>
         <tr>
@@ -94,10 +111,7 @@
             </td>
         </tr>
     </table>
-    <hr>
-    <form action="/weather.html">
-        Location: <input type="text" name="location" size="42"> <input type="submit" value="Go">
-    </form>
+    
     <hr>
 
     {% include 'partials/weatherlocations.html' %}

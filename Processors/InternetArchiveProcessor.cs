@@ -1,6 +1,4 @@
-﻿using HeyRed.Mime;
-using HtmlAgilityPack;
-using System.Diagnostics;
+﻿using HtmlAgilityPack;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -96,7 +94,7 @@ internal static class InternetArchiveProcessor
 
         if (cachedResponse == null)
         {
-            var httpClient = Clients.GetHttpClient(req);
+            var httpClient = HttpClientUtils.GetHttpClient(req);
 
             var iaResponse = await httpClient.GetAsync(iaUrl);
 
@@ -181,7 +179,7 @@ internal static class InternetArchiveProcessor
 
         if (result == null)
         {
-            using var httpClient = Clients.GetHttpClient(req);
+            using var httpClient = HttpClientUtils.GetHttpClient(req);
 
             var availabilityResponseRaw = await httpClient.GetStringAsync(availabilityUri);
 

@@ -20,5 +20,7 @@ public static class ConfigNames
 
     public const string Location = "location";
 
-    public const string RemoteAddress = "remoteaddress";
+    public const string TemperatureUnits = "tempratureunits";
+
+    public const string DistanceUnits = "distanceunits";
 }

@@ -6,7 +6,6 @@ using Humanizer;
 using System.Diagnostics;
 using System.Web;
 using VintageHive.Processors.LocalServer;
-using VintageHive.Processors.LocalServer.Controllers;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Utilities;

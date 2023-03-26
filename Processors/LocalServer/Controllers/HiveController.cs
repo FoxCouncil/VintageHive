@@ -5,6 +5,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SmartReader;
 using System.Net;
+using VintageHive.Data.Types;
 using VintageHive.Utilities;
 using Image = SixLabors.ImageSharp.Image;
 
@@ -166,7 +167,7 @@ internal class HiveController : Controller
             }
             else
             {
-                var result = await Clients.GetReaderOutput(url);
+                var result = await NewsUtils.GetReaderOutput(url);
 
                 var articleDocument = new HtmlDocument();
 
@@ -257,7 +258,7 @@ internal class HiveController : Controller
     [Controller("/news.html")]
     public async Task News()
     {
-        var articles = await Clients.GetGoogleArticles("US");
+        var articles = await NewsUtils.GetGoogleArticles("US");
 
         Response.Context.SetValue("articles", articles);
     }
@@ -265,27 +266,16 @@ internal class HiveController : Controller
     [Controller("/weather.html")]
     public async Task Weather()
     {
-        var geoipLocation = Mind.Db.ConfigGet<string>(ConfigNames.Location);
+        var geoipLocation = Mind.Db.ConfigGet<GeoIp>(ConfigNames.Location);
 
-        var location = Request.QueryParams.ContainsKey("location") ? Request.QueryParams["location"] : geoipLocation;
+        var tempUnits = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.TemperatureUnits);
+        var distUnits = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.DistanceUnits);
 
-        if (string.IsNullOrEmpty(location))
-        {
-            location = geoipLocation;
-        }
-
-        var weatherData = await Clients.GetWeatherData(location);
-
-        var stringLocation = location;
-
-        if (stringLocation == geoipLocation)
-        {
-            stringLocation = "Your Location";
-        }
+        var weatherData = await WeatherUtils.GetDataByGeoIp(geoipLocation, tempUnits, distUnits);
 
         Response.Context.SetValue("weather", weatherData);
 
-        Response.Context.SetValue("weather_location", stringLocation);
+        Response.Context.SetValue("weather_location", "Your Location");
     }
 
     [Controller("/settings.html")]
@@ -380,7 +370,7 @@ internal class HiveController : Controller
 
             byte[] _imageData;
 
-            using var httpClient = Clients.GetHttpClient(Request);
+            using var httpClient = HttpClientUtils.GetHttpClient(Request);
 
             _imageData = await httpClient.GetByteArrayAsync(fetchUri);
 

@@ -1,12 +1,10 @@
-﻿using AngleSharp.Io;
-using Fluid;
-using Newtonsoft.Json;
+﻿using Fluid;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Dynamic;
 using System.Net.Sockets;
 using System.Text;
-using VintageHive.Processors.LocalServer;
+using System.Text.Json;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
@@ -166,7 +164,7 @@ public sealed class HttpResponse
     {
         StatusCode = HttpStatusCode.OK;
 
-        return SetBodyString(JsonConvert.SerializeObject(json), HttpContentType.Application.Json);
+        return SetBodyString(JsonSerializer.Serialize(json), HttpContentType.Application.Json);
     }
 
     public HttpResponse SetJsonSuccess(object data, bool success = true)
