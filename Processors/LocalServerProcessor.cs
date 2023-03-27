@@ -25,6 +25,9 @@ internal static class LocalServerProcessor
         TemplateOptions.Default.Filters.AddFilter("urlencode", (input, arguments, context) => {
             return StringValue.Create(HttpUtility.UrlEncode(input.ToStringValue()));
         });
+        TemplateOptions.Default.Filters.AddFilter("wmotostring", (input, arguments, context) => {
+            return StringValue.Create(WeatherUtils.ConvertWmoCodeToString((int)input.ToNumberValue()));
+        });
 
         fluidParser.RegisterEmptyTag("displayMessage", static async (writer, encoder, context) =>
         {

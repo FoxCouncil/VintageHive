@@ -385,7 +385,7 @@ internal class HiveController : Controller
             return;
         }
 
-        if (image.Size().Width > 800)
+        if (image.Size.Width > 800)
         {
             image.Mutate(x => x.Resize(800, 0));
         }

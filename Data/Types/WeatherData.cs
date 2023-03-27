@@ -24,16 +24,16 @@ public class CurrentWeather
 public class Daily
 {
     [JsonPropertyName("time")]
-    public List<string> Time { get; } = new List<string>();
+    public List<string> Time { get; set; }
 
     [JsonPropertyName("weathercode")]
-    public List<int> Weathercode { get; } = new List<int>();
+    public List<int> Weathercode { get; set; }
 
     [JsonPropertyName("temperature_2m_max")]
-    public List<double> Temperature2mMax { get; } = new List<double>();
+    public List<double> Temperature2mMax { get; set; }
 
     [JsonPropertyName("temperature_2m_min")]
-    public List<double> Temperature2mMin { get; } = new List<double>();
+    public List<double> Temperature2mMin { get; set; }
 }
 
 public class DailyUnits
