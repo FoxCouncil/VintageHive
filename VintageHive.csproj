@@ -17,6 +17,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Tests\**" />
+	  <EmbeddedResource Remove="Tests\**" />
+	  <None Remove="Tests\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="geonames.db" />
 	  <None Remove="Statics\admin\cache.html" />
 	  <None Remove="Statics\admin\css\fontawesome.min.css" />
 	  <None Remove="Statics\admin\css\main.css" />
@@ -37,6 +44,12 @@
 	  <None Remove="Statics\hive\partials\head.html" />
 	  <None Remove="Statics\hive\search.html" />
 	  <None Remove="Statics\hive\viewer.html" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="geonames.db">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
 	</ItemGroup>
 
 	<ItemGroup>

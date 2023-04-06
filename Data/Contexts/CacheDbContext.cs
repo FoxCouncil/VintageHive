@@ -15,7 +15,7 @@ internal class CacheDbContext : DbContextBase
 
         CreateTable("wayback", "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("waybackavailability", "url TEXT UNIQUE, year TEXT, value TEXT, results TEXT");
+        CreateTable("waybackavailability", "url TEXT, year TEXT, value TEXT, results TEXT");
 
         CreateTable("protoweb", "url TEXT UNIQUE, ttl TEXT, value TEXT");
 

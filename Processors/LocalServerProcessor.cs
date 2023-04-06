@@ -4,6 +4,7 @@ using Fluid.Values;
 using HeyRed.Mime;
 using Humanizer;
 using System.Diagnostics;
+using System.Linq;
 using System.Web;
 using VintageHive.Processors.LocalServer;
 using VintageHive.Proxy.Ftp;
@@ -27,6 +28,30 @@ internal static class LocalServerProcessor
         });
         TemplateOptions.Default.Filters.AddFilter("wmotostring", (input, arguments, context) => {
             return StringValue.Create(WeatherUtils.ConvertWmoCodeToString((int)input.ToNumberValue()));
+        });
+
+        TemplateOptions.Default.Filters.AddFilter("pathlinksplit", (input, arguments, context) => {
+            var path = input.ToStringValue();
+
+            if (path == "/")
+            {
+                return input;
+            }
+
+            dynamic model = context.Model.ToObjectValue();
+            var repo = model.Request.QueryParams["repo"];
+
+            var pathParts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            if (pathParts.Length > 1)
+            {
+                for (int i = 0; i < pathParts.Length - 1; i++)
+                {
+                    pathParts[i] = $"<a href=\"download.html?repo={HttpUtility.UrlEncode(repo)}&path={HttpUtility.UrlEncode(path[..(path.IndexOf(pathParts[i]) + pathParts[i].Length)] + "/")}\">{pathParts[i]}</a>";
+                }
+            }
+
+            return StringValue.Create("/" + string.Join('/', pathParts) + "/");
         });
 
         fluidParser.RegisterEmptyTag("displayMessage", static async (writer, encoder, context) =>
@@ -53,7 +78,6 @@ internal static class LocalServerProcessor
         {
             // let's play ISP
             var host = req.Uri.Host.Replace("ftp.", string.Empty);
-
 
             await req.SendInvalidUsernameOrPassword();
         }

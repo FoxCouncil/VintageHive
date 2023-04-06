@@ -29,4 +29,6 @@ public class GeoIp
     public string _as { get; set; }
 
     public string query { get; set; }
+
+    public string fullname => $"{city}, {region ?? regionName ?? ""}, {country}";
 }

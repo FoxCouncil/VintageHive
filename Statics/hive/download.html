@@ -16,7 +16,7 @@
     </table>
     <table>
         <tr>
-            <td valign="top" width="20%">
+            <td valign="top" width="160">
                 <font size="4" face="Arial">Repositories</font><br>
 
                 {% if repos == empty %}
@@ -32,8 +32,11 @@
             <td colspan="3">
                 {% if reponame %}
                 <table>
-                    <tr>
+                    <!--<tr>
                         <td align="center" colspan="4"><font size="4" face="Arial">{{ reponame }}</font></td>
+                    </tr>-->
+                    <tr>
+                        <td align="center" colspan="4"><font face="Courier New"><a href="/download.html?repo={{ reposhortname }}">{{ reponame }}</a>:{{ path | pathlinksplit }}</font></td>
                     </tr>
                     <tr>
                         <td align="center" colspan="2">Name</td>
@@ -46,13 +49,13 @@
                     {% unless isroot %}
                     <tr>
                         <td><img src="/img/back.gif"></td>
-                        <td colspan="3"><a href="download.html?repo={{ reposhortname }}&path={{ parentpath | urlencode }}"><font face="Courier New">Parent Directory</font></a></td>
+                        <td colspan="3"><a href="/download.html?repo={{ reposhortname }}&path={{ parentpath | urlencode }}"><font face="Courier New">Parent Directory</font></a></td>
                     </tr>
                     {% endunless %}
                     {% for dir in dirs %}
                     <tr>
                         <td><img src="/img/folder.gif"></td>
-                        <td><a href="download.html?repo={{ reposhortname }}&path={{ path | urlencode }}{{ dir.Name | urlencode }}%2f"><font face="Courier New">{{ dir.Name }}</font></a></td>
+                        <td><a href="/download.html?repo={{ reposhortname }}&path={{ path | urlencode }}{{ dir.Name | urlencode }}%2f"><font face="Courier New">{{ dir.Name }}</font></a></td>
                         <td width="120" align="center"><font size="1">&nbsp;&nbsp;{{ dir.LastWriteTime }}&nbsp;&nbsp;</font></td>
                         <td align="center">&nbsp;</td>
                     </tr>
@@ -60,7 +63,7 @@
                     {% for file in files %}
                     <tr>
                         <td><img src="/img/file.gif"></td>
-                        <td><a href="download.html?repo={{ reposhortname }}&path={{ path | urlencode }}&file={{ file.Name | urlencode }}"><font face="Courier New">{{ file.Name }}</font></a></td>
+                        <td><a href="/download.html?repo={{ reposhortname }}&path={{ path | urlencode }}&file={{ file.Name | urlencode }}"><font face="Courier New">{{ file.Name }}</font></a></td>
                         <td width="120" align="center"><font size="1">&nbsp;&nbsp;{{ file.LastWriteTime }}&nbsp;&nbsp;</font></td>
                         <td width="75" align="right"><font size="2" face="monospace">{{ file.Length | bytes }}</font></td>
                     </tr>

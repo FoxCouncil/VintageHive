@@ -179,9 +179,13 @@ public sealed class HttpResponse
 
     public HttpResponse SetFound(string foundUri = null)
     {
-        if (foundUri == null)
+        if (foundUri == null && Request.Headers.ContainsKey("Referer"))
         {
             foundUri = Request.Headers["Referer"];
+        }
+        else
+        {
+            foundUri = "/";
         }
 
         StatusCode = HttpStatusCode.Found;

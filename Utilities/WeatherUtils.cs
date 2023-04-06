@@ -5,10 +5,15 @@ namespace VintageHive.Utilities;
 
 public static class WeatherUtils
 {
-    const string WeatherDataApiUrl = "https://api.open-meteo.com/v1/forecast?latitude={0}&longitude={1}&timezone={2}&temperature_unit={3}&windspeed_unit={4}&precipitation_unit={5}&daily=weathercode,temperature_2m_max,temperature_2m_min&current_weather=true";
+    const string WeatherDataApiUrl = "https://api.open-meteo.com/v1/forecast?latitude={0}&longitude={1}&timezone={2}&temperature_unit={3}&windspeed_unit={4}&precipitation_unit={5}&daily=weathercode,temperature_2m_max,temperature_2m_min&hourly=weathercode,temperature_2m&current_weather=true";
 
     internal static async Task<WeatherData> GetDataByGeoIp(GeoIp location, string tempratureUnits, string distanceUnits)
     {
+        if (location == null)
+        {
+            return null;
+        }
+
         var tempUnits = tempratureUnits;
 
         var windUnits = distanceUnits == DistanceUnits.Metric ? "kmh" : "mph";
@@ -45,8 +50,12 @@ public static class WeatherUtils
                 return null;
             }
         }
+        
+        var data = JsonSerializer.Deserialize<WeatherData>(rawData);
 
-        return JsonSerializer.Deserialize<WeatherData>(rawData);
+        data.Hourly.DeltaTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(location.timezone));
+
+        return data;
     }
 
     public static double CelsiusToFahrenheit(double celsius)
@@ -79,6 +88,13 @@ public static class WeatherUtils
         {
             return "N/A";
         }
+    }
+
+    internal static GeoIp FindLocation(string location)
+    {
+        var viableLocation = Mind.Geonames.GetLocationBySearch(location);
+
+        return viableLocation;
     }
 
     private static readonly Dictionary<int, string> WeatherCodes = new()

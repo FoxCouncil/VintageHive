@@ -31,7 +31,7 @@
             </td>
             <td valign="top">
                 <font face="Courier New" size="4">Internet Archive:</font>
-                <form action="/api/ia/toggle" method="POST" enctype="application/x-www-form-urlencoded">
+                <form action="/api/iatoggle" method="POST" enctype="application/x-www-form-urlencoded">
                     {% if ia_toggle %}
                     <font face="Courier New" size="6" color="green">Enabled </font>
                     {% else %}
@@ -40,7 +40,7 @@
                     <input type="submit" name="toggle" value="{% if ia_toggle %}Disable{% else %}Enable{% endif %}">
                 </form>
                 {% if ia_toggle %}
-                <form action="/api/ia/setyear" method="POST" enctype="application/x-www-form-urlencoded">
+                <form action="/api/iasetyear" method="POST" enctype="application/x-www-form-urlencoded">
                     Year
                     <select name="year">
                         {% for year in ia_years %}
@@ -57,7 +57,7 @@
             </td>
             <td valign="top">
                 <font face="Courier New" size="4">ProtoWeb:</font>
-                <form action="/api/proto/toggle" method="POST" enctype="application/x-www-form-urlencoded">
+                <form action="/api/protowebtoggle" method="POST" enctype="application/x-www-form-urlencoded">
                     {% if proto_toggle %}
                     <font face="Courier New" size="6" color="green">Enabled </font>
                     {% else %}

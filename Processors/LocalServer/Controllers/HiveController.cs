@@ -13,6 +13,8 @@ namespace VintageHive.Processors.LocalServer.Controllers;
 
 internal class HiveController : Controller
 {
+    private const string DEFAULT_LOCATION_PRIVACY = "Your Location";
+
     public override async Task CallInitial(string rawPath)
     {
         await Task.Delay(0);
@@ -266,16 +268,26 @@ internal class HiveController : Controller
     [Controller("/weather.html")]
     public async Task Weather()
     {
-        var geoipLocation = Mind.Db.ConfigGet<GeoIp>(ConfigNames.Location);
+        var location = Request.QueryParams.ContainsKey("location") ? Request.QueryParams["location"] : null;
+
+        location = location == DEFAULT_LOCATION_PRIVACY ? null : location;
 
         var tempUnits = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.TemperatureUnits);
         var distUnits = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.DistanceUnits);
 
+        var geoipLocation = location != null ? WeatherUtils.FindLocation(location) : Mind.Db.ConfigGet<GeoIp>(ConfigNames.Location);
+
         var weatherData = await WeatherUtils.GetDataByGeoIp(geoipLocation, tempUnits, distUnits);
+
+        Response.Context.SetValue("weather_privacy", DEFAULT_LOCATION_PRIVACY);
+
+        Response.Context.SetValue("u", tempUnits[..1].ToLower());
 
         Response.Context.SetValue("weather", weatherData);
 
-        Response.Context.SetValue("weather_location", "Your Location");
+        Response.Context.SetValue("weather_location", location ?? DEFAULT_LOCATION_PRIVACY);
+
+        Response.Context.SetValue("weather_fullname", location == null ? DEFAULT_LOCATION_PRIVACY : geoipLocation?.fullname ?? "N/A");
     }
 
     [Controller("/settings.html")]
@@ -284,71 +296,72 @@ internal class HiveController : Controller
         await Task.Delay(0);
 
         var isInternetArchiveEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive);
+        var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
 
         Response.Context.SetValue("ia_years", InternetArchiveProcessor.ValidYears);
         Response.Context.SetValue("ia_toggle", isInternetArchiveEnabled);
-        Response.Context.SetValue("ia_current", Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear));
+        Response.Context.SetValue("ia_current", internetArchiveYear);
 
         var isProtoWebEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb);
 
         Response.Context.SetValue("proto_toggle", isProtoWebEnabled);
     }
 
-    [Controller("/settings/users.html")]
-    public async Task SettingsUser()
-    {
-        await Task.Delay(0);
+    //[Controller("/settings/users.html")]
+    //public async Task SettingsUser()
+    //{
+    //    await Task.Delay(0);
 
-        var users = Mind.Db.UserList();
+    //    var users = Mind.Db.UserList();
 
-        Response.Context.SetValue("users", users);
-    }
+    //    Response.Context.SetValue("users", users);
+    //}
 
-    [Controller("/api/user/exist")]
-    public async Task UserExists()
-    {
-        await Task.Delay(0);
+    //[Controller("/api/user/exist")]
+    //public async Task UserExists()
+    //{
+    //    await Task.Delay(0);
 
-        string username;
+    //    string username;
 
-        if (Request.QueryParams.ContainsKey("username"))
-        {
-            username = Request.QueryParams["username"];
-        }
-        else if (Request.FormData.ContainsKey("username"))
-        {
-            username = Request.FormData["username"];
-        }
-        else
-        {
-            return;
-        }
+    //    if (Request.QueryParams.ContainsKey("username"))
+    //    {
+    //        username = Request.QueryParams["username"];
+    //    }
+    //    else if (Request.FormData.ContainsKey("username"))
+    //    {
+    //        username = Request.FormData["username"];
+    //    }
+    //    else
+    //    {
+    //        return;
+    //    }
 
-        var result = Mind.Db.UserExistsByUsername(username);
+    //    var result = Mind.Db.UserExistsByUsername(username);
 
-        Response.SetBodyString(result.ToString().ToLower(), "text/plain");
+    //    Response.SetBodyString(result.ToString().ToLower(), "text/plain");
 
-        Response.Handled = true;
-    }
+    //    Response.Handled = true;
+    //}
 
-    [Controller("/api/user/create")]
-    public async Task UserCreate()
-    {
-        await Task.Delay(0);
+    //[Controller("/api/user/create")]
+    //public async Task UserCreate()
+    //{
+    //    await Task.Delay(0);
 
-        if (!Request.FormData.ContainsKey("username") || !Request.FormData.ContainsKey("password"))
-        {
-            return;
-        }
+    //    if (!Request.FormData.ContainsKey("username") || !Request.FormData.ContainsKey("password"))
+    //    {
+    //        return;
+    //    }
 
-        var username = Request.FormData["username"];
+    //    var username = Request.FormData["username"];
 
-        var password = Request.FormData["password"];
+    //    var password = Request.FormData["password"];
 
-        var result = Mind.Db.UserCreate(username, password);
+    //    var result = Mind.Db.UserCreate(username, password);
 
-        Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound();
-    }
+    //    Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound();
+    //}
 
     [Controller("/api/image/fetch")]
     public async Task ImageFetch()
@@ -397,9 +410,53 @@ internal class HiveController : Controller
         Response.SetBodyData(memoryStream.ToArray(), "image/jpeg");
 
         Response.Handled = true;
-    }   
+    }
 
-    [Controller("/api/ia/setyear")]
+    [Controller("/api/set")]
+    public async Task SetUserSetting()
+    {
+        await Task.Delay(0);
+
+        if (!Request.QueryParams.ContainsKey("u"))
+        {
+            return;
+        }
+
+        var oldUnit = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.TemperatureUnits)[0].ToString().ToLower();
+        var newUnit = Request.QueryParams["u"].ToLower();
+
+        if (oldUnit == newUnit)
+        {
+            Response.SetFound();
+        }
+
+        if (oldUnit == "c" && newUnit == "f")
+        {
+            Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.TemperatureUnits, "fahrenheit");
+        }
+        else if (oldUnit == "f" && newUnit == "c")
+        {
+            Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.TemperatureUnits, "celsius");
+        }
+        else
+        {
+            return;
+        }
+
+        Response.SetFound();
+    }
+
+    [Controller("/api/iatoggle")]
+    public async Task InternetArchiveToggle()
+    {
+        await Task.Delay(0);
+
+        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive));
+
+        Response.SetFound();
+    }
+
+    [Controller("/api/iasetyear")]
     public async Task InternetArchiveSetYear()
     {
         await Task.Delay(0);
@@ -420,5 +477,15 @@ internal class HiveController : Controller
 
             Response.SetFound();
         }
+    }
+
+    [Controller("/api/protowebtoggle")]
+    public async Task ProtoWebToggle()
+    {
+        await Task.Delay(0);
+
+        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb));
+
+        Response.SetFound();
     }
 }

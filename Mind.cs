@@ -29,13 +29,15 @@ static class Mind
 
     public static HiveDbContext Db { get; private set; }
 
+    public static GeonamesDbContext Geonames { get; private set; }
+
     public static async Task Init()
     {
         Resources.Initialize();
 
-        Cache = new CacheDbContext();
-
-        Db = new HiveDbContext();
+        Cache = new();
+        Db = new();
+        Geonames = new();
 
         VFS.Init();
 
