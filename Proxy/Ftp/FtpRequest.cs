@@ -15,7 +15,7 @@ public sealed class FtpRequest : Request
 
     internal async Task FetchUsernameAndPassword(string user, bool isProxyAuth = false)
     {
-        await SendCommand(FtpReturnCode.UsernameOkay, $"Password required for {user}");
+        await SendResponse(FtpResponseCode.UsernameOkay, $"Password required for {user}");
 
         var passwordResponse = await FetchCommand();
 
@@ -38,12 +38,12 @@ public sealed class FtpRequest : Request
 
     internal async Task SendInvalidUsernameOrPassword()
     {
-        await SendCommand(FtpReturnCode.InvalidUsernameOrPassword, "Invalid username or password");
+        await SendResponse(FtpResponseCode.InvalidUsernameOrPassword, "Invalid username or password");
     }
 
     internal async Task SendUserLoggedIn()
     {
-        await SendCommand(FtpReturnCode.UserLoggedIn, "User logged in, proceed");
+        await SendResponse(FtpResponseCode.UserLoggedIn, "User logged in, proceed");
     }
 
     internal async Task<Tuple<string, string>> FetchCommand()
@@ -52,22 +52,39 @@ public sealed class FtpRequest : Request
 
         if (string.IsNullOrWhiteSpace(rawResponse))
         {
-            throw new InvalidOperationException("client returned garbage");
+            return null;
         }
 
         var parsedResponse = rawResponse.SplitSpaces();
 
-        if (parsedResponse.Length != 2)
+        if (parsedResponse == null || parsedResponse.Length == 0)
         {
             throw new InvalidOperationException("client returned garbage");
         }
 
-        return new Tuple<string, string>(parsedResponse[0].ToUpper(), parsedResponse[1]);
+        var command = parsedResponse[0].ToUpper();
+        var arguments = parsedResponse.Length >= 2 ? string.Join(' ', parsedResponse[1..]) : string.Empty;
+
+        return new Tuple<string, string>(command, arguments);
     }
 
-    internal async Task SendCommand(FtpReturnCode command, string args)
+    internal async Task SendResponse(FtpResponseCode command, string args)
     {
         var cmd = $"{(int)command} {args}\r\n";
+
+        await SendRawResponse(cmd);
+    }
+
+    internal async Task SendFeatureListResponse(FtpResponseCode command, string[] args)
+    {
+        var cmd = $"{(int)command}-Features\r\n";
+        
+        foreach (var arg in args)
+        {
+            cmd += $" {arg}\r\n";
+        }
+        
+        cmd += $"{(int)command} End\r\n";
 
         await SendRawResponse(cmd);
     }
@@ -153,7 +170,7 @@ public sealed class FtpRequest : Request
 
         newRequest.Uri = new Uri(url);
 
-        await newRequest.SendCommand(FtpReturnCode.ServiceReadyForNewUser, $"{newRequest.Uri.Host}'s VintageHive FTP Server");
+        await newRequest.SendResponse(FtpResponseCode.ServiceReadyForNewUser, $"{newRequest.Uri.Host}'s VintageHive FTP Server");
 
         proxyRequest = await newRequest.FetchCommand();
 

@@ -116,9 +116,11 @@ public sealed class HttpResponse
             disposition = "inline";
         }
 
+
         var contentDisposition = $"{disposition}; filename=\"{Path.GetFileName(stream.Name)}\"";
 
         Headers.AddOrUpdate(HttpHeaderName.ContentDisposition, contentDisposition);
+
         Headers.AddOrUpdate(HttpHeaderName.ContentLength, DownloadStream.Length.ToString());
         Headers.AddOrUpdate(HttpHeaderName.ContentType, type);
 

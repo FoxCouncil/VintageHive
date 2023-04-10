@@ -29,6 +29,13 @@ public class HttpProxy : Listener
     {
         var httpRequest = await HttpRequest.Parse(connection, Encoding, data[..read]);
 
+        if (!httpRequest.IsValid)
+        {
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of HTTP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket.TraceId.ToString());
+
+            return null;
+        }
+
         var httpResponse = new HttpResponse(httpRequest);
 
         var key = $"HPC-{httpRequest.Uri}";

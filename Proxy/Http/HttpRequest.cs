@@ -173,6 +173,7 @@ public sealed class HttpRequest : Request
 
         var newRequest = new HttpRequest
         {
+            IsValid = true,
             Type = httpRequestLine[0],
             Uri = new Uri(uri),
             Version = httpRequestLine[2],

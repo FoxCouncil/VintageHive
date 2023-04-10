@@ -1,10 +1,11 @@
 ﻿namespace VintageHive.Proxy.Ftp;
 
-public enum FtpReturnCode
+public enum FtpResponseCode
 {
     DataConnectionAlreadyOpen = 125,
     FileStatusOkay = 150,
-    CommandNotImplemented = 202,
+    CommandSuccess = 200,
+    CommandNotImplementedSite = 202,
     SystemStatus = 211,
     DirectoryStatus = 212,
     FileStatus = 213,
@@ -19,6 +20,12 @@ public enum FtpReturnCode
     EnteringExtendedPassiveMode = 229,
     UserLoggedIn = 230,
     RequestedFileActionOkay = 250,
+    PathnameCreated = 257,
     UsernameOkay = 331,
-    InvalidUsernameOrPassword = 430
+    RequestedFileActionPendingMore = 350,
+    InvalidUsernameOrPassword = 430,
+    SyntaxError = 501,
+    CommandNotImplemented = 502,
+    BadSequenceOfCommands = 503,
+    RequestedActionNotTaken = 550
 }
