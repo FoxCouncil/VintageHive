@@ -2,7 +2,12 @@
 
 echo Running docker container...
 sudo docker run --name vintagehive \
-	-dp 1999:1999 --restart=always \
-	--volume retrofox-video:/mnt/v \
-	--volume retrofox-db:/app/config \
+	-dp 1990:1990 \
+	-dp 1971:1971 \
+	-dp 1996:1996 \
+	-dp 5190:5190 \
+	-dp 9999:9999 \
+	--restart=always \
+	--volume vintagehive-vfs:/app/vfs \
+	--volume vintagehive-downloads:/app/downloads \
 	foxcouncil/vintagehive

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Define info about video network share.
-DATA_VOLUME=retrofox-video
-DOMAIN=workgroup
+# Define info about network share.
+VFS_VOLUME=vintagehive-vfs
+DOWNLOADS_VOLUME=vintagehive-downloads
 
 while true; do
     read -p "Delete existing docker volumes? [Y/N] " yn
@@ -10,8 +10,8 @@ while true; do
         [Yy]* ) 
             # Remove existing volumes from docker for this project.
             echo Removing existing docker volumes...
-            sudo docker volume rm retrofox-db
-            sudo docker volume rm ${DATA_VOLUME}
+            sudo docker volume rm ${VFS_VOLUME}
+            sudo docker volume rm ${DOWNLOADS_VOLUME}
             break;;
         [Nn]* ) 
             break;;
@@ -19,24 +19,18 @@ while true; do
     esac
 done
 
-# Mounts the networked share for video as a volume for use in docker.
-# You MUST use the addr option when relying on DNS resolution
-echo Creating video network volume...
-# sudo docker volume create \
-#     --name ${DATA_VOLUME} \
-#     --driver local \
-#     --opt type=cifs \
-#     --opt device=//192.168.1.5/Videos \
-#     --opt o=username=guest,password=
-
+echo Creating VFS volume to persist changes...
+mkdir "$(pwd)/vfs"
 sudo docker volume create \
-    --name ${DATA_VOLUME} \
+    --name ${VFS_VOLUME} \
     --opt type=none \
-    --opt device="$(pwd)/station" \
+    --opt device="$(pwd)/vfs" \
     --opt o=bind
 
-echo Creating config volume to persist changes...   
+echo Creating downloads volume for saved files...
+mkdir "$(pwd)/downloads"
 sudo docker volume create \
-    --name retrofox-db \
-    --driver local
-
+    --name ${DOWNLOADS_VOLUME} \
+    --opt type=none \
+    --opt device="$(pwd)/downloads" \
+    --opt o=bind

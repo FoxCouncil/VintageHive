@@ -1,0 +1,10 @@
+cache.db
+cache.db-shm
+cache.db-wal
+
+hive.db
+hive.db-shm
+hive.db-wal
+
+geonames.db
+

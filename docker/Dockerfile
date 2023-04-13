@@ -20,51 +20,82 @@ RUN : \
 RUN apt update && apt upgrade -y && \
 	apt install -y \
     gcc \
-	wget \
 	curl \
+	wget \
+    libc6 \
+    libgcc1 \
+    libgssapi-krb5-2 \
+    libicu66 \
+    libssl1.1 \
+    libstdc++6 \
+    zlib1g \
+    zlib1g-dev \
     m4 \
 	unzip \
 	sudo \
     make \
 	git \
-	dotnet-sdk-7.0 \
-	aspnetcore-runtime-7.0 \
     pkg-config \
-    zlib1g-dev && \
-    apt autoremove && apt clean && \
-    rm -rf /var/lib/apt/lists/*
+    ca-certificates && \
+    apt autoremove
 	
 # Configure the Liquidsoap user
 RUN adduser --disabled-password --gecos '' retro \
   && echo 'retro ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/retro
   
 # add user and create necessary directories
-RUN mkdir /app /mnt/v && \
-	mkdir /app/config && \
-	mkdir /app/tv /app/guide/ && \
+RUN mkdir /app \
+	mkdir /app/vfs/ && \
+	mkdir /app/downloads/ && \
     chown -R retro /app
 
+# retro user!
 USER retro
-
-# open needed ports
-EXPOSE 1990
-EXPOSE 1971
-EXPOSE 1996
 
 # Application specific folder for vintage hive in this container.
 WORKDIR /app
 
+RUN sudo wget -q https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+RUN sudo dpkg -i packages-microsoft-prod.deb
+RUN sudo rm packages-microsoft-prod.deb
+
+# Install .NET
+RUN sudo apt-get update \
+&& sudo apt-get install -y \
+    dotnet-sdk-7.0
+
+# HttpProxy Listener (HTTP)
+EXPOSE 1990
+
+# FtpProxy Listener (FTP)
+EXPOSE 1971
+
+# Secure Proxy (Socks5)
+EXPOSE 1996
+
+# OscarServer Listener (AIM/ICQ)
+EXPOSE 5190
+
+# HttpProxy Listener (HTTPS)
+EXPOSE 9999
+
 # Clone the repositoiry and compile it
-RUN git clone https://github.com/FoxCouncil/VintageHive.git
+RUN git clone https://github.com/FoxCouncil/VintageHive.git /app/src
 
 # Change directory to the cloned repository
-WORKDIR /app/VintageHive
+WORKDIR /app/src
 
 # Restore the dependencies
 RUN dotnet restore
 
 # Build the project
-RUN dotnet build -c Release
+RUN dotnet build --nologo --configuration Release
+
+# Publish the app to a single directory.
+RUN dotnet publish -p:PublishProfile=FolderProfile --configuration Release -o /app/
+
+# Change to publish directory where our app lives.
+WORKDIR /app
 
 # Run the compiled application
-CMD ["dotnet", "run"]
+CMD ["./VintageHive"]
