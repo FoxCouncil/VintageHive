@@ -3,6 +3,7 @@
 rem Define info about network share.
 set VFS_VOLUME=vintagehive-vfs
 set DOWNLOADS_VOLUME=vintagehive-downloads
+set DB_VOLUME=vintagehive-db
 
 :choice
 set /P c=Delete existing docker volumes?[Y/N]?
@@ -16,6 +17,7 @@ rem Remove existing volumes from docker for this project.
 echo Removing existing docker volumes...
 docker volume rm %VFS_VOLUME%
 docker volume rm %DOWNLOADS_VOLUME%
+docker volume rm %DB_VOLUME%
 
 :keep_volumes
 
@@ -33,4 +35,12 @@ docker volume create ^
  	--name %DOWNLOADS_VOLUME% ^
 	--opt type=none ^
 	--opt device=%cd%\downloads ^
+	--opt o=bind
+
+echo Creating database volume...
+mkdir "%cd%\db"
+docker volume create ^
+ 	--name %DB_VOLUME% ^
+	--opt type=none ^
+	--opt device=%cd%\db ^
 	--opt o=bind

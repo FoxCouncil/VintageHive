@@ -79,7 +79,7 @@ EXPOSE 5190
 # HttpProxy Listener (HTTPS)
 EXPOSE 9999
 
-# Clone the repositoiry and compile it
+# Clone the repository and compile it
 RUN git clone https://github.com/FoxCouncil/VintageHive.git /app/src
 
 # Change directory to the cloned repository

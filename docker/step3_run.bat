@@ -10,4 +10,5 @@ docker run --name vintagehive ^
 	--restart=always ^
 	--volume vintagehive-vfs:/app/vfs ^
 	--volume vintagehive-downloads:/app/downloads ^
+	--volume vintagehive-db:/app/db ^
 	foxcouncil/vintagehive
