@@ -6,6 +6,7 @@ using SixLabors.ImageSharp.Processing;
 using SmartReader;
 using System.Net;
 using VintageHive.Data.Types;
+using VintageHive.Proxy.Security;
 using VintageHive.Utilities;
 using Image = SixLabors.ImageSharp.Image;
 
@@ -305,6 +306,10 @@ internal class HiveController : Controller
         var isProtoWebEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb);
 
         Response.Context.SetValue("proto_toggle", isProtoWebEnabled);
+
+        var isDialnineEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.Dialnine);
+
+        Response.Context.SetValue("dialnine_toggle", isDialnineEnabled);
     }
 
     //[Controller("/settings/users.html")]
@@ -487,5 +492,25 @@ internal class HiveController : Controller
         Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb));
 
         Response.SetFound();
+    }
+
+    [Controller("/api/dialninetoggle")]
+    public async Task DialnineToggle()
+    {
+        await Task.Delay(0);
+
+        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.Dialnine, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.Dialnine));
+
+        Response.SetFound();
+    }
+
+    [Controller("/api/download/dialnineca.crt")]
+    public async Task DialnineCertDownload()
+    {
+        await Task.Delay(0);
+
+        var cert = Mind.Db.CertGet(CertificateAuthority.Name); // Get's CA
+
+        Response.SetBodyString(cert.Certificate, "application/x-x509-ca-cert");
     }
 }

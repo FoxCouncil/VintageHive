@@ -3,7 +3,7 @@ using static VintageHive.Proxy.Security.Native;
 
 namespace VintageHive.Proxy.Security;
 
-internal class X509Name : NativeRef
+public class X509Name : NativeRef
 {
     public string Common
     {

@@ -24,26 +24,27 @@
 
 	<ItemGroup>
 	  <None Remove="geonames.db" />
-	  <None Remove="Statics\admin\cache.html" />
-	  <None Remove="Statics\admin\css\fontawesome.min.css" />
-	  <None Remove="Statics\admin\css\main.css" />
-	  <None Remove="Statics\admin\css\solid.min.css" />
-	  <None Remove="Statics\admin\index.html" />
-	  <None Remove="Statics\admin\js\main.js" />
-	  <None Remove="Statics\admin\localserver.html" />
-	  <None Remove="Statics\admin\login.html" />
-	  <None Remove="Statics\admin\logs.html" />
-	  <None Remove="Statics\admin\partials\footer.html" />
-	  <None Remove="Statics\admin\partials\head.html" />
-	  <None Remove="Statics\admin\partials\header.html" />
-	  <None Remove="Statics\admin\users.html" />
-	  <None Remove="Statics\admin\webfonts\fa-solid-900.ttf" />
-	  <None Remove="Statics\admin\webfonts\fa-solid-900.woff2" />
-	  <None Remove="Statics\hive\img\folder.gif" />
-	  <None Remove="Statics\hive\img\unknown.gif" />
-	  <None Remove="Statics\hive\partials\head.html" />
-	  <None Remove="Statics\hive\search.html" />
-	  <None Remove="Statics\hive\viewer.html" />
+	  <None Remove="Statics\admin.com\cache.html" />
+	  <None Remove="Statics\admin.com\css\fontawesome.min.css" />
+	  <None Remove="Statics\admin.com\css\main.css" />
+	  <None Remove="Statics\admin.com\css\solid.min.css" />
+	  <None Remove="Statics\admin.com\index.html" />
+	  <None Remove="Statics\admin.com\js\main.js" />
+	  <None Remove="Statics\admin.com\localserver.html" />
+	  <None Remove="Statics\admin.com\login.html" />
+	  <None Remove="Statics\admin.com\logs.html" />
+	  <None Remove="Statics\admin.com\partials\footer.html" />
+	  <None Remove="Statics\admin.com\partials\head.html" />
+	  <None Remove="Statics\admin.com\partials\header.html" />
+	  <None Remove="Statics\admin.com\users.html" />
+	  <None Remove="Statics\admin.com\webfonts\fa-solid-900.ttf" />
+	  <None Remove="Statics\admin.com\webfonts\fa-solid-900.woff2" />
+	  <None Remove="Statics\hive.com\img\folder.gif" />
+	  <None Remove="Statics\hive.com\img\unknown.gif" />
+	  <None Remove="Statics\hive.com\partials\head.html" />
+	  <None Remove="Statics\hive.com\search.html" />
+	  <None Remove="Statics\hive.com\viewer.html" />
+	  <None Remove="Statics\radio.com\index - Copy.html" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -66,12 +67,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <None Update="Certs\google.com.csr">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="Certs\privkey.key">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
 	  <None Update="libcrypto.so">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
@@ -90,8 +85,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Statics\admin\img\" />
-	  <Folder Include="Statics\hive\settings\" />
+	  <Folder Include="Statics\hive.com\settings\" />
 	</ItemGroup>
 	
 	

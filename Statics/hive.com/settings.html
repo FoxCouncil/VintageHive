@@ -6,31 +6,10 @@
 <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
     {% include 'partials/header.html' %}
 
-    <table border="1" cellpadding="10">
+    <table border="1" cellpadding="10" width="100%">
         <tr>
             <td valign="top">
-                <font face="Courier New" size="4">Client Details:</font>
-                <table border="1" cellpadding="5">
-                    <tr>
-                        <td align="right">ClientIP</td>
-                        <td align="center">{{ clientip }}</td>
-                    </tr>
-                    <tr>
-                        <td align="right">Detected Browser</td>
-                        <td align="center">{{ browserversion }}</td>
-                    </tr>
-                    <tr>
-                        <td align="right">Detected OS</td>
-                        <td align="center">{{ osversion }}</td>
-                    </tr>
-                    <tr>
-                        <td align="right">Detected Device</td>
-                        <td align="center">{{ deviceversion }}</td>
-                    </tr>
-                </table>
-            </td>
-            <td valign="top">
-                <font face="Courier New" size="4">Internet Archive:</font>
+                <font face="Courier New" size="4"><b>Internet Archive:</b></font>
                 <form action="/api/iatoggle" method="POST" enctype="application/x-www-form-urlencoded">
                     {% if ia_toggle %}
                     <font face="Courier New" size="6" color="green">Enabled </font>
@@ -56,7 +35,7 @@
                 {% endif %}
             </td>
             <td valign="top">
-                <font face="Courier New" size="4">ProtoWeb:</font>
+                <font face="Courier New" size="4"><b>ProtoWeb:</b></font>
                 <form action="/api/protowebtoggle" method="POST" enctype="application/x-www-form-urlencoded">
                     {% if proto_toggle %}
                     <font face="Courier New" size="6" color="green">Enabled </font>
@@ -65,6 +44,46 @@
                     {% endif %}
                     <input type="submit" name="toggle" value="{% if proto_toggle %}Disable{% else %}Enable{% endif %}">
                 </form>
+            </td>
+            <td valign="top">
+                <font face="Courier New" size="4"><b>Dialnine:</b></font>
+                <form action="/api/dialninetoggle" method="POST" enctype="application/x-www-form-urlencoded">
+                    {% if dialnine_toggle %}
+                    <font face="Courier New" size="6" color="green">Enabled </font>
+                    {% else %}
+                    <font face="Courier New" size="6" color="red">Disabled </font>
+                    {% endif %}
+                    <input type="submit" name="toggle" value="{% if dialnine_toggle %}Disable{% else %}Enable{% endif %}">
+                </form>
+                <a href="/api/download/dialnineca.crt">Download CA Certificate</a>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <table width="100%">
+        <tr>
+            <td valign="top">
+                <font face="Courier New" size="4"><b>Client Details:</b></font>
+                <table border="1" cellpadding="5">
+                    <tr>
+                        <td align="right">ClientIP</td>
+                        <td align="center">{{ clientip }}</td>
+                    </tr>
+                    <tr>
+                        <td align="right">Detected Browser</td>
+                        <td align="center">{{ browserversion }}</td>
+                    </tr>
+                    <tr>
+                        <td align="right">Detected OS</td>
+                        <td align="center">{{ osversion }}</td>
+                    </tr>
+                    <tr>
+                        <td align="right">Detected Device</td>
+                        <td align="center">{{ deviceversion }}</td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>

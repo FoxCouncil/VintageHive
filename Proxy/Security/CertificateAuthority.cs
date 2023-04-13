@@ -1,44 +1,110 @@
-﻿namespace VintageHive.Proxy.Security;
+﻿using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography;
+using VintageHive.Data.Types;
 
-internal static class CertificateAuthority
+namespace VintageHive.Proxy.Security;
+
+public static class CertificateAuthority
 {
-    const string CA_PRIVATE_KEY = "CA_PRIVATE_KEY";
+    public const string Name = "VintageHive Dialnine Cert Authority";
 
-    const int CA_PRIVATE_KEY_BITS = 1024;
+    const int KeySize = 512;
 
-    static readonly BigNumber CA_PRIVATE_KEY_E = BigNumber.Rsa65537;
+    const int ValidityPeriodYearsCA = 100;
 
-    static readonly X509Name CAName = new("VintageHive Dialnine Cert Authority");
+    const int ValidityPeriodYearsCERT = 25;
 
-    private static CryptoKey _privateKey;
+    static X509Certificate2 _caCertificate;
 
-    private static CryptoKey _publicKey;
-    
-    internal static void Init()
+    // private readonly string _caCertificatePem;
+
+    // private readonly RSA _caPrivateKey;
+
+    public static void Init()
     {
-        //var privateKeyString = Mind.Db.ConfigGet<string>(CA_PRIVATE_KEY);
+        if (_caCertificate != null)
+        {
+            throw new ApplicationException("No, no, no, don't run twice.");
+        }
 
-        //if (privateKeyString == null)
-        //{
-        //    Mind.Db.ConfigSet(CA_PRIVATE_KEY, privateKeyString);
-        //}
+        var caCert = Mind.Db.CertGet(Name);
+        
+        if (caCert != null && !string.IsNullOrEmpty(caCert.Certificate) && !string.IsNullOrEmpty(caCert.Key))
+        {
+            //_caCertificatePem = File.ReadAllText(FILE_PEM_CA_CERT);
+            //var keyPem = File.ReadAllText(FILE_PEM_CA_KEY);
 
-        using var rsaTest = new Rsa();
+            _caCertificate = X509Certificate2.CreateFromPem(caCert.Certificate, caCert.Key);
 
-        rsaTest.GenerateKey(CA_PRIVATE_KEY_BITS, CA_PRIVATE_KEY_E);
+            //_caPrivateKey = RSA.Create();
+            //_caPrivateKey.ImportFromPem(keyPem);
+        }
+        else
+        {
+            using var rsa = RSA.Create(KeySize);
 
-        //var rsaTestPrivatePem = rsaTest.PEMPrivateKey();
+            var request = new CertificateRequest($"CN={Name}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-        //var rsaTestPublicPem = rsaTest.PEMPublicKey();
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+            request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, false));
 
-        _privateKey = new CryptoKey(rsaTest);
+            _caCertificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(ValidityPeriodYearsCA));
 
-        //_publicKey = CryptoKey.FromRSAPublicKey(rsaTestPublicPem);
+            var certPem = new string(PemEncoding.Write("CERTIFICATE", _caCertificate.RawData));
+            var keyPem = new string(PemEncoding.Write("PRIVATE KEY", _caCertificate.GetRSAPrivateKey().ExportPkcs8PrivateKey()));
 
-        var caCert = new X509Certificate(CAName, CAName, _publicKey, DateTime.Now, DateTime.Now.AddYears(100));
+            caCert = new SslCertificate(certPem, keyPem);
 
-        caCert.Sign(_privateKey, MessageDigest.MD5);
+            Mind.Db.CertSet(Name, caCert);
+        }
+    }
 
-        var certificateString = caCert.ToPEM();
+    public static SslCertificate GetOrCreateDomainCertificate(string domain)
+    {
+        var domainCert = Mind.Db.CertGet(domain);
+
+        if (domainCert != null && !string.IsNullOrEmpty(domainCert.Certificate) && !string.IsNullOrEmpty(domainCert.Key))
+        {
+            return domainCert;
+        }
+
+        using var rsaKey = RSA.Create(KeySize);
+
+        var request = new CertificateRequest($"CN={domain}", rsaKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
+
+        var sanBuilder = new SubjectAlternativeNameBuilder();
+
+        sanBuilder.AddDnsName(domain);
+
+        request.CertificateExtensions.Add(sanBuilder.Build());
+
+        var serialNumber = GenerateSerialNumber();
+
+        var domainCertificate = request.Create(_caCertificate, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(ValidityPeriodYearsCERT), serialNumber);
+
+        var certPem = new string(PemEncoding.Write("CERTIFICATE", domainCertificate.RawData));
+        var keyPem = new string(PemEncoding.Write("PRIVATE KEY", rsaKey.ExportPkcs8PrivateKey()));
+
+        domainCert = new SslCertificate(certPem, keyPem);
+
+        Mind.Db.CertSet(domain, domainCert);
+
+        return domainCert;
+    }
+
+    private static byte[] GenerateSerialNumber()
+    {
+        using var rng = RandomNumberGenerator.Create();
+
+        var serialNumber = new byte[12];
+
+        rng.GetBytes(serialNumber);
+
+        return serialNumber;
     }
 }

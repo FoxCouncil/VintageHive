@@ -484,18 +484,23 @@ internal static class LocalServerProcessor
         return false;
     }
 
+    public static async Task<bool> ProcessHttpsRequest(HttpRequest req, HttpResponse res)
+    {
+        return RunLocalHostedSites(req, res);
+    }
+
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
         if (req.Uri.IsLoopback)
         {
             var newRedirectedUri = new UriBuilder(req.Uri)
             {
-                Host = "admin"
+                Host = "admin.com"
             };
 
             req.Uri = newRedirectedUri.Uri;
         }
-        else if (req.Uri.Host == "admin")
+        else if (req.Uri.Host == "admin.com")
         {
             return false;
         }
@@ -507,6 +512,11 @@ internal static class LocalServerProcessor
             return await ProcessController(req, res, site);
         }
 
+        return RunLocalHostedSites(req, res);
+    }
+
+    private static bool RunLocalHostedSites(HttpRequest req, HttpResponse res)
+    {
         var host = req.Uri.Host;
 
         if (host.StartsWith("www"))

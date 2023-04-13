@@ -116,7 +116,6 @@ public sealed class HttpResponse
             disposition = "inline";
         }
 
-
         var contentDisposition = $"{disposition}; filename=\"{Path.GetFileName(stream.Name)}\"";
 
         Headers.AddOrUpdate(HttpHeaderName.ContentDisposition, contentDisposition);
@@ -185,7 +184,7 @@ public sealed class HttpResponse
         {
             foundUri = Request.Headers["Referer"];
         }
-        else
+        else if (foundUri == null)
         {
             foundUri = "/";
         }

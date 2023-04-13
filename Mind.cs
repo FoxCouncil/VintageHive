@@ -41,8 +41,6 @@ static class Mind
 
         VFS.Init();
 
-        // CertificateAuthority.Init();
-
         await GeoIpUtils.CheckGeoIp();
 
         _ = ProtoWebUtils.UpdateSiteLists();
@@ -73,28 +71,16 @@ static class Mind
 
         _oscarServer = new(ipAddress);
 
+        _httpsProxy = new(ipAddress, 9999, true);
+
+        _httpsProxy
+            .Use(LocalServerProcessor.ProcessHttpsRequest);
+
         // ==== TESTING AREA =====
 #if DEBUG
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
         // _socks5Proxy = new(ipAddress, socks5Port);
-
-        _httpsProxy = new(ipAddress, 9999, true);
-
-        using var rsaTest = new Rsa();
-
-        rsaTest.GenerateKey(512, BigNumber.Rsa3);
-
-        var output = rsaTest.PEMPrivateKey();
-
-        Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), output, "");
-        Log.WriteLine();
-
-        var rsa = Rsa.FromPEMPrivateKey(output);
-
-        var output2 = rsa.PEMPrivateKey();
-
-        Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), output2, "");
 #endif
     }
 
@@ -102,13 +88,13 @@ static class Mind
     {
         _httpProxy.Start();
 
-#if DEBUG
         _httpsProxy.Start();
-#endif
 
         _ftpProxy.Start();
 
+#if DEBUG
         // _socks5Proxy.Start();
+#endif
 
         _oscarServer.Start();
 

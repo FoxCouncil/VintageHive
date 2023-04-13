@@ -420,6 +420,12 @@ public static class Native
     public extern static int SSL_is_init_finished(IntPtr ssl);
 
     [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int SSL_use_certificate(IntPtr ssl, IntPtr x509);
+
+    [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int SSL_use_RSAPrivateKey(IntPtr ssl, IntPtr rsaKey);
+
+    [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int SSL_write(IntPtr ssl, byte[] buf, int len);
 
     [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]

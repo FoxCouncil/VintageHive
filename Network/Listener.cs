@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;
 
 namespace VintageHive.Network;
@@ -43,14 +44,6 @@ public abstract class Listener
 
             // We don't care about security, just access over SSL
             SecurityContext.SetCipherList("ALL:eNULL");
-
-            // Setup Security Certificate Store
-            // SecurityContext.SetCertificateChain("Certs/dialnine.com.crt");
-            // SecurityContext.SetPrivateKeyFile("Certs/dialnine.com.key");
-            /*
-            SecurityContext.UseCertificate("Certs/dialnine.com.crt");
-            SecurityContext.UsePrivateKey("Certs/dialnine.com.key");
-            */
         }
     }
 
@@ -126,7 +119,17 @@ public abstract class Listener
                         await connection.SendAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection Established\r\n\r\n"), SocketFlags.None);
                     }
 
+                    var baseRequest = HttpRequest.Parse(rawPacket, Encoding.ASCII);
+
+                    var sslCertificate = CertificateAuthority.GetOrCreateDomainCertificate(baseRequest.Uri.Host);
+
                     sslStream = new SslStream(SecurityContext, networkStream);
+
+                    using var cert = X509Certificate.FromPEM(sslCertificate.Certificate);
+                    using var key = Rsa.FromPEMPrivateKey(sslCertificate.Key);
+
+                    sslStream.UseCertificate(cert);
+                    sslStream.UseRSAPrivateKey(key);
 
                     sslStream.AuthenticateAsServer();
                 }
@@ -138,6 +141,10 @@ public abstract class Listener
                     Stream = networkStream,
                     SecureStream = sslStream
                 };
+
+                var remoteAddress = listenerSocket.RemoteAddress;
+
+                Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Opening connection to {remoteAddress}", listenerSocket.TraceId.ToString());
 
                 if (connection.Connected)
                 {
@@ -197,16 +204,18 @@ public abstract class Listener
 
                         connection.Close();
                     }
-                    catch (Exception ex) when (ex is SocketException || ex is IOException)
-                    {
-                        /* Ignore */
-                        // Display.WriteLog("Socket Exception: \n\n" + sex.Message); 
-                    }
+                    //catch (Exception ex) when (ex is SocketException || ex is IOException)
+                    //{
+                    //    /* Ignore */
+                    //    // Display.WriteLog("Socket Exception: \n\n" + sex.Message);
+                    //}
                     catch (Exception ex)
                     {
                         Log.WriteException(GetType().Name, ex, listenerSocket.TraceId.ToString());
                     }
                 }
+
+                Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Closing connection to {remoteAddress}", listenerSocket.TraceId.ToString());
             });
         }
 

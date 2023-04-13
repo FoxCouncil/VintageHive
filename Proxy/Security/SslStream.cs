@@ -1,4 +1,5 @@
 ﻿using System.Net.Sockets;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 
 namespace VintageHive.Proxy.Security;
@@ -59,6 +60,22 @@ public class SslStream : NativeRef
         GC.KeepAlive(_callback);
 
         _callback = null;
+    }
+
+    public void UseCertificate(X509Certificate cert)
+    {
+        if (Native.SSL_use_certificate(this, cert) != 1)
+        {
+            throw new OpenSslException();
+        }
+    }
+
+    public void UseRSAPrivateKey(Rsa key)
+    {
+        if (Native.SSL_use_RSAPrivateKey(this, key) != 1)
+        {
+            throw new OpenSslException();
+        }
     }
 
     public void SetAcceptState()

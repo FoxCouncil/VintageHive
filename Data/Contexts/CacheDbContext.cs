@@ -22,6 +22,8 @@ internal class CacheDbContext : DbContextBase
         CreateTable("protowebsitelist", "protocol TEXT, url TEXT");
 
         CreateTable("weather", "url TEXT UNIQUE, ttl TEXT, value TEXT");
+
+        CreateTable("data", "key TEXT UNIQUE, ttl TEXT, value TEXT");
     }
 
     internal string GetHttpProxy(string url)
@@ -417,6 +419,69 @@ internal class CacheDbContext : DbContextBase
                 insertCommand.CommandText = "INSERT INTO weather (url, ttl, value) VALUES(@url, @ttl, @value)";
 
                 insertCommand.Parameters.Add(new SqliteParameter("@url", url));
+                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
+                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
+
+                insertCommand.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        });
+    }
+
+    internal string GetData(string key)
+    {
+        return WithContext<string>(context =>
+        {
+            key = key.ToLowerInvariant();
+
+            var command = context.CreateCommand();
+
+            command.CommandText = "SELECT value, ttl FROM data WHERE key = @key";
+
+            command.Parameters.Add(new SqliteParameter("@key", key));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            if (reader.GetDateTime(1) <= DateTime.UtcNow)
+            {
+                return default;
+            }
+
+            return reader.GetString(0);
+        });
+    }
+
+    internal void SetData(string key, TimeSpan ttl, string value)
+    {
+        WithContext(context =>
+        {
+            key = key.ToLowerInvariant();
+
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            var futureTimestamp = DateTime.UtcNow + ttl;
+
+            updateCommand.CommandText = "UPDATE data SET value = @value, ttl = @ttl WHERE key = @key";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@key", key));
+            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
+            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = "INSERT INTO data (key, ttl, value) VALUES(@key, @ttl, @value)";
+
+                insertCommand.Parameters.Add(new SqliteParameter("@key", key));
                 insertCommand.Parameters.Add(new SqliteParameter("@value", value));
                 insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
 

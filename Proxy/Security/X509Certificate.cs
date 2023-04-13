@@ -3,7 +3,7 @@ using static VintageHive.Proxy.Security.Native;
 
 namespace VintageHive.Proxy.Security;
 
-internal class X509Certificate : NativeRef
+public class X509Certificate : NativeRef
 {
     public static int GlobalSerialNumber { get; private set; } = 1;
 
@@ -92,6 +92,8 @@ internal class X509Certificate : NativeRef
 
     public X509Certificate() : base(X509_new()) { }
 
+    public X509Certificate(IntPtr obj) : base(obj) { }
+
     public X509Certificate(BasicInputOutput bio) : base(CheckResultSuccess(PEM_read_bio_X509(bio, IntPtr.Zero, null, IntPtr.Zero))) { }
 
     public X509Certificate(string subject, string issuer, CryptoKey key, DateTime start, DateTime end) : this(new X509Name(subject), new X509Name(issuer), key, start, end) { }
@@ -132,5 +134,12 @@ internal class X509Certificate : NativeRef
     public override void Dispose()
     {
         X509_free(this);
+    }
+
+    public static X509Certificate FromPEM(string pem)
+    {
+        var readBio = new BasicInputOutput(pem);
+
+        return new X509Certificate(PEM_read_bio_X509(readBio, IntPtr.Zero, null, IntPtr.Zero));
     }
 }

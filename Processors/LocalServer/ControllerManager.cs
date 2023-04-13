@@ -22,7 +22,7 @@ internal static class ControllerManager
 
         foreach (var controller in controllers)
         {
-            var name = controller.Name.ToLower().Replace("controller", string.Empty);
+            var name = controller.Name.ToLower().Replace("controller", ".com");
 
             _controllers.Add(name, controller);
         }

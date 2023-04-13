@@ -1,0 +1,36 @@
+﻿<html>
+    <head>
+        <title>Radio - Your Source For Music</title>
+    </head>
+    <body bgcolor="black" text="white">
+        <basefont face="Arial">
+        <h1><img src="/img/radio.gif" align="left"> Radio.com</h1>
+        <h3>Your source for music!</h3>
+        <hr>
+        <table cellspacing="2" cellpadding="2" width="100%">
+            <tr bgcolor="purple">
+                <td align="center"><font face="Courier New" size="-1">Rank</font></td>
+                <td align="center"><font face="Courier New" size="-1">Action</font></td>
+                <td align="center"><font face="Courier New" size="-1">Genre & Title</font></td>
+                <td align="center"><font face="Courier New" size="-1">Bitrate</font></td>
+                <td align="center"><font face="Courier New" size="-1">Listeners</font></td>
+            </tr>
+            {% for station in stations %}
+            <tr bgcolor="#333333">
+                <td align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
+                <td align="center"><a href="/listen.pls?id={{ station.Id }}"><img src="/img/tunein.gif" alt="{{ station.Mt }}" border="0"></a></td>
+                <td><font face="Courier New" size="-1">[{{ station.Genre }}]</font> <font size="-1">{{ station.Name }}</font></td>
+                <td align="center"><font face="Courier New" size="-1">{{ station.Br }}</font></td>
+                <td align="center"><font face="Courier New" size="-1">{{ station.Lc | format_number:"N0" }}</font></td>
+            </tr>
+            {% endfor %}
+            <tr bgcolor="purple">
+                <td align="center"><font face="Courier New" size="-1">Rank</font></td>
+                <td align="center"><font face="Courier New" size="-1">Action</font></td>
+                <td align="center"><font face="Courier New" size="-1">Genre & Title</font></td>
+                <td align="center"><font face="Courier New" size="-1">Bitrate</font></td>
+                <td align="center"><font face="Courier New" size="-1">Listeners</font></td>
+            </tr>
+        </table>
+    </body>
+</html>

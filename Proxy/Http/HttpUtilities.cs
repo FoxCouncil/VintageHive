@@ -6,7 +6,7 @@
 
         public static readonly string HttpBodySeperator = "\r\n\r\n";
 
-        public static readonly IReadOnlyList<string> HttpVerbs = new List<string> { "HEAD", "GET", "POST" }; // TODO: Extend to all!
+        public static readonly IReadOnlyList<string> HttpVerbs = new List<string> { "HEAD", "GET", "POST", "CONNECT" }; // TODO: Extend to all!
 
         public static readonly IReadOnlyList<string> HttpVersions = new List<string> { "HTTP/1.0", "HTTP/1.1" };
 
@@ -27,6 +27,29 @@
             public const string UserAgent = "User-Agent";
 
             public const string Host = "Host";
+
+            public const string Cookie = "Cookie";
+        }
+
+        public static class HttpMethodName
+        {
+            public const string Get = "GET";
+
+            public const string Post = "POST";
+
+            public const string Put = "PUT";
+
+            public const string Delete = "DELETE";
+
+            public const string Head = "HEAD";
+
+            public const string Options = "OPTIONS";
+
+            public const string Trace = "TRACE";
+
+            public const string Connect = "CONNECT";
+
+            public const string Patch = "PATCH";
         }
 
         public static class HttpContentType

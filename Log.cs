@@ -1,4 +1,5 @@
 ﻿using Spectre.Console;
+using System.Diagnostics;
 using VintageHive.Data.Types;
 
 namespace VintageHive;
@@ -8,6 +9,7 @@ internal static class Log
     public const string LEVEL_ERROR = "error";
     public const string LEVEL_INFO = "info";
     public const string LEVEL_REQUEST = "request";
+    public const string LEVEL_DEBUG = "debug";
 
     static Log()
     {
@@ -29,6 +31,11 @@ internal static class Log
     public static void WriteLine(LogItem logItem)
     {
         Mind.Db.WriteLog(logItem);
+
+        if (logItem.Level == LEVEL_DEBUG)
+        {
+            return;
+        }
 
         AnsiConsole.MarkupLine(AddFormatting(logItem.ToString()));
     }

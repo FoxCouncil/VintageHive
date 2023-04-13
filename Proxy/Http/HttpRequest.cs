@@ -7,7 +7,7 @@ using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
 
-public sealed class HttpRequest : Request
+public sealed partial class HttpRequest : Request
 {
     public static readonly HttpRequest Invalid = new() { IsValid = false };
 
@@ -31,37 +31,20 @@ public sealed class HttpRequest : Request
         return Uri.AbsolutePath.ToLower().Equals(uri);
     }
 
-    internal static async Task<HttpRequest> Parse(ListenerSocket socket, Encoding encoding, byte[] rawBytes)
+    public static HttpRequest Parse(string rawData, Encoding encoding, ListenerSocket listenerSocket = null)
     {
-        if (socket == null || rawBytes == null)
-        {
-            return Invalid;
-        }
+        var bodyPointer = rawData.IndexOf(HttpBodySeperator);
 
-        var rawRequest = encoding.GetString(rawBytes);
+        var rawHeaders = bodyPointer == -1 ? rawData : rawData[..bodyPointer];
 
-        if (!rawRequest.Contains("\r\n"))
-        {
-            return Invalid;
-        }
-
-        if (!rawRequest.Contains("\r\n\r\n"))
-        {
-            var buffer = new byte[4096];
-            var read = await socket.Stream.ReadAsync(buffer);
-
-            var extraData = encoding.GetString(buffer[..read]);
-
-            rawRequest += extraData;
-        }
-
-        var bodyPointer = rawRequest.IndexOf(HttpBodySeperator);
-
-        var rawHeaders = bodyPointer == -1 ? rawRequest : rawRequest[..bodyPointer];
-
-        var rawBody = bodyPointer == -1 ? string.Empty : rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Trim().Replace("\0", string.Empty);
+        var rawBody = bodyPointer == -1 ? string.Empty : rawData[(rawData.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Trim().Replace("\0", string.Empty);
 
         var parsedRequestArray = rawHeaders.Trim().Split("\r\n");
+
+        if (parsedRequestArray.Length == 1)
+        {
+            parsedRequestArray = rawHeaders.Trim().Split("\n"); // eww Netscape
+        }
 
         var httpRequestLine = parsedRequestArray[0].Split(" ");
 
@@ -89,9 +72,9 @@ public sealed class HttpRequest : Request
 
         var requestCookies = new Dictionary<string, string>();
 
-        if (headers.ContainsKey("Cookie"))
+        if (headers.TryGetValue(HttpHeaderName.Cookie, out string value))
         {
-            var cookies = headers["Cookie"].Split("; ");
+            var cookies = value.Split("; ");
 
             foreach (var cookie in cookies)
             {
@@ -101,21 +84,17 @@ public sealed class HttpRequest : Request
             }
         }
 
-        var uri = httpRequestLine[1];
-
         var formData = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
 
-        if (headers.ContainsKey("Content-Type"))
+        if (headers.TryGetValue(HttpHeaderName.ContentType, out string contentType))
         {
-            var contentType = headers["Content-Type"];
-
             var baseContentType = contentType;
 
             if (contentType.Contains(';'))
             {
                 baseContentType = contentType[..contentType.IndexOf(';')];
             }
-            
+
             switch (baseContentType)
             {
                 case HttpContentType.Application.XWwwFormUrlEncoded:
@@ -140,7 +119,7 @@ public sealed class HttpRequest : Request
                     {
                         var boundryLines = boundry.Split("\r\n\r\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-                        var name = Regex.Match(boundryLines[0], "name=\"(.*?)\"").Groups[1].Value;
+                        var name = HttpContentBoundryRegex().Match(boundryLines[0]).Groups[1].Value;
 
                         dict.Add(name, boundryLines[1]);
                     }
@@ -152,6 +131,8 @@ public sealed class HttpRequest : Request
         }
 
         Dictionary<string, string> queryParams;
+
+        var uri = httpRequestLine[1];
 
         var qpIndex = uri.IndexOf("?");
 
@@ -166,14 +147,28 @@ public sealed class HttpRequest : Request
             queryParams = new Dictionary<string, string>();
         }
 
-        if (!uri.StartsWith("http") && headers.ContainsKey(HttpHeaderName.Host))
+        var httpVerb = httpRequestLine[0];
+
+        if (httpVerb != HttpMethodName.Connect && !uri.StartsWith("http") && headers.TryGetValue(HttpHeaderName.Host, out var host))
         {
-            uri = (socket.IsSecure ? "https" : "http") + "://" + headers[HttpHeaderName.Host] + uri;
+            if (listenerSocket != null)
+            {
+                uri = (listenerSocket.IsSecure ? "https" : "http") + "://" + host + uri;
+            }
+            else
+            {
+                uri = "http://" + host + uri;
+            }
+        }
+        else if (httpVerb == HttpMethodName.Connect)
+        {
+            uri = (uri.EndsWith(":443") ? "https://" : "http://") + uri;
         }
 
-        var newRequest = new HttpRequest
+        return new HttpRequest
         {
             IsValid = true,
+            Encoding = encoding,
             Type = httpRequestLine[0],
             Uri = new Uri(uri),
             Version = httpRequestLine[2],
@@ -182,10 +177,39 @@ public sealed class HttpRequest : Request
             QueryParams = queryParams,
             FormData = formData,
             Body = rawBody,
-            ListenerSocket = socket,
-            Encoding = encoding
+            ListenerSocket = listenerSocket
         };
+    }
+
+    internal static async Task<HttpRequest> Build(ListenerSocket socket, Encoding encoding, byte[] rawBytes)
+    {
+        if (socket == null || rawBytes == null)
+        {
+            return Invalid;
+        }
+
+        var rawRequest = encoding.GetString(rawBytes);
+
+        if (!rawRequest.Contains("\r\n"))
+        {
+            return Invalid;
+        }
+
+        if (!rawRequest.Contains("\r\n\r\n"))
+        {
+            var buffer = new byte[4096];
+            var read = await socket.Stream.ReadAsync(buffer);
+
+            var extraData = encoding.GetString(buffer[..read]);
+
+            rawRequest += extraData;
+        }
+
+        var newRequest = Parse(rawRequest, encoding, socket);
 
         return newRequest;
     }
+
+    [GeneratedRegex("name=\"(.*?)\"")]
+    private static partial Regex HttpContentBoundryRegex();
 }

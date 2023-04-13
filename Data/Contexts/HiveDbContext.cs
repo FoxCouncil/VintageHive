@@ -5,6 +5,7 @@ using System.Text.Json;
 using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Security;
 using VintageHive.Utilities;
 
 namespace VintageHive.Data.Contexts;
@@ -13,6 +14,8 @@ internal class HiveDbContext : DbContextBase
 {
     private const string TABLE_CONFIG = "config";
     private const string TABLE_CONFIGLOCAL = "config_local";
+
+    private const string TABLE_CERTS = "certs";
 
     private const string TABLE_REQUESTS = "requests";
     private const string TABLE_LOGS = "logs";
@@ -23,9 +26,9 @@ internal class HiveDbContext : DbContextBase
     private const string TABLE_DOWNLOADS = "downloads";
 
     private const string TABLE_WEBSESSION = "websession";
-    
+
     private const string TABLE_USER = "user";
-    
+
     private const string TABLE_VQD = "vqd";
 
     private const string TABLE_OSCARUSERS = "oscar_users";
@@ -45,6 +48,7 @@ internal class HiveDbContext : DbContextBase
 
         // System Services Settings
         { ConfigNames.Intranet, true },
+        { ConfigNames.Dialnine, true },
         { ConfigNames.ProtoWeb, true },
         { ConfigNames.InternetArchive, true },
         { ConfigNames.InternetArchiveYear, 1999 },
@@ -72,11 +76,14 @@ internal class HiveDbContext : DbContextBase
     {
         // Configuration
         CreateTable(TABLE_CONFIG, "key TEXT UNIQUE, value BLOB");
-        CreateTable(TABLE_CONFIGLOCAL, "address text, key TEXT UNIQUE, value BLOB");
-        
+        CreateTable(TABLE_CONFIGLOCAL, "address text, key TEXT, value BLOB");
+
         // For Tracking Purposes
         CreateTable(TABLE_REQUESTS, "timestamp TEXT, address TEXT, localaddress TEXT, useragent TEXT, type TEXT, request TEXT, processor TEXT, traceid TEXT");
         CreateTable(TABLE_LOGS, "timestamp TEXT, level TEXT, sys TEXT, msg TEXT, traceid TEXT");
+
+        // Certificate Authority
+        CreateTable(TABLE_CERTS, "name TEXT UNIQUE, cert TEXT, key TEXT");
 
         // Global Top Links
         CreateTable(TABLE_LINKS, "name TEXT UNIQUE, link TEXT");
@@ -84,7 +91,7 @@ internal class HiveDbContext : DbContextBase
 
         if (IsNewDb)
         {
-            foreach(var link in kDefaultLinks)
+            foreach (var link in kDefaultLinks)
             {
                 LinksAdd(link.Key, link.Value);
             }
@@ -141,7 +148,8 @@ internal class HiveDbContext : DbContextBase
 
             while (reader.Read())
             {
-                list.Add(new LogItem { 
+                list.Add(new LogItem
+                {
                     Timestamp = DateTimeOffset.Parse(reader.GetString(0)),
                     Level = reader.GetString(1),
                     System = reader.GetString(2),
@@ -152,7 +160,7 @@ internal class HiveDbContext : DbContextBase
             return list;
         });
     }
-    
+
     #endregion
 
     #region Config Methods
@@ -338,6 +346,79 @@ internal class HiveDbContext : DbContextBase
     }
     #endregion
 
+    #region Cert Methods
+
+    public SslCertificate CertGet(string name)
+    {
+        return WithContext<SslCertificate>(context =>
+        {
+            name = name.ToLowerInvariant();
+
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT cert, key FROM {TABLE_CERTS} WHERE name = @name";
+
+            command.Parameters.Add(new SqliteParameter("@name", name));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            return new SslCertificate(reader.GetString(0), reader.GetString(1));
+        });
+    }
+
+    public void CertSet(string name, SslCertificate cert)
+    {
+        WithContext(context =>
+        {
+            name = name.ToLowerInvariant();
+
+            using var transaction = context.BeginTransaction();
+
+            if (cert == null)
+            {
+                using var deleteCommand = context.CreateCommand();
+
+                deleteCommand.CommandText = $"DELETE FROM {TABLE_CERTS} WHERE name = @name";
+
+                deleteCommand.Parameters.Add(new SqliteParameter("@name", name));
+
+                deleteCommand.ExecuteNonQuery();
+            }
+            else
+            {
+                using var updateCommand = context.CreateCommand();
+
+                updateCommand.CommandText = $"UPDATE {TABLE_CERTS} SET cert = @cert, key = @key WHERE name = @name";
+
+                updateCommand.Parameters.Add(new SqliteParameter("@cert", cert.Certificate));
+                updateCommand.Parameters.Add(new SqliteParameter("@key", cert.Key));
+                updateCommand.Parameters.Add(new SqliteParameter("@name", name));
+
+                if (updateCommand.ExecuteNonQuery() == 0)
+                {
+                    using var insertCommand = context.CreateCommand();
+
+                    insertCommand.CommandText = $"INSERT INTO {TABLE_CERTS} (name, cert, key) VALUES(@name, @cert, @key)";
+
+                    insertCommand.Parameters.Add(new SqliteParameter("@name", name));
+                    insertCommand.Parameters.Add(new SqliteParameter("@cert", cert.Certificate));
+                    insertCommand.Parameters.Add(new SqliteParameter("@key", cert.Key));
+
+                    insertCommand.ExecuteNonQuery();
+                }
+            }
+
+            transaction.Commit();
+        });
+    }
+
+    #endregion
+
     #region Request Methods
     public void RequestsTrack(ListenerSocket socket, string useragent, string type, string requestUrl, string processor)
     {
@@ -374,7 +455,7 @@ internal class HiveDbContext : DbContextBase
         WithContext(context =>
         {
             using var transaction = context.BeginTransaction();
-            
+
             if (link == null)
             {
                 using var deleteCommand = context.CreateCommand();
@@ -410,7 +491,7 @@ internal class HiveDbContext : DbContextBase
             transaction.Commit();
         });
     }
-    
+
     public Dictionary<string, string> LinksGetAll()
     {
         return WithContext<Dictionary<string, string>>(context =>

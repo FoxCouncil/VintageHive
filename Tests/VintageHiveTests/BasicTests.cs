@@ -1,10 +1,11 @@
-namespace VintageHiveTests;
+namespace Base;
 
 [TestClass]
 public class BasicTests
 {
     [TestMethod]
-    public void TestMethod1()
+    public void UselessTestToTestInfrastructureSanity()
     {
+        Assert.IsTrue(true);
     }
 }

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using VintageHive.Network;
+using VintageHive.Proxy.Security;
 using static VintageHive.Proxy.Http.HttpUtilities;
 using VintageHiveHttpProcessDelegate = System.Func<VintageHive.Proxy.Http.HttpRequest, VintageHive.Proxy.Http.HttpResponse, System.Threading.Tasks.Task<bool>>;
 
@@ -16,7 +17,13 @@ public class HttpProxy : Listener
 
     public readonly List<VintageHiveHttpProcessDelegate> Handlers = new();
 
-    public HttpProxy(IPAddress listenAddress, int port, bool secure) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, secure) { }
+    public HttpProxy(IPAddress listenAddress, int port, bool secure) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, secure) 
+    {
+        if (secure)
+        {
+            CertificateAuthority.Init();
+        }
+    }
 
     public HttpProxy Use(VintageHiveHttpProcessDelegate delegateFunc)
     {
@@ -27,7 +34,7 @@ public class HttpProxy : Listener
 
     internal override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
-        var httpRequest = await HttpRequest.Parse(connection, Encoding, data[..read]);
+        var httpRequest = await HttpRequest.Build(connection, Encoding, data[..read]);
 
         if (!httpRequest.IsValid)
         {
@@ -52,6 +59,12 @@ public class HttpProxy : Listener
                 {
                     if (handled = await handler(httpRequest, httpResponse))
                     {
+                        // TODO: Make Better
+                        if (httpRequest.Uri.Host == "admin.com" || httpRequest.Uri.Host == "hive.com")
+                        {
+                            break;
+                        }
+
                         Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
 
                         break;

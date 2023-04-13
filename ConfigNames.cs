@@ -1,4 +1,6 @@
-﻿namespace VintageHive;
+﻿using System.Data;
+
+namespace VintageHive;
 
 public static class ConfigNames
 {
@@ -17,6 +19,8 @@ public static class ConfigNames
     public const string Intranet = "intranet";
 
     public const string ProtoWeb = "protoweb";
+
+    public const string Dialnine = "dialnine";
 
     public const string Location = "location";
 
