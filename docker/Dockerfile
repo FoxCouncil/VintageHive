@@ -31,6 +31,7 @@ RUN apt update && apt upgrade -y && \
     zlib1g \
     zlib1g-dev \
     m4 \
+	openssh-server \
 	unzip \
 	sudo \
     make \
@@ -80,6 +81,10 @@ EXPOSE 5190
 # HttpProxy Listener (HTTPS)
 EXPOSE 9999
 
+# Used with SSH and Visual Studio to allow debugging of running container.
+EXPOSE 5000
+EXPOSE 5001
+
 # Clone the repository and compile it
 #RUN git clone https://github.com/FoxCouncil/VintageHive.git /app/src
 RUN git clone https://github.com/Maxwolf/VintageHive.git /app/src
@@ -91,10 +96,10 @@ WORKDIR /app/src
 RUN dotnet restore
 
 # Build the project
-RUN dotnet build --nologo --configuration Release
+RUN dotnet build --nologo --configuration Debug
 
 # Publish the app to a single directory.
-RUN dotnet publish -p:PublishProfile=FolderProfile --configuration Release -o /app/
+RUN dotnet publish -p:PublishProfile=FolderProfile --configuration Debug -o /app/
 
 # Change to publish directory where our app lives.
 WORKDIR /app
