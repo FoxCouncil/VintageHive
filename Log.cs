@@ -30,7 +30,7 @@ internal static class Log
 
     public static void WriteLine(LogItem logItem)
     {
-        Mind.Db.WriteLog(logItem);
+        Mind.Db?.WriteLog(logItem);
 
         if (logItem.Level == LEVEL_DEBUG)
         {

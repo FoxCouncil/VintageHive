@@ -5,10 +5,12 @@ namespace VintageHive.Data;
 
 internal class DbContextBase
 {
+    private static readonly string AppDirectory = AppDomain.CurrentDomain.BaseDirectory;
+    private static readonly string DatabasePath = Path.Combine(AppDirectory, "./db");
+
     const string FilenameStringFormat = "{0}.db";
     const string ConnectionStringFormat = "Data Source={0};Cache=Shared";
 
-    readonly string _filename = string.Empty;
     readonly string _connectionString = string.Empty;
 
     internal bool IsNewDb { get; private set; } = false;
@@ -19,11 +21,18 @@ internal class DbContextBase
 
         var className = fullClassName.Replace("DbContext", string.Empty).ToLower();
 
-        _filename = string.Format(FilenameStringFormat, className);
+        var _dbPath = Path.Combine(DatabasePath, string.Format(FilenameStringFormat, className));
 
-        IsNewDb = !File.Exists(_filename);
+        if (!Directory.Exists(DatabasePath))
+        {
+            Log.WriteLine(Log.LEVEL_INFO, "DbContext", $"Directory ({DatabasePath}) doesn't exist, creating it,", "");
 
-        _connectionString = string.Format(ConnectionStringFormat, _filename);
+            Directory.CreateDirectory(DatabasePath);
+        }
+
+        IsNewDb = !File.Exists(_dbPath);
+
+        _connectionString = string.Format(ConnectionStringFormat, _dbPath);
 
         WithContext(context =>
         {

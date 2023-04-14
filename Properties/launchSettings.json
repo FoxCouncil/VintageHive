@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VintageHive": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
