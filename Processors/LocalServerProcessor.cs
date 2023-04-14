@@ -569,7 +569,7 @@ internal static class LocalServerProcessor
             return true;
         }
 
-        var isEmbeddedResource = !Debugger.IsAttached && Resources.Statics.ContainsKey(req.Uri.Host + fileRequestPath);
+        var isEmbeddedResource = !Debugger.IsAttached && Resources.Statics.ContainsKey(req.Uri.Host.Replace(".", "/") + fileRequestPath);
 
         var filePath = fileRequestPath;
 
