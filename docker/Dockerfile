@@ -36,6 +36,7 @@ RUN apt update && apt upgrade -y && \
     make \
 	git \
     pkg-config \
+    net-tools \
     ca-certificates && \
     apt autoremove
 	
@@ -80,7 +81,8 @@ EXPOSE 5190
 EXPOSE 9999
 
 # Clone the repository and compile it
-RUN git clone https://github.com/FoxCouncil/VintageHive.git /app/src
+#RUN git clone https://github.com/FoxCouncil/VintageHive.git /app/src
+RUN git clone https://github.com/Maxwolf/VintageHive.git /app/src
 
 # Change directory to the cloned repository
 WORKDIR /app/src
