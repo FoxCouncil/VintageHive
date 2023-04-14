@@ -1,4 +1,4 @@
-﻿namespace VintageHive;
+﻿namespace VintageHive.Utilities;
 
 public static class VFS
 {

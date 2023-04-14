@@ -3,12 +3,9 @@ using Fluid.Ast;
 using Fluid.Values;
 using HeyRed.Mime;
 using Humanizer;
-using System.Diagnostics;
-using System.Linq;
 using System.Net.Sockets;
 using System.Net;
 using System.Web;
-using VintageHive.Network;
 using VintageHive.Processors.LocalServer;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
@@ -569,7 +566,9 @@ internal static class LocalServerProcessor
             return true;
         }
 
-        var isEmbeddedResource = !Debugger.IsAttached && Resources.Statics.ContainsKey(req.Uri.Host.Replace(".", "/") + fileRequestPath);
+        var fileToCheck = req.Uri.Host.Replace(".", "/") + fileRequestPath;
+
+        var isEmbeddedResource = Resources.Statics.ContainsKey(fileToCheck);
 
         var filePath = fileRequestPath;
 
@@ -593,7 +592,7 @@ internal static class LocalServerProcessor
         {
             case "text/html":
             {
-                var source = isEmbeddedResource ? Resources.GetStaticsResourceString(fileRequestPath) : await File.ReadAllTextAsync(filePath);
+                var source = isEmbeddedResource ? Resources.GetStaticsResourceString(fileToCheck) : await File.ReadAllTextAsync(filePath);
 
                 if (fluidParser.TryParse(source, out var template, out var error))
                 {

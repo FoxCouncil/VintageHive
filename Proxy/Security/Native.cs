@@ -370,6 +370,9 @@ public static class Native
     public extern static void SSL_CTX_set_verify(IntPtr ctx, int mode, VerifyCertCallback callback);
 
     [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void SSL_CTX_set_options(IntPtr ctx, long options);
+
+    [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static int SSL_CTX_set_cipher_list(IntPtr ctx, string cipher_string);
 
     [DllImport(SSL_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]

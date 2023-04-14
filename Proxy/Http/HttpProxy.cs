@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using VintageHive.Network;
 using VintageHive.Proxy.Security;
+using VintageHive.Utilities;
 using static VintageHive.Proxy.Http.HttpUtilities;
 using VintageHiveHttpProcessDelegate = System.Func<VintageHive.Proxy.Http.HttpRequest, VintageHive.Proxy.Http.HttpResponse, System.Threading.Tasks.Task<bool>>;
 

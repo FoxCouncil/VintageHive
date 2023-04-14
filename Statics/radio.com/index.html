@@ -18,7 +18,7 @@
             {% for station in stations %}
             <tr bgcolor="#333333">
                 <td align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
-                <td align="center"><a href="/listen.pls?id={{ station.Id }}"><img src="/img/tunein.gif" alt="{{ station.Mt }}" border="0"></a></td>
+                <td align="center"><a href="/scplay.pls?id={{ station.Id }}"><img src="/img/tunein.gif" alt="{{ station.Mt }}" border="0"></a></td>
                 <td><font face="Courier New" size="-1">[{{ station.Genre }}]</font> <font size="-1">{{ station.Name }}</font></td>
                 <td align="center"><font face="Courier New" size="-1">{{ station.Br }}</font></td>
                 <td align="center"><font face="Courier New" size="-1">{{ station.Lc | format_number:"N0" }}</font></td>

@@ -5,6 +5,7 @@ using System.Dynamic;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using VintageHive.Utilities;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
@@ -105,10 +106,6 @@ public sealed class HttpResponse
 
     public HttpResponse SetBodyFileStream(FileStream stream, string type = HttpContentType.Application.OctetStream)
     {
-        Cache = false; // DO NOT OVERLOAD SQLite
-
-        DownloadStream = stream;
-
         var disposition = "attachment";
 
         if (InlineDispositions.Contains(type))
@@ -119,9 +116,20 @@ public sealed class HttpResponse
         var contentDisposition = $"{disposition}; filename=\"{Path.GetFileName(stream.Name)}\"";
 
         Headers.AddOrUpdate(HttpHeaderName.ContentDisposition, contentDisposition);
-
         Headers.AddOrUpdate(HttpHeaderName.ContentLength, DownloadStream.Length.ToString());
+
+        return SetBodyStream(stream, type);
+    }
+
+    public HttpResponse SetBodyStream(Stream stream, string type = HttpContentType.Application.OctetStream)
+    {
+        Cache = false; // DO NOT OVERLOAD SQLite
+
+        DownloadStream = stream;
+
         Headers.AddOrUpdate(HttpHeaderName.ContentType, type);
+
+        Handled = true;
 
         return this;
     }

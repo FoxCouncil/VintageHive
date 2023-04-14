@@ -1,99 +1,108 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net7.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>annotations</Nullable>
-		<PlatformTarget>AnyCPU</PlatformTarget>
-		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-		<DockerfileContext>.</DockerfileContext>
-    <ContainerDevelopmentMode>Regular</ContainerDevelopmentMode>
-	</PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>annotations</Nullable>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <DockerfileContext>.</DockerfileContext>
+        <ContainerDevelopmentMode>Regular</ContainerDevelopmentMode>
+        <DockerfileBuildArguments>-t contoso/front-end:v2.0</DockerfileBuildArguments>
+    </PropertyGroup>
 
-	<PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
-		<DefineConstants>_WINDOWS</DefineConstants>
-	</PropertyGroup>
+    <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
+        <DefineConstants>_WINDOWS</DefineConstants>
+    </PropertyGroup>
 
-	<ItemGroup>
-	  <EmbeddedResource Include="Statics\**\*" />
-	</ItemGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+      <DebugType>embedded</DebugType>
+    </PropertyGroup>
 
-	<ItemGroup>
-	  <Compile Remove="docker\**" />
-	  <Compile Remove="Tests\**" />
-	  <EmbeddedResource Remove="docker\**" />
-	  <EmbeddedResource Remove="Tests\**" />
-	  <None Remove="docker\**" />
-	  <None Remove="Tests\**" />
-	</ItemGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+      <DebugType>embedded</DebugType>
+    </PropertyGroup>
 
-	<ItemGroup>
-	  <None Remove="geonames.db" />
-	  <None Remove="Statics\admin.com\cache.html" />
-	  <None Remove="Statics\admin.com\css\fontawesome.min.css" />
-	  <None Remove="Statics\admin.com\css\main.css" />
-	  <None Remove="Statics\admin.com\css\solid.min.css" />
-	  <None Remove="Statics\admin.com\index.html" />
-	  <None Remove="Statics\admin.com\js\main.js" />
-	  <None Remove="Statics\admin.com\localserver.html" />
-	  <None Remove="Statics\admin.com\login.html" />
-	  <None Remove="Statics\admin.com\logs.html" />
-	  <None Remove="Statics\admin.com\partials\footer.html" />
-	  <None Remove="Statics\admin.com\partials\head.html" />
-	  <None Remove="Statics\admin.com\partials\header.html" />
-	  <None Remove="Statics\admin.com\users.html" />
-	  <None Remove="Statics\admin.com\webfonts\fa-solid-900.ttf" />
-	  <None Remove="Statics\admin.com\webfonts\fa-solid-900.woff2" />
-	  <None Remove="Statics\hive.com\img\folder.gif" />
-	  <None Remove="Statics\hive.com\img\unknown.gif" />
-	  <None Remove="Statics\hive.com\partials\head.html" />
-	  <None Remove="Statics\hive.com\search.html" />
-	  <None Remove="Statics\hive.com\viewer.html" />
-	  <None Remove="Statics\radio.com\index - Copy.html" />
-	</ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="Statics\**\*" />
+    </ItemGroup>
 
-	<ItemGroup>
-	  <Content Include="geonames.db">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </Content>
-	</ItemGroup>
+    <ItemGroup>
+      <Compile Remove="docker\**" />
+      <Compile Remove="Tests\**" />
+      <EmbeddedResource Remove="docker\**" />
+      <EmbeddedResource Remove="Tests\**" />
+      <None Remove="docker\**" />
+      <None Remove="Tests\**" />
+    </ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Fluid.Core" Version="2.4.0" />
-		<PackageReference Include="HtmlAgilityPack" Version="1.11.46" />
-		<PackageReference Include="Humanizer.Core" Version="2.14.1" />
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.4" />
-		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.2" />
-		<PackageReference Include="MimeTypesMap" Version="1.0.8" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="3.0.0" />
-		<PackageReference Include="SmartReader" Version="0.9.2" />
-		<PackageReference Include="Spectre.Console" Version="0.46.0" />
-		<PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
-		<PackageReference Include="UAParser" Version="3.1.47" />
-	</ItemGroup>
+    <ItemGroup>
+      <None Remove="geonames.db" />
+      <None Remove="Statics\admin.com\cache.html" />
+      <None Remove="Statics\admin.com\css\fontawesome.min.css" />
+      <None Remove="Statics\admin.com\css\main.css" />
+      <None Remove="Statics\admin.com\css\solid.min.css" />
+      <None Remove="Statics\admin.com\index.html" />
+      <None Remove="Statics\admin.com\js\main.js" />
+      <None Remove="Statics\admin.com\localserver.html" />
+      <None Remove="Statics\admin.com\login.html" />
+      <None Remove="Statics\admin.com\logs.html" />
+      <None Remove="Statics\admin.com\partials\footer.html" />
+      <None Remove="Statics\admin.com\partials\head.html" />
+      <None Remove="Statics\admin.com\partials\header.html" />
+      <None Remove="Statics\admin.com\users.html" />
+      <None Remove="Statics\admin.com\webfonts\fa-solid-900.ttf" />
+      <None Remove="Statics\admin.com\webfonts\fa-solid-900.woff2" />
+      <None Remove="Statics\hive.com\img\folder.gif" />
+      <None Remove="Statics\hive.com\img\unknown.gif" />
+      <None Remove="Statics\hive.com\partials\head.html" />
+      <None Remove="Statics\hive.com\search.html" />
+      <None Remove="Statics\hive.com\viewer.html" />
+      <None Remove="Statics\radio.com\index - Copy.html" />
+    </ItemGroup>
 
-	<ItemGroup>
-	  <None Update="libcrypto.so">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="libeay32.dll">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="libssl.so">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="ssleay32.dll">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	  <None Update="ua-regexes.yaml">
-	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </None>
-	</ItemGroup>
+    <ItemGroup>
+      <Content Include="geonames.db">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="Statics\hive.com\settings\" />
-	</ItemGroup>
-	
-	
+    <ItemGroup>
+        <PackageReference Include="Fluid.Core" Version="2.4.0" />
+        <PackageReference Include="HtmlAgilityPack" Version="1.11.46" />
+        <PackageReference Include="Humanizer.Core" Version="2.14.1" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.4" />
+        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.2" />
+        <PackageReference Include="MimeTypesMap" Version="1.0.8" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.0" />
+        <PackageReference Include="SmartReader" Version="0.9.2" />
+        <PackageReference Include="Spectre.Console" Version="0.46.0" />
+        <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
+        <PackageReference Include="UAParser" Version="3.1.47" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="libcrypto.so">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="libeay32.dll">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="libssl.so">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="ssleay32.dll">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="ua-regexes.yaml">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Statics\hive.com\settings\" />
+    </ItemGroup>
+    
+    
 </Project>

@@ -2,9 +2,8 @@
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using VintageHive.Utilities;
 
-namespace VintageHive;
+namespace VintageHive.Utilities;
 
 public static class Extensions
 {
@@ -19,9 +18,9 @@ public static class Extensions
 
     public static string ReplaceNewCharsWithOldChars(this string input)
     {
-        input = input.Replace("‘", "'");    
-        input = input.Replace("’", "'");  
-        input = input.Replace('“', '"'); 
+        input = input.Replace("‘", "'");
+        input = input.Replace("’", "'");
+        input = input.Replace('“', '"');
         input = input.Replace('”', '"');
         input = input.Replace("ñ", new string((char)241, 1));
         input = input.Replace("Ñ", new string((char)209, 1));

@@ -29,6 +29,8 @@
             public const string Host = "Host";
 
             public const string Cookie = "Cookie";
+
+            public const string IcyMetadata = "Icy-MetaData";
         }
 
         public static class HttpMethodName
@@ -54,6 +56,11 @@
 
         public static class HttpContentType
         {
+            public static class Audio
+            {
+                public const string Mpeg = "audio/mpeg";
+            }
+
             public static class Application
             {
                 public const string Json = "application/json";

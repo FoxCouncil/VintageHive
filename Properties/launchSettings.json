@@ -4,7 +4,8 @@
       "commandName": "Project"
     },
     "Docker": {
-      "commandName": "Docker"
+      "commandName": "Docker",
+      "DockerfileRunArguments": "-p 1990:1990"
     }
   }
 }

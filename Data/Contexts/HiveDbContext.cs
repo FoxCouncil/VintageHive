@@ -5,7 +5,6 @@ using System.Text.Json;
 using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
-using VintageHive.Proxy.Security;
 using VintageHive.Utilities;
 
 namespace VintageHive.Data.Contexts;

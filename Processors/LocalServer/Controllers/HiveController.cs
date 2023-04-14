@@ -1,8 +1,6 @@
 ﻿using Fluid;
 using HeyRed.Mime;
 using HtmlAgilityPack;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
 using SmartReader;
 using System.Net;
 using VintageHive.Data.Types;

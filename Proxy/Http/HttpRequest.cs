@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
 using VintageHive.Network;
+using VintageHive.Utilities;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
@@ -16,6 +17,8 @@ public sealed partial class HttpRequest : Request
     public IReadOnlyDictionary<string, string>? FormData { get; private set; }
 
     public ReadOnlyDictionary<string, string> Cookies { get; private set; }
+
+    public string Raw { get; private set; }
 
     public string Body { get; private set; } = "";
 
@@ -168,6 +171,7 @@ public sealed partial class HttpRequest : Request
         return new HttpRequest
         {
             IsValid = true,
+            Raw = rawData,
             Encoding = encoding,
             Type = httpRequestLine[0],
             Uri = new Uri(uri),

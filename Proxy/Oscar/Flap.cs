@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Proxy.Oscar;
+﻿using VintageHive.Utilities;
+
+namespace VintageHive.Proxy.Oscar;
 
 public class Flap
 {

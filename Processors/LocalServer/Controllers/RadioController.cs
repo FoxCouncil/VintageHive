@@ -1,8 +1,7 @@
-﻿using AngleSharp.Io;
-using Fluid;
-using Fluid.Values;
+﻿using Fluid;
 using System.Text;
 using VintageHive.Utilities;
+using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
@@ -16,18 +15,13 @@ internal class RadioController : Controller
         Response.Context.SetValue("stations", list.Stations);
     }
 
-    [Controller("/listen.pls")]
+    [Controller("/scplay.pls")]
     public async Task ListenPlaylist()
     {
-        var station = await SCUtils.GetStationById(Request.QueryParams["id"]);
-
         var plsResponse = new StringBuilder();
 
         plsResponse.AppendLine("[playlist]");
-
         plsResponse.AppendLine($"File1=http://radio.com/scplay.mp3?id={Request.QueryParams["id"]}");
-        plsResponse.AppendLine($"Title1={station.Item1}");
-
         plsResponse.AppendLine("NumberOfEntries=1");
 
         Response.SetBodyString(plsResponse.ToString(), "audio/x-scpls");
@@ -44,10 +38,28 @@ internal class RadioController : Controller
             MaxAutomaticRedirections = 3
         });
 
-        var clientStream = await httpClient.GetStreamAsync(station.Item2);
+        if (Request.Headers.ContainsKey(HttpHeaderName.UserAgent))
+        {
+            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.UserAgent, Request.Headers[HttpHeaderName.UserAgent]);
+        }
 
-        Response.DownloadStream = clientStream;
+        if (Request.Headers.ContainsKey(HttpHeaderName.IcyMetadata))
+        {
+            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.IcyMetadata, "1");
+        }
 
-        Response.Handled = true;
+        var client = await httpClient.GetAsync(station.Item2, HttpCompletionOption.ResponseHeadersRead);
+
+        foreach (var header in client.Headers)
+        {
+            if (header.Key.ToLower().StartsWith("icy"))
+            {
+                Response.Headers.Add(header.Key, header.Value.First());
+            }
+        }
+
+        var clientStream = await client.Content.ReadAsStreamAsync();
+
+        Response.SetBodyStream(clientStream, HttpContentType.Audio.Mpeg);
     }
 }

@@ -2,6 +2,10 @@
 
 FROM mcr.microsoft.com/dotnet/runtime:7.0 AS base
 WORKDIR /app
+EXPOSE 1971
+EXPOSE 1990
+EXPOSE 5190
+EXPOSE 9999
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src

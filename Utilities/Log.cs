@@ -1,8 +1,7 @@
 ﻿using Spectre.Console;
-using System.Diagnostics;
 using VintageHive.Data.Types;
 
-namespace VintageHive;
+namespace VintageHive.Utilities;
 
 internal static class Log
 {
@@ -43,7 +42,7 @@ internal static class Log
     public static void WriteException(string system, Exception e, string traceId)
     {
         var logItem = new LogItem(LEVEL_ERROR, system, e.Message, traceId);
-       
+
         AnsiConsole.MarkupLine(AddFormatting(logItem.ToString()));
         AnsiConsole.WriteException(e);
     }

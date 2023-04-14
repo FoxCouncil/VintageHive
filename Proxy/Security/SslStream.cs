@@ -1,5 +1,4 @@
 ﻿using System.Net.Sockets;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 
 namespace VintageHive.Proxy.Security;
@@ -101,6 +100,11 @@ public class SslStream : NativeRef
 
         var unencryptedBytesRead = Native.SSL_read(this, newBuffer, newBuffer.Length);
 
+        if (unencryptedBytesRead == -1)
+        {
+            var error = Native.SSL_get_error(this, unencryptedBytesRead);
+        }
+
         newBuffer.CopyTo(buffer);
 
         return unencryptedBytesRead;
@@ -181,7 +185,7 @@ public class SslStream : NativeRef
             tick--;
         }
 
-        // Debugger.Break();
+        // System.Diagnostics.Debugger.Break();
 
         void HandshakeReadSocket(byte[] buffer)
         {
@@ -199,10 +203,11 @@ public class SslStream : NativeRef
             }
             else if (error == Native.SSL_ERROR_WANT_READ)
             {
+                // System.Diagnostics.Debugger.Break();
             }
             else
             {
-                // Debugger.Break();
+                // System.Diagnostics.Debugger.Break();
             }
         }
 

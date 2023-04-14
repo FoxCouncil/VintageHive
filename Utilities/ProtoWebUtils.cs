@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using VintageHive.Data.Types;
 
 namespace VintageHive.Utilities
 {

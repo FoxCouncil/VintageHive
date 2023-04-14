@@ -1,9 +1,5 @@
-﻿using SmartReader;
-using System.Net;
-using System.ServiceModel.Syndication;
+﻿using System.Net;
 using System.Text.Json;
-using System.Xml;
-using VintageHive.Data.Types;
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
 

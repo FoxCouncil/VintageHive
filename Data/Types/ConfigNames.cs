@@ -1,6 +1,4 @@
-﻿using System.Data;
-
-namespace VintageHive;
+﻿namespace VintageHive.Data.Types;
 
 public static class ConfigNames
 {

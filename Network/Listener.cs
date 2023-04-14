@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;
+using VintageHive.Utilities;
 
 namespace VintageHive.Network;
 

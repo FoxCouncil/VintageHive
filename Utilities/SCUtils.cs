@@ -1,5 +1,4 @@
 ﻿using System.Xml.Serialization;
-using static System.Net.WebRequestMethods;
 
 namespace VintageHive.Utilities;
 
