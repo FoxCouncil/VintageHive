@@ -17,8 +17,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Compile Remove="docker\**" />
 	  <Compile Remove="Tests\**" />
+	  <EmbeddedResource Remove="docker\**" />
 	  <EmbeddedResource Remove="Tests\**" />
+	  <None Remove="docker\**" />
 	  <None Remove="Tests\**" />
 	</ItemGroup>
 

@@ -26,7 +26,7 @@ bld/
 [Ll]og/
 
 # Ignore docker app volume
-/docker/app/
+[Dd]ocker/app/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
