@@ -5,11 +5,11 @@ namespace VintageHive.Processors.LocalServer;
 
 internal class LocalServerFileProvider : IFileProvider
 {
-    readonly DirectoryInfo BaseDirectory;
+    readonly string _subPath;
 
-    public LocalServerFileProvider(DirectoryInfo baseDirectory)
+    public LocalServerFileProvider(string subPath)
     {
-        BaseDirectory = baseDirectory;
+        _subPath = subPath;
     }
 
     public IDirectoryContents GetDirectoryContents(string subpath)
@@ -19,9 +19,11 @@ internal class LocalServerFileProvider : IFileProvider
 
     public IFileInfo GetFileInfo(string subpath)
     {
-        var fullPath = Path.Combine(BaseDirectory.FullName, subpath).Replace(".liquid", string.Empty);
+        var path = subpath.Replace(".liquid", string.Empty);
 
-        return new LocalServerFile(subpath, fullPath);
+        var fullPath = Path.Combine(_subPath, path);
+
+        return new LocalServerFile(fullPath);
     }
 
     public IChangeToken Watch(string filter)

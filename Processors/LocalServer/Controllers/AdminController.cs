@@ -5,6 +5,7 @@ using VintageHive.Utilities;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
+[Domain("admin.hive.com")]
 internal class AdminController : Controller
 {
     private const string LoginSessionKeyName = "login";
@@ -28,7 +29,7 @@ internal class AdminController : Controller
         }
     }
 
-    [Controller("/index.html")]
+    [Route("/index.html")]
     public async Task Index()
     {
         await Task.Delay(0);
@@ -36,7 +37,7 @@ internal class AdminController : Controller
         Response.Context.SetValue("ia_years", InternetArchiveProcessor.ValidYears);
     }
 
-    [Controller("/api/cachegetcounts")]
+    [Route("/api/cachegetcounts")]
     public async Task CacheGetCounts()
     {
         await Task.Delay(0);
@@ -46,7 +47,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess(list);
     }
 
-    [Controller("/api/cacheclearall")]
+    [Route("/api/cacheclearall")]
     public async Task CacheClearAll()
     {
         await Task.Delay(0);
@@ -56,7 +57,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
-    [Controller("/api/getdownloadlocations")]
+    [Route("/api/getdownloadlocations")]
     public async Task GetDownloadLocations()
     {
         await Task.Delay(0);
@@ -66,7 +67,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess(list);
     }
 
-    [Controller("/api/linksgetall")]
+    [Route("/api/linksgetall")]
     public async Task LinksGetAll()
     {
         await Task.Delay(0);
@@ -81,7 +82,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess(list);
     }
 
-    [Controller("/api/iatoggle")]
+    [Route("/api/iatoggle")]
     public async Task InternetArchiveToggle()
     {
         await Task.Delay(0);
@@ -91,7 +92,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
-    [Controller("/api/iasetyear")]
+    [Route("/api/iasetyear")]
     public async Task InternetArchiveSetYear()
     {
         await Task.Delay(0);
@@ -106,7 +107,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
-    [Controller("/api/protowebtoggle")]
+    [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
         await Task.Delay(0);
@@ -116,7 +117,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
-    [Controller("/api/logs/get100")]
+    [Route("/api/logs/get100")]
     public async Task LogsGet100()
     {
         await Task.Delay(0);
@@ -133,7 +134,7 @@ internal class AdminController : Controller
         Response.SetJsonSuccess(logs);
     }
 
-    [Controller("/api/status")]
+    [Route("/api/status")]
     public async Task Status()
     {
         await Task.Delay(0);
@@ -156,7 +157,7 @@ internal class AdminController : Controller
         Response.Handled = true;
     }
 
-    [Controller("/api/login")]
+    [Route("/api/login")]
     public async Task Login()
     {
         await Task.Delay(0);
@@ -190,7 +191,7 @@ internal class AdminController : Controller
         NotAuthorized();
     }
 
-    [Controller("/api/logout")]
+    [Route("/api/logout")]
     public async Task Logout()
     {
         await Task.Delay(0);

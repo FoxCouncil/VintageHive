@@ -5,7 +5,15 @@ namespace VintageHive.Data.Contexts;
 
 internal class GeonamesDbContext : DbContextBase
 {
-    public GeonamesDbContext() : base() { }
+    const string dbPath = "libs/geonames.db";
+
+    public GeonamesDbContext() : base(dbPath) 
+    {
+        if (IsNewDb)
+        {
+            throw new ApplicationException("GeonamesDB should never be created! It's in the /libs folder!");
+        }
+    }
 
     internal GeoIp GetLocationBySearch(string search)
     {

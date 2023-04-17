@@ -5,7 +5,7 @@
     },
     "Docker": {
       "commandName": "Docker",
-      "DockerfileRunArguments": "-p 1990:1990"
+      "DockerfileRunArguments": "-p 1971:1971 -p 1990:1990 -p 5190:5190 -p 9999:9999"
     }
   }
 }

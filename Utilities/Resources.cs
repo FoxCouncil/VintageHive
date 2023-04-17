@@ -11,8 +11,6 @@ internal static class Resources
 
     public static readonly Dictionary<string, byte[]> Statics = new();
 
-    public static readonly Dictionary<string, string> Partials = new();
-
     public static void Initialize()
     {
         var resources = AppResourcesPath.GetManifestResourceNames();
@@ -23,29 +21,23 @@ internal static class Resources
             {
                 var relativePath = name[ResourcesStaticsPath.Length..];
 
-                var lastPeriodCharIdx = relativePath.LastIndexOf(".");
-
-                var directoryPath = relativePath[0..lastPeriodCharIdx].Replace(".", "/");
-
-                relativePath = directoryPath + relativePath[lastPeriodCharIdx..];
-
                 var resourceData = GetManifestResourceData(name);
 
                 Statics.Add(relativePath, resourceData);
-
-                if (relativePath.StartsWith("partials"))
-                {
-                    Partials.Add(relativePath[9..], Encoding.UTF8.GetString(resourceData));
-                }
             }
         }
     }
 
+    public static bool HasFile(string path)
+    {
+        return Statics.ContainsKey(path);
+    }
+
     public static string GetStaticsResourceString(string path)
     {
-        if (Statics.ContainsKey(path))
+        if (Statics.TryGetValue(path, out byte[] value))
         {
-            return Encoding.UTF8.GetString(Statics[path]);
+            return Encoding.UTF8.GetString(value);
         }
 
         return null;
@@ -53,15 +45,15 @@ internal static class Resources
 
     public static byte[] GetStaticsResourceData(string path)
     {
-        if (Statics.ContainsKey(path))
+        if (Statics.TryGetValue(path, out byte[] value))
         {
-            return Statics[path];
+            return value;
         }
 
         return null;
     }
 
-    private static byte[] GetManifestResourceData(string embedPath)
+    static byte[] GetManifestResourceData(string embedPath)
     {
         using var ms = new MemoryStream();
 

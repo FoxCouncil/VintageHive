@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using VintageHive.Data.Contexts;
 using VintageHive.Data.Types;
 using VintageHive.Processors;
@@ -25,6 +26,10 @@ static class Mind
 
     static OscarServer _oscarServer;
 
+    public static bool IsDebug => Debugger.IsAttached;
+
+    public static bool IsDocker => Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+
     public static CacheDbContext Cache { get; private set; }
 
     public static HiveDbContext Db { get; private set; }
@@ -35,11 +40,11 @@ static class Mind
     {
         Resources.Initialize();
 
+        VFS.Init();
+
         Cache = new();
         Db = new();
         Geonames = new();
-
-        VFS.Init();
 
         await GeoIpUtils.CheckGeoIp();
 

@@ -2,6 +2,7 @@
 using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using VintageHive.Data.Types;
 using VintageHive.Proxy.Security;
@@ -10,6 +11,7 @@ using Image = SixLabors.ImageSharp.Image;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
+[Domain("*.hive.com")]
 internal class HiveController : Controller
 {
     private const string DEFAULT_LOCATION_PRIVACY = "Your Location";
@@ -29,7 +31,7 @@ internal class HiveController : Controller
         });
     }
 
-    [Controller("/index.html")]
+    [Route("/index.html")]
     public async Task Index()
     {
         Response.Context.SetValue("directory_hotlinks", Mind.Db.LinksGetAll());
@@ -39,7 +41,8 @@ internal class HiveController : Controller
         Response.Context.SetValue("directory_protoftp", await ProtoWebUtils.GetAvailableFtpSites());
     }
 
-    [Controller("/download.html")]
+    [Route("/download.html")]
+    [SuppressMessage("Performance", "CA1854:Prefer the 'IDictionary.TryGetValue(TKey, out TValue)' method", Justification = "I'm lazy")]
     public async Task Download()
     {
         await Task.Delay(0);
@@ -133,7 +136,7 @@ internal class HiveController : Controller
         }
     }
 
-    [Controller("/search.html")]
+    [Route("/search.html")]
     public async Task Search()
     {
         if (Request.QueryParams.ContainsKey("q"))
@@ -148,7 +151,7 @@ internal class HiveController : Controller
         }
     }
 
-    [Controller("/viewer.html")]
+    [Route("/viewer.html")]
     public async Task Viewer()
     {
         if (Request.QueryParams.ContainsKey("url"))
@@ -256,7 +259,7 @@ internal class HiveController : Controller
         }
     }
 
-    [Controller("/news.html")]
+    [Route("/news.html")]
     public async Task News()
     {
         var articles = await NewsUtils.GetGoogleArticles("US");
@@ -264,7 +267,7 @@ internal class HiveController : Controller
         Response.Context.SetValue("articles", articles);
     }
 
-    [Controller("/weather.html")]
+    [Route("/weather.html")]
     public async Task Weather()
     {
         var location = Request.QueryParams.ContainsKey("location") ? Request.QueryParams["location"] : null;
@@ -289,7 +292,7 @@ internal class HiveController : Controller
         Response.Context.SetValue("weather_fullname", location == null ? DEFAULT_LOCATION_PRIVACY : geoipLocation?.fullname ?? "N/A");
     }
 
-    [Controller("/settings.html")]
+    [Route("/settings.html")]
     public async Task Settings()
     {
         await Task.Delay(0);
@@ -366,7 +369,7 @@ internal class HiveController : Controller
     //    Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound();
     //}
 
-    [Controller("/api/image/fetch")]
+    [Route("/api/image/fetch")]
     public async Task ImageFetch()
     {
         if (!Request.QueryParams.ContainsKey("url"))
@@ -415,7 +418,7 @@ internal class HiveController : Controller
         Response.Handled = true;
     }
 
-    [Controller("/api/set")]
+    [Route("/api/set")]
     public async Task SetUserSetting()
     {
         await Task.Delay(0);
@@ -449,7 +452,7 @@ internal class HiveController : Controller
         Response.SetFound();
     }
 
-    [Controller("/api/iatoggle")]
+    [Route("/api/iatoggle")]
     public async Task InternetArchiveToggle()
     {
         await Task.Delay(0);
@@ -459,7 +462,7 @@ internal class HiveController : Controller
         Response.SetFound();
     }
 
-    [Controller("/api/iasetyear")]
+    [Route("/api/iasetyear")]
     public async Task InternetArchiveSetYear()
     {
         await Task.Delay(0);
@@ -482,7 +485,7 @@ internal class HiveController : Controller
         }
     }
 
-    [Controller("/api/protowebtoggle")]
+    [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
         await Task.Delay(0);
@@ -492,7 +495,7 @@ internal class HiveController : Controller
         Response.SetFound();
     }
 
-    [Controller("/api/dialninetoggle")]
+    [Route("/api/dialninetoggle")]
     public async Task DialnineToggle()
     {
         await Task.Delay(0);
@@ -502,7 +505,7 @@ internal class HiveController : Controller
         Response.SetFound();
     }
 
-    [Controller("/api/download/dialnineca.crt")]
+    [Route("/api/download/dialnineca.crt")]
     public async Task DialnineCertDownload()
     {
         await Task.Delay(0);

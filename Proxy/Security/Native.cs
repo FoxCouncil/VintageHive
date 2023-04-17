@@ -11,15 +11,15 @@ public static class Native
     public const int SHA_DIGEST_LENGTH = 20;
 
 #if _WINDOWS
-    const string CORE_DLL_NAME = "libeay32";
+    const string CORE_DLL_NAME = "libs\\libeay32";
 #else
-    const string CORE_DLL_NAME = "./libcrypto";
+    const string CORE_DLL_NAME = "./libs/libcrypto";
 #endif
 
 #if _WINDOWS
-    const string SSL_DLL_NAME = "ssleay32";
+    const string SSL_DLL_NAME = "libs\\ssleay32";
 #else
-    const string SSL_DLL_NAME = "./libssl";
+    const string SSL_DLL_NAME = "./libs/libssl";
 #endif
 
     static Native()

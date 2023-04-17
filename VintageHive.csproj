@@ -10,6 +10,7 @@
         <DockerfileContext>.</DockerfileContext>
         <ContainerDevelopmentMode>Regular</ContainerDevelopmentMode>
         <DockerfileBuildArguments>-t contoso/front-end:v2.0</DockerfileBuildArguments>
+        <ApplicationIcon>Statics\app.ico</ApplicationIcon>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
@@ -22,6 +23,7 @@
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
       <DebugType>embedded</DebugType>
+      <Optimize>False</Optimize>
     </PropertyGroup>
 
     <ItemGroup>
@@ -39,33 +41,42 @@
 
     <ItemGroup>
       <None Remove="geonames.db" />
-      <None Remove="Statics\admin.com\cache.html" />
-      <None Remove="Statics\admin.com\css\fontawesome.min.css" />
-      <None Remove="Statics\admin.com\css\main.css" />
-      <None Remove="Statics\admin.com\css\solid.min.css" />
-      <None Remove="Statics\admin.com\index.html" />
-      <None Remove="Statics\admin.com\js\main.js" />
-      <None Remove="Statics\admin.com\localserver.html" />
-      <None Remove="Statics\admin.com\login.html" />
-      <None Remove="Statics\admin.com\logs.html" />
-      <None Remove="Statics\admin.com\partials\footer.html" />
-      <None Remove="Statics\admin.com\partials\head.html" />
-      <None Remove="Statics\admin.com\partials\header.html" />
-      <None Remove="Statics\admin.com\users.html" />
-      <None Remove="Statics\admin.com\webfonts\fa-solid-900.ttf" />
-      <None Remove="Statics\admin.com\webfonts\fa-solid-900.woff2" />
-      <None Remove="Statics\hive.com\img\folder.gif" />
-      <None Remove="Statics\hive.com\img\unknown.gif" />
-      <None Remove="Statics\hive.com\partials\head.html" />
-      <None Remove="Statics\hive.com\search.html" />
-      <None Remove="Statics\hive.com\viewer.html" />
-      <None Remove="Statics\radio.com\index - Copy.html" />
+      <None Remove="Statics\controllers\admin.hive.com\cache.html" />
+      <None Remove="Statics\controllers\admin.hive.com\css\fontawesome.min.css" />
+      <None Remove="Statics\controllers\admin.hive.com\css\main.css" />
+      <None Remove="Statics\controllers\admin.hive.com\css\solid.min.css" />
+      <None Remove="Statics\controllers\admin.hive.com\index.html" />
+      <None Remove="Statics\controllers\admin.hive.com\js\main.js" />
+      <None Remove="Statics\controllers\admin.hive.com\localserver.html" />
+      <None Remove="Statics\controllers\admin.hive.com\login.html" />
+      <None Remove="Statics\controllers\admin.hive.com\logs.html" />
+      <None Remove="Statics\controllers\admin.hive.com\partials\footer.html" />
+      <None Remove="Statics\controllers\admin.hive.com\partials\head.html" />
+      <None Remove="Statics\controllers\admin.hive.com\partials\header.html" />
+      <None Remove="Statics\controllers\admin.hive.com\users.html" />
+      <None Remove="Statics\controllers\admin.hive.com\webfonts\fa-solid-900.ttf" />
+      <None Remove="Statics\controllers\admin.hive.com\webfonts\fa-solid-900.woff2" />
+      <None Remove="Statics\controllers\hive.com\img\folder.gif" />
+      <None Remove="Statics\controllers\hive.com\img\unknown.gif" />
+      <None Remove="Statics\controllers\hive.com\partials\head.html" />
+      <None Remove="Statics\controllers\hive.com\search.html" />
+      <None Remove="Statics\controllers\hive.com\viewer.html" />
+      <None Remove="Statics\controllers\radio.hive.com\index - Copy.html" />
+      <None Remove="Statics\docs\vfs_data_readme.txt" />
+      <None Remove="Statics\docs\vfs_download_readme.txt" />
+      <None Remove="Statics\docs\vfs_hosting_readme.txt" />
+      <None Remove="Statics\docs\vfs_statics_readme.txt" />
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="geonames.db">
+      <Content Include="libs\geonames.db">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <Content Include="Statics\app.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Include="libs\geonames.db" />
     </ItemGroup>
 
     <ItemGroup>
@@ -77,31 +88,30 @@
         <PackageReference Include="MimeTypesMap" Version="1.0.8" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.0.0" />
         <PackageReference Include="SmartReader" Version="0.9.2" />
-        <PackageReference Include="Spectre.Console" Version="0.46.0" />
         <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
         <PackageReference Include="UAParser" Version="3.1.47" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="libcrypto.so">
+      <None Update="libs\libcrypto.so">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="libeay32.dll">
+      <None Update="libs\libeay32.dll">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="libssl.so">
+      <None Update="libs\libssl.so">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="ssleay32.dll">
+      <None Update="libs\ssleay32.dll">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="ua-regexes.yaml">
+      <None Update="Statics\ua-regexes.yaml">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Statics\hive.com\settings\" />
+      <Folder Include="Statics\controllers\hive.com\settings\" />
     </ItemGroup>
     
     

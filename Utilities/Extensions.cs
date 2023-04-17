@@ -109,7 +109,7 @@ public static class Extensions
         {
             var partial = node.GetAttributeValue("partial", "");
 
-            if (string.IsNullOrEmpty(partial) || !partial.EndsWith(".html") && !Resources.Partials.ContainsKey(partial))
+            if (string.IsNullOrEmpty(partial) || !partial.EndsWith(".html") && !Resources.Statics.ContainsKey(partial))
             {
                 continue;
             }

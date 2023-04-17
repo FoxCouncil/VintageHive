@@ -3,18 +3,15 @@ using System.Diagnostics;
 using System.Reflection;
 using UAParser;
 using VintageHive.Proxy.Http;
+using VintageHive.Utilities;
 
 namespace VintageHive.Processors.LocalServer;
 
 internal static class ControllerManager
 {
-    static readonly DirectoryInfo BaseDirectory = GetBaseDirectory();
+    static readonly Dictionary<DomainAttribute, Type> _controllers = new();
 
-    static readonly Dictionary<string, Type> _controllers = new();
-
-    static readonly string _yaml = File.ReadAllText("ua-regexes.yaml");
-    
-    static readonly Parser _parser = Parser.FromYaml(_yaml);
+    static readonly Parser _parser = Parser.FromYaml(Resources.GetStaticsResourceString("ua-regexes.yaml"));
 
     static ControllerManager()
     {
@@ -22,27 +19,76 @@ internal static class ControllerManager
 
         foreach (var controller in controllers)
         {
-            var name = controller.Name.ToLower().Replace("controller", ".com");
+            var domains = (DomainAttribute[])Attribute.GetCustomAttributes(controller, typeof(DomainAttribute));
 
-            _controllers.Add(name, controller);
+            foreach (var domain in domains)
+            {
+                _controllers.Add(domain, controller);
+            }
         }
+    }
+
+    static bool TryGetControllerByDomain(string domain, out Type controller)
+    {
+        controller = null;
+
+        var domainKeys = _controllers.Keys.Where(x => x.Domain.EndsWith(domain))?.ToList() ?? null;
+
+        if (domainKeys == null)
+        {
+            return false;
+        }
+
+        if (!domainKeys.Any())
+        {
+            return false;
+        }
+
+        if (domainKeys.Count == 1)
+        {
+            controller = _controllers[domainKeys[0]];
+        }
+        else
+        {
+            var exactMatch = domainKeys.FirstOrDefault(x => x.Domain.Equals(domain)) ?? null;
+
+            if (exactMatch != null)
+            {
+                controller = _controllers[exactMatch];
+            }
+            else
+            {
+                var wildcardMatch = domainKeys.FirstOrDefault(x => x.IsWildcard) ?? null;
+
+                if (wildcardMatch == null)
+                {
+                    return false;
+                }
+
+                controller = _controllers[wildcardMatch];
+            }
+        }
+
+        return true;
     }
 
     public static Controller Fetch(HttpRequest request, HttpResponse response)
     {
         var name = request.Uri.Host;
 
-        if (!_controllers.ContainsKey(name))
+        if (!TryGetControllerByDomain(name, out var controllerType))
         {
             return null;
         }
 
-        var controller = (Controller)Activator.CreateInstance(_controllers[name]);
+        var controller = (Controller)Activator.CreateInstance(controllerType);
 
-        controller.RootDirectory = new DirectoryInfo(Path.Combine(BaseDirectory.FullName, name));
+        var rootControllerDirectory = Path.Combine("controllers/", name);
+
+        controller.RootDirectory = rootControllerDirectory;
         controller.Request = request;
         controller.Response = response;
-        controller.Response.Context.Options.FileProvider = new LocalServerFileProvider(controller.RootDirectory);
+        controller.Response.Context.Options.FileProvider = new LocalServerFileProvider(rootControllerDirectory);
 
         controller.Response.Context.SetValue("appversion", Mind.ApplicationVersion);
 
@@ -54,17 +100,5 @@ internal static class ControllerManager
         controller.Response.Context.SetValue("deviceversion", clientInfo.Device.ToString());
 
         return controller;
-    }
-
-    static DirectoryInfo GetBaseDirectory()
-    {
-        var path = "Statics/";
-
-        if (Debugger.IsAttached)
-        {
-            path = "../../../" + path;
-        }
-
-        return new DirectoryInfo(path);
     }
 }

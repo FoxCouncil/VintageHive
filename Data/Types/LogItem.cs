@@ -32,6 +32,6 @@ public class LogItem
             traceId = TraceId;
         }
 
-        return $"[{Timestamp:ddTHH:mm:ss.fffffff}]{(traceId?.Length != 0 ? $"[{traceId}]" : "")}[{Level.ToUpper()}][{System}]{Message}";
+        return $"[{Timestamp:ddTHH:mm:ss.fffffff}]{(traceId?.Length != 0 ? $"[{traceId}]" : "")}[{Level.ToUpper()}][{System}] {Message}";
     }
 }

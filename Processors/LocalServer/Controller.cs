@@ -5,7 +5,7 @@ namespace VintageHive.Processors.LocalServer;
 
 public abstract class Controller
 {
-    internal DirectoryInfo RootDirectory { get; set; }
+    internal string RootDirectory { get; set; }
 
     internal HttpRequest Request { get; set; }
 
@@ -23,8 +23,8 @@ public abstract class Controller
 
         _methods = type
             .GetMethods()
-            .Where(y => y.GetCustomAttributes().OfType<ControllerAttribute>().Any())
-            .ToDictionary(z => z.GetCustomAttribute<ControllerAttribute>().Path);
+            .Where(y => y.GetCustomAttributes().OfType<RouteAttribute>().Any())
+            .ToDictionary(z => z.GetCustomAttribute<RouteAttribute>().Path);
     }
 
     public virtual async Task CallInitial(string rawPath)

@@ -1,37 +1,46 @@
 ﻿using Microsoft.Extensions.FileProviders;
+using VintageHive.Utilities;
+using Resources = VintageHive.Utilities.Resources;
 
 namespace VintageHive.Processors.LocalServer;
 
 public class LocalServerFile : IFileInfo
 {
-    public string Name { get; }
+    public string Name { get; } = "";
 
     public string PhysicalPath { get; }
 
     public bool Exists { get; }
 
-    public long Length => _contents?.Length ?? -1;
+    public long Length => -1;
 
     public DateTimeOffset LastModified => DateTimeOffset.MinValue;
 
     public bool IsDirectory => false;
 
-    byte[] _contents;
+    readonly bool IsPhysical;
 
-    public LocalServerFile(string name, string fullPath)
+    readonly bool IsVirtual;
+
+    readonly string VirtualPath;
+
+    public LocalServerFile(string path)
     {
-        Name = name;
-        PhysicalPath = fullPath;
-        Exists = File.Exists(fullPath);
+        PhysicalPath = Path.Combine(VFS.StaticsPath, path);
+        VirtualPath = path.Replace(Path.DirectorySeparatorChar, '.');
 
-        if (Exists)
+        IsVirtual = Resources.HasFile(VirtualPath);
+
+        if (!IsVirtual)
         {
-            _contents = File.ReadAllBytes(fullPath);
+            IsPhysical = VFS.FileExists(PhysicalPath);
         }
+;
+        Exists = IsVirtual || IsPhysical;
     }
 
     public Stream CreateReadStream()
     {
-        return new MemoryStream(_contents);
+        return IsPhysical ? VFS.FileReadStream(PhysicalPath) : new MemoryStream(Resources.GetStaticsResourceData(VirtualPath));
     }
 }

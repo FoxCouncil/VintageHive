@@ -2,6 +2,7 @@
 
 FROM mcr.microsoft.com/dotnet/runtime:7.0 AS base
 WORKDIR /app
+EXPOSE 1900-1910
 EXPOSE 1971
 EXPOSE 1990
 EXPOSE 5190

@@ -5,9 +5,10 @@ using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
+[Domain("radio.hive.com")]
 internal class RadioController : Controller
 {
-    [Controller("/index.html")]
+    [Route("/index.html")]
     public async Task Index()
     {
         var list = await SCUtils.GetTop500();
@@ -15,19 +16,21 @@ internal class RadioController : Controller
         Response.Context.SetValue("stations", list.Stations);
     }
 
-    [Controller("/scplay.pls")]
-    public async Task ListenPlaylist()
+    [Route("/scplay.pls")]
+    public Task ListenPlaylist()
     {
         var plsResponse = new StringBuilder();
 
         plsResponse.AppendLine("[playlist]");
-        plsResponse.AppendLine($"File1=http://radio.com/scplay.mp3?id={Request.QueryParams["id"]}");
+        plsResponse.AppendLine($"File1=http://radio.hive.com/scplay.mp3?id={Request.QueryParams["id"]}");
         plsResponse.AppendLine("NumberOfEntries=1");
 
         Response.SetBodyString(plsResponse.ToString(), "audio/x-scpls");
+
+        return Task.CompletedTask;
     }
 
-    [Controller("/scplay.mp3")]
+    [Route("/scplay.mp3")]
     public async Task SCPlay()
     {
         var station = await SCUtils.GetStationById(Request.QueryParams["id"]);

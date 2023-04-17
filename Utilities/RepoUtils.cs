@@ -6,8 +6,7 @@ internal static class RepoUtils
     {
         var repos = new Dictionary<string, Tuple<string, string>>
         {
-            { "local", new Tuple<string, string>("Downloads Folder", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "downloads")) },
-            { "vault", new Tuple<string, string>("Retro Vault", "O:\\Retro\\computer\\vault") }
+            { "downloads", new Tuple<string, string>("Downloads Folder", VFS.DownloadPath) },
         };
 
         return repos;

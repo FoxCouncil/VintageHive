@@ -1,5 +1,4 @@
-﻿using Spectre.Console;
-using VintageHive.Data.Types;
+﻿using VintageHive.Data.Types;
 
 namespace VintageHive.Utilities;
 
@@ -12,12 +11,12 @@ internal static class Log
 
     static Log()
     {
-        WriteLine(LEVEL_INFO, "LOG", "<underline red>Vintage Hive</> <bold green>Startup</>!", string.Empty);
+        WriteLine(LEVEL_INFO, "LOG", "Vintage Hive Startup!", string.Empty);
     }
 
     public static void WriteLine()
     {
-        AnsiConsole.WriteLine();
+        Console.WriteLine();
     }
 
     public static void WriteLine(string level, string system, string message, string traceId)
@@ -36,30 +35,14 @@ internal static class Log
             return;
         }
 
-        AnsiConsole.MarkupLine(AddFormatting(logItem.ToString()));
+        Console.WriteLine(logItem.ToString());
     }
 
     public static void WriteException(string system, Exception e, string traceId)
     {
         var logItem = new LogItem(LEVEL_ERROR, system, e.Message, traceId);
 
-        AnsiConsole.MarkupLine(AddFormatting(logItem.ToString()));
-        AnsiConsole.WriteException(e);
-    }
-
-    public static string AddFormatting(string str)
-    {
-        str = str
-            .Replace("[", "[[")
-            .Replace("]", "]]")
-            .Replace("[[ERROR]]", "[[[bold red]ERROR[/]]]")
-            .Replace("[[INFO]]", "[[[purple]INFO[/]]]")
-            .Replace("[[REQUEST]]", "[[[grey]REQUEST[/]]]")
-            .Replace("[[MIS]]", "[[[fuchsia]MIS[/]]]")
-            .Replace("[[HIT]]", "[[[green]HIT[/]]]")
-            .Replace("<", "[")
-            .Replace(">", "]");
-
-        return str;
+        Console.WriteLine(logItem.ToString());
+        Console.WriteLine(e);
     }
 }
