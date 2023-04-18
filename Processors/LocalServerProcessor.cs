@@ -133,6 +133,8 @@ internal static class LocalServerProcessor
 
     public static async Task<bool> ProcessHttpsRequest(HttpRequest req, HttpResponse res)
     {
+        await Task.Delay(0);
+
         return RunLocalHostedSites(req, res);
     }
 
@@ -224,7 +226,7 @@ internal static class LocalServerProcessor
 
         if (!isReplacedFile)
         {
-            resourceFile = requestFilePath.Replace(Path.DirectorySeparatorChar, '.');
+            resourceFile = requestFilePath.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
 
             if (!Resources.Statics.ContainsKey(resourceFile))
             {

@@ -290,6 +290,6 @@ public sealed class HttpResponse
 
         var mimeType = externalResponse.Content.Headers.ContentType?.MediaType ?? MimeTypesMap.GetMimeType(url);
 
-        SetBodyStream(await externalResponse.Content.ReadAsStreamAsync(), mimeType);
+        SetBodyData(await externalResponse.Content.ReadAsByteArrayAsync(), mimeType);
     }
 }

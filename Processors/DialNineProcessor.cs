@@ -1,4 +1,5 @@
-﻿using VintageHive.Proxy.Http;
+﻿using VintageHive.Data.Types;
+using VintageHive.Proxy.Http;
 using VintageHive.Utilities;
 
 namespace VintageHive.Processors;
@@ -7,6 +8,11 @@ internal static class DialNineProcessor
 {
     public static async Task<bool> ProcessHttpsRequest(HttpRequest req, HttpResponse res)
     {
+        if (!Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.Dialnine))
+        {
+            return false;
+        }
+
         try
         {
             await res.SetExternal();
