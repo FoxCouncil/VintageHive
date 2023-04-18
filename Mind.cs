@@ -59,6 +59,7 @@ static class Mind
         _httpProxy = new(ipAddress, httpPort, false);
 
         _httpProxy
+            .Use(HelperProcessor.ProcessHttpRequest)
             .Use(LocalServerProcessor.ProcessHttpRequest)
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
@@ -79,7 +80,8 @@ static class Mind
         _httpsProxy = new(ipAddress, 9999, true);
 
         _httpsProxy
-            .Use(LocalServerProcessor.ProcessHttpsRequest);
+            .Use(LocalServerProcessor.ProcessHttpsRequest)
+            .Use(DialNineProcessor.ProcessHttpsRequest);
 
         // ==== TESTING AREA =====
 #if DEBUG

@@ -1,4 +1,5 @@
 ﻿using Fluid;
+using HeyRed.Mime;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Dynamic;
@@ -272,5 +273,23 @@ public sealed class HttpResponse
         InitSession();
 
         Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"{e.PropertyName} changed!", "");
+    }
+
+    public async Task SetExternal(string url = "")
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            url = Request.Uri.ToString().ToLower();
+        }
+
+        using var httpClient = HttpClientUtils.GetHttpClient(Request);
+
+        var externalResponse = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+
+        CacheTtl = externalResponse.Headers.CacheControl?.MaxAge ?? TimeSpan.FromSeconds(300);
+
+        var mimeType = externalResponse.Content.Headers.ContentType?.MediaType ?? MimeTypesMap.GetMimeType(url);
+
+        SetBodyStream(await externalResponse.Content.ReadAsStreamAsync(), mimeType);
     }
 }

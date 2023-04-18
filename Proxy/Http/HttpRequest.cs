@@ -20,6 +20,8 @@ public sealed partial class HttpRequest : Request
 
     public string Raw { get; private set; }
 
+    public string Host => Uri.Host.ToLower();
+
     public string Body { get; private set; } = "";
 
     public string UserAgent => Headers[HttpHeaderName.UserAgent] ?? "NA";

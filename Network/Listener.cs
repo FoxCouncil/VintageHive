@@ -180,7 +180,7 @@ public abstract class Listener
                             break;
                         }
 
-                        var resBuffer = await ProcessRequest(listenerSocket, reqBuffer, read);
+                        var resBuffer = await ProcessRequest(listenerSocket, reqBuffer, read).ConfigureAwait(false);
 
                         if (IsSecure)
                         {
