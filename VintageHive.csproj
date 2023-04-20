@@ -115,6 +115,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <None Include=".github\workflows\ci-release.yml" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Using Include="System.Net" />
       <Using Include="System.Text" />
       <Using Include="VintageHive" />
