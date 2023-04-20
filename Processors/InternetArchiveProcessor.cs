@@ -1,10 +1,8 @@
 ﻿using HtmlAgilityPack;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using VintageHive.Data.Types;
 using VintageHive.Proxy.Http;
-using VintageHive.Utilities;
 
 namespace VintageHive.Processors;
 

@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Text.Json;
+﻿using System.Text.Json;
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
 

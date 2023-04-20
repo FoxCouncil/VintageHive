@@ -1,5 +1,4 @@
-﻿using System.Text;
-using static VintageHive.Proxy.Security.Native;
+﻿using static VintageHive.Proxy.Security.Native;
 using static System.Text.Encoding;
 
 namespace VintageHive.Proxy.Security;

@@ -1,9 +1,7 @@
 ﻿using System.Collections.ObjectModel;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
 using VintageHive.Network;
-using VintageHive.Utilities;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;

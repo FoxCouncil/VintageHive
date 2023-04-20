@@ -1,9 +1,6 @@
-﻿using System.Text;
-using System.Net;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using VintageHive.Proxy.Oscar.Services;
 using VintageHive.Network;
-using VintageHive.Utilities;
 
 namespace VintageHive.Proxy.Oscar;
 

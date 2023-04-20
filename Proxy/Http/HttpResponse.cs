@@ -4,9 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Dynamic;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
-using VintageHive.Utilities;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;

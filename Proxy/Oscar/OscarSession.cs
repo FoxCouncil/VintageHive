@@ -1,5 +1,4 @@
 ﻿using VintageHive.Network;
-using VintageHive.Utilities;
 
 namespace VintageHive.Proxy.Oscar;
 

@@ -1,7 +1,5 @@
 ﻿using System.Diagnostics;
-using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace VintageHive.Proxy.Oscar.Services;
 

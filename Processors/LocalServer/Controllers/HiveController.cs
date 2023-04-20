@@ -3,10 +3,8 @@ using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
 using VintageHive.Data.Types;
 using VintageHive.Proxy.Security;
-using VintageHive.Utilities;
 using Image = SixLabors.ImageSharp.Image;
 
 namespace VintageHive.Processors.LocalServer.Controllers;

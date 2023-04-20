@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace VintageHive.Utilities
+﻿namespace VintageHive.Utilities
 {
     internal class MacEncodingProvider : EncodingProvider
     {

@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace VintageHive.Network;
+﻿namespace VintageHive.Network;
 
 public class Request
 {

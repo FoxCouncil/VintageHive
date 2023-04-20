@@ -1,6 +1,5 @@
 ﻿using VintageHive.Data.Types;
 using VintageHive.Proxy.Http;
-using VintageHive.Utilities;
 
 namespace VintageHive.Processors;
 

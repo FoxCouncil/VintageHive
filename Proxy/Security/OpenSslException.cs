@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace VintageHive.Proxy.Security;
+﻿namespace VintageHive.Proxy.Security;
 
 internal class OpenSslException : Exception
 {

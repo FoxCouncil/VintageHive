@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace VintageHive.Proxy.Oscar;
+﻿namespace VintageHive.Proxy.Oscar;
 
 public class Snac
 {

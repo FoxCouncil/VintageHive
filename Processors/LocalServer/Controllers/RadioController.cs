@@ -1,6 +1,4 @@
 ﻿using Fluid;
-using System.Text;
-using VintageHive.Utilities;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Processors.LocalServer.Controllers;

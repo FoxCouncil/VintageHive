@@ -1,11 +1,9 @@
 ﻿using Microsoft.Data.Sqlite;
 using System.Dynamic;
-using System.Net;
 using System.Text.Json;
 using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
-using VintageHive.Utilities;
 
 namespace VintageHive.Data.Contexts;
 

@@ -1,8 +1,6 @@
 ﻿using AngleSharp.Text;
-using System.Text;
 using VintageHive.Network;
 using VintageHive.Proxy.Http;
-using VintageHive.Utilities;
 
 namespace VintageHive.Proxy.Ftp;
 

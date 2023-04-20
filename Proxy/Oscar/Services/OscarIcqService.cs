@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text;
-using VintageHive.Utilities;
 
 namespace VintageHive.Proxy.Oscar.Services;
 

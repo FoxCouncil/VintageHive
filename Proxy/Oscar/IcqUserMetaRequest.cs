@@ -1,5 +1,4 @@
-﻿using System.Text;
-using VintageHive.Proxy.Oscar.Services;
+﻿using VintageHive.Proxy.Oscar.Services;
 
 namespace VintageHive.Proxy.Oscar;
 

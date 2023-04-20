@@ -1,12 +1,10 @@
 ﻿using System.Diagnostics;
-using System.Net;
 using VintageHive.Data.Contexts;
 using VintageHive.Data.Types;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Oscar;
-using VintageHive.Utilities;
 
 namespace VintageHive;
 

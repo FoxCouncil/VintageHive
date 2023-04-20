@@ -1,11 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
 using VintageHive.Data.Types;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
-using VintageHive.Utilities;
 
 namespace VintageHive.Processors;
 

@@ -1,6 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
 using System.Data;
-using VintageHive.Utilities;
 
 namespace VintageHive.Data;
 

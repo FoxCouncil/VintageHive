@@ -1,7 +1,4 @@
-﻿using System.Text;
-using VintageHive.Utilities;
-
-namespace VintageHive.Proxy.Oscar;
+﻿namespace VintageHive.Proxy.Oscar;
 
 public class Tlv
 {

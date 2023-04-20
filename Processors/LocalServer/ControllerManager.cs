@@ -1,9 +1,7 @@
 ﻿using Fluid;
-using System.Diagnostics;
 using System.Reflection;
 using UAParser;
 using VintageHive.Proxy.Http;
-using VintageHive.Utilities;
 
 namespace VintageHive.Processors.LocalServer;
 

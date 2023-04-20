@@ -3,13 +3,11 @@ using Fluid.Ast;
 using Fluid.Values;
 using HeyRed.Mime;
 using Humanizer;
-using System.Net;
 using System.Net.Sockets;
 using System.Web;
 using VintageHive.Processors.LocalServer;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
-using VintageHive.Utilities;
 using HttpStatusCode = VintageHive.Proxy.Http.HttpStatusCode;
 
 namespace VintageHive.Processors;

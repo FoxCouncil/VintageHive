@@ -1,9 +1,6 @@
-﻿using System.Net;
-using System.Net.Sockets;
-using System.Text;
+﻿using System.Net.Sockets;
 using VintageHive.Data.Contexts;
 using VintageHive.Network;
-using VintageHive.Utilities;
 using VintageHiveFtpProcessDelegate = System.Func<VintageHive.Proxy.Ftp.FtpRequest, System.Threading.Tasks.Task<bool>>;
 
 namespace VintageHive.Proxy.Ftp;
