@@ -1,4 +1,6 @@
-﻿using AngleSharp.Text;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using AngleSharp.Text;
 using VintageHive.Network;
 using VintageHive.Proxy.Http;
 

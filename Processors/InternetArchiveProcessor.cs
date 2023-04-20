@@ -1,4 +1,6 @@
-﻿using HtmlAgilityPack;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using HtmlAgilityPack;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using VintageHive.Data.Types;

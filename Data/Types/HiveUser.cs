@@ -1,4 +1,6 @@
-﻿using System.Data;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Data;
 
 namespace VintageHive.Data.Types;
 

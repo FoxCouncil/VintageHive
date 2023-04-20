@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Runtime.InteropServices;
 
 using static VintageHive.Proxy.Security.Native;
 

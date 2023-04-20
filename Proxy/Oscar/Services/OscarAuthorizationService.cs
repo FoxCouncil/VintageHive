@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace VintageHive.Proxy.Oscar.Services;

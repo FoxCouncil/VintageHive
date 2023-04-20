@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Text.Json;
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
 

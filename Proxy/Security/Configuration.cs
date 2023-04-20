@@ -1,4 +1,6 @@
-﻿using VintageHive.Proxy.Security;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using VintageHive.Proxy.Security;
 
 using static VintageHive.Proxy.Security.Native;
 

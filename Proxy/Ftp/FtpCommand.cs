@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Proxy.Ftp;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+namespace VintageHive.Proxy.Ftp;
 
 public static class FtpCommand
 {

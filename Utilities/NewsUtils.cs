@@ -1,4 +1,6 @@
-﻿using SmartReader;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using SmartReader;
 using System.ServiceModel.Syndication;
 using System.Xml;
 using VintageHive.Data.Types;

@@ -1,4 +1,6 @@
-﻿using VintageHive.Proxy.Oscar.Services;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using VintageHive.Proxy.Oscar.Services;
 
 namespace VintageHive.Proxy.Oscar;
 

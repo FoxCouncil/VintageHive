@@ -1,4 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Text.Json.Serialization;
 
 namespace VintageHive.Data.Types;
 

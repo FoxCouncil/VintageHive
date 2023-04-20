@@ -1,4 +1,6 @@
-﻿using VintageHive.Data.Types;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using VintageHive.Data.Types;
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Processors;

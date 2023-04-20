@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.FileProviders;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using Microsoft.Extensions.FileProviders;
 using Resources = VintageHive.Utilities.Resources;
 
 namespace VintageHive.Processors.LocalServer;

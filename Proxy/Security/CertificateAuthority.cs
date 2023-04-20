@@ -1,4 +1,6 @@
-﻿using System.Security.Cryptography.X509Certificates;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using VintageHive.Data.Types;
 

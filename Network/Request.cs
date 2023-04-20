@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Network;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+namespace VintageHive.Network;
 
 public class Request
 {

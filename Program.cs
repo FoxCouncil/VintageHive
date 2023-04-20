@@ -1,4 +1,6 @@
-﻿Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 Encoding.RegisterProvider(new MacEncodingProvider());
 
 Encoding.GetEncoding("ISO-8859-1");

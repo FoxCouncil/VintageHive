@@ -1,4 +1,6 @@
-﻿using AngleSharp.Dom;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using AngleSharp.Dom;
 using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Contexts;

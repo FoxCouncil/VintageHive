@@ -1,4 +1,6 @@
-﻿using System.Net.Sockets;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Net.Sockets;
 using VintageHive.Data.Contexts;
 using VintageHive.Network;
 using VintageHiveFtpProcessDelegate = System.Func<VintageHive.Proxy.Ftp.FtpRequest, System.Threading.Tasks.Task<bool>>;

@@ -1,4 +1,6 @@
-﻿using Microsoft.Data.Sqlite;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using Microsoft.Data.Sqlite;
 using System.Dynamic;
 using System.Text.Json;
 using VintageHive.Data.Types;

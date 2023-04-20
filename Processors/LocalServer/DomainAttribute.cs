@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Processors.LocalServer;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+namespace VintageHive.Processors.LocalServer;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 internal class DomainAttribute : Attribute, IEquatable<DomainAttribute>

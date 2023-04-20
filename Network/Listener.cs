@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Diagnostics;
 using System.Net.Sockets;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;

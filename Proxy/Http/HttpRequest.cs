@@ -1,4 +1,6 @@
-﻿using System.Collections.ObjectModel;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using System.Web;
 using VintageHive.Network;

@@ -1,4 +1,6 @@
-﻿using Fluid;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using Fluid;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Processors.LocalServer.Controllers;

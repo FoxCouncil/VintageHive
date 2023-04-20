@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Globalization;
 using static VintageHive.Proxy.Security.Native;
 
 namespace VintageHive.Proxy.Security;

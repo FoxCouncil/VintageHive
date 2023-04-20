@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System.Reflection;
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Processors.LocalServer;
