@@ -62,7 +62,7 @@ static class Mind
             .Use(HelperProcessor.ProcessHttpRequest)
             .Use(LocalServerProcessor.ProcessHttpRequest)
             .Use(ProtoWebProcessor.ProcessHttpRequest)
-            .Use(InternetArchiveProcessor.ProcessRequest);
+            .Use(InternetArchiveProcessor.ProcessHttpRequest);
 
         // var httpsPort = Db.ConfigGet<int>(ConfigNames.PortHttps); // Soon?
 

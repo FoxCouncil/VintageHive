@@ -46,7 +46,7 @@ internal static class InternetArchiveProcessor
 
     static readonly TimeSpan CacheTtl = TimeSpan.FromDays(365);
 
-    public static async Task<bool> ProcessRequest(HttpRequest req, HttpResponse res)
+    public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
         var isInternetArchiveEnabled = Mind.Db.ConfigGet<bool>(ConfigNames.InternetArchive);
 

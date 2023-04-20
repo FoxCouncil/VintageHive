@@ -1,4 +1,4 @@
-<img src="Statics/assets/hive.gif" height="30"> Vintage Hive By @FoxCouncil
+﻿<img src="Statics/assets/hive.gif" height="30"> Vintage Hive By @FoxCouncil
 ======
 
 This project tries to help alter the modern internet to work on really old computers and systems, with a focus on cleaning the rough edges and bringing in multiple sources of archival internet data. Browse the web like you are back in 1999, or have access to modern encrypted websites from Windows 95 (_just don't login to your bank with this!_)
@@ -13,7 +13,7 @@ This project tries to help alter the modern internet to work on really old compu
 
 # Installation
 
-> `Windows 10/11` _only_
+> `Windows 10/11`
 
 - Download [Latest Release](https://github.com/FoxCouncil/VintageHive/releases/latest) ZIP package for your operating system.
 - Place ZIP package in an empty folder
@@ -21,27 +21,60 @@ This project tries to help alter the modern internet to work on really old compu
 - Run the `VintageHive` executable
 - Allow the service access through your firewall
 
+> `Linux`
+
+- Instructions Coming Soon
+
+> `MacOS`
+
+- Instructions Coming Soon (Not Tested Either)
+
 # Usage
 
 ## Defaults
 
-> Default HTTP Proxy Port `1990`
-
-> ~~Default FTP Proxy Port `1971`~~ | **`Coming Soon`** |
+| Service | Port | Documentation  |
+|---------|------|----------------|
+|    HTTP | 1990 | [**`Docs`**]() |
+|   HTTPS | 9999 | [**`Docs`**]() |
+|     FTP | 1971 | [**`Docs`**]() |
 
 Intranet & Settings
 ------
 
-- Main Url: `http://hive`
-- News Url: `http://hive/news`
-- Weather Url: `http://hive/weather`
-- Settings Url: `http://hive/settings`
+- Main Url: `http://hive.com`
+- 🧪 Shoutcast: `http://radio.hive.com/`
 
-Usage Guides
+# HTTP
+
+When using this proxy, it will parse any `http` request through several processors, in decending order
+
+- [HelperProcessor.ProcessHttpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/HelperProcessor.cs#L17)
+- [LocalServerProcessor.ProcessHttpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/LocalServerProcessor.cs#L523)
+- [ProtoWebProcessor.ProcessHttpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/LocalServerProcessor.cs#L80)
+- [InternetArchiveProcessor.ProcessHttpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/InternetArchiveProcessor.cs#L49)
+- **404**
+
+# HTTPS
+
+When using this proxy, it will parse any `https` request, create a certificate authority and generate certificates for processing through several processors, in decending order
+
+- [LocalServerProcessor.ProcessHttpsRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/LocalServerProcessor.cs#L516)
+- [DialNineProcessor.ProcessHttpsRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/DialNineProcessor.cs#L20)
+- **404**
+
+# FTP
+
+When using this proxy, it will parse any `ftp` request through several processors, in decending order
+
+- [ProtoWebProcessor.ProcessFtpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/ProtoWebProcessor.cs#L99)
+- [LocalServerProcessor.ProcessFtpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/LocalServerProcessor.cs#L80)
+- **Exception**
+
+# Usage Guides
+
+<img src="https://docs.microsoft.com/en-us/windows/iot/iot-enterprise/kiosk-mode/media/ie11.png" alt="Internet Explore Logo" width="12"> Internet Explorer 6
 ------
-
-### <img src="https://docs.microsoft.com/en-us/windows/iot/iot-enterprise/kiosk-mode/media/ie11.png" alt="Internet Explore Logo" width="12"> Internet Explorer 6
-
 <img src="https://docs.microsoft.com/en-us/troubleshoot/developer/browsers/connectivity-navigation/media/use-proxy-servers-with-ie/browser-setting-to-bypass-address.png">
 
 - Open the Tools menu, and then select Internet Options
@@ -54,16 +87,19 @@ Usage Guides
 
 # Roadmap
 
-- FTP Proxy Support
-- HTTPS Proxy Support (with security downgrading SSL2)
+- ~~FTP Proxy Support~~
+- ~~HTTPS Proxy Support (with security downgrading SSL2)~~
+- ~~Custom Hosted Pages~~
+- ~~Download Center~~
 - Emulated Services
-  - ICQ
+  - ICQ - `Coming Soon`
+  - AIM - `Coming Soon`
+  - Yahoo! IM
+  - MSN Messenger
   - POP3/SMTP
   - IRC
-  - MSN Messenger
   - NetMeeting
-- Custom Hosted Pages
-- Download Center
+  - etc
 - Community Servers
 - Gopher Support
 
@@ -74,8 +110,10 @@ Usage Guides
 
 # Sources
 
-- Internet Archive
-- ProtoWeb
+- [Internet Archive](https://web.archive.org/)
+- [ProtoWeb](https://protoweb.org/)
+- [Geonames](https://www.geonames.org/)
+- [Open-Meteo](https://github.com/open-meteo/open-meteo)
+- [DuckDuckGo](https://duckduckgo.com/)
 - GoogleNews
-- WeatherDB
 - GeoIPService
