@@ -63,7 +63,7 @@
       <None Remove="Statics\controllers\hive.com\viewer.html" />
       <None Remove="Statics\controllers\radio.hive.com\index - Copy.html" />
       <None Remove="Statics\docs\vfs_data_readme.txt" />
-      <None Remove="Statics\docs\vfs_download_readme.txt" />
+      <None Remove="Statics\docs\vfs_downloads_readme.txt" />
       <None Remove="Statics\docs\vfs_hosting_readme.txt" />
       <None Remove="Statics\docs\vfs_statics_readme.txt" />
     </ItemGroup>
@@ -112,6 +112,13 @@
 
     <ItemGroup>
       <Folder Include="Statics\controllers\hive.com\settings\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Using Include="System.Net" />
+      <Using Include="System.Text" />
+      <Using Include="VintageHive" />
+      <Using Include="VintageHive.Utilities" />
     </ItemGroup>
     
     

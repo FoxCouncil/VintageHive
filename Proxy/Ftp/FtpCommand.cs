@@ -41,4 +41,6 @@ public static class FtpCommand
     public const string RenameTo = "RNTO";
 
     public const string Bark = "ARF";
+
+    public const string DeleteDirectory = "RMD";
 }

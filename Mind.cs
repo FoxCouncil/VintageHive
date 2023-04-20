@@ -64,6 +64,14 @@ static class Mind
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessRequest);
 
+        // var httpsPort = Db.ConfigGet<int>(ConfigNames.PortHttps); // Soon?
+
+        _httpsProxy = new(ipAddress, 9999, true);
+
+        _httpsProxy
+            .Use(LocalServerProcessor.ProcessHttpsRequest)
+            .Use(DialNineProcessor.ProcessHttpsRequest);
+
         var ftpPort = Db.ConfigGet<int>(ConfigNames.PortFtp);
 
         _ftpProxy = new(ipAddress, ftpPort)
@@ -77,14 +85,8 @@ static class Mind
 
         _oscarServer = new(ipAddress);
 
-        _httpsProxy = new(ipAddress, 9999, true);
-
-        _httpsProxy
-            .Use(LocalServerProcessor.ProcessHttpsRequest)
-            .Use(DialNineProcessor.ProcessHttpsRequest);
-
-        // ==== TESTING AREA =====
 #if DEBUG
+        // ==== TESTING AREA =====
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
         // _socks5Proxy = new(ipAddress, socks5Port);

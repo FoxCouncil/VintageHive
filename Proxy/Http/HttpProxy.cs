@@ -18,7 +18,7 @@ public class HttpProxy : Listener
 
     public readonly List<VintageHiveHttpProcessDelegate> Handlers = new();
 
-    public HttpProxy(IPAddress listenAddress, int port, bool secure) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, secure) 
+    public HttpProxy(IPAddress listenAddress, int port, bool secure) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, secure)
     {
         if (secure)
         {
@@ -72,7 +72,7 @@ public class HttpProxy : Listener
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Log.WriteException(GetType().Name, ex, connection.TraceId.ToString());
 
@@ -105,7 +105,7 @@ public class HttpProxy : Listener
 
                         buffer = httpResponse.GetResponseEncodedData();
                     }
-                    
+
                     if (httpResponse.SessionId != Guid.Empty)
                     {
                         Mind.Db.WebSessionSet(httpResponse.SessionId, httpResponse.Session);
@@ -116,16 +116,26 @@ public class HttpProxy : Listener
                         Mind.Cache.SetHttpProxy(key, httpResponse.CacheTtl, Convert.ToBase64String(buffer));
                     }
 
-                    if (httpResponse.DownloadStream != null)
+                    if (httpResponse.Stream != null)
                     {
-                        await httpRequest.ListenerSocket.Stream.WriteAsync(buffer);
+                        var socket = httpRequest.ListenerSocket;
 
-                        await httpResponse.DownloadStream.CopyToAsync(httpRequest.ListenerSocket.Stream);
+                        if (socket.IsSecure)
+                        {
+                            await socket.SecureStream.WriteAsync(buffer);
+                            await httpResponse.Stream.CopyToSslAsync(socket.SecureStream);
+                            // await socket.SecureStream.WriteAsync(httpResponse.Stream.ReadAllBytes());
+                        }
+                        else 
+                        { 
+                            await socket.Stream.WriteAsync(buffer);
+                            await httpResponse.Stream.CopyToAsync(socket.Stream);
+                        }
 
-                        httpResponse.DownloadStream.Close();
+                        await httpResponse.Stream.DisposeAsync();
 
                         return null;
-                    }    
+                    }
 
                     return buffer;
                 }
@@ -161,7 +171,7 @@ public class HttpProxy : Listener
         httpResponse.Headers.Add(HttpHeaderName.Date, date);
 
         Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), $"ERROR {(int)statusCode}{(exception != null ? $": {exception}" : "")}");
-        
+
         Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $" Unhandled Request {(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
 
         if (!ErrorPages.ContainsKey(statusCode))
@@ -184,7 +194,7 @@ public class HttpProxy : Listener
         var endpointPort = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Port;
 
         var requestUrl = httpRequest.Uri?.ToString();
-        
+
         var length = 12;
 
         if (requestUrl.Length > length)

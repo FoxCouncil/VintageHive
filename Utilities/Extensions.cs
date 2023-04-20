@@ -2,6 +2,7 @@
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using VintageHive.Proxy.Security;
 
 namespace VintageHive.Utilities;
 
@@ -169,6 +170,31 @@ public static class Extensions
         }
 
         return dict;
+    }
+
+    public static byte[] ReadAllBytes(this Stream instream)
+    {
+        if (instream is MemoryStream stream)
+        {
+            return stream.ToArray();
+        }
+
+        using var memoryStream = new MemoryStream();
+
+        instream.CopyTo(memoryStream);
+
+        return memoryStream.ToArray();
+    }
+
+    public static async Task CopyToSslAsync(this Stream input, SslStream output)
+    {
+        var data = new byte[32768];
+        int read;
+
+        while ((read = input.Read(data, 0, data.Length)) > 0)
+        {
+            await output.WriteRawAsync(data, read);
+        }
     }
 
     public static string CleanWeatherImageUrl(this string url)

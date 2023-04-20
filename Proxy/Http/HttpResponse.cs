@@ -49,7 +49,7 @@ public sealed class HttpResponse
 
     public TemplateContext Context { get; }
 
-    public Stream DownloadStream { get; internal set; }
+    public Stream Stream { get; internal set; }
 
     public byte[] Body { get; internal set; }
 
@@ -105,7 +105,7 @@ public sealed class HttpResponse
         return this;
     }
 
-    public HttpResponse SetBodyFileStream(FileStream stream, string type = HttpContentType.Application.OctetStream)
+    public HttpResponse SetStreamForDownload(FileStream stream, string type = HttpContentType.Application.OctetStream)
     {
         var disposition = "attachment";
 
@@ -117,7 +117,14 @@ public sealed class HttpResponse
         var contentDisposition = $"{disposition}; filename=\"{Path.GetFileName(stream.Name)}\"";
 
         Headers.AddOrUpdate(HttpHeaderName.ContentDisposition, contentDisposition);
-        Headers.AddOrUpdate(HttpHeaderName.ContentLength, DownloadStream.Length.ToString());
+        Headers.AddOrUpdate(HttpHeaderName.ContentLength, stream.Length.ToString());
+
+        return SetBodyStream(stream, type);
+    }
+
+    public HttpResponse SetStream(Stream stream, string type = HttpContentType.Application.OctetStream)
+    {
+        Headers.AddOrUpdate(HttpHeaderName.ContentLength, stream.Length.ToString());
 
         return SetBodyStream(stream, type);
     }
@@ -126,7 +133,7 @@ public sealed class HttpResponse
     {
         Cache = false; // DO NOT OVERLOAD SQLite
 
-        DownloadStream = stream;
+        Stream = stream;
 
         Headers.AddOrUpdate(HttpHeaderName.ContentType, type);
 
@@ -214,7 +221,7 @@ public sealed class HttpResponse
 
     public HttpResponse SetCookie(string name, string content)
     {
-        if (Cookies.ContainsKey(name) && Cookies[name] == content)
+        if (Cookies.TryGetValue(name, out string value) && value == content)
         {
             return this;
         }
@@ -282,13 +289,27 @@ public sealed class HttpResponse
             url = Request.Uri.ToString().ToLower();
         }
 
-        using var httpClient = HttpClientUtils.GetHttpClient(Request);
+        using var httpClient = HttpClientUtils.GetHttpClient(Request, new HttpClientHandler
+        {
+            ClientCertificateOptions = ClientCertificateOption.Manual,
+            ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true
+        });
+
+        foreach (var header in Request.Headers)
+        {
+            httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+        }
 
         var externalResponse = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
 
         CacheTtl = externalResponse.Headers.CacheControl?.MaxAge ?? TimeSpan.FromSeconds(300);
 
         var mimeType = externalResponse.Content.Headers.ContentType?.MediaType ?? MimeTypesMap.GetMimeType(url);
+
+        foreach (var header in externalResponse.Headers)
+        {
+            Headers.AddOrUpdate(header.Key, header.Value.FirstOrDefault());
+        }
 
         SetBodyData(await externalResponse.Content.ReadAsByteArrayAsync(), mimeType);
     }

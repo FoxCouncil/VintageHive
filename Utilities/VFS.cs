@@ -33,6 +33,13 @@ public static class VFS
             Log.WriteLine(Log.LEVEL_INFO, "VFS", $"Directory ({directory}) doesn't exist, creating it,", "");
 
             Directory.CreateDirectory(directory);
+
+            var readmePath = $"docs.vfs_{Path.GetFileName(directory).ToLower()}_readme.txt";
+
+            if (Resources.HasFile(readmePath))
+            {
+                File.WriteAllText(Path.Combine(directory, "readme.txt"), Resources.GetStaticsResourceString(readmePath));
+            }
         }
     }
 
@@ -54,6 +61,16 @@ public static class VFS
         }
 
         Directory.CreateDirectory(combinedPath);
+    }
+
+    public static void DirectoryDelete(string directoryPath)
+    {
+        if (!TryGetFileSystemPath(directoryPath, out var combinedPath))
+        {
+            return;
+        }
+
+        Directory.Delete(combinedPath);
     }
 
     public static void DirectoryMove(string fromPath, string toPath)

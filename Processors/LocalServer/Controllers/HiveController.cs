@@ -99,7 +99,7 @@ internal class HiveController : Controller
 
                     var fileHandle = fileInfo.OpenRead();
 
-                    Response.SetBodyFileStream(fileHandle, mimetype);
+                    Response.SetStreamForDownload(fileHandle, mimetype);
 
                     Response.Handled = true;
                 }

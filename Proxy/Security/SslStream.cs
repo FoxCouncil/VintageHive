@@ -110,9 +110,14 @@ public class SslStream : NativeRef
         return unencryptedBytesRead;
     }
 
-    public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+    public async ValueTask<int> WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        var unencryptedBytesWritten = Native.SSL_write(this, buffer.ToArray(), buffer.Length);
+        return await WriteRawAsync(buffer.ToArray(), buffer.Length, cancellationToken);
+    }
+
+    public async ValueTask<int> WriteRawAsync(byte[] buffer, int length, CancellationToken cancellationToken = default)
+    {
+        var unencryptedBytesWritten = Native.SSL_write(this, buffer, length);
 
         if (_bioOutput.PendingBytes > 0)
         {
@@ -122,6 +127,8 @@ public class SslStream : NativeRef
 
             await Stream.WriteAsync(newBuffer.AsMemory(0, bytesRead), cancellationToken);
         }
+
+        return unencryptedBytesWritten;
     }
 
     void SslInfoCallback(IntPtr ssl, int where, int ret)
