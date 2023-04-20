@@ -35,9 +35,9 @@ This project tries to help alter the modern internet to work on really old compu
 
 | Service | Port | Documentation  |
 |---------|------|----------------|
-|    HTTP | 1990 | [**`Docs`**]() |
-|   HTTPS | 9999 | [**`Docs`**]() |
-|     FTP | 1971 | [**`Docs`**]() |
+|    HTTP | 1990 | [**`Docs`**](#http) |
+|   HTTPS | 9999 | [**`Docs`**](#https) |
+|     FTP | 1971 | [**`Docs`**](#ftp) |
 
 Intranet & Settings
 ------
