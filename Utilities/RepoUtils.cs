@@ -8,7 +8,7 @@ internal static class RepoUtils
     {
         var repos = new Dictionary<string, Tuple<string, string>>
         {
-            { "downloads", new Tuple<string, string>("Downloads Folder", VFS.DownloadPath) },
+            { "downloads", new Tuple<string, string>("Downloads Folder", VFS.DownloadsPath) },
         };
 
         return repos;

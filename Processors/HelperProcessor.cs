@@ -16,6 +16,7 @@ internal static class HelperProcessor
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
+        await Task.Delay(0);
         //if (CompatDomains.Contains(req.Host))
         //{
         //    switch (req.Host)

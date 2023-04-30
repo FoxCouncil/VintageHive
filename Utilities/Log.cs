@@ -1,7 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using VintageHive.Data.Types;
-
 namespace VintageHive.Utilities;
 
 internal static class Log
@@ -32,7 +30,7 @@ internal static class Log
     {
         Mind.Db?.WriteLog(logItem);
 
-        if (logItem.Level == LEVEL_DEBUG)
+        if (logItem.Level == LEVEL_DEBUG || logItem.Level == LEVEL_REQUEST)
         {
             return;
         }

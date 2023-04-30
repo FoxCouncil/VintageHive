@@ -8,6 +8,8 @@ public static class ConfigNames
 
     public const string PortHttp = "porthttp";
 
+    public const string PortHttps = "porthttps";
+
     public const string PortFtp = "portftp";
 
     public const string PortSocks5 = "portsocks5";

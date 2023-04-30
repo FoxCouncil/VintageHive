@@ -15,7 +15,7 @@ public abstract class Controller
 
     internal dynamic Session => Response.Session;
 
-    readonly Dictionary<string, MethodInfo> _methods;
+    readonly Dictionary<string, MethodInfo> methods;
 
     public Controller()
     {
@@ -23,7 +23,7 @@ public abstract class Controller
 
         var rootDirectory = type.Name.ToLower().Replace("controller", string.Empty);
 
-        _methods = type
+        methods = type
             .GetMethods()
             .Where(y => y.GetCustomAttributes().OfType<RouteAttribute>().Any())
             .ToDictionary(z => z.GetCustomAttribute<RouteAttribute>().Path);
@@ -38,9 +38,9 @@ public abstract class Controller
     {
         await CallInitial(rawPath);
 
-        if (!Response.Handled && _methods.ContainsKey(rawPath))
+        if (!Response.Handled && methods.TryGetValue(rawPath, out MethodInfo value))
         {
-            await (Task)_methods[rawPath].Invoke(this, null);
+            await (Task)value.Invoke(this, null);
         }
     }
 }

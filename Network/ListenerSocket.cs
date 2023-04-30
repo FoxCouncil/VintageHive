@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Net.Sockets;
 using VintageHive.Proxy.Security;
 
 namespace VintageHive.Network;

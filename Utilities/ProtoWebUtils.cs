@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using HtmlAgilityPack;
-using VintageHive.Data.Types;
 
 namespace VintageHive.Utilities
 {
@@ -21,7 +20,7 @@ namespace VintageHive.Utilities
 
         const string RequestUri = "http://www.inode.com/cgi-bin/sites.cgi";
 
-        static readonly object _lock = new();
+        static readonly object lockObj = new();
 
         public static async Task UpdateSiteLists()
         {

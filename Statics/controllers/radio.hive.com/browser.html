@@ -1,0 +1,64 @@
+﻿{% assign title = "Browser" %}
+<html>
+    <head>
+        <title>Radio Hive - {{ title }}</title>
+    </head>
+    <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+        <basefont face="Arial">
+
+        {% include 'partials/header.html' %}
+
+        {% if error %}
+
+        <h1>Radio Browser Error!</h1>
+        <h3>{{ error }}</h3>
+        <h1><a href="/browser.html">&lt; Go Back</a></h1>
+
+        {% endif %}
+
+        {% if station %}
+
+            {% include 'partials/stationdetails.html' %}
+
+        {% endif %}
+
+        {% if searchterm %}
+
+            {% include 'partials/searchresults.html' %}
+
+        {% endif %}
+
+        {% if countryname %}
+
+            {% include 'partials/stationcountry.html' %}
+
+        {% endif %}
+
+        {% if tagname %}
+
+            {% include 'partials/stationtag.html' %}
+
+        {% endif %}
+
+        {% if countrylist %}
+
+            {% include 'partials/listcountries.html' %}
+
+        {% endif %}
+
+        {% if taglist %}
+
+            {% include 'partials/listtags.html' %}
+
+        {% endif %}
+
+        {% if stations %}
+
+            {% include 'partials/stationglobal.html' %}
+
+        {% endif %}
+
+        {% include 'partials/footer.html' %}
+
+    </body>
+</html>

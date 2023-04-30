@@ -5,8 +5,6 @@ using HeyRed.Mime;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Dynamic;
-using System.Net.Sockets;
-using System.Text.Json;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Http;
@@ -61,7 +59,7 @@ public sealed class HttpResponse
 
     public string ErrorMessage { get; set; }
 
-    Dictionary<string, string> _deltaCookies = new();
+    readonly Dictionary<string, string> deltaCookies = new();
 
     public HttpResponse(HttpRequest request)
     {
@@ -200,10 +198,7 @@ public sealed class HttpResponse
         {
             foundUri = Request.Headers["Referer"];
         }
-        else if (foundUri == null)
-        {
-            foundUri = "/";
-        }
+        else foundUri ??= "/";
 
         StatusCode = HttpStatusCode.Found;
 
@@ -226,7 +221,7 @@ public sealed class HttpResponse
             return this;
         }
 
-        _deltaCookies.Add(name, content);
+        deltaCookies.Add(name, content);
 
         return this;
     }
@@ -237,7 +232,7 @@ public sealed class HttpResponse
 
         outputBuilder.Append($"{Version} {(int)StatusCode} {StatusCode}{HttpSeperator}");
 
-        foreach (var newCookie in _deltaCookies)
+        foreach (var newCookie in deltaCookies)
         {
             Headers.Add("Set-Cookie", $"{newCookie.Key}={newCookie.Value}");
         }

@@ -1,11 +1,11 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using AngleSharp.Text;
 using Fluid;
 using Fluid.Ast;
 using Fluid.Values;
 using HeyRed.Mime;
 using Humanizer;
-using System.Net.Sockets;
 using System.Web;
 using VintageHive.Processors.LocalServer;
 using VintageHive.Proxy.Ftp;
@@ -21,6 +21,7 @@ internal static class LocalServerProcessor
     static LocalServerProcessor()
     {
         TemplateOptions.Default.MemberAccessStrategy = new UnsafeMemberAccessStrategy();
+
         TemplateOptions.Default.Filters.AddFilter("bytes", (input, arguments, context) =>
         {
             return StringValue.Create(((long)input.ToNumberValue()).Bytes().Humanize());
@@ -33,7 +34,6 @@ internal static class LocalServerProcessor
         {
             return StringValue.Create(WeatherUtils.ConvertWmoCodeToString((int)input.ToNumberValue()));
         });
-
         TemplateOptions.Default.Filters.AddFilter("pathlinksplit", (input, arguments, context) =>
         {
             var path = input.ToStringValue();
@@ -57,6 +57,24 @@ internal static class LocalServerProcessor
             }
 
             return StringValue.Create("/" + string.Join('/', pathParts) + "/");
+        });
+        TemplateOptions.Default.Filters.AddFilter("tag_parse", (input, arguments, context) =>
+        {
+            var tags = input.ToStringValue().Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+            if (!tags.Any())
+            {
+                return StringValue.Empty;
+            }
+
+            var sb = new StringBuilder();
+            
+            foreach (var tag in tags)
+            {
+                sb.Append($"| <a href=\"/browser.html?tag={HttpUtility.UrlEncode(tag)}\">{tag.ApplyCase(LetterCasing.Sentence)}</a> ");
+            }
+
+            return StringValue.Create(sb.ToString().Trim()[2..]);
         });
 
         fluidParser.RegisterEmptyTag("displayMessage", static async (writer, encoder, context) =>
@@ -602,7 +620,7 @@ internal static class LocalServerProcessor
 
         var requestFilePath = Path.Combine("controllers/", req.Uri.Host+"/", Path.IsPathRooted(fileRequestPath) ? fileRequestPath[1..] : fileRequestPath);
         
-        var isReplacedFile = VFS.FileExists(requestFilePath);
+        var isReplacedFile = VFS.FileExists(VFS.GetVirtualPath(VFS.StaticsPath, requestFilePath));
         
         var resourceFile = "";
 
@@ -618,13 +636,14 @@ internal static class LocalServerProcessor
             }
         }
 
+        var vfsPath = VFS.GetVirtualPath(VFS.StaticsPath, requestFilePath);
         var mimetype = MimeTypesMap.GetMimeType(requestFilePath);
 
         switch (mimetype)
         {
             case "text/html":
             {
-                var source = isReplacedFile ? await VFS.FileReadStringAsync(requestFilePath) : Resources.GetStaticsResourceString(resourceFile);
+                var source = isReplacedFile ? await VFS.FileReadStringAsync(vfsPath) : Resources.GetStaticsResourceString(resourceFile);
 
                 if (fluidParser.TryParse(source, out var template, out var error))
                 {
@@ -639,7 +658,7 @@ internal static class LocalServerProcessor
 
             default:
             {
-                res.SetBodyData(isReplacedFile ? await VFS.FileReadDataAsync(requestFilePath) : Resources.GetStaticsResourceData(resourceFile), mimetype);
+                res.SetBodyData(isReplacedFile ? await VFS.FileReadDataAsync(vfsPath) : Resources.GetStaticsResourceData(resourceFile), mimetype);
             }
             break;
         }

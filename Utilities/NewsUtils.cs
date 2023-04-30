@@ -3,7 +3,6 @@
 using SmartReader;
 using System.ServiceModel.Syndication;
 using System.Xml;
-using VintageHive.Data.Types;
 
 namespace VintageHive.Utilities;
 

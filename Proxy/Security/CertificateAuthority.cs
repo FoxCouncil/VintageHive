@@ -2,7 +2,6 @@
 
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
-using VintageHive.Data.Types;
 
 namespace VintageHive.Proxy.Security;
 
@@ -16,15 +15,11 @@ public static class CertificateAuthority
 
     const int ValidityPeriodYearsCERT = 25;
 
-    static X509Certificate2 _caCertificate;
-
-    // private readonly string _caCertificatePem;
-
-    // private readonly RSA _caPrivateKey;
+    static X509Certificate2 caCertificate;
 
     public static void Init()
     {
-        if (_caCertificate != null)
+        if (caCertificate != null)
         {
             throw new ApplicationException("No, no, no, don't run twice.");
         }
@@ -33,13 +28,7 @@ public static class CertificateAuthority
         
         if (caCert != null && !string.IsNullOrEmpty(caCert.Certificate) && !string.IsNullOrEmpty(caCert.Key))
         {
-            //_caCertificatePem = File.ReadAllText(FILE_PEM_CA_CERT);
-            //var keyPem = File.ReadAllText(FILE_PEM_CA_KEY);
-
-            _caCertificate = X509Certificate2.CreateFromPem(caCert.Certificate, caCert.Key);
-
-            //_caPrivateKey = RSA.Create();
-            //_caPrivateKey.ImportFromPem(keyPem);
+            caCertificate = X509Certificate2.CreateFromPem(caCert.Certificate, caCert.Key);
         }
         else
         {
@@ -51,10 +40,10 @@ public static class CertificateAuthority
             request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
             request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, false));
 
-            _caCertificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(ValidityPeriodYearsCA));
+            caCertificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(ValidityPeriodYearsCA));
 
-            var certPem = new string(PemEncoding.Write("CERTIFICATE", _caCertificate.RawData));
-            var keyPem = new string(PemEncoding.Write("PRIVATE KEY", _caCertificate.GetRSAPrivateKey().ExportPkcs8PrivateKey()));
+            var certPem = new string(PemEncoding.Write("CERTIFICATE", caCertificate.RawData));
+            var keyPem = new string(PemEncoding.Write("PRIVATE KEY", caCertificate.GetRSAPrivateKey().ExportPkcs8PrivateKey()));
 
             caCert = new SslCertificate(certPem, keyPem);
 
@@ -87,7 +76,7 @@ public static class CertificateAuthority
 
         var serialNumber = GenerateSerialNumber();
 
-        var domainCertificate = request.Create(_caCertificate, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(ValidityPeriodYearsCERT), serialNumber);
+        var domainCertificate = request.Create(caCertificate, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(ValidityPeriodYearsCERT), serialNumber);
 
         var certPem = new string(PemEncoding.Write("CERTIFICATE", domainCertificate.RawData));
         var keyPem = new string(PemEncoding.Write("PRIVATE KEY", rsaKey.ExportPkcs8PrivateKey()));

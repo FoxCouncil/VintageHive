@@ -2,8 +2,6 @@
 
 using Microsoft.Data.Sqlite;
 using System.Dynamic;
-using System.Text.Json;
-using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
 
@@ -38,6 +36,7 @@ internal class HiveDbContext : DbContextBase
         // Networking Settings
         { ConfigNames.IpAddress, IPAddress.Any.ToString() },
         { ConfigNames.PortHttp, 1990 },
+        { ConfigNames.PortHttps, 9999 },
         { ConfigNames.PortFtp, 1971 },
         { ConfigNames.PortSocks5, 1996 },
 

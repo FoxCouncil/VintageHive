@@ -1,6 +1,5 @@
 // Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Net.Sockets;
 using VintageHive.Network;
 using VintageHive.Proxy.Security;
 using static VintageHive.Proxy.Http.HttpUtilities;
@@ -172,7 +171,7 @@ public class HttpProxy : Listener
 
         Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), $"ERROR {(int)statusCode}{(exception != null ? $": {exception}" : "")}");
 
-        Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $" Unhandled Request {(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
+        Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"{(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
 
         if (!ErrorPages.ContainsKey(statusCode))
         {

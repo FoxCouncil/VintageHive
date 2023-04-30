@@ -4,26 +4,38 @@ namespace VintageHive.Utilities;
 
 public static class VFS
 {
-    public static readonly string AppDirectory = AppDomain.CurrentDomain.BaseDirectory;
+    public const string DebugStaticsPathHelper = "../../../../Statics/";
+
+    public const string BasePath = "vfs/";
+
+    public const string DataPath = "data/";
+
+    public const string StaticsPath = "statics/";
+
+    public const string DownloadsPath = "downloads/";
+
+    public const string HostingPath = "hosting/";
+
+    private static readonly string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
     // The base directory to store all changeable and user play-with-able files, in a FileSystem agnostic way
-    public static readonly string FilesPath = Path.Combine(AppDirectory, "vfs");
-
-    // Used to put files up for download quickly from local hive site
-    public static readonly string DownloadPath = Path.Combine(FilesPath, "downloads");
-
-    // Used to alter/extend already existing "internal" websites or host global assets
-    public static readonly string StaticsPath = Path.Combine(FilesPath, "statics");
+    private static readonly string filesPath = Path.Combine(appDirectory, "vfs");
 
     // Used to store all read/write SQLite database files
-    public static readonly string DataPath = Path.Combine(FilesPath, "data");
+    private static readonly string dataPath = Path.Combine(filesPath, "data");
+
+    // Used to alter/extend already existing "internal" websites or host global assets
+    private static readonly string staticsPath = Path.Combine(filesPath, "statics");
+
+    // Used to put files up for download quickly from local hive site
+    private static readonly string downloadsPath = Path.Combine(filesPath, "downloads");
 
     // Used to emulate an ISP, with domain support
-    public static readonly string HostingPath = Path.Combine(FilesPath, "hosting");
+    private static readonly string hostingPath = Path.Combine(filesPath, "hosting");
 
     public static void Init()
     {
-        var systemDirectories = new[] { FilesPath, DownloadPath, StaticsPath, DataPath, HostingPath };
+        var systemDirectories = new[] { filesPath, downloadsPath, staticsPath, dataPath, hostingPath };
 
         foreach (var directory in systemDirectories)
         {
@@ -137,7 +149,6 @@ public static class VFS
         return File.OpenRead(combinedPath);
     }
 
-
     public static async Task<byte[]> FileReadDataAsync(string filePath)
     {
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
@@ -180,7 +191,17 @@ public static class VFS
         File.Move(combinedFromPath, combinedToPath);
     }
 
-    static bool TryGetFileSystemPath(string virtualPath, out string fileSystemPath, string traceId = "")
+    public static string GetVirtualPath(string location, string filePath)
+    {
+        return Path.GetFullPath(Path.Combine(location, filePath)).Replace(appDirectory, string.Empty);
+    }
+
+    internal static string GetFullPath(string location)
+    {
+        return Path.GetFullPath(Path.Combine(filesPath, location));
+    }
+
+    private static bool TryGetFileSystemPath(string virtualPath, out string fileSystemPath, string traceId = "")
     {
         fileSystemPath = null;
 
@@ -191,12 +212,23 @@ public static class VFS
             return false;
         }
 
-        fileSystemPath = Path.GetFullPath(Path.Combine(FilesPath, virtualPath));
+        var possibleDebugPath = Path.Combine(appDirectory, VFS.DebugStaticsPathHelper);
+
+        if (virtualPath.StartsWith(StaticsPath[..^1]) && Directory.Exists(possibleDebugPath) && Mind.IsDebug && !Mind.IsDocker)
+        {
+            var pathNegateLength = StaticsPath.Length;
+
+            fileSystemPath = Path.GetFullPath(Path.Combine(possibleDebugPath, virtualPath[pathNegateLength..]));
+        }
+        else
+        {
+            fileSystemPath = Path.GetFullPath(Path.Combine(filesPath, virtualPath));
+        }
 
         return true;
     }
 
-    static bool CheckPathIntegrity(string path)
+    private static bool CheckPathIntegrity(string path)
     {
         if (Path.IsPathRooted(path))
         {

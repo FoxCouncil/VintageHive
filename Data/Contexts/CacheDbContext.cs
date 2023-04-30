@@ -25,6 +25,8 @@ internal class CacheDbContext : DbContextBase
 
         CreateTable("weather", "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
+        CreateTable("radiobrowser", "key TEXT UNIQUE, ttl TEXT, value TEXT");
+
         CreateTable("data", "key TEXT UNIQUE, ttl TEXT, value TEXT");
     }
 
@@ -53,7 +55,7 @@ internal class CacheDbContext : DbContextBase
             return reader.GetString(0);
         });
     }
-    
+
     internal void SetHttpProxy(string url, TimeSpan ttl, string value)
     {
         WithContext(context =>
@@ -357,7 +359,7 @@ internal class CacheDbContext : DbContextBase
             deleteCommand.ExecuteNonQuery();
 
             foreach (var url in values)
-            { 
+            {
                 using var insertCommand = context.CreateCommand();
 
                 insertCommand.CommandText = "INSERT INTO protowebsitelist (url, protocol) VALUES(@url, @protocol)";
@@ -494,6 +496,76 @@ internal class CacheDbContext : DbContextBase
         });
     }
 
+    internal async Task<T> Do<T>(string key, TimeSpan ttl, Func<Task<T>> func)
+    {
+        return await WithContextAsync<T>(async context =>
+        {
+            key = key.ToLowerInvariant();
+
+            var command = context.CreateCommand();
+
+            command.CommandText = "SELECT value, ttl FROM data WHERE key = @key";
+
+            command.Parameters.Add(new SqliteParameter("@key", key));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read() || reader.GetDateTime(1) <= DateTime.UtcNow)
+            {
+                var data = await func();
+
+                string stringData;
+
+                if (data is string)
+                {
+                    stringData = data as string;
+                }
+                else
+                {
+                    stringData = JsonSerializer.Serialize(data);
+                }
+
+                using var transaction = context.BeginTransaction();
+
+                using var updateCommand = context.CreateCommand();
+
+                var futureTtl = DateTime.UtcNow + ttl;
+
+                updateCommand.CommandText = "UPDATE data SET value = @value, ttl = @ttl WHERE key = @key";
+
+                updateCommand.Parameters.Add(new SqliteParameter("@key", key));
+                updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTtl));
+                updateCommand.Parameters.Add(new SqliteParameter("@value", stringData));
+
+                if (updateCommand.ExecuteNonQuery() == 0)
+                {
+                    using var insertCommand = context.CreateCommand();
+
+                    insertCommand.CommandText = "INSERT INTO data (key, ttl, value) VALUES(@key, @ttl, @value)";
+
+                    insertCommand.Parameters.Add(new SqliteParameter("@key", key));
+                    insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTtl));
+                    insertCommand.Parameters.Add(new SqliteParameter("@value", stringData));
+
+                    insertCommand.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+
+                return data;
+            }
+
+            if (typeof(T) == string.Empty.GetType())
+            {
+                return (T)reader.GetValue(0);
+            }
+            else
+            {
+                return JsonSerializer.Deserialize<T>(reader.GetString(0));
+            }
+        });
+    }
+
     internal Dictionary<string, uint> GetCounters()
     {
         return WithContext<Dictionary<string, uint>>(context =>
@@ -542,7 +614,7 @@ internal class CacheDbContext : DbContextBase
         else
         {
             throw new Exception("This should never happen");
-        }   
+        }
 
         WithContext(context =>
         {

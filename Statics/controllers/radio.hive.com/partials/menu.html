@@ -1,0 +1,4 @@
+﻿<a href="/">{% if title == "Home" %}<b>[ Home ]</b>{% else %}Home{% endif %}</a>
+{% for link in menu %}
+| <a href="{{ link | downcase }}.html">{% if link == title %}<b>[ {{ link }} ]</b>{% else %}{{ link }}{% endif %}</a>
+{% endfor %}

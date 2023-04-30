@@ -9,9 +9,9 @@ namespace VintageHive.Processors.LocalServer;
 
 internal static class ControllerManager
 {
-    static readonly Dictionary<DomainAttribute, Type> _controllers = new();
+    static readonly Dictionary<DomainAttribute, Type> controllers = new();
 
-    static readonly Parser _parser = Parser.FromYaml(Resources.GetStaticsResourceString("ua-regexes.yaml"));
+    static readonly Parser parser = Parser.FromYaml(Resources.GetStaticsResourceString("ua-regexes.yaml"));
 
     static ControllerManager()
     {
@@ -23,7 +23,7 @@ internal static class ControllerManager
 
             foreach (var domain in domains)
             {
-                _controllers.Add(domain, controller);
+                ControllerManager.controllers.Add(domain, controller);
             }
         }
     }
@@ -32,7 +32,7 @@ internal static class ControllerManager
     {
         controller = null;
 
-        var domainKeys = _controllers.Keys.Where(x => x.Domain.EndsWith(domain))?.ToList() ?? null;
+        var domainKeys = controllers.Keys.Where(x => x.Domain.EndsWith(domain))?.ToList() ?? null;
 
         if (domainKeys == null)
         {
@@ -46,7 +46,7 @@ internal static class ControllerManager
 
         if (domainKeys.Count == 1)
         {
-            controller = _controllers[domainKeys[0]];
+            controller = controllers[domainKeys[0]];
         }
         else
         {
@@ -54,7 +54,7 @@ internal static class ControllerManager
 
             if (exactMatch != null)
             {
-                controller = _controllers[exactMatch];
+                controller = controllers[exactMatch];
             }
             else
             {
@@ -65,7 +65,7 @@ internal static class ControllerManager
                     return false;
                 }
 
-                controller = _controllers[wildcardMatch];
+                controller = controllers[wildcardMatch];
             }
         }
 
@@ -92,7 +92,7 @@ internal static class ControllerManager
 
         controller.Response.Context.SetValue("appversion", Mind.ApplicationVersion);
 
-        var clientInfo = _parser.Parse(request.UserAgent);
+        var clientInfo = parser.Parse(request.UserAgent);
 
         controller.Response.Context.SetValue("clientip", request.ListenerSocket.RemoteIP);
         controller.Response.Context.SetValue("browserversion", clientInfo.UA.ToString());

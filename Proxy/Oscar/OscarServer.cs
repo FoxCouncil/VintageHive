@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Net.Sockets;
 using VintageHive.Proxy.Oscar.Services;
 using VintageHive.Network;
 
@@ -36,11 +35,11 @@ public class OscarServer : Listener
         Data = new byte[] { 0x00, 0x00, 0x00, 0x01 }
     };
 
-    readonly List<IOscarService> _services;
+    readonly List<IOscarService> services;
 
     public OscarServer(IPAddress listenAddress) : base(listenAddress, 5190, SocketType.Stream, ProtocolType.Tcp, false) 
     {
-        _services = new()
+        services = new()
         {
             new OscarGenericServiceControls(this),
             new OscarLocationService(this),
@@ -105,7 +104,7 @@ public class OscarServer : Listener
 
                         Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"-> {snacPacket}", connection.TraceId.ToString());
 
-                        var familyProcessor = _services.FirstOrDefault(x => x.Family == snacPacket.Family);
+                        var familyProcessor = services.FirstOrDefault(x => x.Family == snacPacket.Family);
 
                         if (familyProcessor != null)
                         {
@@ -122,7 +121,7 @@ public class OscarServer : Listener
 
                     case FlapFrameType.SignOff:
                     {
-                        var blmService = (OscarBuddyListService)_services.FirstOrDefault(x => x.Family == OscarBuddyListService.FAMILY_ID);
+                        var blmService = (OscarBuddyListService)services.FirstOrDefault(x => x.Family == OscarBuddyListService.FAMILY_ID);
 
                         await blmService.ProcessOfflineNotifications(session);
 
@@ -148,7 +147,7 @@ public class OscarServer : Listener
         session.ScreenName = storedSession.ScreenName;
         session.UserAgent = storedSession.UserAgent;
 
-        var genericServiceControls = _services.FirstOrDefault(x => x.Family == OscarGenericServiceControls.FAMILY_ID);
+        var genericServiceControls = services.FirstOrDefault(x => x.Family == OscarGenericServiceControls.FAMILY_ID);
 
         await genericServiceControls.ProcessSnac(session, new Snac(genericServiceControls.Family, OscarGenericServiceControls.SRV_FAMILIES));
     }

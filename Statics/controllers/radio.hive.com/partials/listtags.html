@@ -1,0 +1,39 @@
+﻿<table cellspacing="2" cellpadding="2" width="100%">
+    <tr>
+        <td colspan="8">
+            <table width="100%">
+                <tr>
+                    <td valign="middle">
+                        <img border="0" height="11" src="http://hive.com/img/icons/tag_pink.gif">
+                        Tags List |
+                        <a href="/browser.html">View Station</a> |
+                        <a href="/browser.html?list=countries">Countries</a>
+                    </td>
+                    <td align="right">
+                        <form action="browser.html" method="GET" style="margin:0;padding:0;">
+                            <input type="text" name="q" value="{{ Request.QueryParams["q"] }}" width="10">
+                            <input type="submit" value="Search">
+                        </form>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr bgcolor="purple">
+        <td align="center"><font face="Courier New" size="-1"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Name</font></td>
+        <td align="center"><font face="Courier New" size="-1">Stations</font></td>
+    </tr>
+    {% for tag in taglist %}
+    <tr bgcolor="#333333">
+        <td valign="middle" align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
+        <td valign="middle" width="90%"><img border="0" height="11" src="http://hive.com/img/icons/tag_pink.gif"> <a href="/browser.html?tag={{ tag.Name | downcase }}"><font size="-1">{{ tag.Name | capitalize }}</font></a></td>
+        <td valign="middle" align="center"><font face="Courier New" size="-1">{{ tag.Stationcount | format_number:"N0" }}</font></td>
+    </tr>
+    {% endfor %}
+    <tr bgcolor="purple">
+        <td align="center"><font face="Courier New" size="-1"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Name</font></td>
+        <td align="center"><font face="Courier New" size="-1">Stations</font></td>
+    </tr>
+</table>

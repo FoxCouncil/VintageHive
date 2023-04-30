@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Text.RegularExpressions;
-using VintageHive.Data.Types;
 
 namespace VintageHive.Utilities;
 
@@ -39,7 +38,7 @@ internal static class DDGUtils
 
         var rawouput = await response.Content.ReadAsStringAsync();
 
-        var searchResults = System.Text.Json.JsonSerializer.Deserialize<DDGResults>(rawouput);
+        var searchResults = JsonSerializer.Deserialize<DDGResults>(rawouput);
 
         var output = new List<SearchResult>();
 

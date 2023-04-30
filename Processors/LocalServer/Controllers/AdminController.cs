@@ -1,8 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Fluid;
-using System.Text.Json;
-using VintageHive.Data.Types;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 

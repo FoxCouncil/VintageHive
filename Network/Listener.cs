@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
-using System.Net.Sockets;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;
 
@@ -49,7 +48,18 @@ public abstract class Listener
 
     public void Start()
     {
-        ProcessThread = new Thread(new ThreadStart(Run));
+        var name = GetType().Name;
+
+        if (IsSecure)
+        {
+            name += " [SSL]";
+        }
+
+        ProcessThread = new Thread(new ThreadStart(Run))
+        {
+            Name = GetType().Name
+        };
+
         ProcessThread.Start();
     }
 
@@ -204,11 +214,11 @@ public abstract class Listener
 
                         connection.Close();
                     }
-                    //catch (Exception ex) when (ex is SocketException || ex is IOException)
-                    //{
-                    //    /* Ignore */
-                    //    // Display.WriteLog("Socket Exception: \n\n" + sex.Message);
-                    //}
+                    catch (Exception ex) when (ex is SocketException || ex is IOException)
+                    {
+                        /* Ignore */
+                        // Display.WriteLog("Socket Exception: \n\n" + sex.Message);
+                    }
                     catch (Exception ex)
                     {
                         Log.WriteException(GetType().Name, ex, listenerSocket.TraceId.ToString());

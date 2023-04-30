@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
 namespace VintageHive.Proxy.Security;
@@ -13,13 +12,13 @@ public class SslStream : NativeRef
 
     internal NetworkStream Stream { get; }
 
-    readonly BasicInputOutput _bioInput;
+    readonly BasicInputOutput bioInput;
 
-    readonly BasicInputOutput _bioOutput;
+    readonly BasicInputOutput bioOutput;
 
-    HandshakeState _handshakeState = HandshakeState.None;
+    HandshakeState handshakeState = HandshakeState.None;
 
-    SslStreamCallback _callback;
+    SslStreamCallback callback;
 
     public SslStream(SslContext context, NetworkStream stream) : base(Native.SSL_new(context))
     {
@@ -39,17 +38,17 @@ public class SslStream : NativeRef
 
         SetAcceptState();
 
-        _bioInput = new BasicInputOutput();
-        _bioInput.SetClosed();
+        bioInput = new BasicInputOutput();
+        bioInput.SetClosed();
 
-        _bioOutput = new BasicInputOutput();
-        _bioOutput.SetClosed();
+        bioOutput = new BasicInputOutput();
+        bioOutput.SetClosed();
 
-        Native.SSL_set_bio(this, _bioInput, _bioOutput);
+        Native.SSL_set_bio(this, bioInput, bioOutput);
 
-        _callback = new SslStreamCallback(SslInfoCallback);
+        callback = new SslStreamCallback(SslInfoCallback);
 
-        Native.SSL_set_info_callback(this, Marshal.GetFunctionPointerForDelegate(_callback));
+        Native.SSL_set_info_callback(this, Marshal.GetFunctionPointerForDelegate(callback));
 
         var ret = SetAccept();
     }
@@ -58,9 +57,9 @@ public class SslStream : NativeRef
     {
         Native.SSL_free(Handle);
 
-        GC.KeepAlive(_callback);
+        GC.KeepAlive(callback);
 
-        _callback = null;
+        callback = null;
     }
 
     public void UseCertificate(X509Certificate cert)
@@ -95,7 +94,7 @@ public class SslStream : NativeRef
 
         if (encryptedBytesRead != 0)
         {
-            _bioInput.Write(buffer.ToArray(), encryptedBytesRead);
+            bioInput.Write(buffer.ToArray(), encryptedBytesRead);
         }
 
         var newBuffer = new byte[4096];
@@ -104,7 +103,7 @@ public class SslStream : NativeRef
 
         if (unencryptedBytesRead == -1)
         {
-            var error = Native.SSL_get_error(this, unencryptedBytesRead);
+            Native.CheckResultSuccess(Native.SSL_get_error(this, unencryptedBytesRead));
         }
 
         newBuffer.CopyTo(buffer);
@@ -121,11 +120,11 @@ public class SslStream : NativeRef
     {
         var unencryptedBytesWritten = Native.SSL_write(this, buffer, length);
 
-        if (_bioOutput.PendingBytes > 0)
+        if (bioOutput.PendingBytes > 0)
         {
-            var newBuffer = new byte[_bioOutput.PendingBytes];
+            var newBuffer = new byte[bioOutput.PendingBytes];
 
-            var bytesRead = _bioOutput.Read(newBuffer, newBuffer.Length);
+            var bytesRead = bioOutput.Read(newBuffer, newBuffer.Length);
 
             await Stream.WriteAsync(newBuffer.AsMemory(0, bytesRead), cancellationToken);
         }
@@ -137,11 +136,11 @@ public class SslStream : NativeRef
     {
         if (where == Native.SSL_CB_HANDSHAKE_START)
         {
-            _handshakeState = HandshakeState.Started;
+            handshakeState = HandshakeState.Started;
         }
         else if (where == Native.SSL_CB_HANDSHAKE_DONE)
         {
-            _handshakeState = HandshakeState.Done;
+            handshakeState = HandshakeState.Done;
         }
         else if (where == Native.SSL_CB_READ_ALERT)
         {
@@ -180,7 +179,7 @@ public class SslStream : NativeRef
         var buffer = new byte[1024];
         var tick = 5;
 
-        while (_handshakeState != HandshakeState.Done)
+        while (handshakeState != HandshakeState.Done)
         {
             if (tick == 0)
             {
@@ -200,7 +199,7 @@ public class SslStream : NativeRef
         {
             var read = Stream.Read(buffer, 0, buffer.Length);
 
-            _bioInput.Write(buffer, read);
+            bioInput.Write(buffer, read);
 
             var ret = Native.SSL_do_handshake(this);
 
@@ -222,9 +221,9 @@ public class SslStream : NativeRef
 
         void HandshakeWriteSocket(byte[] buffer)
         {
-            while (_bioOutput.PendingBytes > 0)
+            while (bioOutput.PendingBytes > 0)
             {
-                var bytesRead = _bioOutput.Read(buffer, buffer.Length);
+                var bytesRead = bioOutput.Read(buffer, buffer.Length);
 
                 Stream.Write(buffer, 0, bytesRead);
             }

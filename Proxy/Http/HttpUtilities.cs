@@ -61,6 +61,12 @@ namespace VintageHive.Proxy.Http
             public static class Audio
             {
                 public const string Mpeg = "audio/mpeg";
+
+                public const string Aac = "audio/aac";
+
+                public const string Aacp = "audio/aacp";
+
+                public const string Mp4 = "audio/mp4";
             }
 
             public static class Application

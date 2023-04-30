@@ -1,7 +1,10 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace VintageHive.Data.Types;
 
+[SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "External Dependency Data Name Contract")]
 public class GeoIp
 {
     public string status { get; set; }

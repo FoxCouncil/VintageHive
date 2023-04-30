@@ -1,0 +1,64 @@
+﻿<table cellspacing="2" cellpadding="2" width="100%">
+    <tr>
+        <td colspan="8">
+            <table width="100%">
+                <tr>
+                    <td valign="middle">
+                        <img border="0" height="11" src="http://hive.com/img/country/{{ countrycode | downcase }}.gif">
+                        {{ countryname }} Stations |
+                        <a href="/browser.html">View All</a> |
+                        <a href="/browser.html?list=countries">Countries</a> |
+                        <a href="/browser.html?list=tags">Tags</a>
+                    </td>
+                    <td align="right">
+                        <form action="browser.html" method="GET" style="margin:0;padding:0;">
+                            <input type="text" name="q" value="{{ Request.QueryParams["q"] }}" width="10">
+                            <input type="submit" value="Search">
+                        </form>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr bgcolor="purple">
+        <td align="center"><font face="Courier New" size="-1"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Play</font></td>
+        <td align="center"><font face="Courier New" size="-1"><img src="http://radio.hive.com/img/radio.gif" width="20" height="20"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Title</font></td>
+        <td align="center"><font face="Courier New" size="-1"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Codec</font></td>
+        <td align="center"><font face="Courier New" size="-1">kbps</font></td>
+        <td align="center"><font face="Courier New" size="-1">Clicks</font></td>
+    </tr>
+    {% for station in stationsbycountry %}
+    <tr bgcolor="#333333">
+        <td width="24" valign="middle" align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
+        <td width="50" valign="middle" align="center">
+            <a href="/browser.pls?id={{ station.Stationuuid }}"><img src="/img/winamp.gif" alt="Winamp - {{ station.Name }}" border="0"></a>
+            <a href="/browser.asx?id={{ station.Stationuuid }}"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Name }}" border="0"></a>
+        </td>
+        <td valign="middle" align="center"><img src="http://api.hive.com/image/fetch?url={{ station.Favicon }}&fburl=http://radio.hive.com/img/radio.gif" width="20" height="20" border="0"></td>
+        <td valign="middle" width="70%"><a href="/browser.html?id={{ station.Stationuuid }}"><font size="-1">{{ station.Name }}</font></a></td>
+        <td valign="middle" align="center">
+            {% if station.Countrycode != "" %}
+            <a href="/browser.html?country={{ station.Countrycode | downcase }}">
+                <img border="0" height="11" src="http://hive.com/img/country/{{ station.Countrycode | downcase }}.gif">
+            </a>
+            {% endif %}
+        </td>
+        <td valign="middle" align="center" width="50"><font face="Courier New" size="-1">{{ station.Codec }}</font></td>
+        <td valign="middle" align="center"><font face="Courier New" size="-1">{{ station.Bitrate }}</font></td>
+        <td valign="middle" align="center"><font face="Courier New" size="-1">{{ station.Clickcount | format_number:"N0" }}</font></td>
+    </tr>
+    {% endfor %}
+    <tr bgcolor="purple">
+        <td align="center"><font face="Courier New" size="-1"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Play</font></td>
+        <td align="center"><font face="Courier New" size="-1"><img src="http://radio.hive.com/img/radio.gif" width="20" height="20"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Title</font></td>
+        <td align="center"><font face="Courier New" size="-1"></font></td>
+        <td align="center"><font face="Courier New" size="-1">Codec</font></td>
+        <td align="center"><font face="Courier New" size="-1">kbps</font></td>
+        <td align="center"><font face="Courier New" size="-1">Clicks</font></td>
+    </tr>
+</table>

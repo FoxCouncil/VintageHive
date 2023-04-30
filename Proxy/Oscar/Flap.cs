@@ -12,9 +12,9 @@ public class Flap
 
     public Flap() { }
 
-    public Flap(FlapFrameType _type)
+    public Flap(FlapFrameType type)
     {
-        Type = _type;
+        Type = type;
     }
 
     public Snac GetSnac()
@@ -26,7 +26,7 @@ public class Flap
 
         var decodedSnac = new Snac(OscarUtils.ToUInt16(Data[0..2]), OscarUtils.ToUInt16(Data[2..4]), OscarUtils.ToUInt16(Data[4..6]), OscarUtils.ToUInt32(Data[6..10]));
 
-        decodedSnac.Data.Write(Data[10..]);
+        decodedSnac.Data.Write(Data.AsSpan()[10..]);
 
         return decodedSnac;
     }

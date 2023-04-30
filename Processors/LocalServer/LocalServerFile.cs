@@ -27,15 +27,11 @@ public class LocalServerFile : IFileInfo
 
     public LocalServerFile(string path)
     {
-        PhysicalPath = Path.Combine(VFS.StaticsPath, path);
+        PhysicalPath = VFS.GetVirtualPath(VFS.StaticsPath, path);
+        IsPhysical = VFS.FileExists(PhysicalPath);
+
         VirtualPath = path.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
-
         IsVirtual = Resources.HasFile(VirtualPath);
-
-        if (!IsVirtual)
-        {
-            IsPhysical = VFS.FileExists(PhysicalPath);
-        }
 ;
         Exists = IsVirtual || IsPhysical;
     }

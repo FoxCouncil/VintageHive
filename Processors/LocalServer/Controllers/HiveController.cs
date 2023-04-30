@@ -1,11 +1,11 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using AngleSharp.Io;
 using Fluid;
 using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
 using System.Diagnostics.CodeAnalysis;
-using VintageHive.Data.Types;
 using VintageHive.Proxy.Security;
 using Image = SixLabors.ImageSharp.Image;
 
@@ -20,7 +20,7 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        Response.Context.SetValue("menu", new [] {
+        Response.Context.SetValue("menu", new[] {
             "Download",
             "Search",
             "Viewer",
@@ -69,7 +69,9 @@ internal class HiveController : Controller
             Response.Context.SetValue("reponame", repo.Item1);
             Response.Context.SetValue("reposhortname", reposhortname);
 
-            var directoryInfo = new DirectoryInfo(repo.Item2);
+            var vfsPath = VFS.GetFullPath(repo.Item2);
+
+            var directoryInfo = new DirectoryInfo(repo.Item2 == VFS.DownloadsPath ? vfsPath : repo.Item2);
 
             var isRootPath = true;
 
@@ -106,7 +108,7 @@ internal class HiveController : Controller
             }
 
             Response.Context.SetValue("isroot", isRootPath);
-            
+
             if (!isRootPath)
             {
                 var pathSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
@@ -167,7 +169,7 @@ internal class HiveController : Controller
             if (mimetype.StartsWith("image"))
             {
                 Response.Context.SetValue("type", "image");
-                Response.Context.SetValue("image", $"/api/image/fetch?url={url}");
+                Response.Context.SetValue("image", $"http://api.hive.com/image/fetch?url={url}");
             }
             else
             {
@@ -185,7 +187,7 @@ internal class HiveController : Controller
                 Response.Context.SetValue("doctitle", result.Title);
 
                 articleDocument.LoadHtml(result.Content);
-                
+
                 NormalizeAnchorLinks(articleDocument);
 
                 NormalizeImages(articleDocument);
@@ -241,7 +243,7 @@ internal class HiveController : Controller
 
                 var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
 
-                var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"/api/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
+                var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"http://api.hive.com/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
 
                 if (node.ParentNode.Name == "picture")
                 {
@@ -368,55 +370,6 @@ internal class HiveController : Controller
 
     //    Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound();
     //}
-
-    [Route("/api/image/fetch")]
-    public async Task ImageFetch()
-    {
-        if (!Request.QueryParams.ContainsKey("url"))
-        {
-            Response.SetNotFound();
-
-            Response.Handled = true;
-
-            return;
-        }
-
-        Image image;
-
-        try
-        {
-            var fetchUri = new Uri(Request.QueryParams["url"]);
-
-            byte[] _imageData;
-
-            using var httpClient = HttpClientUtils.GetHttpClient(Request);
-
-            _imageData = await httpClient.GetByteArrayAsync(fetchUri);
-
-            image = Image.Load(_imageData);
-        }
-        catch
-        {
-            Response.SetNotFound();
-
-            Response.Handled = true;
-
-            return;
-        }
-
-        if (image.Size.Width > 800)
-        {
-            image.Mutate(x => x.Resize(800, 0));
-        }
-
-        var memoryStream = new MemoryStream();
-
-        await image.SaveAsJpegAsync(memoryStream);
-
-        Response.SetBodyData(memoryStream.ToArray(), "image/jpeg");
-
-        Response.Handled = true;
-    }
 
     [Route("/api/set")]
     public async Task SetUserSetting()

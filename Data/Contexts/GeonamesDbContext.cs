@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Microsoft.Data.Sqlite;
-using VintageHive.Data.Types;
 
 namespace VintageHive.Data.Contexts;
 
@@ -15,6 +14,27 @@ internal class GeonamesDbContext : DbContextBase
         {
             throw new ApplicationException("GeonamesDB should never be created! It's in the /libs folder!");
         }
+    }
+
+    internal string GetCountryNameByIso(string iso)
+    {
+        return WithContext<string>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = "SELECT Country FROM country WHERE ISO = @iso";
+
+            command.Parameters.Add(new SqliteParameter("@iso", iso.ToUpper()));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            return reader.GetString(0);
+        });
     }
 
     internal GeoIp GetLocationBySearch(string search)

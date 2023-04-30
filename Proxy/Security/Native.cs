@@ -1,9 +1,13 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace VintageHive.Proxy.Security;
 
+[SuppressMessage("Interoperability", "SYSLIB1054:Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time", Justification = "Not ready for the commitment")]
+[SuppressMessage("Interoperability", "CA1401:P/Invokes should not be visible", Justification = "It's an established API, leave me alone.")]
+[SuppressMessage("Globalization", "CA2101:Specify marshaling for P/Invoke string arguments", Justification = "I did? They're ANSI, leave me TF alone! ;.;")]
 public static class Native
 {
     public readonly static Version WrapperVersion = new(0x1000201F); // 1.0.2a

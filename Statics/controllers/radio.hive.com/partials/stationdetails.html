@@ -1,0 +1,56 @@
+﻿<table width="100%">
+    <tr>
+        <td colspan="2"><font size="5">{{ station.Name }}</font><hr></td>
+    </tr>
+    <tr>
+        <td width="145" valign="top"><img src="http://api.hive.com/image/fetch?url={{ station.Favicon }}&fburl=http://radio.hive.com/img/radio.gif" width="145" height="145" border="0"></td>
+        <td align="left" valign="top">
+            <table border="1" bordercolor="#222222" cellspacing="0" cellpadding="4" width="100%">
+                <tr>
+                    <td align="right" width="100">Country:</td>
+                    <td>
+                        <img border="0" height="11" src="http://hive.com/img/country/{{ station.Countrycode | downcase }}.gif">
+                        <a href="/browser.html?country={{ station.Countrycode | downcase }}">{{ station.Country }}</a>
+                    </td>
+                </tr>
+                {% if station.State != "" %}
+                <tr>
+                    <td align="right" width="100">State:</td>
+                    <td>{{ station.State }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td align="right" width="100">Language:</td>
+                    <td>{{ station.Language | capitalize }}</td>
+                </tr>
+                <tr>
+                    <td align="right" width="100">Clicks:</td>
+                    <td>{{ station.Clickcount | format_number:"N0" }}</td>
+                </tr>
+                <tr>
+                    <td align="right" width="100">Codec:</td>
+                    <td>{{ station.Codec }}</td>
+                </tr>
+                <tr>
+                    <td align="right" width="100">Bitrate:</td>
+                    <td>{{ station.Bitrate }}kbps</td>
+                </tr>
+                <tr>
+                    <td align="right" width="100">Last OK:</td>
+                    <td>{{ station.Lastcheckoktime }}</td>
+                </tr>
+                <tr>
+                    <td align="right" width="100">Tags:</td>
+                    <td>{{ station.Tags | tag_parse }}</td>
+                </tr>
+                <tr>
+                    <td align="right" width="100">Listen:</td>
+                    <td>
+                        <a href="/browser.pls?id={{ station.Stationuuid }}"><img src="/img/winamp.gif" alt="Winamp - {{ station.Name }}" border="0"> Winamp</a> |
+                        <a href="/browser.asx?id={{ station.Stationuuid }}"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Name }}" border="0"> Windows Media Player</a>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

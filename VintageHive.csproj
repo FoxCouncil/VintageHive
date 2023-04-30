@@ -5,25 +5,17 @@
         <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>annotations</Nullable>
-        <PlatformTarget>AnyCPU</PlatformTarget>
+        <PlatformTarget>x64</PlatformTarget>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <DockerfileContext>.</DockerfileContext>
         <ContainerDevelopmentMode>Regular</ContainerDevelopmentMode>
-        <DockerfileBuildArguments>-t contoso/front-end:v2.0</DockerfileBuildArguments>
         <ApplicationIcon>Statics\app.ico</ApplicationIcon>
+        <Platforms>x64</Platforms>
+        <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
         <DefineConstants>_WINDOWS</DefineConstants>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-      <DebugType>embedded</DebugType>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-      <DebugType>embedded</DebugType>
-      <Optimize>False</Optimize>
     </PropertyGroup>
 
     <ItemGroup>
@@ -40,43 +32,16 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="geonames.db" />
-      <None Remove="Statics\controllers\admin.hive.com\cache.html" />
-      <None Remove="Statics\controllers\admin.hive.com\css\fontawesome.min.css" />
-      <None Remove="Statics\controllers\admin.hive.com\css\main.css" />
-      <None Remove="Statics\controllers\admin.hive.com\css\solid.min.css" />
-      <None Remove="Statics\controllers\admin.hive.com\index.html" />
-      <None Remove="Statics\controllers\admin.hive.com\js\main.js" />
-      <None Remove="Statics\controllers\admin.hive.com\localserver.html" />
-      <None Remove="Statics\controllers\admin.hive.com\login.html" />
-      <None Remove="Statics\controllers\admin.hive.com\logs.html" />
-      <None Remove="Statics\controllers\admin.hive.com\partials\footer.html" />
-      <None Remove="Statics\controllers\admin.hive.com\partials\head.html" />
-      <None Remove="Statics\controllers\admin.hive.com\partials\header.html" />
-      <None Remove="Statics\controllers\admin.hive.com\users.html" />
-      <None Remove="Statics\controllers\admin.hive.com\webfonts\fa-solid-900.ttf" />
-      <None Remove="Statics\controllers\admin.hive.com\webfonts\fa-solid-900.woff2" />
-      <None Remove="Statics\controllers\hive.com\img\folder.gif" />
-      <None Remove="Statics\controllers\hive.com\img\unknown.gif" />
-      <None Remove="Statics\controllers\hive.com\partials\head.html" />
-      <None Remove="Statics\controllers\hive.com\search.html" />
-      <None Remove="Statics\controllers\hive.com\viewer.html" />
-      <None Remove="Statics\controllers\radio.hive.com\index - Copy.html" />
-      <None Remove="Statics\docs\vfs_data_readme.txt" />
-      <None Remove="Statics\docs\vfs_downloads_readme.txt" />
-      <None Remove="Statics\docs\vfs_hosting_readme.txt" />
-      <None Remove="Statics\docs\vfs_statics_readme.txt" />
+      <None Remove="libs\**\*.*" />
+      <None Remove="Statics\**\*.*" />
+      <None Include=".github\workflows\ci-release.yml" />
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="libs\geonames.db">
+      <Content Include="libs\*.*">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
       <Content Include="Statics\app.ico" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Include="libs\geonames.db" />
     </ItemGroup>
 
     <ItemGroup>
@@ -93,37 +58,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="libs\libcrypto.so">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="libs\libeay32.dll">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="libs\libssl.so">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="libs\ssleay32.dll">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="Statics\ua-regexes.yaml">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Statics\controllers\hive.com\settings\" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Include=".github\workflows\ci-release.yml" />
-    </ItemGroup>
-
-    <ItemGroup>
       <Using Include="System.Net" />
+      <Using Include="System.Net.Sockets" />
       <Using Include="System.Text" />
+      <Using Include="System.Text.Json" />
       <Using Include="VintageHive" />
+      <Using Include="VintageHive.Data.Types" />
       <Using Include="VintageHive.Utilities" />
-    </ItemGroup>
-    
+    </ItemGroup>    
     
 </Project>

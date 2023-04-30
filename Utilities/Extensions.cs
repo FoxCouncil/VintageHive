@@ -84,7 +84,7 @@ public static class Extensions
     {
         if (Debugger.IsAttached)
         {
-            doc.Load(Path.Combine("../../../Statics/", path));
+            doc.Load(Path.Combine(VFS.DebugStaticsPathHelper, path));
         }
         else
         {

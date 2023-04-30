@@ -1,0 +1,88 @@
+﻿{% assign title = "Shoutcast" %}
+<html>
+    <head>
+        <title>Radio Hive - {{ title }}</title>
+    </head>
+    <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+        <basefont face="Arial">
+
+        {% include 'partials/header.html' %}
+
+        <table cellspacing="2" cellpadding="2" width="100%">
+            <tr>
+                <td colspan="{% if genres %}3{% else %}8{% endif %}">
+                    <table width="100%">
+                        <tr>
+                            <td valign="middle">
+                                <img src="http://hive.com/img/icons/world.gif" width="14" height="14" hspace="1">
+                                {{ pagetitle }} |
+                                <a href="/shoutcast.html?list=genre">Genres</a>
+                            </td>
+                            <td align="right">
+                                <form action="shoutcast.html" method="GET" style="margin:0;padding:0;">
+                                    <input type="text" name="q" value="{{ Request.QueryParams["q"] }}" width="10">
+                                    <input type="submit" value="Search">
+                                </form>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            {% if genres %}
+            <tr bgcolor="yellow">
+                <td align="center"><font face="Courier New" size="-1"></font></td>
+                <td align="center"><font face="Courier New" size="-1" color="black">Genre Name</font></td>
+                <td align="center"><font face="Courier New" size="-1" color="black">Count</font></td>
+            </tr>
+            {% for genre in genres %}
+            <tr bgcolor="#333333">
+                <td align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
+                <td width="100%"><img src="http://hive.com/img/im_genre.gif" height="16"> <a href="/shoutcast.html?genre={{ genre.Name }}">{{ genre.Name }}</a></td>
+                <td align="center"><font face="Courier New" size="-1">{{ genre.Count | format_number:"N0" }}</font></td>
+            </tr>
+            {% endfor %}
+            <tr bgcolor="yellow">
+                <td align="center"><font face="Courier New" size="-1"></font></td>
+                <td align="center"><font face="Courier New" size="-1" color="black">Genre Name</font></td>
+                <td align="center"><font face="Courier New" size="-1" color="black">Count</font></td>
+            </tr>
+            {% else %}
+            <tr bgcolor="purple">
+                <td align="center"><font face="Courier New" size="-1">Rank</font></td>
+                <td align="center"><font face="Courier New" size="-1">Action</font></td>
+                <td align="center"><font face="Courier New" size="-1">Genre & Title</font></td>
+                <td align="center"><font face="Courier New" size="-1">Codec</font></td>
+                <td align="center"><font face="Courier New" size="-1">Bitrate</font></td>
+                <td align="center"><font face="Courier New" size="-1">Listeners</font></td>
+            </tr>
+            {% for station in stations %}
+            <tr bgcolor="#333333">
+                <td align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
+                <td align="center">
+                    <a href="/shoutcast.pls?id={{ station.Id }}"><img src="/img/winamp.gif" alt="Winamp - {{ station.Mt }}" border="0"></a>
+                    <a href="/shoutcast.asx?id={{ station.Id }}"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Mt }}" border="0"></a>
+                </td>
+                <td width="100%">
+                    <font face="Courier New" size="-1">[<a href="/shoutcast.html?genre={{ station.Genre }}">{{ station.Genre }}</a>]</font>
+                    <font size="-1">{{ station.Name }}</font>
+                </td>
+                <td align="center"><font face="Courier New" size="-1">{{ station.Mt }}</font></td>
+                <td align="center"><font face="Courier New" size="-1">{{ station.Br }}</font></td>
+                <td align="center"><font face="Courier New" size="-1">{{ station.Lc | format_number:"N0" }}</font></td>
+            </tr>
+            {% endfor %}
+            <tr bgcolor="purple">
+                <td align="center"><font face="Courier New" size="-1">Rank</font></td>
+                <td align="center"><font face="Courier New" size="-1">Action</font></td>
+                <td align="center"><font face="Courier New" size="-1">Genre & Title</font></td>
+                <td align="center"><font face="Courier New" size="-1">Codec</font></td>
+                <td align="center"><font face="Courier New" size="-1">Bitrate</font></td>
+                <td align="center"><font face="Courier New" size="-1">Listeners</font></td>
+            </tr>
+            {% endif %}
+        </table>
+
+        {% include 'partials/footer.html' %}
+
+    </body>
+</html>
