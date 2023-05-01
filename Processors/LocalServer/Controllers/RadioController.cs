@@ -181,6 +181,8 @@ internal class RadioController : Controller
             {
                 // NOOP
             }
+            
+            process.Kill();
 
             Response.Handled = true;
         }
@@ -324,9 +326,18 @@ internal class RadioController : Controller
 
             process.Start();
 
-            await Request.ListenerSocket.Stream.WriteAsync(Response.GetResponseEncodedData());
+            try
+            {
+                await Request.ListenerSocket.Stream.WriteAsync(Response.GetResponseEncodedData());
 
-            Task.WaitAny(clientStream.CopyToAsync(process.StandardInput.BaseStream), process.StandardOutput.BaseStream.CopyToAsync(Request.ListenerSocket.Stream));
+                Task.WaitAny(clientStream.CopyToAsync(process.StandardInput.BaseStream), process.StandardOutput.BaseStream.CopyToAsync(Request.ListenerSocket.Stream));
+            }
+            catch (IOException)
+            {
+                // NOOP
+            }
+
+            process.Kill();
 
             Response.Handled = true;
         }
