@@ -2,10 +2,26 @@
 
 FROM mcr.microsoft.com/dotnet/runtime:7.0 AS base
 WORKDIR /app
+
+# FTP PASSIVE MODE
 EXPOSE 1900-1910
+
+# FTP
 EXPOSE 1971
+
+# HTTP
 EXPOSE 1990
+
+# SOCKS5
+EXPOSE 1996
+
+# TELNET
+EXPOSE 1969
+
+# OSCAR (AIM/ICQ)
 EXPOSE 5190
+
+# HTTPS
 EXPOSE 9999
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build

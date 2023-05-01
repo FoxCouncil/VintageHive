@@ -34,4 +34,6 @@ public class ListenerSocket
 
     public SslStream SecureStream { get; set; }
 
+    public void Close() => RawSocket.Close();
+
 }

@@ -6,6 +6,7 @@ using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Telnet;
 
 namespace VintageHive;
 
@@ -24,6 +25,8 @@ static class Mind
     static HttpProxy httpsProxy;
 
     static FtpProxy ftpProxy;
+
+    static TelnetServer telnetServer;
 
     static OscarServer oscarServer;
 
@@ -95,6 +98,10 @@ static class Mind
             .Use(ProtoWebProcessor.ProcessFtpRequest)
             .Use(LocalServerProcessor.ProcessFtpRequest);
 
+        var telnetPort = Db.ConfigGet<int>(ConfigNames.PortTelnet);
+
+        telnetServer = new(ipAddress, telnetPort);
+
         oscarServer = new(ipAddress);
 
 #if DEBUG
@@ -112,6 +119,8 @@ static class Mind
         httpsProxy.Start();
 
         ftpProxy.Start();
+
+        telnetServer.Start();
 
 #if DEBUG
         // socks5Proxy.Start();

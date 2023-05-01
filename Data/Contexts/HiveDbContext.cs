@@ -38,6 +38,7 @@ internal class HiveDbContext : DbContextBase
         { ConfigNames.PortHttp, 1990 },
         { ConfigNames.PortHttps, 9999 },
         { ConfigNames.PortFtp, 1971 },
+        { ConfigNames.PortTelnet, 1969 },
         { ConfigNames.PortSocks5, 1996 },
 
         // System Display Settings
