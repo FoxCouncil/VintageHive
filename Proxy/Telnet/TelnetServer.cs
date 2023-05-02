@@ -1,60 +1,88 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
-
+﻿using System.IO;
 using VintageHive.Network;
 using System;
 
-namespace VintageHive.Proxy.Telnet;
-
-public class TelnetServer : Listener
+namespace VintageHive.Proxy.Telnet
 {
-    // Inspiration: http://www.telnetbbsguide.com/bbs/connection/telnet/list/brief/
-
-    public static readonly List<TelnetSession> Sessions = new();
-
-    public TelnetServer(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp) { }
-
-    internal override async Task<byte[]> ProcessConnection(ListenerSocket connection)
+    internal class TelnetServer : Listener
     {
-        // Grab instance of the network stream from incoming client connection.
-        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Client {connection.RemoteIP} connected.", "");
+        private static readonly List<TelnetSession> _sessions = new();
 
-        var session = new TelnetSession(connection);
-        Sessions.Add(session);
+        public TelnetServer(IPAddress address, int port) : base(address, port, SocketType.Stream, ProtocolType.Tcp, false) { }
 
-        // Enable NAWS (Negotiate About Window Size) option
-        //byte[] nawsOption = new byte[] { 0xff, 0xfb, 0x1f, 0xff, 0xfd, 0x1f };
-        //await stream.WriteAsync(nawsOption);
-
-        await session.SendText("Welcome to the VintageHive Telnet Server!\r\n");
-        await session.SendText("Enter a command (help, version, exit): ");
-
-        var reader = new StreamReader(connection.Stream);
-
-        while (connection.IsConnected)
+        internal override async Task<byte[]> ProcessConnection(ListenerSocket connection)
         {
-            var input = await reader.ReadLineAsync();
+            Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} connected!", connection.TraceId.ToString());
+            var session = new TelnetSession(connection);
+            _sessions.Add(session);
 
-            if (input.Length > 0)
-            {
-                await session.ProcessCommand(input.ToString());
-                await session.SendText("Enter a command (help, version, exit): ");
-                input = string.Empty;
-            }
-            else if (input.StartsWith("\xff\xfa\x1f", StringComparison.Ordinal))
-            {
-                // Process NAWS (Negotiate About Window Size) option
-                int width = input[3] * 256 + input[4];
-                int height = input[5] * 256 + input[6];
-                session.TermWidth = width;
-                session.TermHeight = height;
+            var buffer = new byte[1024];
 
-                Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"NAWS option received for client {connection.RemoteIP}, extracted terminal resolution got {session.TermWidth}x{session.TermHeight}.", "");
+            connection.Stream.ReadTimeout = 1000;
+
+            var bufferedCommands = string.Empty;
+
+            // Enable NAWS option
+            //await session.GetClientResolution();
+
+            while (connection.IsConnected)
+            {
+                var read = 0;
+
+                try
+                {
+                    read = connection.Stream.Read(buffer, 0, buffer.Length);
+                }
+                catch (IOException)
+                {
+                    // NOOP
+                }
+
+                bufferedCommands += Encoding.ASCII.GetString(buffer, 0, read);
+                session.InputBuffer = bufferedCommands;
+
+                if (bufferedCommands.Contains("\r\n"))
+                {
+                    var command = bufferedCommands[..bufferedCommands.IndexOf("\r\n")];
+
+                    bufferedCommands = bufferedCommands.Remove(0, command.Length + 2);
+
+                    session.InputBuffer = string.Empty;
+                    await session.ProcessCommand(command);
+                }
+                else if (bufferedCommands.Contains('\b')) 
+                {
+                    bufferedCommands = bufferedCommands.Replace("\b", string.Empty);
+
+                    // Remove the last character but only if there is something to remove
+                    if (!string.IsNullOrEmpty(bufferedCommands))
+                    {
+                        bufferedCommands = bufferedCommands.TrimEnd(bufferedCommands[^1]);
+                    }
+
+                    session.InputBuffer = bufferedCommands;
+                }
+
+                // Clear screen and move cursor to upper left corner
+                await session.ClearScreen();
+                
+                // Build up current TUI
+                var screenOutput = new StringBuilder();
+                screenOutput.Append($"Welcome to VintageHive Telnet {Mind.ApplicationVersion} {session.UpdateSpinner()}\r\n");
+                screenOutput.Append(session.OutputBuffer);
+                screenOutput.Append($"Enter command (help, exit): {session.InputBuffer}");
+
+                await session.SendText(screenOutput.ToString());
             }
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} disconnected!", connection.TraceId.ToString());
+            _sessions.Remove(session);
+            return null;
         }
 
-        // Client has disconnected.
-        Sessions.Remove(session);
-        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Client {connection.RemoteIP} disconnected.", "");
-        return null;
+        internal override Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
+        {
+            throw new ApplicationException("Telnet server does not use this override!");
+        }
     }
 }
