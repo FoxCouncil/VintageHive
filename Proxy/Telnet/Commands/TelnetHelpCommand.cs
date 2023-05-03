@@ -11,13 +11,22 @@ public class TelnetHelpCommand : ITelnetWindow
 
     public string Description => "Show all commands";
 
-    public void OnAdd()
+    public bool HiddenCommand => false;
+
+    public void OnAdd(TelnetSession session)
     {
-        // The standard passage, used since the 1500s
-        _text = "I am the help command believe it or not!\r\n";
+        var result = new StringBuilder();
+        foreach (var item in session.WindowManager.GetAllCommands())
+        {
+            result.Append($"{item.Key} - {item.Value}\r\n");
+        }
+
+        _text = result.ToString();
     }
 
-    public void Dispose() { }
+    public void Destroy() { }
 
     public void Tick() { }
+
+
 }

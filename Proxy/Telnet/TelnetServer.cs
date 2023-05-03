@@ -1,5 +1,4 @@
-﻿using System.IO;
-using VintageHive.Network;
+﻿using VintageHive.Network;
 using System;
 
 namespace VintageHive.Proxy.Telnet
@@ -46,8 +45,16 @@ namespace VintageHive.Proxy.Telnet
 
                     bufferedCommands = bufferedCommands.Remove(0, command.Length + 2);
 
-                    session.InputBuffer = string.Empty;
                     await session.ProcessCommand(command);
+
+                    // Clear command buffer AFTER processing.
+                    session.InputBuffer = string.Empty;
+
+                    // Last command could have been to exit, check if we should stop here.
+                    if (!connection.IsConnected)
+                    {
+                        break;
+                    }
                 }
                 else if (bufferedCommands.Contains('\b'))
                 {

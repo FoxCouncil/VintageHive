@@ -2,10 +2,10 @@
 
 namespace VintageHive.Proxy.Telnet;
 
-public class TelnetWindowManager : IDisposable
+public class TelnetWindowManager
 {
     private readonly Stack<ITelnetWindow> _activeWindows = new();
-    private readonly List<string> _knownWindows = new();
+    private readonly Dictionary<string, string> _windowDict = new();
 
     public TelnetWindowManager()
     {
@@ -17,11 +17,16 @@ public class TelnetWindowManager : IDisposable
             if (typeof(ITelnetWindow).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract)
             {
                 // Activate the type and then get it's title that way, making sure to cleanup afterwards.
-                var castedType = (ITelnetWindow)Activator.CreateInstance(type);
-                _knownWindows.Add(castedType.Title);
-                castedType.Dispose();
+                var castedType = Activator.CreateInstance(type) as ITelnetWindow;
+                _windowDict.Add(castedType.Title, castedType.Description);
+                castedType.Destroy();
             }
         }
+    }
+
+    public Dictionary<string, string> GetAllCommands()
+    {
+        return _windowDict;
     }
 
     /// <summary>
@@ -45,27 +50,14 @@ public class TelnetWindowManager : IDisposable
         if (_activeWindows.Any())
         {
             var window = _activeWindows?.Pop();
-            window?.Dispose();
+            window?.Destroy();
         }
-    }
-
-    public bool IsWindowActive(string commandName)
-    {
-        foreach (var window in _activeWindows)
-        {
-            if (window.Title == commandName)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public bool TryAddWindow(string commandName)
     {
         // Check if a window by that name exists and is not already loaded.
-        if (_knownWindows.Contains(commandName) && !IsWindowActive(commandName))
+        if (_windowDict.ContainsKey(commandName))
         {
             // Remove any pending windows that are waiting until next command.
             if (_activeWindows.Any())
@@ -77,6 +69,13 @@ public class TelnetWindowManager : IDisposable
                         CloseTopWindow();
                     }
                 }
+            }
+
+            // Check if the top window is the same as one we're adding.
+            var topWindow = GetTopWindow();
+            if (topWindow != null && topWindow.Title == commandName)
+            {
+                CloseTopWindow();
             }
 
             // Loop through all types and add any that implement ITelnetWindow to the list
@@ -94,7 +93,7 @@ public class TelnetWindowManager : IDisposable
                     }
                     else
                     {
-                        createdWindow.Dispose();
+                        createdWindow.Destroy();
                     }
                 }
             }
@@ -118,7 +117,7 @@ public class TelnetWindowManager : IDisposable
     {
         foreach (var window in _activeWindows)
         {
-            window.Dispose();
+            window.Destroy();
         }
     }
 }

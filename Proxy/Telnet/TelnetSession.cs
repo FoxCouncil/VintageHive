@@ -2,7 +2,7 @@
 
 namespace VintageHive.Proxy.Telnet
 {
-    public class TelnetSession : IDisposable
+    public class TelnetSession
     {
         public Guid ID { get; } = new Guid();
 
@@ -15,6 +15,8 @@ namespace VintageHive.Proxy.Telnet
         public string InputBuffer { get; set; } = string.Empty;
 
         public string OutputBuffer { get; set; } = string.Empty;
+
+        public TelnetWindowManager WindowManager { get => _windowManager; }
 
         private readonly char[] _spinnerAnimationFrames = new[] { '|', '/', '-', '\\' };
         private int _currentAnimationFrame;
@@ -34,8 +36,8 @@ namespace VintageHive.Proxy.Telnet
             var topWindow = _windowManager.GetTopWindow();
             if (topWindow != null && !string.IsNullOrEmpty(topWindow.Text))
             {
-                var wrappedText = WordWrapText(topWindow.Text);
-                OutputBuffer = wrappedText;
+                //var wrappedText = WordWrapText(topWindow.Text);
+                OutputBuffer = topWindow.Text;
             }
             else
             {
@@ -73,7 +75,7 @@ namespace VintageHive.Proxy.Telnet
         /// </summary>
         /// <param name="text">Text to be transformed into telenet compatible lines.</param>
         /// <returns>Formatted lines of text with proper returns at the end.</returns>
-        private string WordWrapText(string text)
+        public string WordWrapText(string text)
         {
             // Split the text into lines using whole words
             var lines = new List<string>();
@@ -114,7 +116,7 @@ namespace VintageHive.Proxy.Telnet
             // Lowercase all characters and trim any trailing spaces.
             var cleanCmd = command.ToLower().Trim();
 
-            // Hard-coded command to destroy the current session.
+            // Hard-coded commands to destroy the current session and show help.
             if (cleanCmd == "exit" || cleanCmd == "quit")
             {
                 await Client.Stream.FlushAsync();
@@ -123,14 +125,15 @@ namespace VintageHive.Proxy.Telnet
                 return;
             }
 
-            // OutputBuffer = $"Invalid command: {command}\r\n";
             var result = _windowManager.TryAddWindow(command);
             if (result)
             {
-                _windowManager.GetTopWindow().OnAdd();
+                _windowManager.GetTopWindow().OnAdd(this);
             }
-            else
+            else if (_windowManager.TryAddWindow("invalid_cmd"))
             {
+                // Attach hidden window that shows user error.
+                _windowManager.GetTopWindow().OnAdd(this);
                 Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} failed to load window {command}!", Client.TraceId.ToString());
             }
         }
