@@ -1,12 +1,10 @@
-﻿using System.IO;
-using VintageHive.Network;
-using System;
+﻿using VintageHive.Network;
 
 namespace VintageHive.Proxy.Telnet
 {
-    public class TelnetSession
+    public class TelnetSession : IDisposable
     {
-        public ulong ID { get; } = _sessionID++;
+        public Guid ID { get; } = new Guid();
 
         public ListenerSocket Client { get; }
 
@@ -20,17 +18,29 @@ namespace VintageHive.Proxy.Telnet
 
         private readonly char[] _spinnerAnimationFrames = new[] { '|', '/', '-', '\\' };
         private int _currentAnimationFrame;
-
-        private static ulong _sessionID = 0;
-
-        public TelnetSession()
-        {
-
-        }
+        private readonly TelnetWindowManager _windowManager = new();
 
         public TelnetSession(ListenerSocket client)
         {
             Client = client;
+        }
+
+        public void TickWindows()
+        {
+            // Process logic for all loaded windows.
+            _windowManager.TickWindows();
+
+            // Update output that is sent to clients after each tick.
+            var topWindow = _windowManager.GetTopWindow();
+            if (topWindow != null && !string.IsNullOrEmpty(topWindow.Text))
+            {
+                var wrappedText = WordWrapText(topWindow.Text);
+                OutputBuffer = wrappedText;
+            }
+            else
+            {
+                OutputBuffer = "No windows currently loaded!\r\n";
+            }
         }
 
         public async Task ClearScreen()
@@ -39,11 +49,11 @@ namespace VintageHive.Proxy.Telnet
             await Client.Stream.WriteAsync(clearScreenCommand);
         }
 
-        public async Task GetClientResolution()
+        public async Task MoveCursor(int row, int column)
         {
-            // Enable NAWS option
-            byte[] nawsOption = new byte[] { 0xff, 0xfb, 0x1f, 0xff, 0xfd, 0x1f };
-            await Client.Stream.WriteAsync(nawsOption);
+            // send the cursor movement command to the client
+            byte[] cursorCommand = Encoding.ASCII.GetBytes($"\x1b[{row};{column}H");
+            await Client.Stream.WriteAsync(cursorCommand);
         }
 
         public string UpdateSpinner()
@@ -58,7 +68,12 @@ namespace VintageHive.Proxy.Telnet
             return _spinnerAnimationFrames[_currentAnimationFrame].ToString();
         }
 
-        public async Task SendText(string text)
+        /// <summary>
+        /// Respects the terminal width and height variables to print long string over multiple lines.
+        /// </summary>
+        /// <param name="text">Text to be transformed into telenet compatible lines.</param>
+        /// <returns>Formatted lines of text with proper returns at the end.</returns>
+        private string WordWrapText(string text)
         {
             // Split the text into lines using whole words
             var lines = new List<string>();
@@ -84,56 +99,45 @@ namespace VintageHive.Proxy.Telnet
                 lines.Add(currentLine.ToString());
             }
 
-            // Send each line to the client, adding a newline character at the end
+            // Add a newline character at the end of each line that has been broken up for telnet.
+            var result = new StringBuilder();
             foreach (var line in lines)
             {
-                var bytes = Encoding.ASCII.GetBytes(line + '\r' + '\n');
-                await Client.Stream.WriteAsync(bytes);
+                result.Append(line + '\r' + '\n');
             }
 
-            await Client.Stream.FlushAsync();
+            return result.ToString();
         }
 
         public async Task ProcessCommand(string command)
         {
-            if (command.StartsWith("\xff\xfa\x1f", StringComparison.Ordinal))
-            {
-                // Process NAWS (Negotiate About Window Size) option
-                int width = command[3] * 256 + command[4];
-                int height = command[5] * 256 + command[6];
-                TermWidth = width;
-                TermHeight = height;
+            // Lowercase all characters and trim any trailing spaces.
+            var cleanCmd = command.ToLower().Trim();
 
-                Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"NAWS option received for client {Client.RemoteIP}, extracted terminal resolution got {TermWidth}x{TermHeight}.", "");
+            // Hard-coded command to destroy the current session.
+            if (cleanCmd == "exit" || cleanCmd == "quit")
+            {
+                await Client.Stream.FlushAsync();
+                Client.Stream.Close();
+                Client.RawSocket.Shutdown(SocketShutdown.Both);
+                return;
             }
 
-            switch (command.ToLower().Trim())
+            // OutputBuffer = $"Invalid command: {command}\r\n";
+            var result = _windowManager.TryAddWindow(command);
+            if (result)
             {
-                case "help":
-                    OutputBuffer = PrintHelp();
-                    break;
-
-                case "version":
-                    OutputBuffer = $"VintageHive TelnetServer {Mind.ApplicationVersion}\r\n";
-                    break;
-
-                case "exit":
-                    OutputBuffer = "Goodbye!\r\n";
-                    await Client.Stream.FlushAsync();
-                    Client.Stream.Close();
-                    Client.RawSocket.Shutdown(SocketShutdown.Both);
-                    break;
-
-                default:
-                    OutputBuffer = $"Invalid command: {command}\r\n";
-                    break;
+                _windowManager.GetTopWindow().OnAdd();
+            }
+            else
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} failed to load window {command}!", Client.TraceId.ToString());
             }
         }
 
-        private string PrintHelp()
+        public void Dispose()
         {
-            // The standard passage, used since the 1500s
-            return "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\r\n";
+            _windowManager.Dispose();
         }
     }
 }

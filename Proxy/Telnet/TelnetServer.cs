@@ -22,11 +22,10 @@ namespace VintageHive.Proxy.Telnet
 
             var bufferedCommands = string.Empty;
 
-            // Enable NAWS option
-            //await session.GetClientResolution();
-
             while (connection.IsConnected)
             {
+                Thread.Sleep(1);
+
                 var read = 0;
 
                 try
@@ -50,7 +49,7 @@ namespace VintageHive.Proxy.Telnet
                     session.InputBuffer = string.Empty;
                     await session.ProcessCommand(command);
                 }
-                else if (bufferedCommands.Contains('\b')) 
+                else if (bufferedCommands.Contains('\b'))
                 {
                     bufferedCommands = bufferedCommands.Replace("\b", string.Empty);
 
@@ -65,14 +64,22 @@ namespace VintageHive.Proxy.Telnet
 
                 // Clear screen and move cursor to upper left corner
                 await session.ClearScreen();
-                
+
+                // Process logic for this sessions window manager.
+                session.TickWindows();
+
                 // Build up current TUI
                 var screenOutput = new StringBuilder();
-                screenOutput.Append($"Welcome to VintageHive Telnet {Mind.ApplicationVersion} {session.UpdateSpinner()}\r\n");
+                screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion} {session.UpdateSpinner()}\r\n");
+                screenOutput.Append(new string('-', session.TermWidth) + "\r\n");
                 screenOutput.Append(session.OutputBuffer);
+                screenOutput.Append(new string('-', session.TermWidth) + "\r\n");
                 screenOutput.Append($"Enter command (help, exit): {session.InputBuffer}");
 
-                await session.SendText(screenOutput.ToString());
+                // Write the updated output buffer to the client.
+                var bytes = Encoding.ASCII.GetBytes(screenOutput.ToString());
+                await connection.Stream.WriteAsync(bytes);
+                await connection.Stream.FlushAsync();
             }
 
             Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} disconnected!", connection.TraceId.ToString());
