@@ -192,22 +192,32 @@ public sealed class HttpResponse
         return SetJson(new { success });
     }
 
+    public HttpResponse SetRedirect(string foundUri = null)
+    {
+        return SetLocation(foundUri, HttpStatusCode.MovedPermanently);
+    }
+
     public HttpResponse SetFound(string foundUri = null)
     {
-        if (foundUri == null && Request.Headers.ContainsKey("Referer"))
-        {
-            foundUri = Request.Headers["Referer"];
-        }
-        else foundUri ??= "/";
+        return SetLocation(foundUri);
+    }
 
-        StatusCode = HttpStatusCode.Found;
+    public HttpResponse SetLocation(string location, HttpStatusCode statusCode = HttpStatusCode.Found)
+    {
+        if (location == null && Request.Headers.ContainsKey("Referer"))
+        {
+            location = Request.Headers["Referer"];
+        }
+        else location ??= "/";
+
+        StatusCode = statusCode;
 
         if (Body == null || Body.Length == 0)
         {
             SetBodyString($"<h1>arf 42{Random.Shared.NextDouble()}</h1>\r\n\r\n");
         }
 
-        Headers.AddOrUpdate(HttpHeaderName.Location, foundUri);
+        Headers.AddOrUpdate(HttpHeaderName.Location, location);
 
         Handled = true;
 

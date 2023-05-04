@@ -321,59 +321,6 @@ internal class CacheDbContext : DbContextBase
         });
     }
 
-    internal List<string> GetProtowebSiteList(string protocol)
-    {
-        return WithContext<List<string>>(context =>
-        {
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT url FROM protowebsitelist WHERE protocol = @protocol";
-
-            command.Parameters.Add(new SqliteParameter("@protocol", protocol));
-
-            using var reader = command.ExecuteReader();
-
-            var list = new List<string>();
-
-            while (reader.Read())
-            {
-                list.Add(reader.GetString(0));
-            }
-
-            return list;
-        });
-    }
-
-    internal void SetProtowebSiteList(string protocol, List<string> values)
-    {
-        WithContext(context =>
-        {
-            using var transaction = context.BeginTransaction();
-
-            using var deleteCommand = context.CreateCommand();
-
-            deleteCommand.CommandText = "DELETE FROM protowebsitelist WHERE protocol = @protocol";
-
-            deleteCommand.Parameters.Add(new SqliteParameter("@protocol", protocol));
-
-            deleteCommand.ExecuteNonQuery();
-
-            foreach (var url in values)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO protowebsitelist (url, protocol) VALUES(@url, @protocol)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@url", url));
-                insertCommand.Parameters.Add(new SqliteParameter("@protocol", protocol));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
     internal string GetWeather(string url)
     {
         return WithContext<string>(context =>

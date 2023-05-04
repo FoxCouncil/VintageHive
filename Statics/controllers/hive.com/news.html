@@ -3,30 +3,165 @@
 <head>
     {% include 'partials/head.html' %}
 </head>
-<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF"><a name="top"></a>
     {% include 'partials/header.html' %}
 
-    {% if article %}
-    <form action="/news.html"><img src="/img/back_arrow.gif"> <input type="submit" value="Back"></form>
-    <h1>{{ article.Title }}</h1>
-    <font face="Courier New" size="+2">{{ article.PublicationDate | format_date: "R" }}</font>
+    {% include 'partials/newstopics.html' %}
 
-    {{ article_body }}
+    <table width="100%" border="5" bordercolor="#444444">
 
-    <form action="/news.html"><img src="/img/back_arrow.gif"> <input type="submit" value="Back"></form>
-    <hr>
-    {% endif %}
+        <tr>
+            <td bgcolor="#333333" valign="middle"><img src="/img/icons/house.gif" hspace="2" align="middle"> Local News<a name="local"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#222222" style="padding-left:5px;">
+                {% for article in articles_local %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
 
-    <font face="serif" size="5">Latest News</font>
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
 
-    <ul>
-        {% for article in articles %}
-        <li>
-            <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
-            <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}">{{ article.Title }}</a>
-        </li>
-        {% endfor %}
-    </ul>
+        <tr>
+            <td bgcolor="#333333"><img src="/img/country/us.gif" hspace="2" align="middle"> US News<a name="us"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#222222" style="padding-left:5px;">
+                {% for article in articles_us %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#333333"><img src="/img/icons/world.gif" hspace="2" align="middle"> World News<a name="world"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#222222" style="padding-left:5px;">
+                {% for article in articles_world %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#000033"><img src="/img/icons/computer.gif" hspace="2" align="middle"> Technology News<a name="tech"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#000022" style="padding-left:5px;">
+                {% for article in articles_tech %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#333300"><img src="/img/icons/lightbulb.gif" hspace="2" align="middle"> Science News<a name="science"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#222200" style="padding-left:5px;">
+                {% for article in articles_science %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#330000"><img src="/img/icons/briefcase.gif" hspace="2" align="middle"> Business News<a name="business"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#220000" style="padding-left:5px;">
+                {% for article in articles_business %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#330033"><img src="/img/icons/camera.gif" hspace="2" align="middle"> Entertainment News<a name="ent"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#220022" style="padding-left:5px;">
+                {% for article in articles_ent %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#003300"><img src="/img/icons/medal_gold_1.gif" hspace="2" align="middle"> Sports News<a name="sports"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#002200" style="padding-left:5px;">
+                {% for article in articles_sports %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+        <tr>
+            <td>{% include 'partials/newstopics.html' %}</td>
+        </tr>
+
+        <tr>
+            <td bgcolor="#003333"><img src="/img/icons/heart.gif" hspace="2" align="middle"> Health News<a name="health"></a></td>
+        </tr>
+        <tr>
+            <td bgcolor="#002222" style="padding-left:5px;">
+                {% for article in articles_health %}
+                <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                <br>
+                {% endfor %}
+            </td>
+        </tr>
+
+    </table>
+
+    {% include 'partials/newstopics.html' %}
 
     {% include 'partials/footer.html' %}
 </body>

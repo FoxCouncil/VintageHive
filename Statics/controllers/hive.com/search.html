@@ -6,12 +6,14 @@
 <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
     {% include 'partials/header.html' %}
 
-    <form style="margin:0">
+    <form style="padding:0;margin:0">
         <table>
             <tr>
-                <td><img src="img/search2.gif"></td>
-                <td><input type="text" name="q" {% if keywords %} value="{{ keywords }}" {% endif %}></td>
-                <td><input type="submit" value="Search"></td>
+                <td width="33%" valign="middle" align="right">
+                    <a href="/search.html"><img border="0" align="middle" src="img/search1.gif"></a>
+                </td>
+                <td width="33%" valign="middle" align="center"><input type="text" name="q" value="{{ keywords }}" size="50"></td>
+                <td width="33%" valign="middle" align="left"><input type="submit" value="Search Internet"></td>
             </tr>
         </table>
     </form>

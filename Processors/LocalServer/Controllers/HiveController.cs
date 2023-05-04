@@ -1,13 +1,11 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using AngleSharp.Io;
 using Fluid;
 using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
 using System.Diagnostics.CodeAnalysis;
 using VintageHive.Proxy.Security;
-using Image = SixLabors.ImageSharp.Image;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
@@ -19,6 +17,13 @@ internal class HiveController : Controller
     public override async Task CallInitial(string rawPath)
     {
         await Task.Delay(0);
+
+        if (Request.Host.ToLower() != "hive.com")
+        {
+            Response.SetRedirect("http://hive.com" + rawPath);
+
+            return;
+        }
 
         Response.Context.SetValue("menu", new[] {
             "Download",
@@ -34,6 +39,39 @@ internal class HiveController : Controller
     [Route("/index.html")]
     public async Task Index()
     {
+        var tempUnits = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.TemperatureUnits);
+        var distUnits = Mind.Db.ConfigLocalGet<string>(Request.ListenerSocket.RemoteIP, ConfigNames.DistanceUnits);
+
+        Response.Context.SetValue("u", tempUnits[..1].ToLower());
+
+        var geoipLocation = Mind.Db.ConfigGet<GeoIp>(ConfigNames.Location);
+
+        var weatherData = await WeatherUtils.GetDataByGeoIp(geoipLocation, tempUnits, distUnits);
+
+        Response.Context.SetValue("weather_privacy", DEFAULT_LOCATION_PRIVACY);
+
+        Response.Context.SetValue("u", tempUnits[..1].ToLower());
+
+        Response.Context.SetValue("weather", weatherData);
+
+        Response.Context.SetValue("articles_local", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Local)).Take(5));
+
+        Response.Context.SetValue("articles_us", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.US)).Take(5));
+
+        Response.Context.SetValue("articles_world", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.World)).Take(5));
+
+        Response.Context.SetValue("articles_tech", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Technology)).Take(5));
+
+        Response.Context.SetValue("articles_science", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Science)).Take(5));
+
+        Response.Context.SetValue("articles_business", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Business)).Take(5));
+
+        Response.Context.SetValue("articles_ent", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Entertainment)).Take(5));
+
+        Response.Context.SetValue("articles_sports", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Sports)).Take(5));        
+
+        Response.Context.SetValue("articles_health", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Health)).Take(5));
+
         Response.Context.SetValue("directory_hotlinks", Mind.Db.LinksGetAll());
 
         Response.Context.SetValue("directory_protohttp", await ProtoWebUtils.GetAvailableHttpSites());
@@ -264,9 +302,23 @@ internal class HiveController : Controller
     [Route("/news.html")]
     public async Task News()
     {
-        var articles = await NewsUtils.GetGoogleArticles("US");
+        Response.Context.SetValue("articles_local", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Local));
 
-        Response.Context.SetValue("articles", articles);
+        Response.Context.SetValue("articles_us", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.US));
+
+        Response.Context.SetValue("articles_world", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.World));
+
+        Response.Context.SetValue("articles_tech", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Technology));
+
+        Response.Context.SetValue("articles_science", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Science));
+
+        Response.Context.SetValue("articles_business", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Business));
+
+        Response.Context.SetValue("articles_ent", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Entertainment));
+
+        Response.Context.SetValue("articles_sports", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Sports));
+
+        Response.Context.SetValue("articles_health", await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Health));
     }
 
     [Route("/weather.html")]

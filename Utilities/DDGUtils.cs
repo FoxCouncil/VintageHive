@@ -162,6 +162,6 @@ internal static class DDGUtils
 
     public class DeepAnswers
     {
-        public List<List<object>>? spelling { get; set; }
+        public List<object>? spelling { get; set; }
     }
 }

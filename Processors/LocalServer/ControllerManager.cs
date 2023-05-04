@@ -2,6 +2,7 @@
 
 using Fluid;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using UAParser;
 using VintageHive.Proxy.Http;
 
@@ -32,7 +33,7 @@ internal static class ControllerManager
     {
         controller = null;
 
-        var domainKeys = controllers.Keys.Where(x => x.Domain.EndsWith(domain))?.ToList() ?? null;
+        var domainKeys = controllers.Keys.Where(x => x.Domain.ToLower().EndsWith(domain) || Regex.IsMatch(domain, WildCardToRegular(x.Domain)))?.ToList() ?? null;
 
         if (domainKeys == null)
         {
@@ -100,5 +101,10 @@ internal static class ControllerManager
         controller.Response.Context.SetValue("deviceversion", clientInfo.Device.ToString());
 
         return controller;
+    }
+
+    private static string WildCardToRegular(string value)
+    {
+        return "^" + Regex.Escape(value).Replace("\\*", ".*") + "$";
     }
 }
