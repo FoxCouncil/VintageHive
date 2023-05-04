@@ -1,5 +1,6 @@
 ﻿using VintageHive.Network;
 using System;
+using System.IO;
 
 namespace VintageHive.Proxy.Telnet
 {
@@ -21,20 +22,13 @@ namespace VintageHive.Proxy.Telnet
 
             var bufferedCommands = string.Empty;
 
-            while (connection.IsConnected)
+            // First tick to force output to client before main session loop.
+            await session.TickWindows();
+
+            var read = 0;
+            while (connection.IsConnected && (read = await connection.Stream.ReadAsync(buffer)) > 0)
             {
                 Thread.Sleep(1);
-
-                var read = 0;
-
-                try
-                {
-                    read = connection.Stream.Read(buffer, 0, buffer.Length);
-                }
-                catch (IOException)
-                {
-                    // NOOP
-                }
 
                 bufferedCommands += Encoding.ASCII.GetString(buffer, 0, read);
                 session.InputBuffer = bufferedCommands;
@@ -70,35 +64,7 @@ namespace VintageHive.Proxy.Telnet
                 }
 
                 // Process logic for this sessions window manager.
-                session.TickWindows();
-
-                // Build up current TUI
-                var screenOutput = new StringBuilder();
-                //screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion} {session.UpdateSpinner()}\r\n");
-                screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion}\r\n");
-                screenOutput.Append(new string('-', session.TermWidth) + "\r\n");
-                screenOutput.Append(session.TopWindowOutputBuffer);
-                screenOutput.Append(new string('-', session.TermWidth) + "\r\n");
-                screenOutput.Append($"Enter command (help, exit): {session.InputBuffer}");
-
-                var finalOutput = screenOutput.ToString();
-                session.CurrentOutput = finalOutput;
-
-                if (session.CurrentOutput == session.LastOutput)
-                {
-                    // Skip because nothing has changed!
-                    continue;
-                }
-
-                // Clear screen and move cursor to upper left corner
-                await session.ClearScreen();
-
-                session.LastOutput = finalOutput;
-
-                // Write the updated output buffer to the client.
-                var bytes = Encoding.ASCII.GetBytes(finalOutput);
-                await connection.Stream.WriteAsync(bytes);
-                await connection.Stream.FlushAsync();
+                await session.TickWindows();
             }
 
             Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} disconnected!", connection.TraceId.ToString());

@@ -31,7 +31,7 @@ namespace VintageHive.Proxy.Telnet
             Client = client;
         }
 
-        public void TickWindows()
+        public async Task TickWindows()
         {
             // Process logic for all loaded windows.
             _windowManager.TickWindows();
@@ -40,13 +40,39 @@ namespace VintageHive.Proxy.Telnet
             var topWindow = _windowManager.GetTopWindow();
             if (topWindow != null && !string.IsNullOrEmpty(topWindow.Text))
             {
-                //var wrappedText = WordWrapText(topWindow.Text);
                 TopWindowOutputBuffer = topWindow.Text;
             }
             else
             {
                 TopWindowOutputBuffer = "No windows currently loaded!\r\n";
             }
+
+            // Build up current TUI
+            var screenOutput = new StringBuilder();
+            screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion}\r\n");
+            screenOutput.Append(new string('-', TermWidth) + "\r\n");
+            screenOutput.Append(TopWindowOutputBuffer);
+            screenOutput.Append(new string('-', TermWidth) + "\r\n");
+            screenOutput.Append($"Enter command (help, exit): {InputBuffer}");
+
+            var finalOutput = screenOutput.ToString();
+            CurrentOutput = finalOutput;
+
+            if (CurrentOutput == LastOutput)
+            {
+                // Skip because nothing has changed!
+                return;
+            }
+
+            // Clear screen and move cursor to upper left corner
+            await ClearScreen();
+
+            LastOutput = finalOutput;
+
+            // Write the updated output buffer to the client.
+            var bytes = Encoding.ASCII.GetBytes(finalOutput);
+            await Client.Stream.WriteAsync(bytes);
+            await Client.Stream.FlushAsync();
         }
 
         public async Task ClearScreen()
