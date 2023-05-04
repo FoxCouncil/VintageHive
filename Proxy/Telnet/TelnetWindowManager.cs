@@ -9,8 +9,19 @@ public class TelnetWindowManager
 
     public TelnetWindowManager()
     {
+        var commands = GetAllCommands(true);
+        foreach (var cmd in commands) 
+        {
+            _windowDict.Add(cmd.Key, cmd.Value);
+        }
+    }
+
+    public static Dictionary<string, string> GetAllCommands(bool showHidden)
+    {
         // Get all types in the assembly
         Type[] types = Assembly.GetExecutingAssembly().GetTypes();
+
+        var _tempDic = new Dictionary<string, string>();
 
         foreach (Type type in types)
         {
@@ -18,15 +29,20 @@ public class TelnetWindowManager
             {
                 // Activate the type and then get it's title that way, making sure to cleanup afterwards.
                 var castedType = Activator.CreateInstance(type) as ITelnetWindow;
-                _windowDict.Add(castedType.Title, castedType.Description);
+
+                // Check if this is a hidden command.
+                if (castedType.HiddenCommand && !showHidden)
+                {
+                    castedType.Destroy();
+                    continue;
+                }
+
+                _tempDic.Add(castedType.Title, castedType.Description);
                 castedType.Destroy();
             }
         }
-    }
 
-    public Dictionary<string, string> GetAllCommands()
-    {
-        return _windowDict;
+        return _tempDic;
     }
 
     /// <summary>
@@ -113,7 +129,7 @@ public class TelnetWindowManager
         }
     }
 
-    public void Dispose()
+    public void Destroy()
     {
         foreach (var window in _activeWindows)
         {

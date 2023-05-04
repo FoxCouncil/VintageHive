@@ -14,7 +14,11 @@ namespace VintageHive.Proxy.Telnet
 
         public string InputBuffer { get; set; } = string.Empty;
 
-        public string OutputBuffer { get; set; } = string.Empty;
+        public string TopWindowOutputBuffer { get; set; } = string.Empty;
+
+        public string CurrentOutput { get; set;} = string.Empty;
+
+        public string LastOutput { get; set; } = string.Empty;
 
         public TelnetWindowManager WindowManager { get => _windowManager; }
 
@@ -37,11 +41,11 @@ namespace VintageHive.Proxy.Telnet
             if (topWindow != null && !string.IsNullOrEmpty(topWindow.Text))
             {
                 //var wrappedText = WordWrapText(topWindow.Text);
-                OutputBuffer = topWindow.Text;
+                TopWindowOutputBuffer = topWindow.Text;
             }
             else
             {
-                OutputBuffer = "No windows currently loaded!\r\n";
+                TopWindowOutputBuffer = "No windows currently loaded!\r\n";
             }
         }
 
@@ -134,13 +138,12 @@ namespace VintageHive.Proxy.Telnet
             {
                 // Attach hidden window that shows user error.
                 _windowManager.GetTopWindow().OnAdd(this);
-                Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} failed to load window {command}!", Client.TraceId.ToString());
             }
         }
 
-        public void Dispose()
+        public void Destroy()
         {
-            _windowManager.Dispose();
+            _windowManager.Destroy();
         }
     }
 }

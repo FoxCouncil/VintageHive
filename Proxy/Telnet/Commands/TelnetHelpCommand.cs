@@ -16,7 +16,7 @@ public class TelnetHelpCommand : ITelnetWindow
     public void OnAdd(TelnetSession session)
     {
         var result = new StringBuilder();
-        foreach (var item in session.WindowManager.GetAllCommands())
+        foreach (var item in TelnetWindowManager.GetAllCommands(false))
         {
             result.Append($"{item.Key} - {item.Value}\r\n");
         }
@@ -27,6 +27,4 @@ public class TelnetHelpCommand : ITelnetWindow
     public void Destroy() { }
 
     public void Tick() { }
-
-
 }

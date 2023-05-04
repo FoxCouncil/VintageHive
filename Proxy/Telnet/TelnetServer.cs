@@ -69,22 +69,34 @@ namespace VintageHive.Proxy.Telnet
                     session.InputBuffer = bufferedCommands;
                 }
 
-                // Clear screen and move cursor to upper left corner
-                await session.ClearScreen();
-
                 // Process logic for this sessions window manager.
                 session.TickWindows();
 
                 // Build up current TUI
                 var screenOutput = new StringBuilder();
-                screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion} {session.UpdateSpinner()}\r\n");
+                //screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion} {session.UpdateSpinner()}\r\n");
+                screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion}\r\n");
                 screenOutput.Append(new string('-', session.TermWidth) + "\r\n");
-                screenOutput.Append(session.OutputBuffer);
+                screenOutput.Append(session.TopWindowOutputBuffer);
                 screenOutput.Append(new string('-', session.TermWidth) + "\r\n");
                 screenOutput.Append($"Enter command (help, exit): {session.InputBuffer}");
 
+                var finalOutput = screenOutput.ToString();
+                session.CurrentOutput = finalOutput;
+
+                if (session.CurrentOutput == session.LastOutput)
+                {
+                    // Skip because nothing has changed!
+                    continue;
+                }
+
+                // Clear screen and move cursor to upper left corner
+                await session.ClearScreen();
+
+                session.LastOutput = finalOutput;
+
                 // Write the updated output buffer to the client.
-                var bytes = Encoding.ASCII.GetBytes(screenOutput.ToString());
+                var bytes = Encoding.ASCII.GetBytes(finalOutput);
                 await connection.Stream.WriteAsync(bytes);
                 await connection.Stream.FlushAsync();
             }

@@ -16,7 +16,15 @@ public class TelnetInvalidCommand : ITelnetWindow
 
     public void OnAdd(TelnetSession session)
     {
-        _text = $"Invalid command: {session.InputBuffer.ReplaceLineEndings(string.Empty)}\r\n";
+        var cleanInputBuffer = session.InputBuffer.ReplaceLineEndings(string.Empty).Trim();
+        if (string.IsNullOrEmpty(cleanInputBuffer) || string.IsNullOrWhiteSpace(cleanInputBuffer))
+        {
+            _text = "Invalid command: Empty or whitespace\r\n";
+        }
+        else
+        {
+            _text = $"Invalid command: {cleanInputBuffer}\r\n";
+        }
     }
 
     public void Destroy() { }
