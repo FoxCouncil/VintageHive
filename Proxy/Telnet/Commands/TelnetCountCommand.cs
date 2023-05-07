@@ -19,6 +19,8 @@ public class TelnetCountCommand : ITelnetWindow
 
     public bool HiddenCommand => false;
 
+    public bool AcceptsCommands => false;
+
     private void UpdateCount()
     {
         _count++;
@@ -44,8 +46,7 @@ public class TelnetCountCommand : ITelnetWindow
         _timer.Dispose();
     }
 
-    public void Tick()
-    {
-        //UpdateCount();
-    }
+    public void Tick() { }
+
+    public void ProcessCommand(string command) { }
 }

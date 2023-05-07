@@ -13,6 +13,8 @@ public class TelnetHelpCommand : ITelnetWindow
 
     public bool HiddenCommand => false;
 
+    public bool AcceptsCommands => false;
+
     public void OnAdd(TelnetSession session)
     {
         var result = new StringBuilder();
@@ -27,4 +29,6 @@ public class TelnetHelpCommand : ITelnetWindow
     public void Destroy() { }
 
     public void Tick() { }
+
+    public void ProcessCommand(string command) { }
 }

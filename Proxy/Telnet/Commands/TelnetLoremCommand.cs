@@ -12,6 +12,8 @@ public class TelnetLoremCommand : ITelnetWindow
 
     public bool HiddenCommand => false;
 
+    public bool AcceptsCommands => false;
+
     private string _text;
 
     public void OnAdd(TelnetSession session)
@@ -23,4 +25,6 @@ public class TelnetLoremCommand : ITelnetWindow
     public void Destroy() { }
 
     public void Tick() { }
+
+    public void ProcessCommand(string command) { }
 }

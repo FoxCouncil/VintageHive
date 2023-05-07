@@ -146,6 +146,27 @@ namespace VintageHive.Proxy.Telnet
             // Lowercase all characters and trim any trailing spaces.
             var cleanCmd = command.ToLower().Trim();
 
+            // Check if top level window will intercept commands instead.
+            var topWindow = _windowManager.GetTopWindow();
+            if (topWindow != null)
+            {
+                if (topWindow.AcceptsCommands && !topWindow.ShouldRemoveNextCommand)
+                {
+                    // Exit will close that window, otherwise send it the command.
+                    if (cleanCmd == "exit" || cleanCmd == "close")
+                    {
+                        _windowManager.CloseTopWindow();
+                    }
+                    else
+                    {
+                        topWindow.ProcessCommand(cleanCmd);
+                    }
+                    
+                    // Normal processing of command will not occur when a window accepts commands.
+                    return;
+                }
+            }
+
             // Hard-coded commands to destroy the current session and show help.
             if (cleanCmd == "exit" || cleanCmd == "quit")
             {
@@ -155,6 +176,7 @@ namespace VintageHive.Proxy.Telnet
                 return;
             }
 
+            // Attempts to add the window by name.
             var result = _windowManager.TryAddWindow(command);
             if (result)
             {
