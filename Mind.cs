@@ -62,7 +62,7 @@ static class Mind
         await RadioBrowser.Init();
 
         await GeoIpUtils.CheckGeoIp();
-        await ProtoWebUtils.UpdateSiteLists();
+        await ProtoWebUtils.GetSites();
 
         // Proxies
         var ipAddressString = Db.ConfigGet<string>(ConfigNames.IpAddress);

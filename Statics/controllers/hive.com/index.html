@@ -10,31 +10,221 @@
     <table width="100%">
         <tr>
             <td colspan="3" align="center">
-                <font face="Arial,Helvetica" size="6">T H E&nbsp;&nbsp;  D I R E C T O R Y</font>
-                <form action="http://search.inode.com/cgi-bin/search.cgi" method="get">
-                    <a href="http://search.inode.com/"><img src="img/search.gif"></a>
-                    <input type="text" name="q">
-                    <input type="submit" value="Go">
+                <font face="Arial,Helvetica" size="6">C E N T R A L&nbsp;&nbsp;  H I V E</font>
+                <form action="/search.html" method="get" style="margin:0;padding:0">
+                    <table width="100%">
+                        <tr>
+                            <td width="33%" valign="middle" align="right">
+                                <a href="/search.html"><img border="0" align="middle" src="img/search1.gif"></a>
+                            </td>
+                            <td width="33%" valign="middle" align="center"><input type="text" name="q" size="50"></td>
+                            <td width="33%" valign="middle" align="left"><input type="submit" value="Search Internet"></td>
+                        </tr>
+                    </table>
+                </form>
+                <hr>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <table width="100%" border="2" bordercolor="black">
+                    <tr>
+                        <td align="center" width="15%" bgcolor="#222222">
+                            <img src="/img/icons/weather_cloudy.gif" align="middle">
+                            <a href="/weather.html">Weather</a>
+                        </td>
+                        <td bgcolor="#222222">
+                            <img src="/img/icons/newspaper.gif" align="middle"> 
+                            <a href="/news.html">News</a>
+                        </td>
+                        <td align="center" width="20%" bgcolor="#222222"><img src="/img/icons/world_link.gif" align="middle"> Hot Links</td>
+                    </tr>
+                    <tr>
+                        <td width="15%" align="center" valign="top">
+                            <img src="/img/weather/{{ weather.CurrentWeather.Weathercode }}.jpg" vspace="2"><br>
+                            <font size="-1">{{ weather.CurrentWeather.Weathercode | wmotostring }}</font><br>
+                            <font face="Courier New" size="5"><b>{{ weather.CurrentWeather.Temperature }}{{ weather.TempUnits }}</b></font><br>
+                            <font size="-2" face="Courier New">{{ weather.CurrentWeather.Time | format_date: 'ddd MMM dd' }} - {{ weather.CurrentWeather.Time | format_date: 'h:mm tt' }}</font><hr color="#">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[0] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[0] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[0] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[1] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[1] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[1] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[2] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[2] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[2] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[3] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[3] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[3] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[4] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[4] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[4] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[5] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[5] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[5] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                            <font size="-3" face="Courier New">{{ weather.Daily.Time[6] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[6] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[6] }}{{ weather.TempUnits }}</font>
+                        </td>
+                        <td valign="top" rowspan="3">
+                            <table width="100%" border="5" bordercolor="#444444">
+
+                                <tr>
+                                    <td bgcolor="#333333" valign="middle"><img src="/img/icons/house.gif" hspace="2" align="middle"> <a href="/news.html#local">Local News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#222222" style="padding-left:5px;">
+                                        {% for article in articles_local %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#333333"><img src="/img/country/us.gif" hspace="2" align="middle"> <a href="/news.html#us">US News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#222222" style="padding-left:5px;">
+                                        {% for article in articles_us %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#333333"><img src="/img/icons/world.gif" hspace="2" align="middle"> <a href="/news.html#world">World News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#222222" style="padding-left:5px;">
+                                        {% for article in articles_world %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#000033"><img src="/img/icons/computer.gif" hspace="2" align="middle"> <a href="/news.html#tech">Technology News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#000022" style="padding-left:5px;">
+                                        {% for article in articles_tech %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#333300"><img src="/img/icons/lightbulb.gif" hspace="2" align="middle"> <a href="/news.html#science">Science News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#222200" style="padding-left:5px;">
+                                        {% for article in articles_science %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#330000"><img src="/img/icons/briefcase.gif" hspace="2" align="middle"> <a href="/news.html#business">Business News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#220000" style="padding-left:5px;">
+                                        {% for article in articles_business %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#330033"><img src="/img/icons/camera.gif" hspace="2" align="middle"> <a href="/news.html#ent">Entertainment News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#220022" style="padding-left:5px;">
+                                        {% for article in articles_ent %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#003300"><img src="/img/icons/medal_gold_1.gif" hspace="2" align="middle"> <a href="/news.html#sports">Sports News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#002200" style="padding-left:5px;">
+                                        {% for article in articles_sports %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td bgcolor="#003333"><img src="/img/icons/heart.gif" hspace="2" align="middle"> <a href="/news.html#health">Health News</a></td>
+                                </tr>
+                                <tr>
+                                    <td bgcolor="#002222" style="padding-left:5px;">
+                                        {% for article in articles_health %}
+                                        <font face="Courier New" size="-2">{{ article.Published | format_date: "ddd MMM dd" }}</font> |
+                                        <a href="/viewer.html?url=https://news.google.com/__i/rss/rd/articles/{{ article.Id }}"><font face="Times New Roman" size="-1">{{ article.Title }}</font></a>
+                                        <br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+
+                            </table>
+                        </td>
+                        <td width="20%" valign="top">
+                            {% for link in directory_hotlinks %}
+                            <img src="/img/icons/link.gif" align="middle"> <a href="{{ link.last }}">{{ link.first }}</a><br>
+                            {% endfor %}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td align="center" width="15%" bgcolor="#222222">
+                            <img src="/img/icons/help.gif" align="middle">
+                            <a href="/help.html">Help</a>
+                        </td>
+                        <td align="center" width="20%" bgcolor="#222222"><img src="/img/icons/exclamation.gif" align="middle"> Experiments</td>
+                    </tr>
+
+                    <tr>
+                        <td valign="top">bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br></td>
+                        <td valign="top">
+                            <img src="/img/icons/music.gif" align="middle"> <a href="http://radio.hive.com/">Radio Hive</a>
+                        </td>
+                    </tr>
+
+                </table>
+                <hr>
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="2" align="center">
+                <font face="Arial,Helvetica" size="6">P R O T O W E B&nbsp;&nbsp;  Z O N E</font>
+                <form action="http://search.inode.com/cgi-bin/search.cgi" method="get" style="margin:0;padding:0">
+                    <table width="100%">
+                        <tr>
+                            <td width="33%" valign="middle" align="right"><a href="http://search.inode.com/"><img src="img/search.gif"></a></td>
+                            <td width="33%" valign="middle" align="center"><input type="text" name="q" size="50"></td>
+                            <td width="33%" valign="middle" align="left"><input type="submit" value="Search Protoweb"></td>
+                        </tr>
+                    </table>
                 </form>
                 <hr>
             </td>
         </tr>
         <tr>
-            <td valign="top">
-                <center><font face="Arial,Helvetica" size="4">Hot Links</font></center>
-                <ul>
-                    {% for link in directory_hotlinks %}
-                    <li><a href="{{ link.last }}">{{ link.first }}</a></li>
-                    {% endfor %}
-                </ul>
-            </td>
-            <td valign="top">
+            <td valign="top" style="line-height: 34px">
                 <center><font face="Arial,Helvetica" size="4"><a href="http://www.inode.com/">ProtoWeb HTTP</a></font></center>
-                <ul>
-                    {% for link in directory_protohttp %}
-                    <li><a href="http://{{ link }}">{{ link }}</a></li>
-                    {% endfor %}
-                </ul>
+
+                {% for link in directory_protohttp %}
+                <a href="http://{{ link }}" style="margin-right:5px;padding:3px 7px;background-color:#222222">{{ link }}</a>
+                {% endfor %}
             </td>
             <td valign="top">
                 <center><font face="Arial,Helvetica" size="4"><a href="http://www.inode.com/">ProtoWeb FTP</a></font></center>

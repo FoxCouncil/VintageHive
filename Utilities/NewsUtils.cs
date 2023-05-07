@@ -8,30 +8,78 @@ namespace VintageHive.Utilities;
 
 public static class NewsUtils
 {
-    const string GoogleRssFeedUrl = "https://news.google.com/rss?gl={1}&hl={0}-{1}&ceid={1}:{0}";
-
-    public static async Task<List<Headlines>> GetGoogleArticles(string market = "US", string language = "en")
+    private static readonly Dictionary<GoogleNewsTopic, string> GoogleNewsTopicIds = new()
     {
-        await Task.Delay(0);
+        {GoogleNewsTopic.World, "CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB"},
+        {GoogleNewsTopic.US, "CAAqIggKIhxDQkFTRHdvSkwyMHZNRGxqTjNjd0VnSmxiaWdBUAE"},
+        {GoogleNewsTopic.Local, "CAAqHAgKIhZDQklTQ2pvSWJHOWpZV3hmZGpJb0FBUAE"},
+        {GoogleNewsTopic.Business, "CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB"},
+        {GoogleNewsTopic.Technology, "CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtVnVHZ0pWVXlnQVAB"},
+        {GoogleNewsTopic.Entertainment, "CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB"},
+        {GoogleNewsTopic.Sports, "CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB"},
+        {GoogleNewsTopic.Science, "CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtVnVHZ0pWVXlnQVAB"},
+        {GoogleNewsTopic.Health, "CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ"}
+    };
 
-        var url = string.Format(GoogleRssFeedUrl, language, market);
+    const string GoogleRssFeedUrl = "https://news.google.com/rss";
 
-        using var reader = XmlReader.Create(url);
+    const string GoogleRssTopicFeedUrl = "/topics/{0}";
 
-        var feed = SyndicationFeed.Load(reader);
+    const string GoogleGetParams = "?gl={1}&hl={0}-{1}&gl={1}&ceid={1}:{0}";
 
-        var output = new List<Headlines>();
+    public static async Task<List<Headlines>> GetGoogleForYouArticles(string market = "US", string language = "en")
+    {
+        var url = $"{GoogleRssFeedUrl}{string.Format(GoogleGetParams, language, market)}";
 
-        foreach (var item in feed.Items)
+        var output = await Mind.Cache.Do<List<Headlines>>($"googlenews_{url}", TimeSpan.FromHours(1), () =>
         {
-            output.Add(new Headlines()
+            using var reader = XmlReader.Create(url);
+
+            var feed = SyndicationFeed.Load(reader);
+
+            var output = new List<Headlines>();
+
+            foreach (var item in feed.Items)
             {
-                Id = item.Links[0].Uri.Segments.Last(),
-                Title = item.Title.Text,
-                Published = item.PublishDate,
-                Summary = item.Summary.Text.StripHtml()
-            });
-        }
+                output.Add(new Headlines()
+                {
+                    Id = item.Links[0].Uri.Segments.Last(),
+                    Title = item.Title.Text,
+                    Published = item.PublishDate,
+                    Summary = item.Summary.Text.StripHtml()
+                });
+            }
+
+            return Task.FromResult(output);
+        });
+
+        return output;
+    }
+
+    public static async Task<List<Headlines>> GetGoogleTopicArticles(GoogleNewsTopic topic = GoogleNewsTopic.World, string market = "US", string language = "en")
+    {
+        var url = $"{GoogleRssFeedUrl}{string.Format(GoogleRssTopicFeedUrl, GoogleNewsTopicIds[topic])}{string.Format(GoogleGetParams, language, market)}";
+
+        var output = await Mind.Cache.Do<List<Headlines>>($"googlenews_{url}", TimeSpan.FromHours(1), () => {
+            using var reader = XmlReader.Create(url);
+
+            var feed = SyndicationFeed.Load(reader);
+
+            var output = new List<Headlines>();
+
+            foreach (var item in feed.Items)
+            {
+                output.Add(new Headlines()
+                {
+                    Id = item.Links[0].Uri.Segments.Last(),
+                    Title = item.Title.Text,
+                    Published = item.PublishDate,
+                    Summary = item.Summary.Text.StripHtml()
+                });
+            }
+
+            return Task.FromResult(output);
+        });
 
         return output;
     }
