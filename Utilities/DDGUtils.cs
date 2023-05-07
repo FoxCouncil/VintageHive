@@ -10,7 +10,7 @@ internal static class DDGUtils
 
     const string LinksUrl = "https://links.duckduckgo.com/d.js";
 
-    static readonly Regex VqdRegex = new Regex("vqd=([0-9-]+)\\&", RegexOptions.Compiled);
+    static readonly Regex VqdRegex = new("vqd=([0-9-]+)\\&", RegexOptions.Compiled);
 
     internal static async Task<List<SearchResult>> Search(string keywords, uint page = 1, string region = "wt-wt", SafeSearchLevel safesearch = SafeSearchLevel.Off)
     {
