@@ -29,9 +29,10 @@ public class TelnetNewsCommand : ITelnetWindow
         {
             _articleMap.Add(count++, article);
             var title = article.Title;
+
             if (title.Length > session.TermWidth)
             {
-                title = title.Substring(0, session.TermWidth);
+                title = title[..session.TermWidth];
             }
 
             headlines.Append($"{count}-{title}\r\n");
@@ -41,8 +42,6 @@ public class TelnetNewsCommand : ITelnetWindow
     }
 
     public void Destroy() { }
-
-    public void Tick() { }
 
     public void ProcessCommand(string command)
     {

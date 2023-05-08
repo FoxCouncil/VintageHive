@@ -27,7 +27,6 @@ public class TelnetWeatherCommand : ITelnetWindow
     private string _distUnits;
     private GeoIp _geoipLocation;
     private WeatherData _weatherData;
-    private string _weatherLocation;
     private string _weatherFullname;
 
     public void OnAdd(TelnetSession session)
@@ -73,14 +72,10 @@ public class TelnetWeatherCommand : ITelnetWindow
 
         _temp = _tempUnits[..1].ToLower();
 
-        _weatherLocation = location ?? DEFAULT_LOCATION_PRIVACY;
-
         _weatherFullname = location == null ? DEFAULT_LOCATION_PRIVACY : _geoipLocation?.fullname ?? "N/A";
     }
 
     public void Destroy() { }
-
-    public void Tick() { }
 
     public void ProcessCommand(string command)
     {
@@ -210,14 +205,6 @@ public class TelnetWeatherCommand : ITelnetWindow
     {
         var result = new StringBuilder();
         result.Append($"-----[CHANGE LOCATION]-----\r\n");
-
-        _text = result.ToString();
-    }
-
-    private void ChangeDistUnits()
-    {
-        var result = new StringBuilder();
-        result.Append($"-----[CHANGE DISTANCE UNITS]-----\r\n");
 
         _text = result.ToString();
     }

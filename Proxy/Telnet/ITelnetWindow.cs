@@ -10,7 +10,6 @@ public interface ITelnetWindow
     string Text { get; }
     void ProcessCommand(string command);
     void OnAdd(TelnetSession session);
-    void Tick();
 
     void Destroy();
 }

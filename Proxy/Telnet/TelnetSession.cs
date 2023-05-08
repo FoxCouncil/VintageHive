@@ -22,7 +22,6 @@ namespace VintageHive.Proxy.Telnet
 
         public TelnetWindowManager WindowManager { get => _windowManager; }
 
-        private int _currentAnimationFrame;
         private readonly TelnetWindowManager _windowManager = new();
 
         public TelnetSession(ListenerSocket client)
@@ -32,9 +31,6 @@ namespace VintageHive.Proxy.Telnet
 
         public async Task TickWindows()
         {
-            // Process logic for all loaded windows.
-            _windowManager.TickWindows();
-
             // Update output that is sent to clients after each tick.
             var topWindow = _windowManager.GetTopWindow();
             if (topWindow != null && !string.IsNullOrEmpty(topWindow.Text))

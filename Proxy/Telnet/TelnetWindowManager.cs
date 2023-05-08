@@ -134,17 +134,6 @@ public class TelnetWindowManager
         }
     }
 
-    public void TickWindows()
-    {
-        if (_activeWindows.Any())
-        {
-            foreach (var window in _activeWindows)
-            {
-                window?.Tick();
-            }
-        }
-    }
-
     public void Destroy()
     {
         foreach (var window in _activeWindows)

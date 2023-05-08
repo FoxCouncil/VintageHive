@@ -31,7 +31,5 @@ public class TelnetInvalidCommand : ITelnetWindow
 
     public void Destroy() { }
 
-    public void Tick() { }
-
     public void ProcessCommand(string command) { }
 }

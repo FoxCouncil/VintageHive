@@ -86,8 +86,6 @@ public class TelnetRiddleCommand : ITelnetWindow
 
     public void Destroy() { }
 
-    public void Tick() { }
-
     public void ProcessCommand(string command)
     {
         // We use contains because someone could say "a wolf", when answer is "wolf" and that should still be valid.
