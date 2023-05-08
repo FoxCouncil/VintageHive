@@ -38,13 +38,12 @@ public class TelnetWeatherCommand : ITelnetWindow
         WeatherMenu();
     }
 
-    public void WeatherMenu()
+    private void WeatherMenu()
     {
         var weatherMenu = new StringBuilder();
         weatherMenu.Append("Weather Menu\r\n");
         weatherMenu.Append($"Weather location: {_geoipLocation.fullname}\r\n");
-        weatherMenu.Append($"Temperature units: {_temp}\r\n");
-        weatherMenu.Append($"Distance units: {_distUnits}\r\n\r\n");
+        weatherMenu.Append($"Temperature units: {_temp}\r\n\r\n");
 
         weatherMenu.Append("Weather Options, type a number and press enter...\r\n");
         weatherMenu.Append("1. Change temperature units\r\n");
@@ -77,6 +76,12 @@ public class TelnetWeatherCommand : ITelnetWindow
 
     public void Destroy() { }
 
+    public void Refresh()
+    {
+        // When submenus of weather command close we just display the weather menu again.
+        WeatherMenu();
+    }
+
     public void ProcessCommand(string command)
     {
         switch (command)
@@ -104,6 +109,7 @@ public class TelnetWeatherCommand : ITelnetWindow
             case "6":
                 // Forces weather window to close.
                 _shouldRemoveNextCommand = true;
+                _session.ForceCloseWindow(this);
                 break;
             default:
                 // Default menu options
@@ -190,12 +196,14 @@ public class TelnetWeatherCommand : ITelnetWindow
         }
 
         var result = new StringBuilder();
-        result.Append($"-----[CURRENT CONDITIONS]-----\r\n");
+        result.Append($"Current Weather Conditions\r\n");
+        result.Append($"Press enter to return to weather menu...\r\n\r\n");
+
         result.Append($"Location: {_weatherFullname}\r\n");
         result.Append($"Date: {time.ToShortDateString()}\r\n");
         result.Append($"Condition: {WeatherUtils.ConvertWmoCodeToString(_weatherData.CurrentWeather.Weathercode)}\r\n");
         result.Append($"Temperature: {_weatherData.CurrentWeather.Temperature}{_temp}\r\n");
-        result.Append($"-----[ASCII ART]-----\r\n");
+        result.Append($"Ascii Art of Weather Status\r\n");
         result.Append(asciiArt);
 
         _text = result.ToString();
@@ -204,7 +212,9 @@ public class TelnetWeatherCommand : ITelnetWindow
     private void ChangeLocation()
     {
         var result = new StringBuilder();
-        result.Append($"-----[CHANGE LOCATION]-----\r\n");
+        result.Append($"Change Weather Location\r\n");
+        result.Append($"Type location name to see suggestions,\r\n");
+        result.Append($"Or type exit to return to weather menu...\r\n\r\n");
 
         _text = result.ToString();
     }

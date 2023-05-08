@@ -24,5 +24,7 @@ public class TelnetLoremCommand : ITelnetWindow
 
     public void Destroy() { }
 
+    public void Refresh() { }
+
     public void ProcessCommand(string command) { }
 }

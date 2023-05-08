@@ -43,6 +43,8 @@ public class TelnetNewsCommand : ITelnetWindow
 
     public void Destroy() { }
 
+    public void Refresh() { }
+
     public void ProcessCommand(string command)
     {
         // TODO: Process number to show article

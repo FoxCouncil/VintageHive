@@ -48,6 +48,8 @@ public class TelnetWeatherChangeTemp : ITelnetWindow
 
     public void Destroy() { }
 
+    public void Refresh() { }
+
     public void ProcessCommand(string command)
     {
         switch (command) 
@@ -63,9 +65,6 @@ public class TelnetWeatherChangeTemp : ITelnetWindow
         UpdateTempData(_session);
         _shouldRemoveNextCommand = true;
 
-        // Forcefully tell weather command to reprint itself.
-        _session.WindowManager.RemoveDeadWindows();
-        var weatherCommandBelowMe = _session.WindowManager.GetTopWindow() as TelnetWeatherCommand;
-        weatherCommandBelowMe.WeatherMenu();
+        _session.ForceCloseWindow(this);
     }
 }

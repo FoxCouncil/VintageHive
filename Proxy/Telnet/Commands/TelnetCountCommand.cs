@@ -46,5 +46,7 @@ public class TelnetCountCommand : ITelnetWindow
         _timer.Dispose();
     }
 
+    public void Refresh() { }
+
     public void ProcessCommand(string command) { }
 }

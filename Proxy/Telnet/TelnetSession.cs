@@ -192,7 +192,42 @@ namespace VintageHive.Proxy.Telnet
                 return;
             }
 
-            Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} session attempted to add a window {windowName} which doesn't exist!", Client.TraceId.ToString());
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} session attempted ForceAddWindow({windowName}) which doesn't exist!", Client.TraceId.ToString());
+        }
+
+        /// <summary>
+        /// Forcefully removes a window even if hidden, throws error if window not found.
+        /// Intended to be used by window to close itself
+        /// </summary>
+        /// <param name="windowToClose">Window that has ShouldRemoveNextCommand set to true.</param>
+        public void ForceCloseWindow(ITelnetWindow windowToClose)
+        {
+            if (!windowToClose.ShouldRemoveNextCommand)
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} session attempted to ForceCloseWindow({windowToClose.Title}) which doesn't have ShouldRemoveNextCommand set to true!", Client.TraceId.ToString());
+                return;
+            }
+
+            // Removes the dangling window from the window manager.
+            _windowManager.RemoveDeadWindows();
+
+            // Check that current top window is not null.
+            var topWindow = _windowManager.GetTopWindow();
+            if (topWindow == null) 
+            {
+                // Since there is no window below, we don't have to run a refresh on it.
+                return;
+            }
+
+            // Complain if window titles match, the new top window title should NOT match incoming window to close!
+            if (topWindow.Title == windowToClose.Title)
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} session attempted to ForceCloseWindow({windowToClose.Title}) but it won't die!", Client.TraceId.ToString());
+                return;
+            }
+
+            // Forces the window 
+            topWindow.Refresh();
         }
     }
 }
