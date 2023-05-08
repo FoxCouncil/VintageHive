@@ -19,13 +19,12 @@ public class TelnetNewsCommand : ITelnetWindow
 
     public void OnAdd(TelnetSession session)
     {
-        var region = "US";
-        var articles = NewsUtils.GetGoogleArticles(region).Result;
+        var articles = NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.US).Result;
 
         var headlines = new StringBuilder();
         var count = 0;
 
-        headlines.Append($"Today in {region} news, type number to view article.\r\n");
+        headlines.Append($"Today in {GoogleNewsTopic.US.ToString()} news, type number to view article.\r\n");
         foreach (var article in articles.Take(10)) 
         {
             _articleMap.Add(count++, article);

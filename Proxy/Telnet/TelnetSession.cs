@@ -22,7 +22,6 @@ namespace VintageHive.Proxy.Telnet
 
         public TelnetWindowManager WindowManager { get => _windowManager; }
 
-        private readonly char[] _spinnerAnimationFrames = new[] { '|', '/', '-', '\\' };
         private int _currentAnimationFrame;
         private readonly TelnetWindowManager _windowManager = new();
 
@@ -88,18 +87,6 @@ namespace VintageHive.Proxy.Telnet
             await Client.Stream.WriteAsync(cursorCommand);
         }
 
-        public string UpdateSpinner()
-        {
-            // Keep looping around all the animation frames
-            _currentAnimationFrame++;
-            if (_currentAnimationFrame == _spinnerAnimationFrames.Length)
-            {
-                _currentAnimationFrame = 0;
-            }
-
-            return _spinnerAnimationFrames[_currentAnimationFrame].ToString();
-        }
-
         /// <summary>
         /// Respects the terminal width and height variables to print long string over multiple lines.
         /// </summary>
@@ -146,6 +133,9 @@ namespace VintageHive.Proxy.Telnet
             // Lowercase all characters and trim any trailing spaces.
             var cleanCmd = command.ToLower().Trim();
 
+            // Remove any windows pending removal before attempting to process commands.
+            _windowManager.RemoveDeadWindows();
+
             // Check if top level window will intercept commands instead.
             var topWindow = _windowManager.GetTopWindow();
             if (topWindow != null)
@@ -182,16 +172,31 @@ namespace VintageHive.Proxy.Telnet
             {
                 _windowManager.GetTopWindow().OnAdd(this);
             }
-            else if (_windowManager.TryAddWindow("invalid_cmd"))
+            else
             {
-                // Attach hidden window that shows user error.
-                _windowManager.GetTopWindow().OnAdd(this);
+                // Hidden window that will say what was typed was invalid.
+                ForceAddWindow("invalid_cmd");
             }
         }
 
         public void Destroy()
         {
             _windowManager.Destroy();
+        }
+
+        /// <summary>
+        /// Forcefully adds a window even if hidden, throws error if window not found.
+        /// Intended to be used by windows adding sub-windows!
+        /// </summary>
+        public void ForceAddWindow(string windowName)
+        {
+            if (_windowManager.TryAddWindow(windowName))
+            {
+                _windowManager.GetTopWindow().OnAdd(this);
+                return;
+            }
+
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetSession), $"Client {Client.RemoteIP} session attempted to add a window {windowName} which doesn't exist!", Client.TraceId.ToString());
         }
     }
 }

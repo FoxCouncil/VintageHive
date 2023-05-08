@@ -75,17 +75,7 @@ public class TelnetWindowManager
         // Check if a window by that name exists and is not already loaded.
         if (_windowDict.ContainsKey(commandName))
         {
-            // Remove any pending windows that are waiting until next command.
-            if (_activeWindows.Any())
-            {
-                while (_activeWindows.TryPeek(out var window))
-                {
-                    if (window.ShouldRemoveNextCommand)
-                    {
-                        CloseTopWindow();
-                    }
-                }
-            }
+            RemoveDeadWindows();
 
             // Check if the top window is the same as one we're adding.
             var topWindow = GetTopWindow();
@@ -116,6 +106,32 @@ public class TelnetWindowManager
         }
 
         return false;
+    }
+
+    public void RemoveDeadWindows()
+    {
+        // Remove any pending windows that are waiting until next command.
+        if (_activeWindows.Any())
+        {
+            var lastWindowTitlePeek = string.Empty;
+            while (_activeWindows.TryPeek(out var window))
+            {
+                // Prevent deadlock by breaking if last peek is same as current meaning no more work is needed.
+                if (lastWindowTitlePeek == window.Title)
+                {
+                    break;
+                }
+
+                // If multiple windows need removed this will clear them out.
+                if (window.ShouldRemoveNextCommand)
+                {
+                    CloseTopWindow();
+                }
+
+                // Keeps track of last window we looked at.
+                lastWindowTitlePeek = window.Title;
+            }
+        }
     }
 
     public void TickWindows()
