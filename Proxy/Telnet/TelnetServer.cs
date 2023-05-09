@@ -1,6 +1,4 @@
 ﻿using VintageHive.Network;
-using System;
-using System.IO;
 
 namespace VintageHive.Proxy.Telnet
 {

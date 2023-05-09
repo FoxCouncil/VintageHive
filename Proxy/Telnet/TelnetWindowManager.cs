@@ -33,16 +33,19 @@ public class TelnetWindowManager
                 // Check if this is a hidden command.
                 if (castedType.HiddenCommand && !showHidden)
                 {
-                    castedType.Destroy();
                     continue;
                 }
 
                 _tempDic.Add(castedType.Title, castedType.Description);
-                castedType.Destroy();
             }
         }
 
         return _tempDic;
+    }
+
+    public int GetWindowCount()
+    {
+        return _activeWindows.Count;
     }
 
     /// <summary>
@@ -96,10 +99,6 @@ public class TelnetWindowManager
                         // Creates the window and adds it to list of active windows.
                         _activeWindows.Push(createdWindow);
                         return true;
-                    }
-                    else
-                    {
-                        createdWindow.Destroy();
                     }
                 }
             }

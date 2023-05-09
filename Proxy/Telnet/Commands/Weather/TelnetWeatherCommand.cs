@@ -16,8 +16,6 @@ public class TelnetWeatherCommand : ITelnetWindow
 
     private string _text;
 
-    private const string DEFAULT_LOCATION_PRIVACY = "Your Location";
-
     private TelnetSession _session;
     private bool _shouldRemoveNextCommand;
 
@@ -58,27 +56,23 @@ public class TelnetWeatherCommand : ITelnetWindow
 
     private void UpdateWeatherData()
     {
-        // TODO: Let user specify a location
-        string location = null;
-        location = location == DEFAULT_LOCATION_PRIVACY ? null : location;
-
         _tempUnits = Mind.Db.ConfigLocalGet<string>(_session.Client.RemoteIP, ConfigNames.TemperatureUnits);
         _distUnits = Mind.Db.ConfigLocalGet<string>(_session.Client.RemoteIP, ConfigNames.DistanceUnits);
-
-        _geoipLocation = location != null ? WeatherUtils.FindLocation(location) : Mind.Db.ConfigGet<GeoIp>(ConfigNames.Location);
+        _geoipLocation = Mind.Db.ConfigGet<GeoIp>(ConfigNames.Location);
 
         _weatherData = WeatherUtils.GetDataByGeoIp(_geoipLocation, _tempUnits, _distUnits).Result;
 
         _temp = _tempUnits[..1].ToLower();
 
-        _weatherFullname = location == null ? DEFAULT_LOCATION_PRIVACY : _geoipLocation?.fullname ?? "N/A";
+        _weatherFullname = _geoipLocation == null ? "N/A" : (_geoipLocation?.fullname);
     }
 
     public void Destroy() { }
 
     public void Refresh()
     {
-        // When submenus of weather command close we just display the weather menu again.
+        // When submenus of weather command close we just update and display the weather menu again.
+        UpdateWeatherData();
         WeatherMenu();
     }
 
@@ -211,12 +205,7 @@ public class TelnetWeatherCommand : ITelnetWindow
 
     private void ChangeLocation()
     {
-        var result = new StringBuilder();
-        result.Append($"Change Weather Location\r\n");
-        result.Append($"Type location name to see suggestions,\r\n");
-        result.Append($"Or type exit to return to weather menu...\r\n\r\n");
-
-        _text = result.ToString();
+        _session.ForceAddWindow("weather_change_location");
     }
 
     private void ChangeTempUnits()

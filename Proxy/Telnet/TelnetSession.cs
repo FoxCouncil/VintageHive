@@ -170,8 +170,12 @@ namespace VintageHive.Proxy.Telnet
             }
             else
             {
-                // Hidden window that will say what was typed was invalid.
-                ForceAddWindow("invalid_cmd");
+                // Only say invalid command if there are no windows attached.
+                if (_windowManager.GetWindowCount() <= 0)
+                {
+                    // Hidden window that will say what was typed was invalid.
+                    ForceAddWindow("invalid_cmd");
+                }
             }
         }
 

@@ -13,13 +13,13 @@ public class TelnetCountCommand : ITelnetWindow
 
     public string Title => "count";
 
-    public bool ShouldRemoveNextCommand => true;
+    public bool ShouldRemoveNextCommand => false;
 
     public string Description => "Counts upwards forever";
 
     public bool HiddenCommand => false;
 
-    public bool AcceptsCommands => false;
+    public bool AcceptsCommands => true;
 
     private void UpdateCount()
     {
