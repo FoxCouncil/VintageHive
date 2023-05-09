@@ -15,7 +15,7 @@ public class TelnetHelpCommand : ITelnetWindow
 
     public bool AcceptsCommands => false;
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         var result = new StringBuilder();
         foreach (var item in TelnetWindowManager.GetAllCommands(false))

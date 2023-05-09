@@ -9,7 +9,7 @@ public interface ITelnetWindow
     string Description { get; }
     string Text { get; }
     void ProcessCommand(string command);
-    void OnAdd(TelnetSession session);
+    void OnAdd(TelnetSession session, object args = null);
     void Destroy();
     void Refresh();
 }

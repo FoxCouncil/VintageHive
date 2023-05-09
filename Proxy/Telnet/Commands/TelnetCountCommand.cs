@@ -27,7 +27,7 @@ public class TelnetCountCommand : ITelnetWindow
         _text = $"Count: {_count:N0}\r\n";
     }
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         _timer.Elapsed += Timer_Elapsed;
         _timer.Start();

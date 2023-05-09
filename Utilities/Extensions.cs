@@ -308,6 +308,47 @@ public static class Extensions
         return values.ToStringTable(headers, selectors);
     }
 
+    /// <summary>
+    /// Respects the terminal width and height variables to print long string over multiple lines.
+    /// </summary>
+    /// <param name="text">Text to be transformed into telenet compatible lines.</param>
+    /// <returns>Formatted lines of text with proper returns at the end.</returns>
+    public static string WordWrapText(this string text, int width, int height, string newline = "\r\n")
+    {
+        // Split the text into lines using whole words
+        var lines = new List<string>();
+        var currentLine = new StringBuilder();
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (currentLine.Length + word.Length + 1 > width)
+            {
+                lines.Add(currentLine.ToString());
+                currentLine.Clear();
+            }
+
+            if (lines.Count == width)
+            {
+                break;
+            }
+
+            currentLine.Append(word).Append(' ');
+        }
+
+        if (currentLine.Length > 0 && lines.Count < height)
+        {
+            lines.Add(currentLine.ToString());
+        }
+
+        // Add a newline character at the end of each line that has been broken up for telnet.
+        var result = new StringBuilder();
+        foreach (var line in lines)
+        {
+            result.Append(line + newline);
+        }
+
+        return result.ToString();
+    }
+
     private static PropertyInfo GetProperty<T>(Expression<Func<T, object>> expresstion)
     {
         if (expresstion.Body is UnaryExpression)

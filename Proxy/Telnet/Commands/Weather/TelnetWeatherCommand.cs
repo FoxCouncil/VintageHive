@@ -27,7 +27,7 @@ public class TelnetWeatherCommand : ITelnetWindow
     private WeatherData _weatherData;
     private string _weatherFullname;
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         _session = session;
 

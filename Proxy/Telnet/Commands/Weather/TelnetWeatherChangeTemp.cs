@@ -21,7 +21,7 @@ public class TelnetWeatherChangeTemp : ITelnetWindow
     private TelnetSession _session;
     private bool _shouldRemoveNextCommand;
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         _session = session;
 

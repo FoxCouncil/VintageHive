@@ -29,7 +29,7 @@ public class TelnetRiddleCommand : ITelnetWindow
     private readonly StringBuilder _riddle = new();
     private TelnetSession _session = null;
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         _session = session;
         _riddleNumber = _random.Next(1, 6); // Choose a random riddle number between 1 and 5
@@ -48,27 +48,27 @@ public class TelnetRiddleCommand : ITelnetWindow
         switch (_riddleNumber)
         {
             case 1:
-                _riddle.Append(_session.WordWrapText("What has a heart that doesn't beat?"));
+                _riddle.Append("What has a heart that doesn't beat?".WordWrapText(_session.TermWidth, _session.TermHeight));
                 answer = "artichoke";
                 break;
             case 2:
-                _riddle.Append(_session.WordWrapText("What is full of holes but still holds water?"));
+                _riddle.Append("What is full of holes but still holds water?".WordWrapText(_session.TermWidth, _session.TermHeight));
                 answer = "sponge";
                 break;
             case 3:
-                _riddle.Append(_session.WordWrapText("What can travel around the world while staying in a corner?"));
+                _riddle.Append("What can travel around the world while staying in a corner?".WordWrapText(_session.TermWidth, _session.TermHeight));
                 answer = "stamp";
                 break;
             case 4:
-                _riddle.Append(_session.WordWrapText("I am not alive, but I can grow. I don't have lungs, but I need air. I don't have a mouth, but water kills me. What am I?"));
+                _riddle.Append("I am not alive, but I can grow. I don't have lungs, but I need air. I don't have a mouth, but water kills me. What am I?".WordWrapText(_session.TermWidth, _session.TermHeight));
                 answer = "fire";
                 break;
             case 5:
-                _riddle.Append(_session.WordWrapText("The more you take, the more you leave behind. What am I?"));
+                _riddle.Append("The more you take, the more you leave behind. What am I?".WordWrapText(_session.TermWidth, _session.TermHeight));
                 answer = "footsteps";
                 break;
             default:
-                _riddle.Append(_session.WordWrapText("Error: Unknown riddle"));
+                _riddle.Append("Error: Unknown riddle".WordWrapText(_session.TermWidth, _session.TermHeight));
                 answer = string.Empty;
                 break;
         }

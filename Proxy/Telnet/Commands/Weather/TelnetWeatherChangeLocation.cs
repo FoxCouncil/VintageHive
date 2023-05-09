@@ -25,7 +25,7 @@ public class TelnetWeatherChangeLocation : ITelnetWindow
     private bool _shouldRemoveNextCommand;
     private GeoIp _potentialLocation;
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         _session = session;
 

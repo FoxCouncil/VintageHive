@@ -16,7 +16,7 @@ public class TelnetInvalidCommand : ITelnetWindow
 
     private string _text;
 
-    public void OnAdd(TelnetSession session)
+    public void OnAdd(TelnetSession session, object args = null)
     {
         var cleanInputBuffer = session.InputBuffer.ReplaceLineEndings(string.Empty).Trim();
         if (string.IsNullOrEmpty(cleanInputBuffer) || string.IsNullOrWhiteSpace(cleanInputBuffer))
