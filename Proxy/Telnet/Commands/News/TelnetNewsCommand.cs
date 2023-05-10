@@ -23,8 +23,12 @@ public class TelnetNewsCommand : ITelnetWindow
     {
         _session = session;
 
-        var newsMenu = new StringBuilder();
+        PrintNewsMenu();
+    }
 
+    private void PrintNewsMenu()
+    {
+        var newsMenu = new StringBuilder();
         newsMenu.Append("News Menu\r\n");
         newsMenu.Append("Type a number and press enter...\r\n\r\n");
 
@@ -44,7 +48,10 @@ public class TelnetNewsCommand : ITelnetWindow
 
     public void Destroy() { }
 
-    public void Refresh() { }
+    public void Refresh() 
+    {
+        //PrintNewsMenu();
+    }
 
     public void ProcessCommand(string command)
     {
