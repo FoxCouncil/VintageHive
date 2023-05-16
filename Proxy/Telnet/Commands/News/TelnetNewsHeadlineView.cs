@@ -1,7 +1,4 @@
-﻿using AngleSharp.Dom;
-using SmartReader;
-
-namespace VintageHive.Proxy.Telnet.Commands.News;
+﻿namespace VintageHive.Proxy.Telnet.Commands.News;
 
 public class TelnetNewsHeadlineView : ITelnetWindow
 {

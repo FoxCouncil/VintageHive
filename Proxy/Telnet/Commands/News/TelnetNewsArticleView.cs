@@ -1,4 +1,7 @@
-﻿using SmartReader;
+﻿using HeyRed.Mime;
+using HtmlAgilityPack;
+using SmartReader;
+using Image = SixLabors.ImageSharp.Image;
 
 namespace VintageHive.Proxy.Telnet.Commands.News;
 
@@ -27,7 +30,8 @@ public class TelnetNewsArticleView : ITelnetWindow
 
     private string articleText;
     private string[] words = null;
-    private System.Timers.Timer _startupDelay = new System.Timers.Timer();
+    private readonly System.Timers.Timer _startupDelay = new();
+    private List<string> articleImageLinks = new();
 
     public void OnAdd(TelnetSession session, object args = null)
     {
@@ -64,10 +68,31 @@ public class TelnetNewsArticleView : ITelnetWindow
             // Consider that the task may have faulted or been canceled.
             // We re-await the task so that any exceptions/cancellation is rethrown.
             await task;
-
             var article = task.Result;
+
+            var articleUrl = $"https://news.google.com/__i/rss/rd/articles/{_headline.Id}";
+
+            // --------Image malarkey-----
+            var mimetype = MimeTypesMap.GetMimeType(articleUrl);
+            if (!mimetype.StartsWith("image"))
+            {
+                var articleDocument = new HtmlDocument();
+                articleDocument.LoadHtml(task.Result.Content);
+                var links = GetImageLinks(articleDocument);
+
+                if (links != null)
+                {
+                    articleImageLinks = new(links);
+                }
+                else
+                {
+                    articleImageLinks = new();
+                }
+            }
+
+            // -------Text malarkey--------
             var rawArticleText = article.TextContent.ReplaceLineEndings("\r\n");
-            articleText = article.Title.ReplaceLineEndings(string.Empty) + "\r\n";
+            articleText = article.Title.ReplaceLineEndings("\r\n");
             articleText += rawArticleText;
 
             // Figure out how many pages this text will take to display.
@@ -86,6 +111,39 @@ public class TelnetNewsArticleView : ITelnetWindow
 
         // Since this happens on another thread and at a random time we have to force a tick to update screen!
         await _session.TickWindows();
+    }
+
+    private static List<string> GetImageLinks(HtmlDocument articleDocument)
+    {
+        var imgNodes = articleDocument.DocumentNode.SelectNodes("//img");
+        if (imgNodes != null)
+        {
+            var result = new List<string>();
+            foreach (var node in imgNodes)
+            {
+                var img = node.GetAttributeValue("src", "");
+
+                if (string.IsNullOrEmpty(img))
+                {
+                    img = node.GetAttributeValue("data-src", "");
+                }
+
+                if (string.IsNullOrEmpty(img))
+                {
+                    img = node.GetAttributeValue("data-src-medium", "");
+                }
+
+                var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
+                //var imageUrl = $"http://api.hive.com/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}";
+                var imageUrl = imgUri.ToString();
+
+                result.Add(imageUrl);
+            }
+
+            return result;
+        }
+
+        return null;
     }
 
     private static async Task<Article> DownloadArticle(string id)
@@ -107,14 +165,28 @@ public class TelnetNewsArticleView : ITelnetWindow
         // Build up article to display, keeping pagenation in mind.
         var result = new StringBuilder();
         result.Append($"News Article Viewer - Page {currentPage}/{totalPages}\r\n");
-        result.Append("[N]ext page  [P]revious page  [Q]uit\r\n\r\n");
 
-        for (int i = startIndex; i < endIndex; i++)
+        // Modify navigation prompt if there are any images to show.
+        if (articleImageLinks.Count > 0)
         {
-            result.Append($"{words[i]} ");
+            result.Append($"[N]ext page  [P]revious page  [V]iew ({articleImageLinks.Count}) images  [Q]uit\r\n\r\n");
+        }
+        else
+        {
+            result.Append("[N]ext page  [P]revious page  [Q]uit\r\n\r\n");
         }
 
-        _text = result.ToString().WordWrapText(_session.TermWidth, _session.TermHeight);
+        // Rebuilds the article using pagination to only take as many words as needed to fill that given page.
+        var reflowedText = string.Empty;
+        for (int i = startIndex; i < endIndex; i++)
+        {
+            reflowedText += $"{words[i]} ";
+        }
+
+        // Now we word wrap the article so it stays within terminal boundaries.
+        result.Append(reflowedText.WordWrapText(_session.TermWidth, _session.TermHeight));
+
+        _text = result.ToString();
     }
 
     public void Destroy() { }
@@ -140,6 +212,13 @@ public class TelnetNewsArticleView : ITelnetWindow
                 if (currentPage > 1)
                 {
                     currentPage--;
+                }
+                break;
+            case "v":
+                // Image viewer for images in articles converted to ascii art.
+                if (articleImageLinks.Count > 0)
+                {
+                    _session.ForceAddWindow("image_gallery", articleImageLinks);
                 }
                 break;
             case "q":
