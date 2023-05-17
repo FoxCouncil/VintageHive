@@ -1,11 +1,12 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Fluid;
+using System.Text.RegularExpressions;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
 [Domain("admin.hive.com")]
-internal class AdminController : Controller
+internal partial class AdminController : Controller
 {
     private const string LoginSessionKeyName = "login";
 
@@ -34,6 +35,74 @@ internal class AdminController : Controller
         await Task.Delay(0);
 
         Response.Context.SetValue("ia_years", InternetArchiveProcessor.ValidYears);
+    }
+
+    [Route("/users.html")]
+    public async Task Users()
+    {
+        await Task.Delay(0);
+
+        Response.Context.SetValue("users", Mind.Db.UserList());
+    }
+
+    [Route("/api/usercreate")]
+    public async Task UserCreate()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("username") || !Request.FormData.ContainsKey("password"))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Request.FormData["username"]) || string.IsNullOrWhiteSpace(Request.FormData["password"]))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        var username = Request.FormData["username"];
+        var password = Request.FormData["password"];
+
+        // Min = 3, Max = 8
+        // Hey man, it was the 90's! Shit was wild back then...
+        // I don't make the rulzes <3
+        if (username.Length > 8 || password.Length > 8 || username.Length < 3 || password.Length < 3) 
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        if (!UserRegexPattern().IsMatch(username) || !UserRegexPattern().IsMatch(password))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        Response.SetJsonSuccess(Mind.Db.UserCreate(username, password));
+    }
+
+    [Route("/api/userdelete")]
+    public async Task UserDelete()
+    {
+        await Task.Delay(0);
+
+        var username = Request.Body;
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        if (username.Length > 8 || username.Length < 3)
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        Response.SetJsonSuccess(Mind.Db.UserDelete(username));
     }
 
     [Route("/api/cachegetcounts")]
@@ -219,4 +288,7 @@ internal class AdminController : Controller
     {
         return Response.HasSession(LoginSessionKeyName);
     }
+
+    [GeneratedRegex("[a-zA-Z0-9]+")]
+    private static partial Regex UserRegexPattern();
 }

@@ -88,14 +88,14 @@ internal class OscarIcbmService : IOscarService
                     sendClientMessageSnac.WriteString(session.ScreenName);
 
                     // TODO: Warning Level
-                    sendClientMessageSnac.WriteUInt16(0);
+                    sendClientMessageSnac.WriteUInt16(50);
 
                     var sendTlvs = new List<Tlv>
                     {
                         new Tlv(0x01, OscarUtils.GetBytes(0)),
                         new Tlv(0x06, OscarUtils.GetBytes((uint)session.Status)),
-                        new Tlv(0x0F, OscarUtils.GetBytes((uint)0)),
-                        new Tlv(0x03, OscarUtils.GetBytes((uint)420))
+                        new Tlv(0x0F, OscarUtils.GetBytes((uint)50000000)),
+                        new Tlv(0x03, OscarUtils.GetBytes((uint)58245381))
                     };
 
                     sendClientMessageSnac.WriteUInt16((ushort)sendTlvs.Count);

@@ -7,6 +7,8 @@ namespace VintageHive.Proxy.Oscar;
 
 public class OscarServer : Listener
 {
+    public const string LoginHelpUrl = "http://hive.com/help.html#aim_login";
+
     public static readonly List<OscarSession> Sessions = new();
 
     public static DateTimeOffset ServerTime => DateTime.Now;
@@ -18,11 +20,11 @@ public class OscarServer : Listener
         { OscarBuddyListService.FAMILY_ID, 0x01 }, // Buddy List Management Service
         { OscarIcbmService.FAMILY_ID, 0x01 }, // ICBM (messages) Service
         { 0x05, 0x01 },
-        { 0x06, 0x01 },
+        { OscarInvitationService.FAMILY_ID, 0x01 },
         { 0x08, 0x01 },
         { OscarPrivacyService.FAMILY_ID, 0x01 }, // (PD) Permit/Deny settings for the user.
-        { 0x0A, 0x01 },
-        { 0x0B, 0x01 },
+        { OscarUserLookupService.FAMILY_ID, 0x01 },
+        { OscarUsageStatsServices.FAMILY_ID, 0x01 },
         { 0x0C, 0x01 },
         { 0x10, 0x01 },
         { 0x13, 0x01 },
@@ -45,7 +47,10 @@ public class OscarServer : Listener
             new OscarLocationService(this),
             new OscarBuddyListService(this),
             new OscarIcbmService(this),
+            new OscarInvitationService(this),
             new OscarPrivacyService(this),
+            new OscarUserLookupService(this),
+            new OscarUsageStatsServices(this),
             new OscarIcqService(this),
             new OscarAuthorizationService(this)
         };
@@ -154,22 +159,29 @@ public class OscarServer : Listener
 
     private static async Task ProcessChannelOneAuth(OscarSession session, Tlv[] tlvs)
     {
-        session.ScreenName = Encoding.ASCII.GetString(tlvs.GetTlv(0x01).Value);
+        var screenName = Encoding.ASCII.GetString(tlvs.GetTlv(0x01).Value);
 
-        if (OscarUtils.RoastPassword("penis").SequenceEqual(tlvs.GetTlv(0x02).Value))
+        if (!Mind.Db.UserExistsByUsername(screenName))
         {
-            session.Cookie = Guid.NewGuid().ToString().ToUpper();
+            await AuthFailedError(session);
+            
+            return;
+        }
 
+        var user = Mind.Db.UserFetch(screenName);
+
+        if (OscarUtils.RoastPassword(user.Password).SequenceEqual(tlvs.GetTlv(0x02).Value))
+        {
             session.UserAgent = Encoding.ASCII.GetString(tlvs.GetTlv(0x03).Value);
 
-            Mind.Db.OscarSetSession(session);
+            session.Load(screenName);
 
             var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 
             // send yes
             var srvCookie = new List<Tlv>
             {
-                new Tlv(0x0001, session.ScreenName),
+                new Tlv(Tlv.Type_ScreenName, session.ScreenName),
                 new Tlv(0x0005, $"{serverIP}:5190"),
                 new Tlv(0x0006, session.Cookie)
             };
@@ -195,8 +207,8 @@ public class OscarServer : Listener
     {
         var authFailed = new List<Tlv>
         {
-            new Tlv(0x0001, session.ScreenName),
-            new Tlv(0x0004, "http://hive/aim/help#login"),
+            new Tlv(Tlv.Type_ScreenName, session.ScreenName),
+            new Tlv(0x0004, LoginHelpUrl),
             new Tlv(0x0008, (ushort)OscarAuthError.IncorrectScreenNameOrPassword),
             new Tlv(0x000C, 0x0001)
         };

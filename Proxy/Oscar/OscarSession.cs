@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Data;
 using VintageHive.Network;
 
 namespace VintageHive.Proxy.Oscar;
@@ -26,28 +27,93 @@ public class OscarSession
 
     public OscarSessionOnlineStatus Status { get; set; }
 
-    public List<string> Buddies { get; set;  } = new();
+    public List<string> Buddies { get; set; } = new();
 
-    public string Profile { get; set; }
+    public string Profile { get; set; } = string.Empty;
 
-    public string ProfileMimeType { get; set; }
+    public string ProfileMimeType { get; set; } = string.Empty;
 
-    public string AwayMessage { get; set; }
+    public string AwayMessage { get; set; } = string.Empty;
 
-    public string AwayMessageMimeType { get; set; }
+    public string AwayMessageMimeType { get; set; } = string.Empty;
 
-    public List<string> Capabilities { get; set; }
+    public List<string> Capabilities { get; set; } = new();
 
     public string UserAgent { get; set; }
 
-    public OscarSession()
-    {
+    public OscarSession() { }
 
+    public OscarSession(IDataReader reader)
+    {
+        Cookie = reader.GetString(0);
+        
+        ScreenName = reader.GetString(1);
+        
+        Status = (OscarSessionOnlineStatus)reader.GetInt32(2);
+        
+        AwayMessageMimeType = reader.GetString(3);
+        AwayMessage = reader.GetString(4);
+
+        ProfileMimeType = reader.GetString(5);
+        Profile = reader.GetString(6);
+
+        Buddies = JsonSerializer.Deserialize<List<string>>(reader.GetString(7));
+
+        Capabilities = JsonSerializer.Deserialize<List<string>>(reader.GetString(8));
+
+        UserAgent = reader.GetString(9);
     }
 
     public OscarSession(ListenerSocket client)
     {
         Client = client;
+    }
+
+    public void LoadFromOtherSession(OscarSession otherSession)
+    {
+        Cookie = otherSession.Cookie;
+
+        ScreenName = otherSession.ScreenName;
+
+        Status = otherSession.Status;
+
+        AwayMessageMimeType = otherSession.AwayMessageMimeType;
+        AwayMessage = otherSession.AwayMessage;
+
+        ProfileMimeType = otherSession.ProfileMimeType;
+        Profile = otherSession.Profile;
+
+        Buddies = otherSession.Buddies;
+
+        Capabilities = otherSession.Capabilities;
+
+        if (string.IsNullOrEmpty(UserAgent))
+        {
+            UserAgent = otherSession.UserAgent;
+        }
+    }
+
+    public void Load(string screenName)
+    {
+        ScreenName = screenName;
+
+        var otherSession = Mind.Db.OscarGetSessionByScreenameAndIp(screenName, Client.RemoteIP);
+
+        if (otherSession != null)
+        {
+            LoadFromOtherSession(otherSession);
+        }
+        else
+        {
+            Cookie = Guid.NewGuid().ToString().ToUpper();
+        }
+
+        Save();
+    }
+
+    public void Save()
+    {
+        Mind.Db.OscarInsertOrUpdateSession(this);
     }
 
     public async Task SendSnac(Snac snac)
@@ -83,7 +149,7 @@ public class OscarSession
             return null;
         }
 
-        Console.Write($"Recieved {read} bytes...");
+        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Recieved {read} bytes...", Client.TraceId.ToString());
 
         var flaps = OscarUtils.DecodeFlaps(buffer[..read]);
 

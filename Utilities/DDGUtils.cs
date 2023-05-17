@@ -74,7 +74,7 @@ internal static class DDGUtils
 
         if (vqd != null)
         {
-            Console.WriteLine(vqd+"-sql");
+            Log.WriteLine(Log.LEVEL_DEBUG, "DDGUtils", vqd + "-sql", "");
 
             return vqd;
         }

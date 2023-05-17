@@ -4,6 +4,12 @@ namespace VintageHive.Proxy.Oscar;
 
 public class Tlv
 {
+    public const ushort Type_ScreenName = 0x0001;
+
+    public const ushort Type_ErrorSubCode = 0x0008;
+
+    public const ushort Error_NoMatch = 0x0014;
+
     public ushort Type { get; }
 
     public byte[] Value { get; internal set; }

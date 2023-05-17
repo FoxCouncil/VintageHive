@@ -10,6 +10,10 @@ namespace VintageHive.Proxy.Http;
 
 public sealed partial class HttpRequest : Request
 {
+    public const string HttpNewLine = "\r\n";
+
+    public const string HttpBodySplit = HttpNewLine + HttpNewLine;
+
     public static readonly HttpRequest Invalid = new() { IsValid = false };
 
     public IReadOnlyDictionary<string, string>? QueryParams { get; private set; }
@@ -110,13 +114,18 @@ public sealed partial class HttpRequest : Request
 
                 case HttpContentType.Multipart.FormData:
                 {
+                    if (rawBody.Length < 11)
+                    {
+                        break;
+                    }
+
                     var baseBoundryMarker = contentType[(contentType.IndexOf(';') + 11)..];
                     var startBoundryMarker = "--" + baseBoundryMarker;
                     var endBoundryMarker = startBoundryMarker + "--";
 
-                    var boundries = rawBody.Split(endBoundryMarker, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    var boundriesRaw = rawBody.Split(endBoundryMarker, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
 
-                    boundries = boundries.Select(b => b.Replace(startBoundryMarker, string.Empty).Trim()).ToArray();
+                    var boundries = boundriesRaw.Split(startBoundryMarker, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                     var dict = new Dictionary<string, string>();
 
@@ -196,19 +205,30 @@ public sealed partial class HttpRequest : Request
 
         var rawRequest = encoding.GetString(rawBytes);
 
-        if (!rawRequest.Contains("\r\n"))
+        if (!rawRequest.Contains(HttpNewLine))
         {
             return Invalid;
         }
 
-        if (!rawRequest.Contains("\r\n\r\n"))
+        if (!rawRequest.StartsWith("GET"))
         {
-            var buffer = new byte[4096];
-            var read = await socket.Stream.ReadAsync(buffer);
+            var contentLengthMatch = HttpContentLengthParseRegex().Match(rawRequest);
 
-            var extraData = encoding.GetString(buffer[..read]);
+            if (contentLengthMatch.Success)
+            {
+                var expectedLength = contentLengthMatch.Success ? Convert.ToInt32(contentLengthMatch.Groups[1].Value) : 0;
+                var contentLength = rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Length;
 
-            rawRequest += extraData;
+                if (expectedLength > contentLength)
+                {
+                    var buffer = new byte[4096];
+                    var read = await socket.Stream.ReadAsync(buffer);
+
+                    var extraData = encoding.GetString(buffer[..read]);
+
+                    rawRequest += extraData;
+                }
+            }
         }
 
         var newRequest = Parse(rawRequest, encoding, socket);
@@ -218,4 +238,7 @@ public sealed partial class HttpRequest : Request
 
     [GeneratedRegex("name=\"(.*?)\"")]
     private static partial Regex HttpContentBoundryRegex();
+
+    [GeneratedRegex("Content\\-Length\\:\\s(\\d+)\r\n")]
+    private static partial Regex HttpContentLengthParseRegex();
 }

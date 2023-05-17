@@ -34,3 +34,11 @@ function formData(object) {
     }
     return formData;
 }
+
+function formDataToJson(formEl) {
+    let formData = new FormData(formEl);
+
+    var object = {};
+    formData.forEach((value, key) => object[key] = value);
+    return JSON.stringify(object);
+}

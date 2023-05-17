@@ -35,28 +35,47 @@ public class OscarAuthorizationService : IOscarService
                 var tlvs = OscarUtils.DecodeTlvs(snac.RawData);
 
                 session.ScreenName = tlvs.GetTlv(0x01).Value.ToASCII();
+
+                if (!Mind.Db.UserExistsByUsername(session.ScreenName))
+                {
+                    await FailAuth(session, snac);
+
+                    return;
+                }
+
+                var user = Mind.Db.UserFetch(session.ScreenName);
+
                 session.UserAgent = tlvs.GetTlv(0x03).Value.ToASCII();
 
                 var hashedPassword = tlvs.GetTlv(0x25).Value;
 
-                var userPassword = MD5.HashData(Encoding.ASCII.GetBytes(session.ScreenName + "penis" + OSCAR_MD5_STRING));
+                var userPassword = MD5.HashData(Encoding.ASCII.GetBytes(session.ScreenName + user.Password + OSCAR_MD5_STRING));
 
                 if (hashedPassword.SequenceEqual(userPassword))
                 {
-                    session.Cookie = Guid.NewGuid().ToString().ToUpper();
+                    var remoteIpAddress = session.Client.RemoteIP;
 
-                    session.UserAgent = Encoding.ASCII.GetString(tlvs.GetTlv(0x03).Value);
+                    var otherSession = Mind.Db.OscarGetSessionByScreenameAndIp(user.Username, remoteIpAddress);
 
-                    Mind.Db.OscarSetSession(session);
+                    if (otherSession != null)
+                    {
+                        session.Cookie = otherSession.Cookie;
+                    }
+                    else
+                    {
+                        session.Cookie = Guid.NewGuid().ToString().ToUpper();
+
+                        Mind.Db.OscarInsertOrUpdateSession(session);
+                    }
 
                     var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 
                     var authSuccessTlvs = new List<Tlv>
                     {
-                        new Tlv(0x0001, session.ScreenName),
+                        new Tlv(Tlv.Type_ScreenName, session.ScreenName),
                         new Tlv(0x0005, $"{serverIP}:5190"),
                         new Tlv(0x0006, session.Cookie),
-                        new Tlv(0x0011, "nobody@example.com"),
+                        new Tlv(0x0011, $"{session.ScreenName}@hive.com"),
                     };
 
                     var authSuccessSnac = snac.NewReply(Family, SRV_LOGIN_REPLY);
@@ -67,18 +86,7 @@ public class OscarAuthorizationService : IOscarService
                 }
                 else
                 {
-                    var authFailed = new List<Tlv>
-                    {
-                        new Tlv(0x0001, session.ScreenName),
-                        new Tlv(0x0004, "http://hive/aim/help#login"),
-                        new Tlv(0x0008, (ushort)OscarAuthError.IncorrectScreenNameOrPassword)
-                    };
-
-                    var failedAuthSnac = snac.NewReply(Family, SRV_LOGIN_REPLY);
-
-                    failedAuthSnac.WriteTlvs(authFailed);
-
-                    await session.SendSnac(failedAuthSnac);
+                    await FailAuth(session, snac);
                 }
             }
             break;
@@ -115,5 +123,21 @@ public class OscarAuthorizationService : IOscarService
             }
             break;
         }
+    }
+
+    private async Task FailAuth(OscarSession session, Snac snac)
+    {
+        var authFailed = new List<Tlv>
+        {
+            new Tlv(Tlv.Type_ScreenName, session.ScreenName),
+            new Tlv(0x0004, OscarServer.LoginHelpUrl),
+            new Tlv(0x0008, (ushort)OscarAuthError.IncorrectScreenNameOrPassword)
+        };
+
+        var failedAuthSnac = snac.NewReply(Family, SRV_LOGIN_REPLY);
+
+        failedAuthSnac.WriteTlvs(authFailed);
+
+        await session.SendSnac(failedAuthSnac);
     }
 }

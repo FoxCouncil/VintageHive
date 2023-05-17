@@ -109,7 +109,7 @@
             }
         }
         await updateDashboard();
-        setInterval(async () => { await updateDashboard() }, 1000);
+        // setInterval(async () => { await updateDashboard() }, 5000);
         iaToggle.addEventListener("click", async () => {
             await callApi("iatoggle");
             await updateDashboard();

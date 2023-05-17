@@ -1,9 +1,17 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using AngleSharp.Dom;
+using Fluid.Ast;
+using Humanizer;
 using Microsoft.Data.Sqlite;
+using System;
 using System.Dynamic;
+using System.Net;
+using System.Reflection.Metadata;
+using UAParser;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace VintageHive.Data.Contexts;
 
@@ -28,7 +36,6 @@ internal class HiveDbContext : DbContextBase
 
     private const string TABLE_VQD = "vqd";
 
-    private const string TABLE_OSCARUSERS = "oscar_users";
     private const string TABLE_OSCARSESSION = "oscar_session";
 
     static readonly IReadOnlyDictionary<string, object> kDefaultGlobalSettings = new Dictionary<string, object>()
@@ -103,14 +110,13 @@ internal class HiveDbContext : DbContextBase
         CreateTable(TABLE_WEBSESSION, "key TEXT UNIQUE, ttl TEXT, ip TEXT, ua TEXT, value BLOB");
 
         // User Accounts
-        CreateTable(TABLE_USER, "username TEXT, password TEXT");
+        CreateTable(TABLE_USER, "username TEXT UNIQUE COLLATE NOCASE, password TEXT");
 
         // For Search Feature
         CreateTable(TABLE_VQD, "key TEXT UNIQUE, vqd TEXT");
 
         // ICQ (OSCAR) Server
-        CreateTable(TABLE_OSCARUSERS, "screenname TEXT UNIQUE, password TEXT");
-        CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
+        CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
     }
 
     #region Log Methods
@@ -595,9 +601,26 @@ internal class HiveDbContext : DbContextBase
             command.Parameters.Add(new SqliteParameter("@username", username));
             command.Parameters.Add(new SqliteParameter("@password", password));
 
-            command.ExecuteNonQuery();
+            return Convert.ToBoolean(command.ExecuteNonQuery());
+        });
+    }
 
-            return true;
+    public bool UserDelete(string username)
+    {
+        if (!UserExistsByUsername(username))
+        {
+            return false;
+        }
+
+        return WithContext(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_USER} WHERE username = @username";
+
+            command.Parameters.Add(new SqliteParameter("@username", username));
+
+            return Convert.ToBoolean(command.ExecuteNonQuery());
         });
     }
 
@@ -605,6 +628,8 @@ internal class HiveDbContext : DbContextBase
     {
         return WithContext(context =>
         {
+            username = username.ToLower();
+
             var command = context.CreateCommand();
 
             command.CommandText = $"SELECT username FROM {TABLE_USER} WHERE username = @username";
@@ -629,7 +654,14 @@ internal class HiveDbContext : DbContextBase
 
             using var reader = command.ExecuteReader();
 
-            return HiveUser.ParseSQL(reader);
+            if (reader.Read())
+            {
+                return HiveUser.ParseSQL(reader);
+            }
+            else
+            {
+                return null;
+            }
         });
     }
 
@@ -729,28 +761,76 @@ internal class HiveDbContext : DbContextBase
                 return default;
             }
 
-            return new OscarSession()
-            {
-                Cookie = reader.GetString(0),
-                ScreenName = reader.GetString(1),
-                UserAgent = reader.GetString(2)
-            };
+            return new OscarSession(reader);
         });
     }
-
-    public void OscarSetSession(OscarSession session)
+    // cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT
+    public void OscarInsertOrUpdateSession(OscarSession session)
     {
         WithContext(context =>
         {
-            using var insertCommand = context.CreateCommand();
+            using var transaction = context.BeginTransaction();
 
-            insertCommand.CommandText = $"INSERT INTO {TABLE_OSCARSESSION} (cookie, screenname, useragent, timestamp) VALUES(@cookie, @screenname, @useragent, datetime('now'))";
+            using var updateCommand = context.CreateCommand();
 
-            insertCommand.Parameters.Add(new SqliteParameter("@cookie", session.Cookie));
-            insertCommand.Parameters.Add(new SqliteParameter("@screenname", session.ScreenName));
-            insertCommand.Parameters.Add(new SqliteParameter("@useragent", session.UserAgent));
+            updateCommand.CommandText = $"UPDATE {TABLE_OSCARSESSION} SET status = @status, awaymime = @awaymime, away = @away, profilemime = @profilemime, profile = @profile, buddies = @buddies, capabilities = @capabilities, useragent = @useragent, clientip = @clientip, timestamp = datetime('now') WHERE cookie = @cookie";
 
-            insertCommand.ExecuteNonQuery();
+            updateCommand.Parameters.Add(new SqliteParameter("@status", session.Status));
+            updateCommand.Parameters.Add(new SqliteParameter("@awaymime", session.AwayMessageMimeType));
+            updateCommand.Parameters.Add(new SqliteParameter("@away", session.AwayMessage));
+            updateCommand.Parameters.Add(new SqliteParameter("@profilemime", session.ProfileMimeType));
+            updateCommand.Parameters.Add(new SqliteParameter("@profile", session.Profile));
+            updateCommand.Parameters.Add(new SqliteParameter("@buddies", JsonSerializer.Serialize(session.Buddies)));
+            updateCommand.Parameters.Add(new SqliteParameter("@capabilities", JsonSerializer.Serialize(session.Capabilities)));
+            updateCommand.Parameters.Add(new SqliteParameter("@useragent", session.UserAgent));
+            updateCommand.Parameters.Add(new SqliteParameter("@clientip", session.Client.RemoteIP));
+            updateCommand.Parameters.Add(new SqliteParameter("@cookie", session.Cookie));
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {TABLE_OSCARSESSION} (cookie, screenname, status, awaymime, away, profilemime, profile, buddies, capabilities, useragent, clientip, timestamp) VALUES (@cookie, @screenname, @status, @awaymime, @away, @profilemime, @profile, @buddies, @capabilities, @useragent, @clientip, datetime('now'))";
+
+                // SQLite parameters for INSERT command
+                insertCommand.Parameters.Add(new SqliteParameter("@cookie", session.Cookie));
+                insertCommand.Parameters.Add(new SqliteParameter("@screenname", session.ScreenName));
+                insertCommand.Parameters.Add(new SqliteParameter("@status", session.Status));
+                insertCommand.Parameters.Add(new SqliteParameter("@awaymime", session.AwayMessageMimeType));
+                insertCommand.Parameters.Add(new SqliteParameter("@away", session.AwayMessage));
+                insertCommand.Parameters.Add(new SqliteParameter("@profilemime", session.ProfileMimeType));
+                insertCommand.Parameters.Add(new SqliteParameter("@profile", session.Profile));
+                insertCommand.Parameters.Add(new SqliteParameter("@buddies", JsonSerializer.Serialize(session.Buddies)));
+                insertCommand.Parameters.Add(new SqliteParameter("@capabilities", JsonSerializer.Serialize(session.Capabilities)));
+                insertCommand.Parameters.Add(new SqliteParameter("@useragent", session.UserAgent));
+                insertCommand.Parameters.Add(new SqliteParameter("@clientip", session.Client.RemoteIP));
+
+                insertCommand.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        });
+    }
+
+    internal OscarSession OscarGetSessionByScreenameAndIp(string username, string remoteIpAddress)
+    {
+        return WithContext<OscarSession>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT * FROM {TABLE_OSCARSESSION} WHERE screenname = @screenname AND clientip = @clientip";
+
+            command.Parameters.Add(new SqliteParameter("@screenname", username));
+            command.Parameters.Add(new SqliteParameter("@clientip", remoteIpAddress));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            return new OscarSession(reader);
         });
     }
     #endregion

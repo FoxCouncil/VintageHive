@@ -30,33 +30,62 @@
             <td colspan="3">
                 <table width="100%" border="2" bordercolor="black">
                     <tr>
-                        <td align="center" width="15%" bgcolor="#222222">
-                            <img src="/img/icons/weather_cloudy.gif" align="middle">
-                            <a href="/weather.html">Weather</a>
+                        <td rowspan="2" align="center" valign="top" width="15%">
+                            <table>
+                                <tr>
+                                    <td bgcolor="#222222"><img src="/img/icons/weather_cloudy.gif" align="middle"> <a href="/weather.html">Weather</a></td>
+                                </tr>
+                                <tr>
+                                    <td align="center" valign="top">
+                                        <img src="/img/weather/{{ weather.CurrentWeather.Weathercode }}.jpg" vspace="2"><br>
+                                        <font size="-1">{{ weather.CurrentWeather.Weathercode | wmotostring }}</font><br>
+                                        <font face="Courier New" size="5"><b>{{ weather.CurrentWeather.Temperature }}{{ weather.TempUnits }}</b></font><br>
+                                        <font size="-2" face="Courier New">{{ weather.CurrentWeather.Time | format_date: 'ddd MMM dd' }} - {{ weather.CurrentWeather.Time | format_date: 'h:mm tt' }}</font><hr color="#">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[0] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[0] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[0] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[1] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[1] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[1] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[2] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[2] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[2] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[3] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[3] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[3] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[4] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[4] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[4] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[5] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[5] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[5] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
+                                        <font size="-3" face="Courier New">{{ weather.Daily.Time[6] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[6] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[6] }}{{ weather.TempUnits }}</font>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" width="15%" bgcolor="#222222"><img src="/img/icons/help.gif" align="middle"> <a href="/help.html">Help</a></td>
+                                </tr>
+                                <tr>
+                                    <td valign="top"><i>Coming Soon</i></td>
+                                </tr>
+                            </table>
                         </td>
                         <td bgcolor="#222222">
-                            <img src="/img/icons/newspaper.gif" align="middle"> 
+                            <img src="/img/icons/newspaper.gif" align="middle">
                             <a href="/news.html">News</a>
                         </td>
-                        <td align="center" width="20%" bgcolor="#222222"><img src="/img/icons/world_link.gif" align="middle"> Hot Links</td>
+                        <td rowspan="2" align="center" valign="top" width="20%">
+                            <table>
+                                <tr>
+                                    <td bgcolor="#222222"><img src="/img/icons/exclamation.gif" align="middle"> Experiments</td>
+                                </tr>
+                                <tr>
+                                    <td><img src="/img/icons/music.gif" align="middle"> <a href="http://radio.hive.com/">Radio Hive</a></td>
+                                </tr>
+                                <tr>
+                                    <td align="center" width="20%" bgcolor="#222222"><img src="/img/icons/world_link.gif" align="middle"> Hot Links</td>
+                                </tr>
+                                <tr>
+                                    <td valign="top">
+                                        {% for link in directory_hotlinks %}
+                                        <img src="/img/icons/link.gif" align="middle"> <a href="{{ link.last }}">{{ link.first }}</a><br>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
                     </tr>
                     <tr>
-                        <td width="15%" align="center" valign="top">
-                            <img src="/img/weather/{{ weather.CurrentWeather.Weathercode }}.jpg" vspace="2"><br>
-                            <font size="-1">{{ weather.CurrentWeather.Weathercode | wmotostring }}</font><br>
-                            <font face="Courier New" size="5"><b>{{ weather.CurrentWeather.Temperature }}{{ weather.TempUnits }}</b></font><br>
-                            <font size="-2" face="Courier New">{{ weather.CurrentWeather.Time | format_date: 'ddd MMM dd' }} - {{ weather.CurrentWeather.Time | format_date: 'h:mm tt' }}</font><hr color="#">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[0] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[0] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[0] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[1] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[1] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[1] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[2] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[2] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[2] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[3] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[3] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[3] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[4] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[4] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[4] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[5] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[5] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[5] }}{{ weather.TempUnits }}</font><hr color="#AAAAAA">
-                            <font size="-3" face="Courier New">{{ weather.Daily.Time[6] | format_date: 'ddd MMM dd' }}<br>{{ weather.Daily.Temperature2mMin[6] }}{{ weather.TempUnits }} / {{ weather.Daily.Temperature2mMax[6] }}{{ weather.TempUnits }}</font>
-                        </td>
                         <td valign="top" rowspan="3">
                             <table width="100%" border="5" bordercolor="#444444">
-
                                 <tr>
                                     <td bgcolor="#333333" valign="middle"><img src="/img/icons/house.gif" hspace="2" align="middle"> <a href="/news.html#local">Local News</a></td>
                                 </tr>
@@ -176,28 +205,7 @@
 
                             </table>
                         </td>
-                        <td width="20%" valign="top">
-                            {% for link in directory_hotlinks %}
-                            <img src="/img/icons/link.gif" align="middle"> <a href="{{ link.last }}">{{ link.first }}</a><br>
-                            {% endfor %}
-                        </td>
                     </tr>
-
-                    <tr>
-                        <td align="center" width="15%" bgcolor="#222222">
-                            <img src="/img/icons/help.gif" align="middle">
-                            <a href="/help.html">Help</a>
-                        </td>
-                        <td align="center" width="20%" bgcolor="#222222"><img src="/img/icons/exclamation.gif" align="middle"> Experiments</td>
-                    </tr>
-
-                    <tr>
-                        <td valign="top">bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>bsjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br>sjeifjeofjeoifjeo<br></td>
-                        <td valign="top">
-                            <img src="/img/icons/music.gif" align="middle"> <a href="http://radio.hive.com/">Radio Hive</a>
-                        </td>
-                    </tr>
-
                 </table>
                 <hr>
             </td>

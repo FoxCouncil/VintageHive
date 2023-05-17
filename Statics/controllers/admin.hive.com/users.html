@@ -1,15 +1,107 @@
-﻿{% assign title = "Home" %}
+﻿{% assign title = "Users" %}
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    {% include 'partials/head.html' %}
-</head>
-<body class="d-flex flex-column">
-    {% include 'partials/header.html' %}
-    
-    <h1 class="mt-3">User Manager</h1>
-    
+    <head>
+        {% include 'partials/head.html' %}
+    </head>
+    <body class="d-flex flex-column">
+        {% include 'partials/header.html' %}
 
-    {% include 'partials/footer.html' %}
-</body>
+        <div class="row">
+            <div class="col">
+                <h1 class="mt-3">User Manager</h1>
+                <table class="table table-dark table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <form method="POST" id="userAddForm">
+                            <td scope="col"><input type="text" name="username" minlength="3" maxlength="8" pattern="[a-zA-Z0-9]+" required class="form-control"></td>
+                            <td scope="col"><input type="password" name="password" minlength="3" maxlength="8" pattern="[a-zA-Z0-9]+" required class="form-control"></td>
+                            <td scope="col"><input type="submit" class="btn" value="Add User"></td>
+                            </form>
+                        </tr>
+                    </thead>
+                    <thead>
+                        <tr>
+                            <th scope="col">Username</th>
+                            <th scope="col">Password</th>
+                            <th scope="col">Options</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usertable">
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.Username }}</td>
+                            <td>
+                                <input type="password" value="{{ user.Password }}" id="{{ user.Username }}" readonly>
+                                <a href="javascript:void(0)" onclick="eyeball(this)" class="btn" id="view" data-user="{{ user.Username }}">
+                                    <i class="fa-solid fa-fw fa-eye"></i>
+                                </a>
+                            </td>
+                            <td><a href="javascript:void(0)" class="btn" id="delete" onclick="deleteUser(this)" data-user="{{ user.Username }}"><i class="fa-solid fa-trash"></i></a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% include 'partials/footer.html' %}
+
+        <script>
+            let userAddForm = gei('userAddForm');
+            let currentlyProcessing = false;
+            userAddForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (currentlyProcessing) {
+                    alert('no');
+                    return false;
+                }
+                currentlyProcessing = true;
+
+                let response = await callApi('usercreate', new FormData(e.target));
+
+                if (response.success) {
+                    window.location.reload();
+                } else {
+                    alert('There was an error, check your input and try again!');
+                }
+
+                currentlyProcessing = false;
+
+                return false;
+            });
+            const eyeball = (el) => {
+                let passEl = gei(el.dataset.user);
+                if (passEl.type == "password") {
+                    passEl.type = "text";
+                    el.children[0].classList.remove('fa-eye');
+                    el.children[0].classList.add('fa-eye-slash');
+                } else {
+                    passEl.type = "password";
+                    el.children[0].classList.add('fa-eye');
+                    el.children[0].classList.remove('fa-eye-slash');
+                }
+            }
+            const deleteUser = async (el) => {
+                const userToDelete = el.dataset.user;
+                if (confirm("Are you sure you want to delete user " + userToDelete + " ?")) {
+                    if (currentlyProcessing) {
+                        alert('no');
+                        return false;
+                    }
+                    currentlyProcessing = true;
+
+                    let response = await callApi('userdelete', userToDelete);
+
+                    if (response.success) {
+                        window.location.reload();
+                    } else {
+                        alert('There was an error, check your input and try again!');
+                    }
+
+                    currentlyProcessing = false;
+                }
+            };
+        </script>
+    </body>
 </html>

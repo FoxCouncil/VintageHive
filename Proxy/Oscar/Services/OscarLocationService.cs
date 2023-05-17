@@ -84,6 +84,8 @@ public class OscarLocationService : IOscarService
 
                     session.Capabilities = capsList;
                 }
+
+                session.Save();
             }
             break;
 
@@ -104,6 +106,8 @@ public class OscarLocationService : IOscarService
                     notFoundSnac.WriteUInt16(0x0004);
 
                     await session.SendSnac(notFoundSnac);
+
+                    return;
                 }
                 else
                 {

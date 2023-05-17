@@ -58,6 +58,8 @@ public class OscarBuddyListService : IOscarService
 
                 session.Buddies = buddies;
 
+                session.Save();
+
                 await ProcessOnlineNotifications(session, buddies);
 
                 // Debugger.Break();
@@ -152,14 +154,13 @@ public class OscarBuddyListService : IOscarService
             isOnlineSnac.WriteString(screenName);
             isOnlineSnac.WriteUInt16(0); // TODO: Warnings!
 
-            var tlvs = new List<Tlv>
-                {
-                    new Tlv(0x01, OscarUtils.GetBytes(0)),
-                    new Tlv(0x06, OscarUtils.GetBytes((uint)buddySession.Status)),
-                    new Tlv(0x0F, OscarUtils.GetBytes((uint)0)),
-                    new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
-                    new Tlv(0x05, OscarUtils.GetBytes((uint)420))
-                };
+            var tlvs = new List<Tlv> {
+                new Tlv(0x01, OscarUtils.GetBytes(0)),
+                new Tlv(0x06, OscarUtils.GetBytes((uint)buddySession.Status)),
+                new Tlv(0x0F, OscarUtils.GetBytes((uint)0)),
+                new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
+                new Tlv(0x05, OscarUtils.GetBytes((uint)420))
+            };
 
             isOnlineSnac.WriteUInt16((ushort)tlvs.Count);
 

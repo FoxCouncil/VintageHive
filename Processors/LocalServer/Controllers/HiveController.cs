@@ -56,21 +56,21 @@ internal class HiveController : Controller
 
         Response.Context.SetValue("articles_local", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Local)).Take(5));
 
-        Response.Context.SetValue("articles_us", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.US)).Take(5));
+        Response.Context.SetValue("articles_us", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.US)).Take(2));
 
-        Response.Context.SetValue("articles_world", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.World)).Take(5));
+        Response.Context.SetValue("articles_world", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.World)).Take(2));
 
-        Response.Context.SetValue("articles_tech", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Technology)).Take(5));
+        Response.Context.SetValue("articles_tech", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Technology)).Take(2));
 
-        Response.Context.SetValue("articles_science", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Science)).Take(5));
+        Response.Context.SetValue("articles_science", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Science)).Take(2));
 
-        Response.Context.SetValue("articles_business", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Business)).Take(5));
+        Response.Context.SetValue("articles_business", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Business)).Take(2));
 
-        Response.Context.SetValue("articles_ent", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Entertainment)).Take(5));
+        Response.Context.SetValue("articles_ent", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Entertainment)).Take(2));
 
-        Response.Context.SetValue("articles_sports", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Sports)).Take(5));        
+        Response.Context.SetValue("articles_sports", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Sports)).Take(2));
 
-        Response.Context.SetValue("articles_health", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Health)).Take(5));
+        Response.Context.SetValue("articles_health", (await NewsUtils.GetGoogleTopicArticles(GoogleNewsTopic.Health)).Take(2));
 
         Response.Context.SetValue("directory_hotlinks", Mind.Db.LinksGetAll());
 
@@ -366,62 +366,6 @@ internal class HiveController : Controller
 
         Response.Context.SetValue("dialnine_toggle", isDialnineEnabled);
     }
-
-    //[Controller("/settings/users.html")]
-    //public async Task SettingsUser()
-    //{
-    //    await Task.Delay(0);
-
-    //    var users = Mind.Db.UserList();
-
-    //    Response.Context.SetValue("users", users);
-    //}
-
-    //[Controller("/api/user/exist")]
-    //public async Task UserExists()
-    //{
-    //    await Task.Delay(0);
-
-    //    string username;
-
-    //    if (Request.QueryParams.ContainsKey("username"))
-    //    {
-    //        username = Request.QueryParams["username"];
-    //    }
-    //    else if (Request.FormData.ContainsKey("username"))
-    //    {
-    //        username = Request.FormData["username"];
-    //    }
-    //    else
-    //    {
-    //        return;
-    //    }
-
-    //    var result = Mind.Db.UserExistsByUsername(username);
-
-    //    Response.SetBodyString(result.ToString().ToLower(), "text/plain");
-
-    //    Response.Handled = true;
-    //}
-
-    //[Controller("/api/user/create")]
-    //public async Task UserCreate()
-    //{
-    //    await Task.Delay(0);
-
-    //    if (!Request.FormData.ContainsKey("username") || !Request.FormData.ContainsKey("password"))
-    //    {
-    //        return;
-    //    }
-
-    //    var username = Request.FormData["username"];
-
-    //    var password = Request.FormData["password"];
-
-    //    var result = Mind.Db.UserCreate(username, password);
-
-    //    Response.SetBodyString(result.ToString().ToLower(), "text/plain").SetFound();
-    //}
 
     [Route("/api/set")]
     public async Task SetUserSetting()
