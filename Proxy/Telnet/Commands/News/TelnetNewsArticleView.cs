@@ -1,7 +1,6 @@
 ﻿using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
-using Image = SixLabors.ImageSharp.Image;
 
 namespace VintageHive.Proxy.Telnet.Commands.News;
 
@@ -55,7 +54,7 @@ public class TelnetNewsArticleView : ITelnetWindow
         _startupDelay.Stop();
         _startupDelay.Enabled = false;
 
-        // Create a cancellation token source with a timeout of 5 seconds
+        // Create a cancellation token source.
         var timeout = 1000;
         var cancellationToken = new CancellationToken();
 
@@ -92,7 +91,7 @@ public class TelnetNewsArticleView : ITelnetWindow
 
             // -------Text malarkey--------
             var rawArticleText = article.TextContent.ReplaceLineEndings("\r\n");
-            articleText = article.Title.ReplaceLineEndings("\r\n");
+            articleText = $"{article.Title.ReplaceLineEndings(string.Empty)}\r\n\r\n";
             articleText += rawArticleText;
 
             // Figure out how many pages this text will take to display.
@@ -189,7 +188,10 @@ public class TelnetNewsArticleView : ITelnetWindow
         _text = result.ToString();
     }
 
-    public void Destroy() { }
+    public void Destroy() 
+    {
+        _startupDelay.Dispose();
+    }
 
     public void Refresh()
     {

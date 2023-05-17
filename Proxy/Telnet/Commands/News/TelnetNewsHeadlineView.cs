@@ -21,7 +21,7 @@ public class TelnetNewsHeadlineView : ITelnetWindow
     private readonly Dictionary<int, Headlines> _articleMap = new();
     private GoogleNewsTopic _selectedTopic = GoogleNewsTopic.World;
 
-    private int itemsPerPage = 10;
+    private readonly int itemsPerPage = 10;
     private int currentPage = 1;
     private int totalPages = 1;
 

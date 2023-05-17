@@ -38,6 +38,7 @@ This project tries to help alter the modern internet to work on really old compu
 |    HTTP | 1990 | [**`Docs`**](#http) |
 |   HTTPS | 9999 | [**`Docs`**](#https) |
 |     FTP | 1971 | [**`Docs`**](#ftp) |
+|  TELNET | 1969 | [**`Docs`**](#telnet) |
 
 Intranet & Settings
 ------
@@ -70,6 +71,10 @@ When using this proxy, it will parse any `ftp` request through several processor
 - [ProtoWebProcessor.ProcessFtpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/ProtoWebProcessor.cs#L99)
 - [LocalServerProcessor.ProcessFtpRequest](https://github.com/FoxCouncil/VintageHive/blob/main/Processors/LocalServerProcessor.cs#L80)
 - **Exception**
+
+# TELNET
+
+This is a pure C# implementation of a Telnet server intended to allow really old machines like 386's and 80's Macs to access the same data they could using the HTTP proxy and Lynx (text only browser) or something similar. For cases where this is not possible this Telnet server seeks to provide an alternative way to view modern data through old software since Telnet clients were very popular and avaliable on every platform. Once connected type help to get a list of commands.
 
 # Usage Guides
 
