@@ -45,6 +45,25 @@ public class ListenerTests
     }
 
     [TestMethod]
+    public void Start_Should_Start_With_Correct_State()
+    {
+        // Arrange
+        var port = 80;
+        var secure = false;
+        var listener = new Mock<Listener>(IPAddress.Loopback, port, SocketType.Stream, ProtocolType.Tcp, secure).Object;
+
+        // Act
+        listener.Start();
+
+        // Assert
+        Assert.IsTrue(listener.ProcessThread.IsAlive);
+        Assert.AreEqual(listener.IsSecure, secure);
+        Assert.AreEqual(listener.Port, port);
+        Thread.Sleep(1); // ahah, prolly a better way?? 
+        Assert.IsTrue(listener.IsListening);
+    }
+
+    [TestMethod]
     public void ProcessConnection_Should_Return_Null()
     {
         // Arrange
