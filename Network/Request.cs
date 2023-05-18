@@ -20,11 +20,11 @@ public class Request
 
     public string Password { get; internal set; }
 
-    public ListenerSocket? ListenerSocket { get; internal set; }
+    public ListenerSocket? ListenerSocket { get; set; }
 
-    public Encoding? Encoding { get; internal set; }
+    public Encoding? Encoding { get; set; }
 
-    public IReadOnlyDictionary<string, string>? Headers { get; internal set; }
+    public IDictionary<string, string>? Headers { get; set; } = new Dictionary<string, string>();
 
     public async Task SendRawResponse(string response)
     {

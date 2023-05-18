@@ -56,7 +56,7 @@ public class OscarServer : Listener
         };
     }
 
-    internal override async Task<byte[]> ProcessConnection(ListenerSocket connection)
+    public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
     {
         var session = new OscarSession(connection);
 

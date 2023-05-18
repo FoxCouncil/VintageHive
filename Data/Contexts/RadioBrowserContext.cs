@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Contexts;
 
-internal class RadioBrowserContext : DbContextBase
+public class RadioBrowserContext : DbContextBase
 {
     private const string TABLE_COUNTRIES = "countries";
 

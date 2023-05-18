@@ -15,7 +15,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace VintageHive.Data.Contexts;
 
-internal class HiveDbContext : DbContextBase
+public class HiveDbContext : DbContextBase
 {
     private const string TABLE_CONFIG = "config";
     private const string TABLE_CONFIGLOCAL = "config_local";

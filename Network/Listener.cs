@@ -234,12 +234,12 @@ public abstract class Listener
         IsListening = false;
     }
 
-    internal virtual Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
+    public virtual Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
         return Task.FromResult<byte[]>(null);
     }
 
-    internal virtual Task<byte[]> ProcessConnection(ListenerSocket connection)
+    public virtual Task<byte[]> ProcessConnection(ListenerSocket connection)
     {
         return Task.FromResult<byte[]>(null);
     }

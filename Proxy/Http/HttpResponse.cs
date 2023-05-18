@@ -35,19 +35,19 @@ public sealed class HttpResponse
 
     public string Version { get; private set; } = "HTTP/1.1";
 
-    public HttpStatusCode StatusCode { get; private set; } = HttpStatusCode.OK;
+    public HttpStatusCode StatusCode { get; set; } = HttpStatusCode.OK;
 
     public Dictionary<string, string> Headers { get; private set; } = new();
 
     public ReadOnlyDictionary<string, string> Cookies => Request.Cookies;
 
-    public Guid SessionId { get; private set; } = Guid.Empty;
+    public Guid SessionId { get; set; } = Guid.Empty;
 
-    public dynamic Session { get; private set; } = new ExpandoObject();
+    public dynamic Session { get; set; } = new ExpandoObject();
 
     public TemplateContext Context { get; }
 
-    public Stream Stream { get; internal set; }
+    public Stream Stream { get; set; }
 
     public byte[] Body { get; internal set; }
 

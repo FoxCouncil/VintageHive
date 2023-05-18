@@ -5,7 +5,7 @@ using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Contexts;
 
-internal class CacheDbContext : DbContextBase
+public class CacheDbContext : DbContextBase
 {
     private IReadOnlyList<string> tables;
 

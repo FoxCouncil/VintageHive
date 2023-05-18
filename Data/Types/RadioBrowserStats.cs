@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace VintageHive.Data.Types;
 
-internal class RadioBrowserStats
+public class RadioBrowserStats
 {
     [JsonPropertyName("supported_version")]
     public int SupportedVersion { get; set; }

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace VintageHive.Data.Types;
 
-internal class RadioBrowserCountry
+public class RadioBrowserCountry
 {
     [JsonPropertyName("name")]
     public string Name { get; set; }

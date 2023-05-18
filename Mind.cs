@@ -10,7 +10,7 @@ using VintageHive.Proxy.Telnet;
 
 namespace VintageHive;
 
-static class Mind
+public static class Mind
 {
     public static readonly string ApplicationVersion = typeof(HttpProxy).Assembly.GetName().Version?.ToString() ?? "NA";
 
@@ -112,7 +112,7 @@ static class Mind
 #endif
     }
 
-    internal static void Start()
+    public static void Start()
     {
         httpProxy.Start();
 

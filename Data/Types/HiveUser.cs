@@ -4,7 +4,7 @@ using System.Data;
 
 namespace VintageHive.Data.Types;
 
-internal class HiveUser
+public class HiveUser
 {
     public string Username { get; set; }
 

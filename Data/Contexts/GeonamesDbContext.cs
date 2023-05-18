@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Contexts;
 
-internal class GeonamesDbContext : DbContextBase
+public class GeonamesDbContext : DbContextBase
 {
     const string dbPath = "libs/geonames.db";
 

@@ -23,14 +23,14 @@ public class FtpProxy : Listener
         return this;
     }
 
-    internal override async Task<byte[]> ProcessConnection(ListenerSocket connection)
+    public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
     {
         await Task.Delay(0);
 
         return Encoding.ASCII.GetBytes("220 VintageHive FTP Proxy!\n");
     }
 
-    internal override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
+    public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
         var requestData = Encoding.ASCII.GetString(data, 0, read);
 

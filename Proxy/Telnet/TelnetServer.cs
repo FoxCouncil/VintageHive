@@ -2,79 +2,78 @@
 
 using VintageHive.Network;
 
-namespace VintageHive.Proxy.Telnet
+namespace VintageHive.Proxy.Telnet;
+
+public class TelnetServer : Listener
 {
-    internal class TelnetServer : Listener
+    private static readonly List<TelnetSession> _sessions = new();
+
+    public TelnetServer(IPAddress address, int port) : base(address, port, SocketType.Stream, ProtocolType.Tcp, false) { }
+
+    public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
     {
-        private static readonly List<TelnetSession> _sessions = new();
+        Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} connected!", connection.TraceId.ToString());
+        var session = new TelnetSession(connection);
+        _sessions.Add(session);
 
-        public TelnetServer(IPAddress address, int port) : base(address, port, SocketType.Stream, ProtocolType.Tcp, false) { }
+        var buffer = new byte[1024];
 
-        internal override async Task<byte[]> ProcessConnection(ListenerSocket connection)
+        connection.Stream.ReadTimeout = 1000;
+
+        var bufferedCommands = string.Empty;
+
+        // First tick to force output to client before main session loop.
+        await session.TickWindows();
+
+        var read = 0;
+        while (connection.IsConnected && (read = await connection.Stream.ReadAsync(buffer)) > 0)
         {
-            Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} connected!", connection.TraceId.ToString());
-            var session = new TelnetSession(connection);
-            _sessions.Add(session);
+            Thread.Sleep(1);
 
-            var buffer = new byte[1024];
+            bufferedCommands += Encoding.ASCII.GetString(buffer, 0, read);
+            session.InputBuffer = bufferedCommands;
 
-            connection.Stream.ReadTimeout = 1000;
-
-            var bufferedCommands = string.Empty;
-
-            // First tick to force output to client before main session loop.
-            await session.TickWindows();
-
-            var read = 0;
-            while (connection.IsConnected && (read = await connection.Stream.ReadAsync(buffer)) > 0)
+            if (bufferedCommands.Contains("\r\n"))
             {
-                Thread.Sleep(1);
+                var command = bufferedCommands[..bufferedCommands.IndexOf("\r\n")];
 
-                bufferedCommands += Encoding.ASCII.GetString(buffer, 0, read);
+                bufferedCommands = bufferedCommands.Remove(0, command.Length + 2);
+
+                await session.ProcessCommand(command);
+
+                // Clear command buffer AFTER processing.
+                session.InputBuffer = string.Empty;
+
+                // Last command could have been to exit, check if we should stop here.
+                if (!connection.IsConnected)
+                {
+                    break;
+                }
+            }
+            else if (bufferedCommands.Contains('\b'))
+            {
+                bufferedCommands = bufferedCommands.Replace("\b", string.Empty);
+
+                // Remove the last character but only if there is something to remove
+                if (!string.IsNullOrEmpty(bufferedCommands))
+                {
+                    bufferedCommands = bufferedCommands.TrimEnd(bufferedCommands[^1]);
+                }
+
                 session.InputBuffer = bufferedCommands;
-
-                if (bufferedCommands.Contains("\r\n"))
-                {
-                    var command = bufferedCommands[..bufferedCommands.IndexOf("\r\n")];
-
-                    bufferedCommands = bufferedCommands.Remove(0, command.Length + 2);
-
-                    await session.ProcessCommand(command);
-
-                    // Clear command buffer AFTER processing.
-                    session.InputBuffer = string.Empty;
-
-                    // Last command could have been to exit, check if we should stop here.
-                    if (!connection.IsConnected)
-                    {
-                        break;
-                    }
-                }
-                else if (bufferedCommands.Contains('\b'))
-                {
-                    bufferedCommands = bufferedCommands.Replace("\b", string.Empty);
-
-                    // Remove the last character but only if there is something to remove
-                    if (!string.IsNullOrEmpty(bufferedCommands))
-                    {
-                        bufferedCommands = bufferedCommands.TrimEnd(bufferedCommands[^1]);
-                    }
-
-                    session.InputBuffer = bufferedCommands;
-                }
-
-                // Process logic for this sessions window manager.
-                await session.TickWindows();
             }
 
-            Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} disconnected!", connection.TraceId.ToString());
-            _sessions.Remove(session);
-            return null;
+            // Process logic for this sessions window manager.
+            await session.TickWindows();
         }
 
-        internal override Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
-        {
-            throw new ApplicationException("Telnet server does not use this override!");
-        }
+        Log.WriteLine(Log.LEVEL_INFO, nameof(TelnetServer), $"Client {connection.RemoteIP} disconnected!", connection.TraceId.ToString());
+        _sessions.Remove(session);
+        return null;
+    }
+
+    public override Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
+    {
+        throw new ApplicationException("Telnet server does not use this override!");
     }
 }

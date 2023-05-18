@@ -5,7 +5,7 @@ using System.Data;
 
 namespace VintageHive.Data;
 
-internal class DbContextBase
+public class DbContextBase
 {
     const string FilenameStringFormat = "{0}.db";
     const string ConnectionStringFormat = "Data Source={0};Cache=Shared";

@@ -7,7 +7,7 @@ using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Utilities;
 
-internal class RadioBrowserClient
+public class RadioBrowserClient
 {
     readonly string apiUrl;
 

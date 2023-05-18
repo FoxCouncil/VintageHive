@@ -32,7 +32,7 @@ public class HttpProxy : Listener
         return this;
     }
 
-    internal override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
+    public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
         var httpRequest = await HttpRequest.Build(connection, Encoding, data[..read]);
 
