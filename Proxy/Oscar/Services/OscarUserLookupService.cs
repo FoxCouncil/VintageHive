@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;

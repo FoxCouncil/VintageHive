@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Proxy.Telnet.Commands.News;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+namespace VintageHive.Proxy.Telnet.Commands.News;
 
 public class TelnetNewsHeadlineView : ITelnetWindow
 {

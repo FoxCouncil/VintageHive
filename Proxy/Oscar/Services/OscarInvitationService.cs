@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Proxy.Oscar.Services;
+﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+namespace VintageHive.Proxy.Oscar.Services;
 
 internal class OscarInvitationService : IOscarService
 {
