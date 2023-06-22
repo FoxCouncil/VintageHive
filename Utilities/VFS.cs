@@ -231,7 +231,9 @@ public static class VFS
 
         var combinedPath = Path.Combine(location, filePath);
 
-        var fullPath = Path.GetFullPath(combinedPath);
+        WriteDebugLine(nameof(GetVirtualPath), $"CombinedPath: {combinedPath}");
+
+        var fullPath = Path.GetFullPath(combinedPath, _appDirectory);
 
         WriteDebugLine(nameof(GetVirtualPath), $"FullPath: {fullPath}");
 
