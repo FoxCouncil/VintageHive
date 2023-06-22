@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using AngleSharp.Io;
 using System.IO;
 
 namespace VintageHive.Utilities;
@@ -18,26 +19,26 @@ public static class VFS
 
     public const string HostingPath = "hosting/";
 
-    private static readonly string appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+    private static readonly string _appDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
     // The base directory to store all changeable and user play-with-able files, in a FileSystem agnostic way
-    private static readonly string filesPath = Path.Combine(appDirectory, "vfs");
+    private static readonly string _filesPath = Path.Combine(_appDirectory, "vfs");
 
     // Used to store all read/write SQLite database files
-    private static readonly string dataPath = Path.Combine(filesPath, "data");
+    private static readonly string _dataPath = Path.Combine(_filesPath, "data");
 
     // Used to alter/extend already existing "internal" websites or host global assets
-    private static readonly string staticsPath = Path.Combine(filesPath, "statics");
+    private static readonly string _staticsPath = Path.Combine(_filesPath, "statics");
 
     // Used to put files up for download quickly from local hive site
-    private static readonly string downloadsPath = Path.Combine(filesPath, "downloads");
+    private static readonly string _downloadsPath = Path.Combine(_filesPath, "downloads");
 
     // Used to emulate an ISP, with domain support
-    private static readonly string hostingPath = Path.Combine(filesPath, "hosting");
+    private static readonly string _hostingPath = Path.Combine(_filesPath, "hosting");
 
     public static void Init()
     {
-        var systemDirectories = new[] { filesPath, downloadsPath, staticsPath, dataPath, hostingPath };
+        var systemDirectories = new[] { _filesPath, _downloadsPath, _staticsPath, _dataPath, _hostingPath };
 
         foreach (var directory in systemDirectories)
         {
@@ -226,12 +227,26 @@ public static class VFS
 
     public static string GetVirtualPath(string location, string filePath)
     {
-        return Path.GetFullPath(Path.Combine(location, filePath)).Replace(appDirectory, string.Empty);
+        WriteDebugLine(nameof(GetVirtualPath), $"{location} -> {filePath}");
+
+        var combinedPath = Path.Combine(location, filePath);
+
+        var fullPath = Path.GetFullPath(combinedPath);
+
+        WriteDebugLine(nameof(GetVirtualPath), $"FullPath: {fullPath}");
+
+        WriteDebugLine(nameof(GetVirtualPath), $"appDirectory: {_appDirectory}");
+
+        var alteredPath = fullPath.Replace(_appDirectory, string.Empty);
+
+        WriteDebugLine(nameof(GetVirtualPath), $"AlteredPath: {alteredPath}");
+
+        return alteredPath;
     }
 
     internal static string GetFullPath(string location)
     {
-        return Path.GetFullPath(Path.Combine(filesPath, location));
+        return Path.GetFullPath(Path.Combine(_filesPath, location));
     }
 
     private static bool TryGetFileSystemPath(string virtualPath, out string fileSystemPath, string traceId = "")
@@ -245,7 +260,7 @@ public static class VFS
             return false;
         }
 
-        var possibleDebugPath = Path.Combine(appDirectory, DebugStaticsPathHelper);
+        var possibleDebugPath = Path.Combine(_appDirectory, DebugStaticsPathHelper);
 
         if (virtualPath.StartsWith(StaticsPath[..^1]) && Directory.Exists(possibleDebugPath) && Mind.IsDebug && !Mind.IsDocker)
         {
@@ -255,7 +270,7 @@ public static class VFS
         }
         else
         {
-            fileSystemPath = Path.GetFullPath(Path.Combine(filesPath, virtualPath));
+            fileSystemPath = Path.GetFullPath(Path.Combine(_filesPath, virtualPath));
         }
 
         return true;
