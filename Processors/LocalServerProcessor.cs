@@ -620,6 +620,10 @@ internal static class LocalServerProcessor
 
         var requestFilePath = Path.Combine("controllers/", req.Uri.Host+"/", Path.IsPathRooted(fileRequestPath) ? fileRequestPath[1..] : fileRequestPath);
 
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"RequestedPath: {requestFilePath}", req.ListenerSocket.TraceId.ToString());
+
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"StaticsPath: {VFS.StaticsPath}", req.ListenerSocket.TraceId.ToString());
+
         var virtualPath = VFS.GetVirtualPath(VFS.StaticsPath, requestFilePath);
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"VirtualPath: {virtualPath}", req.ListenerSocket.TraceId.ToString());
