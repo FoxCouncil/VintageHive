@@ -59,7 +59,7 @@ internal class OscarIcbmService : IOscarService
 
             case CLI_SEND_ICBM:
             {
-                var msgIdCookie = OscarUtils.ToUint64(snac.RawData[..8]);
+                var msgIdCookie = OscarUtils.ToUInt64(snac.RawData[..8]);
                 var msgChannel = OscarUtils.ToUInt16(snac.RawData[8..10]);
 
                 var screenNameLength = (ushort)snac.RawData[10];
@@ -88,7 +88,7 @@ internal class OscarIcbmService : IOscarService
                     sendClientMessageSnac.WriteString(session.ScreenName);
 
                     // TODO: Warning Level
-                    sendClientMessageSnac.WriteUInt16(50);
+                    sendClientMessageSnac.WriteUInt16((ushort)Random.Shared.Next(0, 1000));
 
                     var sendTlvs = new List<Tlv>
                     {
@@ -105,7 +105,20 @@ internal class OscarIcbmService : IOscarService
                         sendClientMessageSnac.Write(tlv.Encode());
                     }
 
-                    sendClientMessageSnac.WriteTlv(new Tlv(0x02, tlvs.GetTlv(0x02).Value));
+                    if (msgChannel == 1)
+                    {
+                        sendClientMessageSnac.WriteTlv(new Tlv(0x02, tlvs.GetTlv(0x02).Value));
+                    }
+                    else if (msgChannel == 2)
+                    {
+                        var rendezvousData = tlvs.GetTlv(0x05).Value;
+                        var messageType = OscarUtils.ToUInt16(rendezvousData[..2]);
+                        var messageCookieId = OscarUtils.ToUInt64(rendezvousData[2..10]);
+                    }
+                    else
+                    {
+                        throw new ApplicationException("Arf");
+                    }
 
                     await userSession.SendSnac(sendClientMessageSnac);
 

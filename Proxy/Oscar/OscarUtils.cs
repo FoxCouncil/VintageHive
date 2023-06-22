@@ -59,7 +59,7 @@ public static class OscarUtils
         return BitConverter.ToUInt32(data);
     }
 
-    public static ulong ToUint64(byte[] data)
+    public static ulong ToUInt64(byte[] data)
     {
         MakeNetworkByteOrder(data);
 

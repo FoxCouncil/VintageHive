@@ -619,8 +619,12 @@ internal static class LocalServerProcessor
         }
 
         var requestFilePath = Path.Combine("controllers/", req.Uri.Host+"/", Path.IsPathRooted(fileRequestPath) ? fileRequestPath[1..] : fileRequestPath);
-        
-        var isReplacedFile = VFS.FileExists(VFS.GetVirtualPath(VFS.StaticsPath, requestFilePath));
+
+        var virtualPath = VFS.GetVirtualPath(VFS.StaticsPath, requestFilePath);
+
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"VirtualPath: {virtualPath}", req.ListenerSocket.TraceId.ToString());
+
+        var isReplacedFile = VFS.FileExists(virtualPath);
         
         var resourceFile = "";
 

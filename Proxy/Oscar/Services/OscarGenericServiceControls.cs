@@ -115,7 +115,7 @@ internal class OscarGenericServiceControls : IOscarService
 
                 infoReplySnac.WriteUInt8((byte)session.ScreenName.Length);
                 infoReplySnac.WriteString(session.ScreenName);
-                infoReplySnac.WriteUInt16(0); // Warning Level
+                infoReplySnac.WriteUInt16(1000); // Warning Level
 
                 session.Status = OscarSessionOnlineStatus.Online;
 
