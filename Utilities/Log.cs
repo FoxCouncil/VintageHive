@@ -30,7 +30,7 @@ internal static class Log
     {
         Mind.Db?.WriteLog(logItem);
 
-        if ((logItem.Level == LEVEL_DEBUG && Mind.IsDebug) || logItem.Level == LEVEL_REQUEST)
+        if ((logItem.Level == LEVEL_DEBUG && !Mind.IsDebug) || logItem.Level == LEVEL_REQUEST)
         {
             return;
         }
