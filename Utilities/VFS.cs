@@ -1,5 +1,7 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.IO;
+
 namespace VintageHive.Utilities;
 
 public static class VFS
@@ -57,8 +59,15 @@ public static class VFS
         }
     }
 
+    static void WriteDebugLine(string what, string path)
+    {
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(VFS), $"{what}({path})", string.Empty);
+    }
+
     public static bool DirectoryExists(string directoryPath)
     {
+        WriteDebugLine(nameof(DirectoryExists), directoryPath);
+
         if (!TryGetFileSystemPath(directoryPath, out var combinedPath))
         {
             return false;
@@ -69,6 +78,8 @@ public static class VFS
 
     public static void DirectoryCreate(string directoryPath)
     {
+        WriteDebugLine(nameof(DirectoryCreate), directoryPath);
+
         if (!TryGetFileSystemPath(directoryPath, out var combinedPath))
         {
             return;
@@ -79,6 +90,8 @@ public static class VFS
 
     public static void DirectoryDelete(string directoryPath)
     {
+        WriteDebugLine(nameof(DirectoryDelete), directoryPath);
+
         if (!TryGetFileSystemPath(directoryPath, out var combinedPath))
         {
             return;
@@ -89,6 +102,8 @@ public static class VFS
 
     public static void DirectoryMove(string fromPath, string toPath)
     {
+        WriteDebugLine(nameof(DirectoryMove), $"{fromPath} -> {toPath}");
+
         if (!TryGetFileSystemPath(fromPath, out var combinedFromPath) || !TryGetFileSystemPath(toPath, out var combinedToPath))
         {
             Log.WriteLine(Log.LEVEL_ERROR, "VFS", $"DirectoryMove Error: {fromPath} or {toPath} paths are not valid.", "");
@@ -101,6 +116,8 @@ public static class VFS
 
     public static string[] DirectoryList(string directoryPath)
     {
+        WriteDebugLine(nameof(DirectoryList), directoryPath);
+
         if (!TryGetFileSystemPath(directoryPath, out var combinedPath))
         {
             return null;
@@ -111,6 +128,8 @@ public static class VFS
 
     public static bool FileExists(string filePath)
     {
+        WriteDebugLine(nameof(FileExists), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return false;
@@ -121,6 +140,8 @@ public static class VFS
 
     public static async Task<string> FileReadStringAsync(string filePath)
     {
+        WriteDebugLine(nameof(FileReadStringAsync), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return null;
@@ -131,6 +152,8 @@ public static class VFS
 
     public static string FileReadString(string filePath)
     {
+        WriteDebugLine(nameof(FileReadString), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return null;
@@ -141,6 +164,8 @@ public static class VFS
 
     public static FileStream FileReadStream(string filePath)
     {
+        WriteDebugLine(nameof(FileReadStream), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return null;
@@ -151,6 +176,8 @@ public static class VFS
 
     public static async Task<byte[]> FileReadDataAsync(string filePath)
     {
+        WriteDebugLine(nameof(FileReadDataAsync), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return null;
@@ -161,6 +188,8 @@ public static class VFS
 
     public static FileStream FileWrite(string filePath)
     {
+        WriteDebugLine(nameof(FileWrite), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return null;
@@ -171,6 +200,8 @@ public static class VFS
 
     public static void FileDelete(string filePath)
     {
+        WriteDebugLine(nameof(FileDelete), filePath);
+
         if (!TryGetFileSystemPath(filePath, out var combinedPath))
         {
             return;
@@ -181,6 +212,8 @@ public static class VFS
 
     public static void FileMove(string fromPath, string toPath)
     {
+        WriteDebugLine(nameof(FileMove), $"{fromPath} -> {toPath}");
+
         if (!TryGetFileSystemPath(fromPath, out var combinedFromPath) || !TryGetFileSystemPath(toPath, out var combinedToPath))
         {
             Log.WriteLine(Log.LEVEL_ERROR, "VFS", $"FileMove Error: {fromPath} or {toPath} paths are not valid.", "");
@@ -212,7 +245,7 @@ public static class VFS
             return false;
         }
 
-        var possibleDebugPath = Path.Combine(appDirectory, VFS.DebugStaticsPathHelper);
+        var possibleDebugPath = Path.Combine(appDirectory, DebugStaticsPathHelper);
 
         if (virtualPath.StartsWith(StaticsPath[..^1]) && Directory.Exists(possibleDebugPath) && Mind.IsDebug && !Mind.IsDocker)
         {
