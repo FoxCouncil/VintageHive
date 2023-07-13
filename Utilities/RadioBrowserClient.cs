@@ -23,7 +23,15 @@ public class RadioBrowserClient
 
     public async Task Init()
     {
-        var countries = JsonSerializer.Deserialize<List<RadioBrowserCountry>>(await GetRaw("countries"));
+        string rawJson = await GetRaw("countries");
+
+        if (rawJson == null)
+        {
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(RadioBrowserClient), "Countries API RadioBrowser Not Available", "");
+            return;
+        }
+
+        var countries = JsonSerializer.Deserialize<List<RadioBrowserCountry>>(rawJson);
         Mind.RadioBrowserDB.CountriesLoad(countries);
 
         var tags = JsonSerializer.Deserialize<List<RadioBrowserTag>>(await GetRaw("tags"));
