@@ -2,6 +2,8 @@
 
 using Fluid;
 using System.Diagnostics;
+using System.IO;
+using System.Net.Mail;
 using System.Runtime.InteropServices;
 using System.Web;
 using static VintageHive.Proxy.Http.HttpUtilities;
@@ -116,6 +118,8 @@ internal class RadioController : Controller
         plsResponse.AppendLine($"File1=http://radio.hive.com/browser.mp3?id={Request.QueryParams["id"]}");
         plsResponse.AppendLine("NumberOfEntries=1");
 
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"browser.pls\"");
+
         Response.SetBodyString(plsResponse.ToString(), "audio/x-scpls");
 
         return Task.CompletedTask;
@@ -129,6 +133,8 @@ internal class RadioController : Controller
         asxResponse.AppendLine("<asx version=\"3.0\">");
         asxResponse.AppendLine($"<entry><ref href=\"http://radio.hive.com/browser.mp3?id={Request.QueryParams["id"]}\" /></entry>");
         asxResponse.AppendLine("</asx>");
+
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"browser.asx\"");
 
         Response.SetBodyString(asxResponse.ToString(), "video/x-ms-asf");
 
@@ -259,6 +265,8 @@ internal class RadioController : Controller
         plsResponse.AppendLine($"File1=http://radio.hive.com/shoutcast.mp3?id={Request.QueryParams["id"]}");
         plsResponse.AppendLine("NumberOfEntries=1");
 
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"shoutcast.pls\"");
+
         Response.SetBodyString(plsResponse.ToString(), "audio/x-scpls");
 
         return Task.CompletedTask;
@@ -272,6 +280,8 @@ internal class RadioController : Controller
         asxResponse.AppendLine("<asx version=\"3.0\">");
         asxResponse.AppendLine($"<entry><ref href=\"http://radio.hive.com/shoutcast.mp3?id={Request.QueryParams["id"]}\" /></entry>");
         asxResponse.AppendLine("</asx>");
+
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"shoutcast.asx\"");
 
         Response.SetBodyString(asxResponse.ToString(), "video/x-ms-asf");
 
