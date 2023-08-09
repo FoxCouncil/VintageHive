@@ -78,10 +78,10 @@ internal static class InternetArchiveProcessor
         var iaUrl = req.Uri.Host.Contains(InternetArchiveDataServer) ? req.Uri : await GetAvailability(req, res);
 
         if (iaUrl == null || iaUrl.ToString().Length <= InternetArchiveDataUrlLength)
-        {            
+        {
             return false;
         }
-        
+
         res.Cache = false;
 
         var cachedResponse = Mind.Cache.GetWayback(iaUrl);
@@ -131,7 +131,7 @@ internal static class InternetArchiveProcessor
             }
 
             var cachedData = new ContentCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
-            
+
             var jsonData = JsonSerializer.Serialize<ContentCachedData>(cachedData);
 
             Mind.Cache.SetWayback(iaUrl, CacheTtl, jsonData);
@@ -166,9 +166,9 @@ internal static class InternetArchiveProcessor
     static async Task<Uri> GetAvailability(HttpRequest req, HttpResponse res)
     {
         var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(req.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
-        
+
         var incomingUrl = req.Uri.ToString();
-        
+
         var incomingUrlEncoded = Uri.EscapeDataString(incomingUrl);
 
         var availabilityUri = string.Format(WaybackCDXUrl, incomingUrlEncoded, internetArchiveYear);
@@ -182,7 +182,7 @@ internal static class InternetArchiveProcessor
             var availabilityResponseRaw = await httpClient.GetStringAsync(availabilityUri);
 
             if (!string.IsNullOrWhiteSpace(availabilityResponseRaw))
-            {                
+            {
                 var availabilityResponse = ProcessCDX(availabilityResponseRaw);
 
                 if (availabilityResponse == null || !availabilityResponse.Any())
@@ -192,13 +192,13 @@ internal static class InternetArchiveProcessor
                 else
                 {
                     var largestCapture = availabilityResponse.OrderByDescending(x => x.Length).First();
-                    
+
                     var iaUrl = largestCapture.Url;
                     var timestamp = largestCapture.Timestamp;
                     var mimeType = largestCapture.MimeType;
 
                     var iaType = "if_";
-                    
+
                     if (mimeType.StartsWith("image"))
                     {
                         iaType = "im_";
@@ -225,7 +225,7 @@ internal static class InternetArchiveProcessor
             {
                 res.ErrorMessage = $"No Internet Archive availability data found for this URL.</p><p><b>{availabilityUri}</b></p><p>[CacheHit]";
             }
-            
+
             return null;
         }
 
@@ -237,7 +237,7 @@ internal static class InternetArchiveProcessor
         var response = new List<WaybackCDXResult>();
 
         var lines = availabilityResponseRaw.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var line in lines)
         {
             var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -269,7 +269,7 @@ internal static class InternetArchiveProcessor
 
         AlterInternetArchiveBaseTag(doc);
         AlterInternetArchiveMetaTags(doc);
-        AlterInternetArchiveImgTags(doc);
+        AlterInternetArchiveImgBasedTags(doc);
         AlterInternetArchiveAnchorTags(doc);
         AlterInternetArchiveAreaTags(doc);
         AlterInternetArchiveScriptTags(doc);
@@ -323,7 +323,7 @@ internal static class InternetArchiveProcessor
                 {
                     var rContentParsed = refreshContent.Split("=", 2);
 
-                    var newUrl = rContentParsed[1][(rContentParsed[1].IndexOf("/http")+1)..];
+                    var newUrl = rContentParsed[1][(rContentParsed[1].IndexOf("/http") + 1)..];
 
                     metaTag.Attributes["content"].Value = rContentParsed[0] + "=" + newUrl;
                 }
@@ -436,7 +436,7 @@ internal static class InternetArchiveProcessor
                     continue;
                 }
 
-                anchorTag.Attributes["href"].Value = anchorTag.Attributes["href"].Value[(linkPoint+1)..];
+                anchorTag.Attributes["href"].Value = anchorTag.Attributes["href"].Value[(linkPoint + 1)..];
             }
         }
     }
@@ -455,7 +455,7 @@ internal static class InternetArchiveProcessor
             if (areaTag.Attributes["href"] != null)
             {
                 var linkPoint = -1;
-                
+
                 if (areaTag.Attributes["href"].Value.StartsWith(RewritePattern))
                 {
                     linkPoint = areaTag.Attributes["href"].Value.IndexOf("/", RewritePattern.Length);
@@ -470,25 +470,37 @@ internal static class InternetArchiveProcessor
                     // Debugger.Break();
                 }
 
-                areaTag.Attributes["href"].Value = areaTag.Attributes["href"].Value[(linkPoint+1)..];
+                areaTag.Attributes["href"].Value = areaTag.Attributes["href"].Value[(linkPoint + 1)..];
             }
         }
     }
 
-    static void AlterInternetArchiveImgTags(HtmlDocument doc)
+    static void AlterInternetArchiveImgBasedTags(HtmlDocument doc)
     {
-        var imgTags = doc.DocumentNode.SelectNodes("//img");
+        /* Fixes background image linking */
+        var backgroundAttrTags = doc.DocumentNode.SelectNodes("//*[@background]");
 
-        if (imgTags == null)
+        if (backgroundAttrTags != null)
         {
-            return;
+            foreach (var backgroundAttrTag in backgroundAttrTags)
+            {
+                if (backgroundAttrTag.Attributes["background"] != null && backgroundAttrTag.Attributes["background"].Value.StartsWith(RewritePattern))
+                {
+                    backgroundAttrTag.Attributes["background"].Value = InternetArchivePublicUrl + backgroundAttrTag.Attributes["background"].Value;
+                }
+            }
         }
 
-        foreach (var imgTag in imgTags)
+        var imgTags = doc.DocumentNode.SelectNodes("//img");
+
+        if (imgTags != null)
         {
-            if (imgTag.Attributes["src"] != null && imgTag.Attributes["src"].Value.StartsWith(RewritePattern))
+            foreach (var imgTag in imgTags)
             {
-                imgTag.Attributes["src"].Value = InternetArchivePublicUrl + imgTag.Attributes["src"].Value;
+                if (imgTag.Attributes["src"] != null && imgTag.Attributes["src"].Value.StartsWith(RewritePattern))
+                {
+                    imgTag.Attributes["src"].Value = InternetArchivePublicUrl + imgTag.Attributes["src"].Value;
+                }
             }
         }
     }
