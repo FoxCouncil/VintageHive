@@ -155,7 +155,7 @@ internal partial class AdminController : Controller
     {
         await Task.Delay(0);
         
-        Mind.Db.ConfigSet(ConfigNames.InternetArchive, !Mind.Db.ConfigGet<bool>(ConfigNames.InternetArchive));
+        Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchive, !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive));
         
         Response.SetJsonSuccess();
     }
@@ -170,7 +170,7 @@ internal partial class AdminController : Controller
             Response.SetJsonSuccess(false);
         }
         
-        Mind.Db.ConfigSet(ConfigNames.InternetArchiveYear, Request.FormData["year"]);
+        Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchiveYear, Request.FormData["year"]);
 
         Response.SetJsonSuccess();
     }
@@ -180,7 +180,7 @@ internal partial class AdminController : Controller
     {
         await Task.Delay(0);
 
-        Mind.Db.ConfigSet(ConfigNames.ProtoWeb, !Mind.Db.ConfigGet<bool>(ConfigNames.ProtoWeb));
+        Mind.Db.ConfigSet(ConfigNames.ServiceProtoWeb, !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb));
 
         Response.SetJsonSuccess();
     }
@@ -215,9 +215,9 @@ internal partial class AdminController : Controller
         }
 
         var data = new {
-            ia = Mind.Db.ConfigGet<bool>(ConfigNames.InternetArchive),
-            iayear = Mind.Db.ConfigGet<int>(ConfigNames.InternetArchiveYear),
-            protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ProtoWeb)
+            ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
+            iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
+            protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb)
         };
 
         Response.SetBodyString(JsonSerializer.Serialize(data), "application/json");

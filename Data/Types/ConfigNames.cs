@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Data.Types;
 
@@ -16,15 +16,31 @@ public static class ConfigNames
 
     public const string PortSocks5 = "portsocks5";
 
-    public const string InternetArchive = "internetarchive";
+    public const string PortSmtp = "portsmtp";
 
-    public const string InternetArchiveYear = "internetarchiveyear";
+    public const string PortPop3 = "portpop3";
 
-    public const string Intranet = "intranet";
+    public const string PortUsenet = "portusenet";
 
-    public const string ProtoWeb = "protoweb";
+    public const string PortIrc = "portirc";
 
-    public const string Dialnine = "dialnine";
+    public const string ServiceInternetArchive = "serviceinternetarchive";
+
+    public const string ServiceInternetArchiveYear = "serviceinternetarchiveyear";
+
+    public const string ServiceIntranet = "serviceintranet";
+
+    public const string ServiceProtoWeb = "serviceprotoweb";
+
+    public const string ServiceDialnine = "servicedialnine";
+
+    public const string ServiceSmtp = "servicesmtp";
+
+    public const string ServicePop3 = "servicepop3";
+
+    public const string ServiceUsenet = "serviceusenet";
+
+    public const string ServiceIrc = "serviceirc";
 
     public const string Location = "location";
 

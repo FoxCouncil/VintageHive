@@ -1,7 +1,7 @@
 {% assign title = "Settings" %}
 <html>
 <head>
-    <title>VintageHive - {{ title }}</title>
+    {% include 'partials/head.html' %}
 </head>
 <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
     {% include 'partials/header.html' %}
@@ -65,23 +65,46 @@
     <table width="100%">
         <tr>
             <td valign="top">
-                <font face="Courier New" size="4"><b>Client Details:</b></font>
-                <table border="1" cellpadding="5">
+                <font face="Courier New" size="4"><b>Client Details</b></font>
+                <table width="100%" border="1" cellpadding="5">
                     <tr>
                         <td align="right">ClientIP</td>
-                        <td align="center">{{ clientip }}</td>
+                        <td align="center"><font face="monospace"><b>{{ clientip }}</b></font></td>
                     </tr>
                     <tr>
                         <td align="right">Detected Browser</td>
-                        <td align="center">{{ browserversion }}</td>
+                        <td align="center"><font face="monospace"><b>{{ browserversion }}</b></font></td>
                     </tr>
                     <tr>
                         <td align="right">Detected OS</td>
-                        <td align="center">{{ osversion }}</td>
+                        <td align="center"><font face="monospace"><b>{{ osversion }}</b></font></td>
                     </tr>
                     <tr>
                         <td align="right">Detected Device</td>
-                        <td align="center">{{ deviceversion }}</td>
+                        <td align="center"><font face="monospace"><b>{{ deviceversion }}</b></font></td>
+                    </tr>
+                </table>
+            </td>
+            <td width="40%" valign="top">
+                <center><font face="Courier New" size="4"><b>Help Topics</b></font></center>
+                <ul>
+                    <li><a href="help.html#client">Client Settings</a></li>
+                    <li><a href="help.html#logins">Logging Into Services</a></li>
+                    <li><a href="help.html#email">E-Mail Config</a></li>
+                    <li><a href="help.html#usenet">Usenet Config</a></li>
+                    <li><a href="help.html#irc">IRC Config</a></li>
+                </ul>
+            </td>
+            <td align="right" valign="top">
+                <font face="Courier New" size="4"><b>Server Details</b></font>
+                <table width="100%" border="1" cellpadding="5">
+                    <tr>
+                        <td align="right">Server</td>
+                        <td align="center"><font face="monospace"><b>{{ serverip }}:{{ serverport }}</b></font></td>
+                    </tr>
+                    <tr>
+                        <td align="right">Version</td>
+                        <td align="center"><font face="monospace"><b>{{ appversion }}</b></font></td>
                     </tr>
                 </table>
             </td>

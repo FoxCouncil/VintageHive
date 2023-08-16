@@ -1,10 +1,11 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using HtmlAgilityPack;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using VintageHive.Proxy.Security;
 
@@ -341,6 +342,7 @@ public static class Extensions
 
         // Add a newline character at the end of each line that has been broken up for telnet.
         var result = new StringBuilder();
+
         foreach (var line in lines)
         {
             result.Append(line + newline);
@@ -363,6 +365,24 @@ public static class Extensions
         {
             return (expresstion.Body as MemberExpression).Member as PropertyInfo;
         }
+
         return null;
+    }
+
+    public static string ComputeMD5(this string hashingString)
+    {
+        var sb = new StringBuilder();
+
+        // Compute the hash of the given string
+        var hashValue = MD5.HashData(Encoding.UTF8.GetBytes(hashingString));
+
+        // Convert the byte array to string format
+        foreach (var b in hashValue)
+        {
+            sb.Append($"{b:X2}");
+        }
+
+
+        return sb.ToString();
     }
 }

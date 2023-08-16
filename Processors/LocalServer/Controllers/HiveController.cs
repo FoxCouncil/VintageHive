@@ -5,6 +5,7 @@ using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using VintageHive.Proxy.Security;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
@@ -77,6 +78,17 @@ internal class HiveController : Controller
         Response.Context.SetValue("directory_protohttp", await ProtoWebUtils.GetAvailableHttpSites());
 
         Response.Context.SetValue("directory_protoftp", await ProtoWebUtils.GetAvailableFtpSites());
+    }
+
+    [Route("/login.html")]
+    public async Task Login()
+    {
+        if (Request.Type == "POST")
+        {
+            Response.SetBodyString(JsonSerializer.Serialize<IReadOnlyDictionary<string, string>>(Request.FormData));
+
+            Response.Handled = true;
+        }
     }
 
     [Route("/download.html")]
@@ -351,18 +363,18 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        var isInternetArchiveEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive);
-        var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
+        var isInternetArchiveEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchive);
+        var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchiveYear);
 
         Response.Context.SetValue("ia_years", InternetArchiveProcessor.ValidYears);
         Response.Context.SetValue("ia_toggle", isInternetArchiveEnabled);
         Response.Context.SetValue("ia_current", internetArchiveYear);
 
-        var isProtoWebEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb);
+        var isProtoWebEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceProtoWeb);
 
         Response.Context.SetValue("proto_toggle", isProtoWebEnabled);
 
-        var isDialnineEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.Dialnine);
+        var isDialnineEnabled = Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceDialnine);
 
         Response.Context.SetValue("dialnine_toggle", isDialnineEnabled);
     }
@@ -406,7 +418,7 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchive));
+        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchive, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchive));
 
         Response.SetFound();
     }
@@ -423,11 +435,11 @@ internal class HiveController : Controller
 
         if (int.TryParse(Request.FormData["year"], System.Globalization.NumberStyles.Integer, null, out var year))
         {
-            var currentYear = Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
+            var currentYear = Mind.Db.ConfigLocalGet<int>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchiveYear);
 
             if (year != currentYear && InternetArchiveProcessor.ValidYears.Contains(year))
             {
-                Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear, year);
+                Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchiveYear, year);
             }
 
             Response.SetFound();
@@ -439,7 +451,7 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb));
+        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceProtoWeb, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceProtoWeb));
 
         Response.SetFound();
     }
@@ -449,7 +461,7 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.Dialnine, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.Dialnine));
+        Mind.Db.ConfigLocalSet(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceDialnine, !Mind.Db.ConfigLocalGet<bool>(Request.ListenerSocket.RemoteIP, ConfigNames.ServiceDialnine));
 
         Response.SetFound();
     }

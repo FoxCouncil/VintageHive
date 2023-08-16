@@ -43,7 +43,7 @@ namespace VintageHive.Utilities
 
                     Log.WriteLine(Log.LEVEL_INFO, nameof(ProtoWebUtils), "ProtoWeb is offline! Turning it off!", "");
 
-                    Mind.Db.ConfigSet(ConfigNames.ProtoWeb, false);
+                    Mind.Db.ConfigSet(ConfigNames.ServiceProtoWeb, false);
 
                     return null;
                 }

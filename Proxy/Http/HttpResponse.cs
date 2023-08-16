@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Fluid;
 using HeyRed.Mime;
@@ -252,7 +252,10 @@ public sealed class HttpResponse
             outputBuilder.Append($"{header.Key}: {header.Value}{HttpSeperator}");
         }
 
+        outputBuilder.Append($"{HttpHeaderName.XTraceId}: {Request.ListenerSocket.TraceId}{HttpSeperator}"); // Tracing
+
         outputBuilder.Append($"{HttpHeaderName.Server}: VintageHive/{Mind.ApplicationVersion}"); // Fuck them
+
 
         outputBuilder.Append(HttpBodySeperator);
 

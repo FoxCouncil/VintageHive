@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Http
 {
@@ -33,6 +33,8 @@ namespace VintageHive.Proxy.Http
             public const string Cookie = "Cookie";
 
             public const string IcyMetadata = "Icy-MetaData";
+
+            public const string XTraceId = "X-TraceId";
         }
 
         public static class HttpMethodName

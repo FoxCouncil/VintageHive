@@ -5,7 +5,11 @@
         <td width="250" align="right"><font face="Courier New">{{ "now" | format_date: "MM/dd/yyyy h:mm tt" }}</font></td>
     </tr>
     <tr>
-        <td align="right" colspan="3">
+        <td>
+            <a href="login.html">{% if title == "Login" %}<b>[ Login ]</b>{% else %}Login{% endif %}</a> | 
+            <a href="signup.html">{% if title == "Signup" %}<b>[ Signup ]</b>{% else %}Signup{% endif %}</a>
+        </td>
+        <td align="right" colspan="2">
             {% include "partials/menu.html" %}
         </td>
     </tr>

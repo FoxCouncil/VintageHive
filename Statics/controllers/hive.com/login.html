@@ -1,0 +1,36 @@
+{% assign title = "Login" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    <table cellpadding="5">
+        <tr>
+            <td bgcolor="#111111">
+                <h2><img src="/img/hive.gif"> VintageHive Login</h2>
+                <form method="POST">
+                    <table>
+                        <tr>
+                            <td>Username:</td>
+                            <td><input name="username" type="text" size="8" max="8"></td>
+                        </tr>
+                        <tr>
+                            <td>Password:</td>
+                            <td><input name="password" type="password" size="8"></td>
+                        </tr>
+
+                        <tr>
+                            <td><input type="reset"></td>
+                            <td><input type="submit" value="Login"></td>
+                        </tr>
+                    </table>
+                </form>
+            </td>
+        </tr>
+    </table>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

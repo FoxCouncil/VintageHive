@@ -46,7 +46,7 @@ internal static class InternetArchiveProcessor
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
-        var isInternetArchiveEnabled = Mind.Db.ConfigGet<bool>(ConfigNames.InternetArchive);
+        var isInternetArchiveEnabled = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive);
 
         if (!isInternetArchiveEnabled)
         {
@@ -165,7 +165,7 @@ internal static class InternetArchiveProcessor
 
     static async Task<Uri> GetAvailability(HttpRequest req, HttpResponse res)
     {
-        var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(req.ListenerSocket.RemoteIP, ConfigNames.InternetArchiveYear);
+        var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(req.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchiveYear);
 
         var incomingUrl = req.Uri.ToString();
 

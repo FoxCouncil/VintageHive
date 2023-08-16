@@ -1,17 +1,10 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using AngleSharp.Dom;
-using Fluid.Ast;
-using Humanizer;
 using Microsoft.Data.Sqlite;
-using System;
 using System.Dynamic;
-using System.Net;
-using System.Reflection.Metadata;
-using UAParser;
+using System.Security.Cryptography;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace VintageHive.Data.Contexts;
 
@@ -32,9 +25,13 @@ public class HiveDbContext : DbContextBase
 
     private const string TABLE_WEBSESSION = "websession";
 
+    private const string TABLE_VQD = "vqd";
+
     private const string TABLE_USER = "user";
 
-    private const string TABLE_VQD = "vqd";
+    private const string TABLE_MAIL = "mail";
+
+    private const string TABLE_USENET = "usenet";
 
     private const string TABLE_OSCARSESSION = "oscar_session";
 
@@ -47,17 +44,25 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.PortFtp, 1971 },
         { ConfigNames.PortTelnet, 1969 },
         { ConfigNames.PortSocks5, 1996 },
+        { ConfigNames.PortSmtp, 1980 },
+        { ConfigNames.PortPop3, 1984 },
+        { ConfigNames.PortUsenet, 1986 },
+        { ConfigNames.PortIrc, 1988 },
 
         // System Display Settings
         { ConfigNames.TemperatureUnits, WeatherUtils.TemperatureUnits.Celsius },
         { ConfigNames.DistanceUnits, WeatherUtils.DistanceUnits.Metric },
 
         // System Services Settings
-        { ConfigNames.Intranet, true },
-        { ConfigNames.Dialnine, true },
-        { ConfigNames.ProtoWeb, true },
-        { ConfigNames.InternetArchive, true },
-        { ConfigNames.InternetArchiveYear, 1999 },
+        { ConfigNames.ServiceIntranet, true },
+        { ConfigNames.ServiceDialnine, true },
+        { ConfigNames.ServiceProtoWeb, true },
+        { ConfigNames.ServiceInternetArchive, true },
+        { ConfigNames.ServiceInternetArchiveYear, 1999 },
+        { ConfigNames.ServiceSmtp, true },
+        { ConfigNames.ServicePop3, true },
+        { ConfigNames.ServiceUsenet, true },
+        { ConfigNames.ServiceIrc, true },
     };
 
     static readonly IReadOnlyDictionary<string, string> kDefaultLinks = new Dictionary<string, string>()
@@ -109,11 +114,11 @@ public class HiveDbContext : DbContextBase
         // Webserver Sessions
         CreateTable(TABLE_WEBSESSION, "key TEXT UNIQUE, ttl TEXT, ip TEXT, ua TEXT, value BLOB");
 
-        // User Accounts
-        CreateTable(TABLE_USER, "username TEXT UNIQUE COLLATE NOCASE, password TEXT");
-
         // For Search Feature
         CreateTable(TABLE_VQD, "key TEXT UNIQUE, vqd TEXT");
+
+        // User Accounts
+        CreateTable(TABLE_USER, "username TEXT UNIQUE COLLATE NOCASE, password TEXT");
 
         // ICQ (OSCAR) Server
         CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
@@ -585,8 +590,19 @@ public class HiveDbContext : DbContextBase
     #endregion
 
     #region User Methods
+
     public bool UserCreate(string username, string password)
     {
+        if (username == null || password == null)
+        { 
+            return false; 
+        }
+
+        if (username.Length is < 3 or > 8 || password.Length is < 3 or > 8)
+        {
+            return false;
+        }
+
         if (UserExistsByUsername(username))
         {
             return false;
@@ -599,7 +615,7 @@ public class HiveDbContext : DbContextBase
             command.CommandText = $"INSERT INTO {TABLE_USER} (username, password) VALUES(@username, @password)";
 
             command.Parameters.Add(new SqliteParameter("@username", username));
-            command.Parameters.Add(new SqliteParameter("@password", password));
+            command.Parameters.Add(new SqliteParameter("@password", password.ComputeMD5()));
 
             return Convert.ToBoolean(command.ExecuteNonQuery());
         });
@@ -642,7 +658,7 @@ public class HiveDbContext : DbContextBase
         });
     }
 
-    public HiveUser UserFetch(string username)
+    public HiveUser UserFetch(string username, string password = "")
     {
         return WithContext(context =>
         {
@@ -651,6 +667,13 @@ public class HiveDbContext : DbContextBase
             command.CommandText = $"SELECT * FROM {TABLE_USER} WHERE username = @username";
 
             command.Parameters.Add(new SqliteParameter("@username", username));
+
+            if (password != string.Empty)
+            {
+                command.CommandText += " AND password = @password";
+
+                command.Parameters.Add(new SqliteParameter("@password", password.ComputeMD5()));
+            }
 
             using var reader = command.ExecuteReader();
 
@@ -685,6 +708,7 @@ public class HiveDbContext : DbContextBase
             return users;
         });
     }
+
     #endregion
 
     #region Vpd Methods

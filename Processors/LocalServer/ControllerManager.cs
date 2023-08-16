@@ -1,9 +1,10 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Fluid;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using UAParser;
+using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Processors.LocalServer;
@@ -91,7 +92,13 @@ internal static class ControllerManager
         controller.Response = response;
         controller.Response.Context.Options.FileProvider = new LocalServerFileProvider(rootControllerDirectory);
 
+        var endpoint = ((IPEndPoint)request.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4();
+        var endpointPort = ((IPEndPoint)request.ListenerSocket.RawSocket.LocalEndPoint).Port;
+
+        controller.Response.Context.SetValue("serverip", endpoint);
+        controller.Response.Context.SetValue("serverport", endpointPort);
         controller.Response.Context.SetValue("appversion", Mind.ApplicationVersion);
+        controller.Response.Context.SetValue("traceid", request.ListenerSocket.TraceId.ToString());
 
         var clientInfo = parser.Parse(request.UserAgent);
 

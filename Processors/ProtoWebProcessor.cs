@@ -22,7 +22,7 @@ internal static class ProtoWebProcessor
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
-        var protoWebEnabled = Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.ProtoWeb);
+        var protoWebEnabled = Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.ServiceProtoWeb);
 
         if (!protoWebEnabled)
         {

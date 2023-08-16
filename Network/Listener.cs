@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
 using VintageHive.Proxy.Http;
@@ -80,7 +80,9 @@ public abstract class Listener
 
         socket.Listen();
 
-        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Starting {GetType().Name} Listener...{Address}:{Port}", "");
+        var extraData = IsSecure ? "Secure " : "";
+
+        Log.WriteLine(Log.LEVEL_INFO, extraData.TrimEnd() + GetType().Name, $"Starting {extraData}{GetType().Name} Listener...{Address}:{Port}", "");
 
         while (IsListening)
         {

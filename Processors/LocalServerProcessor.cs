@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using AngleSharp.Text;
 using Fluid;
@@ -640,7 +640,7 @@ internal static class LocalServerProcessor
             {
                 res.SetNotFound();
 
-                return false;
+                return true;
             }
         }
 

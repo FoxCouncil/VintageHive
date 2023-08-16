@@ -18,7 +18,7 @@ internal static class DialNineProcessor
 
     public static async Task<bool> ProcessHttpsRequest(HttpRequest req, HttpResponse res)
     {
-        if (!Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.Dialnine))
+        if (!Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.ServiceDialnine))
         {
             return false;
         }
