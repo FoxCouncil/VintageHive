@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Proxy.Security;
 
@@ -30,8 +30,11 @@ public class ListenerSocket
 
     public bool IsSecure { get; set; } = false;
 
+    public bool IsKeepAlive { get; set; } = false;
+
     public NetworkStream Stream { get; set; }
 
     public SslStream SecureStream { get; set; }
 
+    public Dictionary<string, object> DataBag { get; set; } = new();
 }

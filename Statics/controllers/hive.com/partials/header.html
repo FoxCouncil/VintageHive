@@ -6,12 +6,17 @@
     </tr>
     <tr>
         <td>
-            <a href="login.html">{% if title == "Login" %}<b>[ Login ]</b>{% else %}Login{% endif %}</a> | 
+            {% if user != "" %}
+            Hi, <a href="me.html">{% if title == "Me" %}<b>[ {{ user }} ]</b>{% else %}{{ user }}{% endif %}</a> |
+            <a href="logout.html">Logout</a>
+            {% else %}
+            <a href="login.html">{% if title == "Login" %}<b>[ Login ]</b>{% else %}Login{% endif %}</a> |
             <a href="signup.html">{% if title == "Signup" %}<b>[ Signup ]</b>{% else %}Signup{% endif %}</a>
+            {% endif %}
         </td>
         <td align="right" colspan="2">
             {% include "partials/menu.html" %}
         </td>
     </tr>
 </table>
-<hr>
+<hr color="#444444" noshade>

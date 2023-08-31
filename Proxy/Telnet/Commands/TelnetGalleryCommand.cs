@@ -1,7 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Collections;
-
 namespace VintageHive.Proxy.Telnet.Commands;
 
 public class TelnetGalleryCommand : ITelnetWindow

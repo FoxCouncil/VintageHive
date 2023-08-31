@@ -1,8 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using AngleSharp.Io;
-using System.IO;
-
 namespace VintageHive.Utilities;
 
 public static class VFS

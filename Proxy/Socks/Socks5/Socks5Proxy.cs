@@ -2,7 +2,7 @@
 
 using VintageHive.Network;
 
-namespace VintageHive.Proxy.Socks;
+namespace VintageHive.Proxy.Socks.Socks5;
 
 internal class Socks5Proxy : Listener
 {
@@ -44,7 +44,7 @@ internal class Socks5Proxy : Listener
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
         await Task.Delay(0);
-        
+
         return null;
     }
 }

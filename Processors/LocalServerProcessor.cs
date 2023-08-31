@@ -1,6 +1,5 @@
 // Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using AngleSharp.Text;
 using Fluid;
 using Fluid.Ast;
 using Fluid.Values;
@@ -77,7 +76,7 @@ internal static class LocalServerProcessor
             return StringValue.Create(sb.ToString().Trim()[2..]);
         });
 
-        fluidParser.RegisterEmptyTag("displayMessage", static async (writer, encoder, context) =>
+        fluidParser.RegisterEmptyTag("displayMessageHtml", static async (writer, encoder, context) =>
         {
             var response = (await context.Model.GetValueAsync("Response", context)).ToObjectValue() as HttpResponse;
 
@@ -87,6 +86,20 @@ internal static class LocalServerProcessor
                 writer.Write($"{response.Session.error}");
                 writer.Write($"<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>");
                 writer.Write($"</div>");
+
+                response.RemoveSession("error");
+            }
+
+            return Completion.Normal;
+        });
+
+        fluidParser.RegisterEmptyTag("displayMessageText", static async (writer, encoder, context) =>
+        {
+            var response = (await context.Model.GetValueAsync("Response", context)).ToObjectValue() as HttpResponse;
+
+            if (response.HasSession("error"))
+            {
+                writer.Write($"{response.Session.error}");
 
                 response.RemoveSession("error");
             }

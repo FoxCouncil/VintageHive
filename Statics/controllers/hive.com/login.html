@@ -6,30 +6,43 @@
 <body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
     {% include 'partials/header.html' %}
 
-    <table cellpadding="5">
+    <br>
+    <table border="1" bordercolor="#333333" cellpadding="15" width="500" align="center">
         <tr>
-            <td bgcolor="#111111">
+            <td bgcolor="#111111" align="center">
                 <h2><img src="/img/hive.gif"> VintageHive Login</h2>
                 <form method="POST">
                     <table>
                         <tr>
-                            <td>Username:</td>
-                            <td><input name="username" type="text" size="8" max="8"></td>
+                            <td colspan="2" align="center"><font color="#AA2222">{% displayMessageText %}</font></td>
                         </tr>
                         <tr>
-                            <td>Password:</td>
-                            <td><input name="password" type="password" size="8"></td>
+                            <td colspan="2"><hr noshade></td>
                         </tr>
-
                         <tr>
-                            <td><input type="reset"></td>
-                            <td><input type="submit" value="Login"></td>
+                            <td><font face="monospace">Username:</font></td>
+                            <td><input name="username" type="text" maxlength="8" size="10" width="10" style="width:175px;font-face:monospace"></td>
+                        </tr>
+                        <tr>
+                            <td><font face="monospace">Password:</font></td>
+                            <td><input name="password" type="password" maxlength="8" size="11" width="10" style="width:175px;font-face:monospace"></td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><hr noshade></td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" align="center"></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><input type="submit" value="Login"> &nbsp; <input type="reset"></td>
                         </tr>
                     </table>
                 </form>
             </td>
         </tr>
     </table>
+    <br>
 
     {% include 'partials/footer.html' %}
 </body>

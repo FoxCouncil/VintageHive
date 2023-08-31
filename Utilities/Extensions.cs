@@ -3,6 +3,7 @@
 using HtmlAgilityPack;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -384,5 +385,37 @@ public static class Extensions
 
 
         return sb.ToString();
+    }
+
+    // MIME shit
+
+    static readonly string[] Months = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+
+    static readonly string[] WeekDays = {
+        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    };
+
+    public static string ToRFC822String(this DateTimeOffset date)
+    {
+        return string.Format(CultureInfo.InvariantCulture, "{0}, {1:00} {2} {3:0000} {4:00}:{5:00}:{6:00} {7:+00;-00}{8:00}", WeekDays[(int)date.DayOfWeek], date.Day, Months[date.Month - 1], date.Year, date.Hour, date.Minute, date.Second, date.Offset.Hours, date.Offset.Minutes);
+    }
+
+    // Ascii Shit
+
+    public static string ToASCII(this ReadOnlySpan<byte> value)
+    {
+        return Encoding.ASCII.GetString(value);
+    }
+    public static string ToASCII(this byte[] value)
+    {
+        return Encoding.ASCII.GetString(value);
+    }
+
+    public static byte[] ToASCII(this string value)
+    {
+        return Encoding.ASCII.GetBytes(value);
     }
 }

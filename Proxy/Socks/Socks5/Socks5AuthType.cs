@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-namespace VintageHive.Proxy.Socks;
+namespace VintageHive.Proxy.Socks.Socks5;
 
 public enum Socks5AuthType
 {

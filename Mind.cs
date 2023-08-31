@@ -6,6 +6,8 @@ using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Pop3;
+using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Telnet;
 
 namespace VintageHive;
@@ -28,6 +30,10 @@ public static class Mind
 
     static TelnetServer telnetServer;
 
+    static SmtpProxy smtpProxy;
+
+    static Pop3Proxy pop3Proxy;
+
     static OscarServer oscarServer;
 
     public static bool IsDebug => Debugger.IsAttached;
@@ -40,7 +46,9 @@ public static class Mind
 
     public static GeonamesDbContext Geonames { get; private set; }
 
-    public static RadioBrowserContext RadioBrowserDB { get; private set; }
+    public static PostOfficeDbContext PostOfficeDb { get; private set; }
+
+    public static RadioBrowserDbContext RadioBrowserDB { get; private set; }
 
     public static RadioBrowserClient RadioBrowser { get; private set; }
 
@@ -53,6 +61,7 @@ public static class Mind
         // Data
         Cache = new();
         Db = new();
+        PostOfficeDb = new();
 
         // Services
         Geonames = new();
@@ -105,6 +114,16 @@ public static class Mind
         oscarServer = new(ipAddress);
 
 #if DEBUG
+
+        var smtpProxyPort = Db.ConfigGet<int>(ConfigNames.PortSmtp);
+
+        smtpProxy = new(ipAddress, smtpProxyPort);
+
+
+        var pop3ProxyPort = Db.ConfigGet<int>(ConfigNames.PortPop3);
+
+        pop3Proxy = new(ipAddress, pop3ProxyPort);
+
         // ==== TESTING AREA =====
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
@@ -123,6 +142,10 @@ public static class Mind
         telnetServer.Start();
 
 #if DEBUG
+        smtpProxy.Start();
+
+        pop3Proxy.Start();
+
         // socks5Proxy.Start();
 #endif
 

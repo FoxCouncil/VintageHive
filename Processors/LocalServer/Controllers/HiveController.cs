@@ -5,7 +5,6 @@ using HeyRed.Mime;
 using HtmlAgilityPack;
 using SmartReader;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 using VintageHive.Proxy.Security;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
@@ -35,6 +34,10 @@ internal class HiveController : Controller
             "Settings",
             "Help"
         });
+
+        string userName = Response.HasSession("user") ? Convert.ToString(Session.user) : "";
+
+        Response.Context.SetValue("user", userName);
     }
 
     [Route("/index.html")]
@@ -85,10 +88,83 @@ internal class HiveController : Controller
     {
         if (Request.Type == "POST")
         {
-            Response.SetBodyString(JsonSerializer.Serialize<IReadOnlyDictionary<string, string>>(Request.FormData));
+            var username = Request.FormData["username"] ?? string.Empty;
+            var password = Request.FormData["password"] ?? string.Empty;
 
-            Response.Handled = true;
+            if (username == string.Empty || password == string.Empty || username.Length < 3 || password.Length < 3 || username.Length > 8 || password.Length > 8)
+            {
+                NotAuthorized("Invalid input, try again.");
+
+                return;
+            }
+
+            if (!Mind.Db.UserExistsByUsername(username))
+            {
+                NotAuthorized("Invalid credentials, try again.");
+
+                return;
+            }
+
+            var user = Mind.Db.UserFetch(username, password);
+
+            Session.user = user.Username;
+
+            Response.SetFound("/me.html");
         }
+    }
+
+    [Route("/signup.html")]
+    public async Task Signup()
+    {
+        if (Request.Type == "POST")
+        {
+            var username = Request.FormData["username"] ?? string.Empty;
+            var password = Request.FormData["password"] ?? string.Empty;
+
+            if (username == string.Empty || password == string.Empty || username.Length < 3 || password.Length < 3 || username.Length > 8 || password.Length > 8)
+            {
+                NotAuthorized("Invalid input, try again.");
+
+                return;
+            }
+
+            if (Mind.Db.UserExistsByUsername(username))
+            {
+                NotAuthorized("User exists, try again.");
+
+                return;
+            }
+
+            if (!Mind.Db.UserCreate(username, password))
+            {
+                NotAuthorized("Oopsy poopsy, try again.");
+
+                return;
+            }
+
+            var user = Mind.Db.UserFetch(username);
+
+            Session.error = $"User ({user.Username}) has been created, please login";
+
+            Response.SetFound("/login.html");
+        }
+    }
+
+    [Route("/logout.html")]
+    public async Task Logout()
+    {
+        if (Response.HasSession("user")) 
+        {
+            Response.RemoveSession("user");
+
+            Session.error = "Successfully logged out, goodbye.";
+        }
+        else
+        {
+            Session.error = "No user logged in...";
+        }
+
+        Response.SetFound("/login.html");
     }
 
     [Route("/download.html")]
@@ -238,75 +314,11 @@ internal class HiveController : Controller
 
                 articleDocument.LoadHtml(result.Content);
 
-                NormalizeAnchorLinks(articleDocument);
+                HtmlUtils.NormalizeAnchorLinks(articleDocument);
 
-                NormalizeImages(articleDocument);
+                HtmlUtils.NormalizeImages(articleDocument);
 
                 Response.Context.SetValue("document", articleDocument.DocumentNode.OuterHtml);
-            }
-        }
-    }
-
-    private static void NormalizeAnchorLinks(HtmlDocument articleDocument)
-    {
-        var anchorNodes = articleDocument.DocumentNode.SelectNodes("//a");
-
-        if (anchorNodes != null)
-        {
-            foreach (var node in anchorNodes)
-            {
-                var href = node.GetAttributeValue("href", "");
-
-                if (!href.Any() || href[0] == '#')
-                {
-                    continue;
-                }
-
-                href = $"/viewer.html?url={WebUtility.UrlDecode(href)}";
-
-                node.SetAttributeValue("href", href);
-
-                node.SetAttributeValue("target", "");
-            }
-        }
-    }
-
-    private static void NormalizeImages(HtmlDocument articleDocument)
-    {
-        var imgNodes = articleDocument.DocumentNode.SelectNodes("//img");
-
-        if (imgNodes != null)
-        {
-            foreach (var node in imgNodes)
-            {
-                var img = node.GetAttributeValue("src", "");
-
-                if (string.IsNullOrEmpty(img))
-                {
-                    img = node.GetAttributeValue("data-src", "");
-                }
-
-                if (string.IsNullOrEmpty(img))
-                {
-                    img = node.GetAttributeValue("data-src-medium", "");
-                }
-
-                var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
-
-                var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"http://api.hive.com/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
-
-                if (node.ParentNode.Name == "picture")
-                {
-                    var pictureEl = node.ParentNode;
-
-                    pictureEl.ParentNode.InsertAfter(imageLinkNode, pictureEl);
-
-                    pictureEl.Remove();
-                }
-
-                node.ParentNode.InsertAfter(imageLinkNode, node);
-
-                node.Remove();
             }
         }
     }
@@ -474,5 +486,12 @@ internal class HiveController : Controller
         var cert = Mind.Db.CertGet(CertificateAuthority.Name); // Get's CA
 
         Response.SetBodyString(cert.Certificate, "application/x-x509-ca-cert");
+    }
+
+    private void NotAuthorized(string error = "Not Authorized")
+    {
+        Session.error = error;
+
+        Response.SetFound();
     }
 }

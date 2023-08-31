@@ -1,0 +1,22 @@
+{% assign title = "Me" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    <br>
+    <table border="1" bordercolor="#333333" cellpadding="15" width="500" align="center">
+        <tr>
+            <td bgcolor="#111111" align="center">
+                <h2><img src="/img/hive.gif"> VintageHive User</h2>
+                <h1>Welcome, {{ user }}</h1>
+            </td>
+        </tr>
+    </table>
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

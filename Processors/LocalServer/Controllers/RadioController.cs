@@ -2,8 +2,6 @@
 
 using Fluid;
 using System.Diagnostics;
-using System.IO;
-using System.Net.Mail;
 using System.Runtime.InteropServices;
 using System.Web;
 using static VintageHive.Proxy.Http.HttpUtilities;

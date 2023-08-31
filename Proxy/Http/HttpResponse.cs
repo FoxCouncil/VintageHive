@@ -319,6 +319,8 @@ public sealed class HttpResponse
             Headers.AddOrUpdate(header.Key, header.Value.FirstOrDefault());
         }
 
-        SetBodyData(await externalResponse.Content.ReadAsByteArrayAsync(), mimeType);
+        SetBodyStream(externalResponse.Content.ReadAsStream(), mimeType); // Trial Run
+
+        // SetBodyData(await externalResponse.Content.ReadAsByteArrayAsync(), mimeType);
     }
 }

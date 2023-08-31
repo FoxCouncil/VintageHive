@@ -4,7 +4,6 @@ using Fluid;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using UAParser;
-using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Processors.LocalServer;

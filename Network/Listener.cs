@@ -195,26 +195,34 @@ public abstract class Listener
 
                         if (IsSecure)
                         {
-                            await sslStream.WriteAsync(resBuffer);
-
-                            sslStream.Dispose();
+                            if (resBuffer != null)
+                            {
+                                await sslStream.WriteAsync(resBuffer);
+                            }
+                            else if (!listenerSocket.IsKeepAlive)
+                            {
+                                sslStream.Dispose();
+                            }
                         }
                         else
                         {
-                            if (resBuffer == null)
+                            if (resBuffer != null)
+                            {
+                                await connection.SendAsync(resBuffer, SocketFlags.None);
+                            }
+                            else if (!listenerSocket.IsKeepAlive)
                             {
                                 if (connection.Connected)
                                 {
                                     connection.Disconnect(false);
                                 }
                             }
-                            else
-                            {
-                                await connection.SendAsync(resBuffer, SocketFlags.None);
-                            }
                         }
 
-                        connection.Close();
+                        if (!listenerSocket.IsKeepAlive)
+                        {
+                            connection.Close();
+                        }
                     }
                     catch (Exception ex) when (ex is SocketException || ex is IOException)
                     {

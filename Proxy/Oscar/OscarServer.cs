@@ -159,22 +159,22 @@ public class OscarServer : Listener
 
     private static async Task ProcessChannelOneAuth(OscarSession session, Tlv[] tlvs)
     {
-        var screenName = Encoding.ASCII.GetString(tlvs.GetTlv(0x01).Value);
+        session.ScreenName = Encoding.ASCII.GetString(tlvs.GetTlv(0x01).Value);
 
-        if (!Mind.Db.UserExistsByUsername(screenName))
+        if (!Mind.Db.UserExistsByUsername(session.ScreenName))
         {
             await AuthFailedError(session);
             
             return;
         }
 
-        var user = Mind.Db.UserFetch(screenName);
+        var user = Mind.Db.UserFetch(session.ScreenName);
 
         if (OscarUtils.RoastPassword(user.Password).SequenceEqual(tlvs.GetTlv(0x02).Value))
         {
             session.UserAgent = Encoding.ASCII.GetString(tlvs.GetTlv(0x03).Value);
 
-            session.Load(screenName);
+            session.Load(session.ScreenName);
 
             var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 

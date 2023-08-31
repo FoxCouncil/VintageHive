@@ -4,13 +4,13 @@ using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Contexts;
 
-public class RadioBrowserContext : DbContextBase
+public class RadioBrowserDbContext : DbContextBase
 {
     private const string TABLE_COUNTRIES = "countries";
 
     private const string TABLE_TAGS = "tags";
 
-    public RadioBrowserContext() : base()
+    public RadioBrowserDbContext() : base()
     {
         CreateTable(TABLE_COUNTRIES, "iso TXT UNIQUE, name TEXT, count INTEGER");
 

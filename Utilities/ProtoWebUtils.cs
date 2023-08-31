@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using HtmlAgilityPack;
-using System;
 
 namespace VintageHive.Utilities
 {

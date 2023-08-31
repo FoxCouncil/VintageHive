@@ -6,6 +6,8 @@ namespace VintageHive.Processors;
 
 internal static class HelperProcessor
 {
+    private const string DOCS_BLOOBERRY = "blooberry.com";
+
     private const string GAMES_ANDKON = "andkon.com";
     private const string GAMES_DREAMPIPE = "dreampipe.net";
     private const string GAMES_HALO = "halo.bungie.org";
@@ -29,6 +31,7 @@ internal static class HelperProcessor
     private const string WIN_UPDATE_RESTORED = "windowsupdaterestored.com";
 
     static readonly List<string> ExternalPassthroughDomains = new() {
+        DOCS_BLOOBERRY,
         GAMES_ANDKON,
         GAMES_DREAMPIPE,
         GAMES_HALO,
@@ -56,7 +59,9 @@ internal static class HelperProcessor
 
     private static async Task<bool> ProcessExternalPassthroughRequest(HttpRequest req, HttpResponse res)
     {
-        // await res.PassthroughConnection();
+        await res.SetExternal();
+
+        res.Cache = false;
 
         Log.WriteLine(Log.LEVEL_INFO, nameof(HelperProcessor), $"Helping; by sending to external -> {req.Uri}", req.ListenerSocket.TraceId.ToString());
 

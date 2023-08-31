@@ -2,7 +2,6 @@
 
 using Microsoft.Data.Sqlite;
 using System.Dynamic;
-using System.Security.Cryptography;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
 
@@ -615,7 +614,7 @@ public class HiveDbContext : DbContextBase
             command.CommandText = $"INSERT INTO {TABLE_USER} (username, password) VALUES(@username, @password)";
 
             command.Parameters.Add(new SqliteParameter("@username", username));
-            command.Parameters.Add(new SqliteParameter("@password", password.ComputeMD5()));
+            command.Parameters.Add(new SqliteParameter("@password", password));
 
             return Convert.ToBoolean(command.ExecuteNonQuery());
         });
@@ -672,7 +671,7 @@ public class HiveDbContext : DbContextBase
             {
                 command.CommandText += " AND password = @password";
 
-                command.Parameters.Add(new SqliteParameter("@password", password.ComputeMD5()));
+                command.Parameters.Add(new SqliteParameter("@password", password));
             }
 
             using var reader = command.ExecuteReader();
