@@ -38,7 +38,7 @@ public class HttpProxy : Listener
 
         if (!httpRequest.IsValid)
         {
-            Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of HTTP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket.TraceId.ToString());
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of HTTP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket?.TraceId.ToString() ?? "N/A");
 
             return null;
         }

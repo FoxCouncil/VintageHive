@@ -5,8 +5,10 @@ using VintageHive.Data.Contexts;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
+using VintageHive.Proxy.Irc;
 using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Pop3;
+using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Telnet;
 
@@ -34,7 +36,11 @@ public static class Mind
 
     static Pop3Proxy pop3Proxy;
 
+    static IrcProxy ircProxy;
+
     static OscarServer oscarServer;
+
+    static PrinterProxy printerProxy;
 
     public static bool IsDebug => Debugger.IsAttached;
 
@@ -115,6 +121,8 @@ public static class Mind
 
 #if DEBUG
 
+        printerProxy = new PrinterProxy(ipAddress, 9100);
+
         var smtpProxyPort = Db.ConfigGet<int>(ConfigNames.PortSmtp);
 
         smtpProxy = new(ipAddress, smtpProxyPort);
@@ -123,6 +131,10 @@ public static class Mind
         var pop3ProxyPort = Db.ConfigGet<int>(ConfigNames.PortPop3);
 
         pop3Proxy = new(ipAddress, pop3ProxyPort);
+
+        var ircProxyPort = Db.ConfigGet<int>(ConfigNames.PortIrc);
+
+        ircProxy = new(ipAddress, ircProxyPort);
 
         // ==== TESTING AREA =====
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
@@ -142,9 +154,13 @@ public static class Mind
         telnetServer.Start();
 
 #if DEBUG
+        printerProxy.Start();
+
         smtpProxy.Start();
 
         pop3Proxy.Start();
+
+        ircProxy.Start();
 
         // socks5Proxy.Start();
 #endif

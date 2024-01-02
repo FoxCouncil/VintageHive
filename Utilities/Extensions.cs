@@ -403,7 +403,23 @@ public static class Extensions
         return string.Format(CultureInfo.InvariantCulture, "{0}, {1:00} {2} {3:0000} {4:00}:{5:00}:{6:00} {7:+00;-00}{8:00}", WeekDays[(int)date.DayOfWeek], date.Day, Months[date.Month - 1], date.Year, date.Hour, date.Minute, date.Second, date.Offset.Hours, date.Offset.Minutes);
     }
 
-    // Ascii Shit
+    // UTF8 Shite
+
+    public static string ToUTF8(this ReadOnlySpan<byte> value)
+    {
+        return Encoding.UTF8.GetString(value);
+    }
+    public static string ToUTF8(this byte[] value)
+    {
+        return Encoding.UTF8.GetString(value);
+    }
+
+    public static byte[] ToUTF8(this string value)
+    {
+        return Encoding.UTF8.GetBytes(value);
+    }
+
+    // Ascii Shite
 
     public static string ToASCII(this ReadOnlySpan<byte> value)
     {

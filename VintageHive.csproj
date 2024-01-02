@@ -73,7 +73,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Proxy\Irc\" />
       <Folder Include="Proxy\Socks\Socks4\" />
       <Folder Include="Proxy\Usenet\" />
     </ItemGroup>    

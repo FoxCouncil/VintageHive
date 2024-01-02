@@ -86,6 +86,8 @@ internal class HiveController : Controller
     [Route("/login.html")]
     public async Task Login()
     {
+        await Task.Delay(0);
+
         if (Request.Type == "POST")
         {
             var username = Request.FormData["username"] ?? string.Empty;
@@ -116,6 +118,8 @@ internal class HiveController : Controller
     [Route("/signup.html")]
     public async Task Signup()
     {
+        await Task.Delay(0);
+
         if (Request.Type == "POST")
         {
             var username = Request.FormData["username"] ?? string.Empty;
@@ -153,6 +157,8 @@ internal class HiveController : Controller
     [Route("/logout.html")]
     public async Task Logout()
     {
+        await Task.Delay(0);
+
         if (Response.HasSession("user")) 
         {
             Response.RemoveSession("user");

@@ -235,6 +235,8 @@ public abstract class Listener
                     }
                 }
 
+                await ProcessDisconnection(listenerSocket);
+
                 Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Closing connection to {remoteAddress}", listenerSocket.TraceId.ToString());
             });
         }
@@ -244,13 +246,18 @@ public abstract class Listener
         IsListening = false;
     }
 
+    public virtual Task<byte[]> ProcessConnection(ListenerSocket connection)
+    {
+        return Task.FromResult<byte[]>(null);
+    }
+
     public virtual Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
         return Task.FromResult<byte[]>(null);
     }
 
-    public virtual Task<byte[]> ProcessConnection(ListenerSocket connection)
+    public virtual Task ProcessDisconnection(ListenerSocket connection)
     {
-        return Task.FromResult<byte[]>(null);
+        return Task.Delay(0);
     }
 }
