@@ -60,22 +60,32 @@ public static class NewsUtils
     {
         var url = $"{GoogleRssFeedUrl}{string.Format(GoogleRssTopicFeedUrl, GoogleNewsTopicIds[topic])}{string.Format(GoogleGetParams, language, market)}";
 
-        var output = await Mind.Cache.Do<List<Headlines>>($"googlenews_{url}", TimeSpan.FromHours(1), () => {
-            using var reader = XmlReader.Create(url);
-
-            var feed = SyndicationFeed.Load(reader);
+        var output = await Mind.Cache.Do<List<Headlines>>($"googlenews_{url}", TimeSpan.FromHours(1), () =>
+        {
 
             var output = new List<Headlines>();
 
-            foreach (var item in feed.Items)
+            try
             {
-                output.Add(new Headlines()
+                using var reader = XmlReader.Create(url);
+
+                var feed = SyndicationFeed.Load(reader);
+
+                foreach (var item in feed.Items)
                 {
-                    Id = item.Links[0].Uri.Segments.Last(),
-                    Title = item.Title.Text,
-                    Published = item.PublishDate,
-                    Summary = item.Summary.Text.StripHtml()
-                });
+                    output.Add(new Headlines()
+                    {
+                        Id = item.Links[0].Uri.Segments.Last(),
+                        Title = item.Title.Text,
+                        Published = item.PublishDate,
+                        Summary = item.Summary.Text.StripHtml()
+                    });
+                }
+            }
+            catch (HttpRequestException httpRequestException)
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(NewsUtils), $"Failed to get news from: {url}", Guid.Empty.ToString());
+                Log.WriteException(nameof(NewsUtils), httpRequestException, Guid.Empty.ToString());
             }
 
             return Task.FromResult(output);
