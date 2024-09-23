@@ -131,7 +131,7 @@ public abstract class Listener
                         await connection.SendAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection Established\r\n\r\n"), SocketFlags.None);
                     }
 
-                    var baseRequest = HttpRequest.Parse(rawPacket, Encoding.ASCII);
+                    var baseRequest = HttpRequest.Parse(reqBuffer[..read], rawPacket, Encoding.ASCII);
 
                     var sslCertificate = CertificateAuthority.GetOrCreateDomainCertificate(baseRequest.Uri.Host);
 

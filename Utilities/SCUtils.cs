@@ -148,10 +148,10 @@ public static class SCUtils
     {
         return input.ToLower() switch
         {
-            HttpContentType.Audio.Mpeg => "MP3",
-            HttpContentType.Audio.Aac => "AAC",
-            HttpContentType.Audio.Aacp => "AAC+",
-            HttpContentType.Audio.Mp4 => "M4A",
+            HttpContentTypeMimeType.Audio.Mpeg => "MP3",
+            HttpContentTypeMimeType.Audio.Aac => "AAC",
+            HttpContentTypeMimeType.Audio.Aacp => "AAC+",
+            HttpContentTypeMimeType.Audio.Mp4 => "M4A",
             _ => input,
         };
     }

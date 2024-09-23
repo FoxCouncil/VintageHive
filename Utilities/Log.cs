@@ -1,5 +1,7 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using VintageHive.Data.Types;
+
 namespace VintageHive.Utilities;
 
 internal static class Log
@@ -16,10 +18,10 @@ internal static class Log
 
     public static void WriteLine()
     {
-        Console.WriteLine();
+        SendConsole(string.Empty);
     }
 
-    public static void WriteLine(string level, string system, string message, string traceId)
+    public static void WriteLine(string level, string system, string message, string traceId = "")
     {
         var logItem = new LogItem(level, system, message, traceId);
 
@@ -35,14 +37,39 @@ internal static class Log
             return;
         }
 
-        Console.WriteLine(logItem.ToString());
+        SendConsole(logItem.ToString());
     }
 
     public static void WriteException(string system, Exception e, string traceId)
     {
         var logItem = new LogItem(LEVEL_ERROR, system, e.Message, traceId);
 
-        Console.WriteLine(logItem.ToString());
-        Console.WriteLine(e);
+        SendConsole(logItem.ToString());
+        SendConsole(e);
+
+    }
+
+    static void SendConsole(string msg)
+    {
+        if (Mind.MainThread != null)
+        {
+            Mind.MainThread.Post(_ => Console.WriteLine(msg), null);
+        }
+        else
+        {
+            Console.WriteLine(msg);
+        }
+    }
+
+    static void SendConsole(Exception msg)
+    {
+        if (Mind.MainThread != null)
+        {
+            Mind.MainThread.Post(_ => Console.WriteLine(msg), null);
+        }
+        else
+        {
+            Console.WriteLine(msg);
+        }
     }
 }

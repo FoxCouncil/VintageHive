@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using VintageHive.Proxy.Security;
@@ -218,6 +219,16 @@ public static class Extensions
     public static void Append(this MemoryStream stream, byte[] values)
     {
         stream.Write(values, 0, values.Length);
+    }
+
+    public static string ToManagedString(this IntPtr ptr, bool isAnsi = true)
+    {
+        if (ptr == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        return isAnsi ? Marshal.PtrToStringAnsi(ptr) : Marshal.PtrToStringUni(ptr);
     }
 
     public static string ToStringTable<T>(this IEnumerable<T> values, string[] columnHeaders, params Func<T, object>[] valueSelectors)

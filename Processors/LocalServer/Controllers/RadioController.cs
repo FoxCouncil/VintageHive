@@ -169,7 +169,7 @@ internal class RadioController : Controller
         {
             using var process = CreateFfmpegProcess();
 
-            Response.Headers.Add(HttpHeaderName.ContentType, HttpContentType.Audio.Mpeg);
+            Response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
 
             Response.Headers.Add("Icy-Name", station.Name + $" [Codec:{station.Codec}]");
 
@@ -200,7 +200,7 @@ internal class RadioController : Controller
                 }
             }
 
-            Response.SetBodyStream(clientStream, HttpContentType.Audio.Mpeg);
+            Response.SetBodyStream(clientStream, HttpContentTypeMimeType.Audio.Mpeg);
             try
             {
                 await Request.ListenerSocket.Stream.WriteAsync(Response.GetResponseEncodedData());
@@ -328,7 +328,7 @@ internal class RadioController : Controller
         {
             using var process = CreateFfmpegProcess();
 
-            Response.Headers.Add(HttpHeaderName.ContentType, HttpContentType.Audio.Mpeg);
+            Response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
 
             Response.Headers.Add("Icy-Name", details.Name + $" [Codec:{stationCodec}]");
 
@@ -351,7 +351,7 @@ internal class RadioController : Controller
         }
         else
         {
-            Response.SetBodyStream(clientStream, HttpContentType.Audio.Mpeg);
+            Response.SetBodyStream(clientStream, HttpContentTypeMimeType.Audio.Mpeg);
         }
     }
 

@@ -58,7 +58,7 @@ namespace VintageHive.Proxy.Http
             public const string Patch = "PATCH";
         }
 
-        public static class HttpContentType
+        public static class HttpContentTypeMimeType
         {
             public static class Audio
             {
@@ -76,6 +76,8 @@ namespace VintageHive.Proxy.Http
                 public const string Json = "application/json";
 
                 public const string OctetStream = "application/octet-stream";
+
+                public const string Pdf = "application/pdf";
 
                 public const string XWwwFormUrlEncoded = "application/x-www-form-urlencoded";
             }

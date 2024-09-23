@@ -125,8 +125,8 @@ public class HttpProxy : Listener
                             await httpResponse.Stream.CopyToSslAsync(socket.SecureStream);
                             // await socket.SecureStream.WriteAsync(httpResponse.Stream.ReadAllBytes());
                         }
-                        else 
-                        { 
+                        else
+                        {
                             await socket.Stream.WriteAsync(buffer);
                             await httpResponse.Stream.CopyToAsync(socket.Stream);
                         }
@@ -177,7 +177,7 @@ public class HttpProxy : Listener
         {
             var plainBody = $"{(int)statusCode} {statusCode}\n\n{httpRequest.Uri}\n\n{date}{string.Join("", Enumerable.Repeat("\n" + string.Join("", Enumerable.Repeat(" ", 80)), 20))}";
 
-            httpResponse.SetBodyString(plainBody, HttpContentType.Text.Plain);
+            httpResponse.SetBodyString(plainBody, HttpContentTypeMimeType.Text.Plain);
 
             return true;
         }
@@ -208,7 +208,7 @@ public class HttpProxy : Listener
         body = body.Replace("||DATE||", date);
         body = body.Replace("||TRACEID||", httpRequest.ListenerSocket.TraceId.ToString());
 
-        httpResponse.SetBodyString(body, HttpContentType.Text.Html);
+        httpResponse.SetBodyString(body, HttpContentTypeMimeType.Text.Html);
 
         // Do not cache the error!
         httpResponse.Cache = false;

@@ -82,7 +82,7 @@ public sealed class HttpResponse
         }
     }
 
-    public HttpResponse SetBodyString(string body, string type = HttpContentType.Text.Html)
+    public HttpResponse SetBodyString(string body, string type = HttpContentTypeMimeType.Text.Html)
     {
         SetBodyData(Encoding.GetBytes(body), type);
 
@@ -91,7 +91,7 @@ public sealed class HttpResponse
         return this;
     }
 
-    public HttpResponse SetBodyData(byte[] body, string type = HttpContentType.Application.OctetStream)
+    public HttpResponse SetBodyData(byte[] body, string type = HttpContentTypeMimeType.Application.OctetStream)
     {
         Body = body ?? throw new ArgumentNullException(nameof(body));
 
@@ -103,7 +103,7 @@ public sealed class HttpResponse
         return this;
     }
 
-    public HttpResponse SetStreamForDownload(FileStream stream, string type = HttpContentType.Application.OctetStream)
+    public HttpResponse SetStreamForDownload(FileStream stream, string type = HttpContentTypeMimeType.Application.OctetStream)
     {
         var disposition = "attachment";
 
@@ -120,14 +120,14 @@ public sealed class HttpResponse
         return SetBodyStream(stream, type);
     }
 
-    public HttpResponse SetStream(Stream stream, string type = HttpContentType.Application.OctetStream)
+    public HttpResponse SetStream(Stream stream, string type = HttpContentTypeMimeType.Application.OctetStream)
     {
         Headers.AddOrUpdate(HttpHeaderName.ContentLength, stream.Length.ToString());
 
         return SetBodyStream(stream, type);
     }
 
-    public HttpResponse SetBodyStream(Stream stream, string type = HttpContentType.Application.OctetStream)
+    public HttpResponse SetBodyStream(Stream stream, string type = HttpContentTypeMimeType.Application.OctetStream)
     {
         Cache = false; // DO NOT OVERLOAD SQLite
 
@@ -179,7 +179,7 @@ public sealed class HttpResponse
     {
         StatusCode = HttpStatusCode.OK;
 
-        return SetBodyString(JsonSerializer.Serialize(json), HttpContentType.Application.Json);
+        return SetBodyString(JsonSerializer.Serialize(json), HttpContentTypeMimeType.Application.Json);
     }
 
     public HttpResponse SetJsonSuccess(object data, bool success = true)

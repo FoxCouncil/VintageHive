@@ -16,7 +16,7 @@ public class HttpRequestTests
         var rawRequest = string.Empty;
 
         // Act
-        var request = HttpRequest.Parse(rawRequest, Encoding.ASCII);
+        var request = HttpRequest.Parse([], rawRequest, Encoding.ASCII);
 
         // Assert
         Assert.IsNotNull(request);
@@ -35,7 +35,7 @@ public class HttpRequestTests
         var rawRequest = BuildHttpString(type, version, path, "", new Tuple<string, string>(HttpHeaderName.Host, domain));
 
         // Act
-        var request = HttpRequest.Parse(rawRequest, Encoding.ASCII);
+        var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);
 
         // Assert
         AssertBasicRequest(request, type, version, path, domain);
@@ -57,7 +57,7 @@ public class HttpRequestTests
         );
 
         // Act
-        var request = HttpRequest.Parse(rawRequest, Encoding.ASCII);
+        var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);
 
         // Assert
         AssertBasicRequest(request, type, version, path, domain);
@@ -74,7 +74,7 @@ public class HttpRequestTests
         var version = "HTTP/1.0";
         var domain = "example.org";
         var path = $"{domain}:443";
-        
+
         var userAgent = "Mozilla/3.04 (WinNT; U)";
 
         var rawRequest = BuildHttpString(type, version, path, "",
@@ -83,7 +83,7 @@ public class HttpRequestTests
         );
 
         // Act
-        var request = HttpRequest.Parse(rawRequest, Encoding.ASCII);
+        var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);
 
         // Assert
         AssertBasicRequest(request, type, version, "/", domain);
@@ -108,14 +108,13 @@ public class HttpRequestTests
         );
 
         // Act
-        var request = HttpRequest.Parse(rawRequest, Encoding.ASCII);
+        var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);
 
         // Assert
         AssertBasicRequest(request, type, version, "/", domain);
 
         AssertHeader(request, HttpHeaderName.UserAgent, userAgent);
     }
-
 
     static void AssertBasicRequest(HttpRequest request, string type, string version, string path, string domain)
     {

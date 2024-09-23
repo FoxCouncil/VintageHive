@@ -18,6 +18,8 @@ public static class Mind
 {
     public static readonly string ApplicationVersion = typeof(HttpProxy).Assembly.GetName().Version?.ToString() ?? "NA";
 
+    static readonly DateTime StartTimeUtc = DateTime.UtcNow;
+
     static readonly ManualResetEvent resetEvent = new(false);
 
     // static DnsProxy dnsProxy;
@@ -42,6 +44,10 @@ public static class Mind
 
     static PrinterProxy printerProxy;
 
+    public static TimeSpan TotalRuntime => DateTime.UtcNow - StartTimeUtc;
+
+    public static bool IsRunning { get; private set; } = true;
+
     public static bool IsDebug => Debugger.IsAttached;
 
     public static bool IsDocker => Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
@@ -54,9 +60,13 @@ public static class Mind
 
     public static PostOfficeDbContext PostOfficeDb { get; private set; }
 
+    public static PrinterDbContext PrinterDb { get; private set; }
+
     public static RadioBrowserDbContext RadioBrowserDB { get; private set; }
 
     public static RadioBrowserClient RadioBrowser { get; private set; }
+
+    public static SynchronizationContext MainThread { get; } = SynchronizationContext.Current;
 
     public static async Task Init()
     {
@@ -68,6 +78,7 @@ public static class Mind
         Cache = new();
         Db = new();
         PostOfficeDb = new();
+        PrinterDb = new();
 
         // Services
         Geonames = new();
@@ -96,11 +107,11 @@ public static class Mind
 
         // var httpsPort = Db.ConfigGet<int>(ConfigNames.PortHttps); // Soon?
 
-        httpsProxy = new(ipAddress, 9999, true);
+        // httpsProxy = new(ipAddress, 9999, true);
 
-        httpsProxy
-            .Use(LocalServerProcessor.ProcessHttpsRequest)
-            .Use(DialNineProcessor.ProcessHttpsRequest);
+        // httpsProxy
+        //     .Use(LocalServerProcessor.ProcessHttpsRequest)
+        //     .Use(DialNineProcessor.ProcessHttpsRequest);
 
         var ftpPort = Db.ConfigGet<int>(ConfigNames.PortFtp);
 
@@ -121,12 +132,11 @@ public static class Mind
 
 #if DEBUG
 
-        printerProxy = new PrinterProxy(ipAddress, 9100);
+        printerProxy = new PrinterProxy(ipAddress, 631);
 
         var smtpProxyPort = Db.ConfigGet<int>(ConfigNames.PortSmtp);
 
         smtpProxy = new(ipAddress, smtpProxyPort);
-
 
         var pop3ProxyPort = Db.ConfigGet<int>(ConfigNames.PortPop3);
 
@@ -147,7 +157,7 @@ public static class Mind
     {
         httpProxy.Start();
 
-        httpsProxy.Start();
+        // httpsProxy.Start();
 
         ftpProxy.Start();
 
@@ -168,6 +178,8 @@ public static class Mind
         oscarServer.Start();
 
         resetEvent.WaitOne();
+
+        IsRunning = false;
     }
 }
 

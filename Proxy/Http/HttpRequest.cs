@@ -26,7 +26,11 @@ public sealed partial class HttpRequest : Request
 
     public string Host => Uri.Host.ToLower();
 
+    public string Method => Type.ToUpper();
+
     public string Body { get; private set; } = "";
+
+    public byte[] BodyData { get; private set; }
 
     public string UserAgent => Headers[HttpHeaderName.UserAgent] ?? "NA";
 
@@ -40,13 +44,15 @@ public sealed partial class HttpRequest : Request
         return Uri.AbsolutePath.ToLower().Equals(uri);
     }
 
-    public static HttpRequest Parse(string rawData, Encoding encoding, ListenerSocket listenerSocket = null)
+    public static HttpRequest Parse(byte[] rawData, string rawRequest, Encoding encoding, ListenerSocket listenerSocket = null)
     {
-        var bodyPointer = rawData.IndexOf(HttpBodySeperator);
+        var bodyPointer = rawRequest.IndexOf(HttpBodySeperator);
 
-        var rawHeaders = bodyPointer == -1 ? rawData : rawData[..bodyPointer];
+        var rawHeaders = bodyPointer == -1 ? rawRequest : rawRequest[..bodyPointer];
 
-        var rawBody = bodyPointer == -1 ? string.Empty : rawData[(rawData.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Trim().Replace("\0", string.Empty);
+        var rawBodyData = rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..];
+
+        var rawBody = bodyPointer == -1 ? string.Empty : rawBodyData;
 
         var parsedRequestArray = rawHeaders.Trim().Split("\r\n");
 
@@ -106,13 +112,13 @@ public sealed partial class HttpRequest : Request
 
             switch (baseContentType)
             {
-                case HttpContentType.Application.XWwwFormUrlEncoded:
+                case HttpContentTypeMimeType.Application.XWwwFormUrlEncoded:
                 {
                     formData = new Dictionary<string, string>(HttpUtility.ParseQueryString(rawBody).ToDictionary(), StringComparer.InvariantCultureIgnoreCase);
                 }
                 break;
 
-                case HttpContentType.Multipart.FormData:
+                case HttpContentTypeMimeType.Multipart.FormData:
                 {
                     if (rawBody.Length < 11)
                     {
@@ -148,7 +154,7 @@ public sealed partial class HttpRequest : Request
 
         var uri = httpRequestLine[1];
 
-        var qpIndex = uri.IndexOf("?");
+        var qpIndex = uri.IndexOf('?');
 
         if (qpIndex != -1)
         {
@@ -182,7 +188,7 @@ public sealed partial class HttpRequest : Request
         return new HttpRequest
         {
             IsValid = true,
-            Raw = rawData,
+            Raw = rawRequest,
             Encoding = encoding,
             Type = httpRequestLine[0],
             Uri = new Uri(uri),
@@ -192,6 +198,7 @@ public sealed partial class HttpRequest : Request
             QueryParams = queryParams,
             FormData = formData,
             Body = rawBody,
+            BodyData = encoding.GetBytes(rawBody),
             ListenerSocket = listenerSocket
         };
     }
@@ -219,19 +226,20 @@ public sealed partial class HttpRequest : Request
                 var expectedLength = contentLengthMatch.Success ? Convert.ToInt32(contentLengthMatch.Groups[1].Value) : 0;
                 var contentLength = rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Length;
 
-                if (expectedLength > contentLength)
+                while (expectedLength > contentLength)
                 {
                     var buffer = new byte[4096];
                     var read = await socket.Stream.ReadAsync(buffer);
 
                     var extraData = encoding.GetString(buffer[..read]);
 
+                    contentLength += read;
                     rawRequest += extraData;
                 }
             }
         }
 
-        var newRequest = Parse(rawRequest, encoding, socket);
+        var newRequest = Parse(rawBytes, rawRequest, encoding, socket);
 
         return newRequest;
     }

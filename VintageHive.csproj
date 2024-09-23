@@ -2,10 +2,10 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net7.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>annotations</Nullable>
-        <PlatformTarget>x64</PlatformTarget>
+        <PlatformTarget>AnyCPU</PlatformTarget>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <DockerfileContext>.</DockerfileContext>
         <ContainerDevelopmentMode>Regular</ContainerDevelopmentMode>
@@ -35,6 +35,300 @@
       <None Remove="libs\**\*.*" />
       <None Remove="Statics\**\*.*" />
       <None Include=".github\workflows\ci-release.yml" />
+      <None Include="libs\Resource\CIDFont\ArtifexBullet" />
+      <None Include="libs\Resource\CMap\78-EUC-H" />
+      <None Include="libs\Resource\CMap\78-EUC-V" />
+      <None Include="libs\Resource\CMap\78-H" />
+      <None Include="libs\Resource\CMap\78-RKSJ-H" />
+      <None Include="libs\Resource\CMap\78-RKSJ-V" />
+      <None Include="libs\Resource\CMap\78-V" />
+      <None Include="libs\Resource\CMap\78ms-RKSJ-H" />
+      <None Include="libs\Resource\CMap\78ms-RKSJ-V" />
+      <None Include="libs\Resource\CMap\83pv-RKSJ-H" />
+      <None Include="libs\Resource\CMap\90ms-RKSJ-H" />
+      <None Include="libs\Resource\CMap\90ms-RKSJ-V" />
+      <None Include="libs\Resource\CMap\90msp-RKSJ-H" />
+      <None Include="libs\Resource\CMap\90msp-RKSJ-V" />
+      <None Include="libs\Resource\CMap\90pv-RKSJ-H" />
+      <None Include="libs\Resource\CMap\90pv-RKSJ-V" />
+      <None Include="libs\Resource\CMap\Add-H" />
+      <None Include="libs\Resource\CMap\Add-RKSJ-H" />
+      <None Include="libs\Resource\CMap\Add-RKSJ-V" />
+      <None Include="libs\Resource\CMap\Add-V" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-0" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-1" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-2" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-3" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-4" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-5" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-6" />
+      <None Include="libs\Resource\CMap\Adobe-CNS1-7" />
+      <None Include="libs\Resource\CMap\Adobe-GB1-0" />
+      <None Include="libs\Resource\CMap\Adobe-GB1-1" />
+      <None Include="libs\Resource\CMap\Adobe-GB1-2" />
+      <None Include="libs\Resource\CMap\Adobe-GB1-3" />
+      <None Include="libs\Resource\CMap\Adobe-GB1-4" />
+      <None Include="libs\Resource\CMap\Adobe-GB1-5" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-0" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-1" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-2" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-3" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-4" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-5" />
+      <None Include="libs\Resource\CMap\Adobe-Japan1-6" />
+      <None Include="libs\Resource\CMap\Adobe-Japan2-0" />
+      <None Include="libs\Resource\CMap\Adobe-Korea1-0" />
+      <None Include="libs\Resource\CMap\Adobe-Korea1-1" />
+      <None Include="libs\Resource\CMap\Adobe-Korea1-2" />
+      <None Include="libs\Resource\CMap\B5-H" />
+      <None Include="libs\Resource\CMap\B5-V" />
+      <None Include="libs\Resource\CMap\B5pc-H" />
+      <None Include="libs\Resource\CMap\B5pc-V" />
+      <None Include="libs\Resource\CMap\CNS-EUC-H" />
+      <None Include="libs\Resource\CMap\CNS-EUC-V" />
+      <None Include="libs\Resource\CMap\CNS1-H" />
+      <None Include="libs\Resource\CMap\CNS1-V" />
+      <None Include="libs\Resource\CMap\CNS2-H" />
+      <None Include="libs\Resource\CMap\CNS2-V" />
+      <None Include="libs\Resource\CMap\ETen-B5-H" />
+      <None Include="libs\Resource\CMap\ETen-B5-V" />
+      <None Include="libs\Resource\CMap\ETenms-B5-H" />
+      <None Include="libs\Resource\CMap\ETenms-B5-V" />
+      <None Include="libs\Resource\CMap\ETHK-B5-H" />
+      <None Include="libs\Resource\CMap\ETHK-B5-V" />
+      <None Include="libs\Resource\CMap\EUC-H" />
+      <None Include="libs\Resource\CMap\EUC-V" />
+      <None Include="libs\Resource\CMap\Ext-H" />
+      <None Include="libs\Resource\CMap\Ext-RKSJ-H" />
+      <None Include="libs\Resource\CMap\Ext-RKSJ-V" />
+      <None Include="libs\Resource\CMap\Ext-V" />
+      <None Include="libs\Resource\CMap\GB-EUC-H" />
+      <None Include="libs\Resource\CMap\GB-EUC-V" />
+      <None Include="libs\Resource\CMap\GB-H" />
+      <None Include="libs\Resource\CMap\GB-V" />
+      <None Include="libs\Resource\CMap\GBK-EUC-H" />
+      <None Include="libs\Resource\CMap\GBK-EUC-V" />
+      <None Include="libs\Resource\CMap\GBK2K-H" />
+      <None Include="libs\Resource\CMap\GBK2K-V" />
+      <None Include="libs\Resource\CMap\GBKp-EUC-H" />
+      <None Include="libs\Resource\CMap\GBKp-EUC-V" />
+      <None Include="libs\Resource\CMap\GBpc-EUC-H" />
+      <None Include="libs\Resource\CMap\GBpc-EUC-V" />
+      <None Include="libs\Resource\CMap\GBT-EUC-H" />
+      <None Include="libs\Resource\CMap\GBT-EUC-V" />
+      <None Include="libs\Resource\CMap\GBT-H" />
+      <None Include="libs\Resource\CMap\GBT-V" />
+      <None Include="libs\Resource\CMap\GBTpc-EUC-H" />
+      <None Include="libs\Resource\CMap\GBTpc-EUC-V" />
+      <None Include="libs\Resource\CMap\H" />
+      <None Include="libs\Resource\CMap\Hankaku" />
+      <None Include="libs\Resource\CMap\Hiragana" />
+      <None Include="libs\Resource\CMap\HKdla-B5-H" />
+      <None Include="libs\Resource\CMap\HKdla-B5-V" />
+      <None Include="libs\Resource\CMap\HKdlb-B5-H" />
+      <None Include="libs\Resource\CMap\HKdlb-B5-V" />
+      <None Include="libs\Resource\CMap\HKgccs-B5-H" />
+      <None Include="libs\Resource\CMap\HKgccs-B5-V" />
+      <None Include="libs\Resource\CMap\HKm314-B5-H" />
+      <None Include="libs\Resource\CMap\HKm314-B5-V" />
+      <None Include="libs\Resource\CMap\HKm471-B5-H" />
+      <None Include="libs\Resource\CMap\HKm471-B5-V" />
+      <None Include="libs\Resource\CMap\HKscs-B5-H" />
+      <None Include="libs\Resource\CMap\HKscs-B5-V" />
+      <None Include="libs\Resource\CMap\Hojo-EUC-H" />
+      <None Include="libs\Resource\CMap\Hojo-EUC-V" />
+      <None Include="libs\Resource\CMap\Hojo-H" />
+      <None Include="libs\Resource\CMap\Hojo-V" />
+      <None Include="libs\Resource\CMap\Identity-H" />
+      <None Include="libs\Resource\CMap\Identity-UTF16-H" />
+      <None Include="libs\Resource\CMap\Identity-V" />
+      <None Include="libs\Resource\CMap\Katakana" />
+      <None Include="libs\Resource\CMap\KSC-EUC-H" />
+      <None Include="libs\Resource\CMap\KSC-EUC-V" />
+      <None Include="libs\Resource\CMap\KSC-H" />
+      <None Include="libs\Resource\CMap\KSC-Johab-H" />
+      <None Include="libs\Resource\CMap\KSC-Johab-V" />
+      <None Include="libs\Resource\CMap\KSC-V" />
+      <None Include="libs\Resource\CMap\KSCms-UHC-H" />
+      <None Include="libs\Resource\CMap\KSCms-UHC-HW-H" />
+      <None Include="libs\Resource\CMap\KSCms-UHC-HW-V" />
+      <None Include="libs\Resource\CMap\KSCms-UHC-V" />
+      <None Include="libs\Resource\CMap\KSCpc-EUC-H" />
+      <None Include="libs\Resource\CMap\KSCpc-EUC-V" />
+      <None Include="libs\Resource\CMap\NWP-H" />
+      <None Include="libs\Resource\CMap\NWP-V" />
+      <None Include="libs\Resource\CMap\RKSJ-H" />
+      <None Include="libs\Resource\CMap\RKSJ-V" />
+      <None Include="libs\Resource\CMap\Roman" />
+      <None Include="libs\Resource\CMap\UniCNS-UCS2-H" />
+      <None Include="libs\Resource\CMap\UniCNS-UCS2-V" />
+      <None Include="libs\Resource\CMap\UniCNS-UTF16-H" />
+      <None Include="libs\Resource\CMap\UniCNS-UTF16-V" />
+      <None Include="libs\Resource\CMap\UniCNS-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniCNS-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniCNS-UTF8-H" />
+      <None Include="libs\Resource\CMap\UniCNS-UTF8-V" />
+      <None Include="libs\Resource\CMap\UniGB-UCS2-H" />
+      <None Include="libs\Resource\CMap\UniGB-UCS2-V" />
+      <None Include="libs\Resource\CMap\UniGB-UTF16-H" />
+      <None Include="libs\Resource\CMap\UniGB-UTF16-V" />
+      <None Include="libs\Resource\CMap\UniGB-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniGB-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniGB-UTF8-H" />
+      <None Include="libs\Resource\CMap\UniGB-UTF8-V" />
+      <None Include="libs\Resource\CMap\UniHojo-UCS2-H" />
+      <None Include="libs\Resource\CMap\UniHojo-UCS2-V" />
+      <None Include="libs\Resource\CMap\UniHojo-UTF16-H" />
+      <None Include="libs\Resource\CMap\UniHojo-UTF16-V" />
+      <None Include="libs\Resource\CMap\UniHojo-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniHojo-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniHojo-UTF8-H" />
+      <None Include="libs\Resource\CMap\UniHojo-UTF8-V" />
+      <None Include="libs\Resource\CMap\UniJIS-UCS2-H" />
+      <None Include="libs\Resource\CMap\UniJIS-UCS2-HW-H" />
+      <None Include="libs\Resource\CMap\UniJIS-UCS2-HW-V" />
+      <None Include="libs\Resource\CMap\UniJIS-UCS2-V" />
+      <None Include="libs\Resource\CMap\UniJIS-UTF16-H" />
+      <None Include="libs\Resource\CMap\UniJIS-UTF16-V" />
+      <None Include="libs\Resource\CMap\UniJIS-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniJIS-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniJIS-UTF8-H" />
+      <None Include="libs\Resource\CMap\UniJIS-UTF8-V" />
+      <None Include="libs\Resource\CMap\UniJIS2004-UTF16-H" />
+      <None Include="libs\Resource\CMap\UniJIS2004-UTF16-V" />
+      <None Include="libs\Resource\CMap\UniJIS2004-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniJIS2004-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniJIS2004-UTF8-H" />
+      <None Include="libs\Resource\CMap\UniJIS2004-UTF8-V" />
+      <None Include="libs\Resource\CMap\UniJISPro-UCS2-HW-V" />
+      <None Include="libs\Resource\CMap\UniJISPro-UCS2-V" />
+      <None Include="libs\Resource\CMap\UniJISPro-UTF8-V" />
+      <None Include="libs\Resource\CMap\UniJISX0213-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniJISX0213-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniJISX02132004-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniJISX02132004-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniKS-UCS2-H" />
+      <None Include="libs\Resource\CMap\UniKS-UCS2-V" />
+      <None Include="libs\Resource\CMap\UniKS-UTF16-H" />
+      <None Include="libs\Resource\CMap\UniKS-UTF16-V" />
+      <None Include="libs\Resource\CMap\UniKS-UTF32-H" />
+      <None Include="libs\Resource\CMap\UniKS-UTF32-V" />
+      <None Include="libs\Resource\CMap\UniKS-UTF8-H" />
+      <None Include="libs\Resource\CMap\UniKS-UTF8-V" />
+      <None Include="libs\Resource\CMap\V" />
+      <None Include="libs\Resource\CMap\WP-Symbol" />
+      <None Include="libs\Resource\ColorSpace\DefaultCMYK" />
+      <None Include="libs\Resource\ColorSpace\DefaultGray" />
+      <None Include="libs\Resource\ColorSpace\DefaultRGB" />
+      <None Include="libs\Resource\ColorSpace\sGray" />
+      <None Include="libs\Resource\ColorSpace\sRGB" />
+      <None Include="libs\Resource\ColorSpace\TrivialCMYK" />
+      <None Include="libs\Resource\Decoding\FCO_Dingbats" />
+      <None Include="libs\Resource\Decoding\FCO_Symbol" />
+      <None Include="libs\Resource\Decoding\FCO_Unicode" />
+      <None Include="libs\Resource\Decoding\FCO_Wingdings" />
+      <None Include="libs\Resource\Decoding\Latin1" />
+      <None Include="libs\Resource\Decoding\StandardEncoding" />
+      <None Include="libs\Resource\Decoding\Unicode" />
+      <None Include="libs\Resource\Encoding\CEEncoding" />
+      <None Include="libs\Resource\Encoding\ExpertEncoding" />
+      <None Include="libs\Resource\Encoding\ExpertSubsetEncoding" />
+      <None Include="libs\Resource\Encoding\NotDefEncoding" />
+      <None Include="libs\Resource\Encoding\Wingdings" />
+      <None Include="libs\Resource\Font\C059-BdIta" />
+      <None Include="libs\Resource\Font\C059-Bold" />
+      <None Include="libs\Resource\Font\C059-Italic" />
+      <None Include="libs\Resource\Font\C059-Roman" />
+      <None Include="libs\Resource\Font\D050000L" />
+      <None Include="libs\Resource\Font\NimbusMonoPS-Bold" />
+      <None Include="libs\Resource\Font\NimbusMonoPS-BoldItalic" />
+      <None Include="libs\Resource\Font\NimbusMonoPS-Italic" />
+      <None Include="libs\Resource\Font\NimbusMonoPS-Regular" />
+      <None Include="libs\Resource\Font\NimbusRoman-Bold" />
+      <None Include="libs\Resource\Font\NimbusRoman-BoldItalic" />
+      <None Include="libs\Resource\Font\NimbusRoman-Italic" />
+      <None Include="libs\Resource\Font\NimbusRoman-Regular" />
+      <None Include="libs\Resource\Font\NimbusSans-Bold" />
+      <None Include="libs\Resource\Font\NimbusSans-BoldItalic" />
+      <None Include="libs\Resource\Font\NimbusSans-Italic" />
+      <None Include="libs\Resource\Font\NimbusSans-Regular" />
+      <None Include="libs\Resource\Font\NimbusSansNarrow-Bold" />
+      <None Include="libs\Resource\Font\NimbusSansNarrow-BoldOblique" />
+      <None Include="libs\Resource\Font\NimbusSansNarrow-Oblique" />
+      <None Include="libs\Resource\Font\NimbusSansNarrow-Regular" />
+      <None Include="libs\Resource\Font\P052-Bold" />
+      <None Include="libs\Resource\Font\P052-BoldItalic" />
+      <None Include="libs\Resource\Font\P052-Italic" />
+      <None Include="libs\Resource\Font\P052-Roman" />
+      <None Include="libs\Resource\Font\StandardSymbolsPS" />
+      <None Include="libs\Resource\Font\URWBookman-Demi" />
+      <None Include="libs\Resource\Font\URWBookman-DemiItalic" />
+      <None Include="libs\Resource\Font\URWBookman-Light" />
+      <None Include="libs\Resource\Font\URWBookman-LightItalic" />
+      <None Include="libs\Resource\Font\URWGothic-Book" />
+      <None Include="libs\Resource\Font\URWGothic-BookOblique" />
+      <None Include="libs\Resource\Font\URWGothic-Demi" />
+      <None Include="libs\Resource\Font\URWGothic-DemiOblique" />
+      <None Include="libs\Resource\Font\Z003-MediumItalic" />
+      <None Include="libs\Resource\IdiomSet\PPI_CUtils" />
+      <None Include="libs\Resource\IdiomSet\Pscript5Idiom" />
+      <None Include="libs\Resource\Init\cidfmap" />
+      <None Include="libs\Resource\Init\FAPIcidfmap" />
+      <None Include="libs\Resource\Init\FAPIconfig" />
+      <None Include="libs\Resource\Init\FAPIfontmap" />
+      <None Include="libs\Resource\Init\FCOfontmap-PCLPS2" />
+      <None Include="libs\Resource\Init\Fontmap" />
+      <None Include="libs\Resource\Init\Fontmap.GS" />
+      <None Include="libs\Resource\Init\gs_agl.ps" />
+      <None Include="libs\Resource\Init\gs_btokn.ps" />
+      <None Include="libs\Resource\Init\gs_cet.ps" />
+      <None Include="libs\Resource\Init\gs_cff.ps" />
+      <None Include="libs\Resource\Init\gs_cidcm.ps" />
+      <None Include="libs\Resource\Init\gs_ciddc.ps" />
+      <None Include="libs\Resource\Init\gs_cidfm.ps" />
+      <None Include="libs\Resource\Init\gs_cidfn.ps" />
+      <None Include="libs\Resource\Init\gs_cidtt.ps" />
+      <None Include="libs\Resource\Init\gs_cmap.ps" />
+      <None Include="libs\Resource\Init\gs_cspace.ps" />
+      <None Include="libs\Resource\Init\gs_dbt_e.ps" />
+      <None Include="libs\Resource\Init\gs_diskn.ps" />
+      <None Include="libs\Resource\Init\gs_dps1.ps" />
+      <None Include="libs\Resource\Init\gs_dps2.ps" />
+      <None Include="libs\Resource\Init\gs_dscp.ps" />
+      <None Include="libs\Resource\Init\gs_epsf.ps" />
+      <None Include="libs\Resource\Init\gs_fapi.ps" />
+      <None Include="libs\Resource\Init\gs_fntem.ps" />
+      <None Include="libs\Resource\Init\gs_fonts.ps" />
+      <None Include="libs\Resource\Init\gs_frsd.ps" />
+      <None Include="libs\Resource\Init\gs_icc.ps" />
+      <None Include="libs\Resource\Init\gs_il1_e.ps" />
+      <None Include="libs\Resource\Init\gs_img.ps" />
+      <None Include="libs\Resource\Init\gs_init.ps" />
+      <None Include="libs\Resource\Init\gs_lev2.ps" />
+      <None Include="libs\Resource\Init\gs_ll3.ps" />
+      <None Include="libs\Resource\Init\gs_mex_e.ps" />
+      <None Include="libs\Resource\Init\gs_mgl_e.ps" />
+      <None Include="libs\Resource\Init\gs_mro_e.ps" />
+      <None Include="libs\Resource\Init\gs_pdfwr.ps" />
+      <None Include="libs\Resource\Init\gs_pdf_e.ps" />
+      <None Include="libs\Resource\Init\gs_res.ps" />
+      <None Include="libs\Resource\Init\gs_resmp.ps" />
+      <None Include="libs\Resource\Init\gs_setpd.ps" />
+      <None Include="libs\Resource\Init\gs_statd.ps" />
+      <None Include="libs\Resource\Init\gs_std_e.ps" />
+      <None Include="libs\Resource\Init\gs_sym_e.ps" />
+      <None Include="libs\Resource\Init\gs_trap.ps" />
+      <None Include="libs\Resource\Init\gs_ttf.ps" />
+      <None Include="libs\Resource\Init\gs_typ32.ps" />
+      <None Include="libs\Resource\Init\gs_typ42.ps" />
+      <None Include="libs\Resource\Init\gs_type1.ps" />
+      <None Include="libs\Resource\Init\gs_wan_e.ps" />
+      <None Include="libs\Resource\Init\pdf_main.ps" />
+      <None Include="libs\Resource\Init\xlatmap" />
+      <None Include="libs\Resource\SubstCID\CNS1-WMode" />
+      <None Include="libs\Resource\SubstCID\GB1-WMode" />
+      <None Include="libs\Resource\SubstCID\Japan1-WMode" />
+      <None Include="libs\Resource\SubstCID\Korea1-WMode" />
       <None Include="X:\GitHub\FoxCouncil\VintageHive\.editorconfig" />
     </ItemGroup>
 
@@ -42,19 +336,22 @@
       <Content Include="libs\*.*">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <Content Include="libs\Resource\CIDFSubst\DroidSansFallback.ttf" />
       <Content Include="Statics\app.ico" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Fluid.Core" Version="2.4.0" />
-        <PackageReference Include="HtmlAgilityPack" Version="1.11.46" />
+        <PackageReference Include="Fluid.Core" Version="2.11.1" />
+        <PackageReference Include="HtmlAgilityPack" Version="1.11.65" />
         <PackageReference Include="Humanizer.Core" Version="2.14.1" />
-        <PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.5" />
-        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.1" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
         <PackageReference Include="MimeTypesMap" Version="1.0.8" />
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" />
-        <PackageReference Include="SmartReader" Version="0.9.3" />
-        <PackageReference Include="System.ServiceModel.Syndication" Version="7.0.0" />
+        <PackageReference Include="SharpIppNext" Version="1.0.6" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+        <PackageReference Include="SmartReader" Version="0.9.5" />
+        <PackageReference Include="System.ServiceModel.Syndication" Version="8.0.0" />
+        <PackageReference Include="System.Text.Json" Version="8.0.4" />
         <PackageReference Include="UAParser" Version="3.1.47" />
     </ItemGroup>
 

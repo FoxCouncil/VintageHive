@@ -1,5 +1,8 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+
 namespace VintageHive.Proxy.Telnet.Commands.Weather;
 
 public class TelnetWeatherCommand : ITelnetWindow
@@ -83,34 +86,34 @@ public class TelnetWeatherCommand : ITelnetWindow
         switch (command)
         {
             case "1":
-                // Change temperature units
-                ChangeTempUnits();
-                break;
+            // Change temperature units
+            ChangeTempUnits();
+            break;
             case "2":
-                // Change location
-                ChangeLocation();
-                break;
+            // Change location
+            ChangeLocation();
+            break;
             case "3":
-                // Get current conditions
-                GetCurrentConditions();
-                break;
+            // Get current conditions
+            GetCurrentConditions();
+            break;
             case "4":
-                // Get daily report
-                GetDailyReport();
-                break;
+            // Get daily report
+            GetDailyReport();
+            break;
             case "5":
-                // Get hourly report
-                GetHourlyReport();
-                break;
+            // Get hourly report
+            GetHourlyReport();
+            break;
             case "6":
-                // Forces weather window to close.
-                _shouldRemoveNextCommand = true;
-                _session.ForceCloseWindow(this);
-                break;
+            // Forces weather window to close.
+            _shouldRemoveNextCommand = true;
+            _session.ForceCloseWindow(this);
+            break;
             default:
-                // Default menu options
-                WeatherMenu();
-                break;
+            // Default menu options
+            WeatherMenu();
+            break;
         }
     }
 

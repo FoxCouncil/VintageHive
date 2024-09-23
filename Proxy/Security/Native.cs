@@ -37,13 +37,10 @@ public static class Native
             throw new ApplicationException($"Wrong OpenSSL DLL version detected, got {LibVersion} but require {WrapperVersion}");
         }
 
-        CheckResultSuccess(SSL_library_init());
-
-        OPENSSL_add_all_algorithms_noconf();
-
-        ERR_load_crypto_strings();
-
         SSL_load_error_strings();
+        _ = SSL_library_init();
+
+        // ERR_load_crypto_strings();
     }
 
     /* Delegate (Un)Function Pointers */

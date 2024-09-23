@@ -1,5 +1,8 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+
 namespace VintageHive.Proxy.Telnet.Commands;
 
 public class TelnetGalleryCommand : ITelnetWindow
@@ -166,24 +169,24 @@ public class TelnetGalleryCommand : ITelnetWindow
         switch (command)
         {
             case "n":
-                // Next image
-                if (currentImage < totalImages)
-                {
-                    currentImage++;
-                }
-                break;
+            // Next image
+            if (currentImage < totalImages)
+            {
+                currentImage++;
+            }
+            break;
             case "p":
-                // Previous image
-                if (currentImage > 1)
-                {
-                    currentImage--;
-                }
-                break;
+            // Previous image
+            if (currentImage > 1)
+            {
+                currentImage--;
+            }
+            break;
             case "q":
-                // Close window
-                _shouldRemoveNextCommand = true;
-                _session.ForceCloseWindow(this);
-                break;
+            // Close window
+            _shouldRemoveNextCommand = true;
+            _session.ForceCloseWindow(this);
+            break;
         }
 
         UpdateImage();
