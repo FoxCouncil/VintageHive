@@ -1,7 +1,11 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using HtmlAgilityPack;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SmartReader;
 using System.ServiceModel.Syndication;
+using System.Web;
 using System.Xml;
 
 namespace VintageHive.Utilities;
@@ -94,13 +98,25 @@ public static class NewsUtils
         return output;
     }
 
-    const string GoogleArticleUrl = "https://news.google.com/__i/rss/rd/articles/";
+    const string GoogleArticleUrl = "https://news.google.com/rss/articles/";
 
     public static async Task<Article> GetGoogleNewsArticle(string articleId)
     {
         var url = string.Concat(GoogleArticleUrl, articleId);
 
-        return await GetReaderOutput(url);
+        var encodedUrls = new List<string> { url };
+
+        var articlesParams = encodedUrls.Select(url =>
+        {
+            var gnArtId = new Uri(url).AbsolutePath.Split('/').Last();
+            return GetDecodingParams(gnArtId);
+        }).ToList();
+
+        var decodedUrls = DecodeUrls(articlesParams);
+
+        var decodedUrl = decodedUrls.FirstOrDefault();
+
+        return await GetReaderOutput(decodedUrl);
     }
 
     public static async Task<Article> GetReaderOutput(string url)
@@ -115,5 +131,76 @@ public static class NewsUtils
         {
             return null;
         }
+    }
+
+    static Dictionary<string, string> GetDecodingParams(string gn_art_id)
+    {
+        var client = new HttpClient();
+        var response = client.GetAsync($"https://news.google.com/articles/{gn_art_id}").Result;
+
+        response.EnsureSuccessStatusCode();
+
+        var responseText = response.Content.ReadAsStringAsync().Result;
+        var doc = new HtmlDocument();
+
+        doc.LoadHtml(responseText);
+
+        var div = doc.DocumentNode.SelectSingleNode("//c-wiz/div");
+
+        return new Dictionary<string, string>
+        {
+            { "signature", div.GetAttributeValue("data-n-a-sg", "") },
+            { "timestamp", div.GetAttributeValue("data-n-a-ts", "") },
+            { "gn_art_id", gn_art_id }
+        };
+    }
+
+    static List<string> DecodeUrls(List<Dictionary<string, string>> articles)
+    {
+        var articles_reqs = articles.Select(art => new List<string>
+        {
+            "Fbv4je",
+            $"[\"garturlreq\",[[\"X\",\"X\",[\"X\",\"X\"],null,null,1,1,\"US:en\",null,1,null,null,null,null,null,0,1],\"X\",\"X\",1,[1,1,1],1,1,null,0,0,null,0],\"{art["gn_art_id"]}\",{art["timestamp"]},\"{art["signature"]}\"]"
+        }).ToList();
+
+        var jsonPayload = JsonConvert.SerializeObject(new List<object> { articles_reqs });
+
+        var encodedPayload = $"f.req={HttpUtility.UrlEncode(jsonPayload)}";
+
+        var content = new StringContent(encodedPayload, Encoding.UTF8, "application/x-www-form-urlencoded");
+
+        var client = new HttpClient();
+        var response = client.PostAsync("https://news.google.com/_/DotsSplashUi/data/batchexecute", content).Result;
+
+        response.EnsureSuccessStatusCode();
+
+        var responseText = response.Content.ReadAsStringAsync().Result;
+
+        var parts = responseText.Split(new[] { "\n\n" }, StringSplitOptions.None);
+        var jsonResponseText = parts.Length > 1 ? parts[1] : null;
+
+        if (jsonResponseText == null)
+        {
+            throw new Exception("Unexpected response format");
+        }
+
+        var jsonResponse = JsonConvert.DeserializeObject<JArray>(jsonResponseText);
+        var results = new List<string>();
+
+        foreach (var res in jsonResponse.Take(jsonResponse.Count - 2))
+        {
+            var resArray = res as JArray;
+
+            if (resArray == null || resArray.Count < 3)
+            {
+                continue;
+            }
+
+            var resItem = resArray[2];
+            var decodedRes = JsonConvert.DeserializeObject<JArray>(resItem.ToString());
+
+            results.Add(decodedRes[1].ToString());
+        }
+        return results;
     }
 }

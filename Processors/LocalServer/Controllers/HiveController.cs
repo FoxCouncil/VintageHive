@@ -159,7 +159,7 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        if (Response.HasSession("user")) 
+        if (Response.HasSession("user"))
         {
             Response.RemoveSession("user");
 
@@ -305,7 +305,9 @@ internal class HiveController : Controller
             }
             else
             {
-                var result = await NewsUtils.GetReaderOutput(url);
+                var bareId = url.Replace("https://news.google.com/__i/rss/rd/articles/", string.Empty);
+
+                var result = await NewsUtils.GetGoogleNewsArticle(bareId);
 
                 var articleDocument = new HtmlDocument();
 
