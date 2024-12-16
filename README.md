@@ -10,24 +10,80 @@ This project tries to help alter the modern internet to work on really old compu
 - [Roadmap](#roadmap)
 - [Help](#help)
 - [Data Sources](#sources)
+- [Docker](#docker)
 
 # Installation
 
-> `Windows 10/11`
+## Windows
 
-- Download [Latest Release](https://github.com/FoxCouncil/VintageHive/releases/latest) ZIP package for your operating system.
-- Place ZIP package in an empty folder
-- Unzip package in place.
-- Run the `VintageHive` executable
-- Allow the service access through your firewall
+1. Download the latest `VintageHive-v*-win-x64.zip` from the [Releases](https://github.com/FoxCouncil/VintageHive/releases/latest) page
+2. Right-click the ZIP file and select "Extract All..."
+3. Choose a destination folder (e.g., `C:\VintageHive`)
+4. Open the extracted folder
+5. Run `VintageHive.exe`
+6. When prompted by Windows Defender Firewall, click "Allow Access"
+7. The server will start and be accessible at:
+   - HTTP Proxy: `http://127.0.0.1:1990`
+   - Admin Interface: `http://admin.hive.com:1990`
 
-> `Linux`
+## Linux
 
-- Instructions Coming Soon
+1. Download the latest `VintageHive-v*-linux-x64.tar.gz` from the [Releases](https://github.com/FoxCouncil/VintageHive/releases/latest) page
+2. Open a terminal and navigate to your download directory
+3. Extract the archive:
+   ```bash
+   tar xzf VintageHive-v*-linux-x64.tar.gz
+   cd VintageHive-v*-linux-x64
+   ```
+4. Make the binary executable:
+   ```bash
+   chmod +x VintageHive
+   ```
+5. Run VintageHive:
+   ```bash
+   ./VintageHive
+   ```
+6. The server will start and be accessible at:
+   - HTTP Proxy: `http://127.0.0.1:1990`
+   - Admin Interface: `http://admin.hive.com:1990`
 
-> `MacOS`
+Note: On Linux, you might need to run with sudo if you want to use privileged ports (< 1024)
 
-- Instructions Coming Soon (Not Tested Either)
+## macOS
+
+1. Download the latest `VintageHive-v*-osx-x64.tar.gz` from the [Releases](https://github.com/FoxCouncil/VintageHive/releases/latest) page
+2. Open Terminal and navigate to your download directory
+3. Extract the archive:
+   ```bash
+   tar xzf VintageHive-v*-osx-x64.tar.gz
+   cd VintageHive-v*-osx-x64
+   ```
+4. Make the binary executable:
+   ```bash
+   chmod +x VintageHive
+   ```
+5. The first time you run VintageHive, macOS may block it. To allow it:
+   - Try to run `./VintageHive`
+   - When blocked, go to System Preferences > Security & Privacy
+   - Click "Allow Anyway" for VintageHive
+   - Run `./VintageHive` again and click "Open" when prompted
+6. The server will start and be accessible at:
+   - HTTP Proxy: `http://127.0.0.1:1990`
+   - Admin Interface: `http://admin.hive.com:1990`
+
+# First Run
+
+On first run, VintageHive will:
+1. Create necessary directories for data storage
+2. Generate SSL certificates for HTTPS proxy
+3. Initialize the local database
+4. Start all enabled services
+
+Visit `http://admin.hive.com:1990` to:
+- Monitor proxy activity
+- Configure services
+- Manage certificates
+- View system status
 
 # Usage
 
@@ -88,7 +144,105 @@ This is a pure C# implementation of a Telnet server intended to allow really old
 - In the Local Area Network Settings dialog box, select the `Use a proxy server for your LAN` settings check box
 - Input your host IP address and the port `1990` in the HTTP proxy field
 
-### *More guides coming soon*
+### <img src="Statics/controllers/hive.com/img/netscape.gif" height="16"> Netscape Navigator 3.x/4.x
+1. Open `Edit > Preferences`
+2. Navigate to `Advanced > Proxies`
+3. Select `Manual Proxy Configuration`
+4. Set:
+   - HTTP Proxy: `127.0.0.1` Port: `1990`
+   - Security Proxy (SSL): `127.0.0.1` Port: `9999`
+   - FTP Proxy: `127.0.0.1` Port: `1971`
+5. Click `OK`
+
+### <img src="Statics/controllers/hive.com/img/ie.gif" height="16"> Internet Explorer 3.x/4.x/5.x
+1. Open `View > Options` (or `Tools > Internet Options` in IE5)
+2. Click `Connection` tab
+3. Click `Proxy Settings` or `LAN Settings`
+4. Check `Use a proxy server`
+5. Click `Advanced`
+6. Set:
+   - HTTP: `127.0.0.1:1990`
+   - Secure (HTTPS): `127.0.0.1:9999`
+   - FTP: `127.0.0.1:1971`
+7. Click `OK` on all dialogs
+
+### <img src="Statics/controllers/hive.com/img/mosaic.gif" height="16"> NCSA Mosaic
+1. Open `Options > Network Preferences`
+2. Enable `Use Proxy Server`
+3. Set:
+   - HTTP Proxy: `127.0.0.1` Port: `1990`
+   - FTP Proxy: `127.0.0.1` Port: `1971`
+4. Click `OK`
+
+### <img src="Statics/controllers/hive.com/img/opera.gif" height="16"> Opera 3.x/4.x
+1. Open `File > Preferences`
+2. Click `Network` tab
+3. Click `Proxy Servers`
+4. Set:
+   - HTTP: `127.0.0.1:1990`
+   - HTTPS: `127.0.0.1:9999`
+   - FTP: `127.0.0.1:1971`
+5. Click `OK`
+
+### <img src="Statics/controllers/hive.com/img/aol.gif" height="16"> AOL Browser
+1. Open `My AOL > Preferences`
+2. Click `WWW` icon
+3. Select `Connection` tab
+4. Click `Setup`
+5. Enable `Connect through proxy server`
+6. Set:
+   - HTTP Proxy: `127.0.0.1` Port: `1990`
+7. Click `OK`
+
+### Compatibility Notes
+
+- **Windows 3.1/95 Users**: 
+  - If you can't type the `.` in `127.0.0.1`, use the numeric keypad
+  - Some browsers may require `localhost` instead of `127.0.0.1`
+
+- **SSL/HTTPS Support**:
+  - IE3: Limited HTTPS support, may need additional patches
+  - Netscape 3+: Full SSL support with certificate import
+  - Mosaic: No SSL support, will only work with HTTP
+  - Opera 3+: SSL support varies by version
+
+- **Certificate Installation**:
+  1. Visit `http://admin.hive.com:1990/ca.crt` in your browser
+  2. For Netscape: Select `Accept this Certificate Authority for Certifying network sites`
+  3. For IE: Click `Install Certificate` and follow the wizard
+  4. For Opera: Save the file and import via `File > Preferences > Security > Certificates`
+
+- **Known Issues**:
+  - Some browsers may show certificate warnings for HTTPS sites
+  - FTP passive mode may not work in older browsers
+  - JavaScript support varies significantly between browsers
+  - Some browsers may require system proxy settings instead of browser settings
+
+# Docker
+
+You can quickly run VintageHive using Docker:
+
+```bash
+docker run -d \
+  --name vintagehive \
+  -p 1990:1990 \
+  -p 9999:9999 \
+  -p 1971:1971 \
+  -p 1969:1969 \
+  -p 5190:5190 \
+  -p 1900-1910:1900-1910 \
+  -v vintagehive_data:/app/data \
+  foxcouncil/vintagehive:latest
+```
+The container exposes the following ports:
+- 1990: HTTP Proxy
+- 9999: HTTPS Proxy
+- 1971: FTP Server
+- 1969: TELNET Server
+- 5190: OSCAR (AIM/ICQ) Server
+- 1900-1910: FTP Passive Mode Range
+
+Data is persisted in the `vintagehive_data` volume.
 
 # Roadmap
 

@@ -24,11 +24,11 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 7.0.x
+        dotnet-version: 8.0.x
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
@@ -56,29 +56,40 @@ jobs:
         files: "VintageHive-v*"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   docker:
     name: Push to Docker Hub
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       
       - name: Log in to Docker Hub
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
       
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v5
         with:
           images: foxcouncil/vintagehive
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
       
       - name: Build and push Docker image
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}  
+          labels: ${{ steps.meta.outputs.labels }}
