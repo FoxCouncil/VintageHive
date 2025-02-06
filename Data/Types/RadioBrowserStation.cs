@@ -88,7 +88,7 @@ public class RadioBrowserStation
     public string Lastlocalchecktime { get; set; }
 
     [JsonPropertyName("lastlocalchecktime_iso8601")]
-    public DateTime LastlocalchecktimeIso8601 { get; set; }
+    public DateTime? LastlocalchecktimeIso8601 { get; set; }
 
     [JsonPropertyName("clicktimestamp")]
     public string Clicktimestamp { get; set; }

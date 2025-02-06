@@ -50,7 +50,7 @@ public class RadioBrowserClient
 
     public async Task<List<RadioBrowserStation>> StationsByCountryCodePagedAsync(string countryCode, int offset = 0, int limit = 100)
     {
-        return await Mind.Cache.Do<List<RadioBrowserStation>>("StationsByCountry" + countryCode + offset + limit, TimeSpan.FromHours(1), async () =>
+        return await Mind.Cache.Do("StationsByCountry" + countryCode + offset + limit, TimeSpan.FromHours(1), async () =>
         {
             return JsonSerializer.Deserialize<List<RadioBrowserStation>>(await GetRaw($"stations/search?countrycode={countryCode}&offset={offset}&limit={limit}&order=clickcount&reverse=true&hidebroken=true"));
         });
@@ -58,7 +58,7 @@ public class RadioBrowserClient
 
     public async Task<List<RadioBrowserStation>> StationsByTagPagedAsync(string tag, int offset = 0, int limit = 100)
     {
-        return await Mind.Cache.Do<List<RadioBrowserStation>>("StationsByTag" + tag + offset + limit, TimeSpan.FromHours(1), async () =>
+        return await Mind.Cache.Do("StationsByTag" + tag + offset + limit, TimeSpan.FromHours(1), async () =>
         {
             return JsonSerializer.Deserialize<List<RadioBrowserStation>>(await GetRaw($"stations/search?tag={tag}&offset={offset}&limit={limit}&order=clickcount&reverse=true&hidebroken=true"));
         });
@@ -66,7 +66,7 @@ public class RadioBrowserClient
 
     public async Task<List<RadioBrowserStation>> StationsBySearchPagedAsync(string searchTerm, int offset = 0, int limit = 100)
     {
-        return await Mind.Cache.Do<List<RadioBrowserStation>>("StationsBySearch" + searchTerm + offset + limit, TimeSpan.FromHours(1), async () =>
+        return await Mind.Cache.Do("StationsBySearch" + searchTerm + offset + limit, TimeSpan.FromHours(1), async () =>
         {
             return JsonSerializer.Deserialize<List<RadioBrowserStation>>(await GetRaw($"stations/search?name={searchTerm}&offset={offset}&limit={limit}&order=clickcount&reverse=true&hidebroken=true"));
         });
@@ -74,7 +74,7 @@ public class RadioBrowserClient
 
     public async Task<List<RadioBrowserStation>> StationsGetByClicksAsync(int limit = 100)
     {
-        return await Mind.Cache.Do<List<RadioBrowserStation>>("StationsGetByClicks", TimeSpan.FromHours(1), async () =>
+        return await Mind.Cache.Do("StationsGetByClicks", TimeSpan.FromHours(1), async () =>
         {
             return JsonSerializer.Deserialize<List<RadioBrowserStation>>(await GetRaw($"stations/topclick/{limit}?hidebroken=true"));
         });
@@ -82,7 +82,7 @@ public class RadioBrowserClient
 
     public async Task<RadioBrowserStation> StationGetAsync(string id)
     {
-        return await Mind.Cache.Do<RadioBrowserStation>("StationGetAsync" + id, TimeSpan.FromMinutes(10), async () =>
+        return await Mind.Cache.Do("StationGetAsync" + id, TimeSpan.FromMinutes(10), async () =>
         {
             return JsonSerializer.Deserialize<List<RadioBrowserStation>>(await GetRaw($"stations/byuuid/{id}?hidebroken=true"), GetJsonSerializerOptions()).FirstOrDefault();
         });
@@ -90,7 +90,7 @@ public class RadioBrowserClient
 
     public async Task<RadioBrowserStats> ServerStatsAsync()
     {
-        return await Mind.Cache.Do<RadioBrowserStats>("ServerStatsAsync", TimeSpan.FromHours(1), async () =>
+        return await Mind.Cache.Do("ServerStatsAsync", TimeSpan.FromHours(1), async () =>
         {
             return JsonSerializer.Deserialize<RadioBrowserStats>(await GetRaw($"stats"));
         });
