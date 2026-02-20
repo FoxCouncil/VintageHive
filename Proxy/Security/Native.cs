@@ -30,11 +30,33 @@ public static class Native
 
     static Native()
     {
+        // OpenSSL 1.0.2a (March 2015) has a bug in its SHA-NI (Intel SHA Extensions)
+        // assembly code: the sha1_block_data_order_shaext function clobbers RAX (the
+        // saved frame pointer) inside its processing loop, causing an access violation
+        // when restoring XMM registers in the epilogue. This code path was untested in
+        // 2015 because no consumer CPUs had SHA-NI at the time. Modern CPUs (Intel
+        // Ice Lake+, AMD Zen+) have SHA-NI, triggering the bug.
+        //
+        // Fix: after the DLL loads (which sets up CPUID caps in DllMain), patch the
+        // OPENSSL_ia32cap_P array to clear the SHA-NI bit (bit 29 of word 2, which
+        // corresponds to CPUID leaf 7 EBX bit 29). This forces the generic SHA code
+        // path which works correctly.
         LibVersion = new(SSLeay());
 
         if (LibVersion.Raw != WrapperVersion.Raw)
         {
             throw new ApplicationException($"Wrong OpenSSL DLL version detected, got {LibVersion} but require {WrapperVersion}");
+        }
+
+        // Patch out SHA-NI capability BEFORE any SHA operations occur.
+        // OPENSSL_ia32cap_loc() returns uint* to the 4-element cap array.
+        // cap[2] = CPUID(7,0).EBX — bit 29 is SHA-NI.
+        var capPtr = OPENSSL_ia32cap_loc();
+        if (capPtr != IntPtr.Zero)
+        {
+            var cap2 = Marshal.ReadInt32(capPtr, 8); // cap[2] at byte offset 8
+            cap2 &= ~0x20000000; // clear bit 29 (SHA-NI)
+            Marshal.WriteInt32(capPtr, 8, cap2);
         }
 
         SSL_load_error_strings();
@@ -49,6 +71,9 @@ public static class Native
     public delegate int PEMPasswordCallback(IntPtr buf, int size, int rwflag, IntPtr userdata);
 
     /* INITS */
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr OPENSSL_ia32cap_loc();
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static uint SSLeay();

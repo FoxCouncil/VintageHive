@@ -105,13 +105,13 @@ public static class Mind
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessHttpRequest);
 
-        // var httpsPort = Db.ConfigGet<int>(ConfigNames.PortHttps); // Soon?
+        var httpsPort = Db.ConfigGet<int>(ConfigNames.PortHttps);
 
-        // httpsProxy = new(ipAddress, 9999, true);
+        httpsProxy = new(ipAddress, httpsPort, true);
 
-        // httpsProxy
-        //     .Use(LocalServerProcessor.ProcessHttpsRequest)
-        //     .Use(DialNineProcessor.ProcessHttpsRequest);
+        httpsProxy
+            .Use(LocalServerProcessor.ProcessHttpsRequest)
+            .Use(DialNineProcessor.ProcessHttpsRequest);
 
         var ftpPort = Db.ConfigGet<int>(ConfigNames.PortFtp);
 
@@ -157,7 +157,7 @@ public static class Mind
     {
         httpProxy.Start();
 
-        // httpsProxy.Start();
+        httpsProxy.Start();
 
         ftpProxy.Start();
 
