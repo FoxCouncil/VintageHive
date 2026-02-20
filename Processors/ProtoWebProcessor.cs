@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Diagnostics;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 
@@ -71,8 +70,6 @@ internal static class ProtoWebProcessor
                 catch (Exception ex)
                 {
                     Log.WriteException(nameof(ProtoWebProcessor), ex, req.ListenerSocket.TraceId.ToString());
-
-                    Debugger.Break();
                 }
 
                 return false;

@@ -1,6 +1,5 @@
 // Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Diagnostics;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;
 
@@ -97,9 +96,9 @@ public abstract class Listener
                 // Ignore
                 continue;
             }
-            catch
+            catch (Exception ex)
             {
-                Debugger.Break();
+                Log.WriteException(GetType().Name, ex, "");
             }
 
             _ = Task.Run(async () =>

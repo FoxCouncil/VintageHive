@@ -1,7 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Diagnostics;
-
 namespace VintageHive.Proxy.Oscar.Services;
 
 public class OscarBuddyListService : IOscarService
@@ -68,7 +66,7 @@ public class OscarBuddyListService : IOscarService
 
             default:
             {
-                Debugger.Break();
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarBuddyListService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", "");
             }
             break;
         }

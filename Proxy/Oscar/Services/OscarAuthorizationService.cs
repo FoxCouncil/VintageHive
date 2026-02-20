@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace VintageHive.Proxy.Oscar.Services;
@@ -117,9 +116,7 @@ public class OscarAuthorizationService : IOscarService
 
             default:
             {
-                await Task.Delay(0);
-
-                Debugger.Break();
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", "");
             }
             break;
         }

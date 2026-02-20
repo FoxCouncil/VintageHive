@@ -3,7 +3,6 @@ using SharpIpp.Exceptions;
 using SharpIpp.Models;
 using SharpIpp.Protocol;
 using SharpIpp.Protocol.Models;
-using System.Diagnostics;
 using System.Text.Json.Nodes;
 using VintageHive.Network;
 using VintageHive.Proxy.Http;
@@ -281,7 +280,7 @@ internal class PrinterProxy : Listener
             }
         }
 
-        Debugger.Break();
+        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), "PrinterSpoolerThread exited", "");
     }
 
     private ValidateJobResponse GetValidateJobResponse(ValidateJobRequest request)
@@ -308,7 +307,7 @@ internal class PrinterProxy : Listener
         response.JobId = jobId;
         response.JobUri = request.PrinterUri + $"/{jobId}";
 
-        Debugger.Break();
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendUri job created; Id={jobId}", "");
 
         request.DocumentAttributes ??= new();
 
@@ -334,7 +333,7 @@ internal class PrinterProxy : Listener
         response.JobId = jobId;
         response.JobUri = request.PrinterUri + $"/{jobId}";
 
-        Debugger.Break();
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendDocument job created; Id={jobId}", "");
 
         request.DocumentAttributes ??= new();
 

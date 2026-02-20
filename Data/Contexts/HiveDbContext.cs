@@ -143,7 +143,7 @@ public class HiveDbContext : DbContextBase
         });
     }
 
-    public List<LogItem> GetLogItems()
+    public List<LogItem> GetLogItems(int page = 1, int pageSize = 100)
     {
         return WithContext<List<LogItem>>(context =>
         {
@@ -151,7 +151,10 @@ public class HiveDbContext : DbContextBase
 
             var command = context.CreateCommand();
 
-            command.CommandText = $"SELECT * FROM {TABLE_LOGS} ORDER BY timestamp DESC LIMIT 100"; // TODO: Pagination
+            command.CommandText = $"SELECT * FROM {TABLE_LOGS} ORDER BY timestamp DESC LIMIT @limit OFFSET @offset";
+
+            command.Parameters.Add(new SqliteParameter("@limit", pageSize));
+            command.Parameters.Add(new SqliteParameter("@offset", (page - 1) * pageSize));
 
             using var reader = command.ExecuteReader();
 

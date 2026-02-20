@@ -8,7 +8,7 @@ namespace VintageHive.Proxy.Http
 
         public static readonly string HttpBodySeperator = "\r\n\r\n";
 
-        public static readonly IReadOnlyList<string> HttpVerbs = new List<string> { "HEAD", "GET", "POST", "CONNECT" }; // TODO: Extend to all!
+        public static readonly IReadOnlyList<string> HttpVerbs = new List<string> { "HEAD", "GET", "POST", "CONNECT", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE" };
 
         public static readonly IReadOnlyList<string> HttpVersions = new List<string> { "HTTP/1.0", "HTTP/1.1" };
 
