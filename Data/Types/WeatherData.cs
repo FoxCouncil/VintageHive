@@ -121,5 +121,5 @@ public class WeatherData
     [JsonPropertyName("hourly")]
     public Hourly Hourly { get; set; }
 
-    public string TempUnits => HourlyUnits.Temperature2m;
+    public string TempUnits => HourlyUnits.Temperature2m.Replace("°", "&#176;");
 }

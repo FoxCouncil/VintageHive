@@ -108,7 +108,7 @@ internal class RadioController : Controller
     }
 
     [Route("/browser.pls")]
-    public Task BrowserListenPlaylistPls()
+    public async Task BrowserListenPlaylistPls()
     {
         var plsResponse = new StringBuilder();
 
@@ -116,27 +116,27 @@ internal class RadioController : Controller
         plsResponse.AppendLine($"File1=http://radio.hive.com/browser.mp3?id={Request.QueryParams["id"]}");
         plsResponse.AppendLine("NumberOfEntries=1");
 
-        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"browser.pls\"");
+        string escapedName = await ExtractEscapedStationName(Request.QueryParams["id"]);
+
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, $"attachment; filename=\"{escapedName}.pls\"");
 
         Response.SetBodyString(plsResponse.ToString(), "audio/x-scpls");
-
-        return Task.CompletedTask;
     }
 
     [Route("/browser.asx")]
-    public Task BrowserListenPlaylistAsx()
+    public async Task BrowserListenPlaylistAsx()
     {
         var asxResponse = new StringBuilder();
 
         asxResponse.AppendLine("<asx version=\"3.0\">");
-        asxResponse.AppendLine($"<entry><ref href=\"http://radio.hive.com/browser.mp3?id={Request.QueryParams["id"]}\" /></entry>");
+        asxResponse.AppendLine($"<entry><ref href=\"http://radio.hive.com/browser.asf?id={Request.QueryParams["id"]}\" /></entry>");
         asxResponse.AppendLine("</asx>");
 
-        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"browser.asx\"");
+        string escapedName = await ExtractEscapedStationName(Request.QueryParams["id"]);
 
-        Response.SetBodyString(asxResponse.ToString(), "video/x-ms-asf");
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, $"attachment; filename=\"{escapedName}.asx\"");
 
-        return Task.CompletedTask;
+        Response.SetBodyString(asxResponse.ToString(), "application/x-ms-asf");
     }
 
     [Route("/browser.mp3")]
@@ -165,7 +165,7 @@ internal class RadioController : Controller
 
         using var clientStream = await client.Content.ReadAsStreamAsync();
 
-        if (station.Codec.ToLower() != "mp3")
+        if (!station.Codec.Equals("mp3", StringComparison.CurrentCultureIgnoreCase))
         {
             using var process = CreateFfmpegProcess();
 
@@ -185,7 +185,7 @@ internal class RadioController : Controller
             {
                 // NOOP
             }
-            
+
             process.Kill();
 
             Response.Handled = true;
@@ -200,18 +200,67 @@ internal class RadioController : Controller
                 }
             }
 
-            Response.SetBodyStream(clientStream, HttpContentTypeMimeType.Audio.Mpeg);
+            Response.Headers.Add(HttpHeaderName.ContentDisposition, "inline");
+            Response.Headers.Add("Transfer-Encoding", "chunked");
+            Response.Headers.Add("Connection", "keep-alive");
+            Response.Headers.Add("Accept-Ranges", "bytes");
+
             try
             {
+                Response.SetBodyStream(clientStream, "audio/x-mpeg");
+
                 await Request.ListenerSocket.Stream.WriteAsync(Response.GetResponseEncodedData());
 
                 await clientStream.CopyToAsync(Request.ListenerSocket.Stream);
             }
-            catch (IOException)
+            catch (Exception ex)
             {
-                // NOOP
+                // Debugger.Break();
             }
         }
+    }
+
+    [Route("/browser.asf")]
+    public async Task BrowserPlayAsf()
+    {
+        var station = await Mind.RadioBrowser.StationGetAsync(Request.QueryParams["id"]);
+
+        using var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
+        {
+            AllowAutoRedirect = true,
+            MaxAutomaticRedirections = 3,
+            PlaintextStreamFilter = (filterContext, ct) => new ValueTask<Stream>(new HttpFixerDelegatingStream(filterContext.PlaintextStream))
+        });
+
+        if (Request.Headers.ContainsKey(HttpHeaderName.UserAgent))
+        {
+            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.UserAgent, Request.Headers[HttpHeaderName.UserAgent]);
+        }
+
+        using var client = await httpClient.GetAsync(station.UrlResolved, HttpCompletionOption.ResponseHeadersRead);
+
+        using var clientStream = await client.Content.ReadAsStreamAsync();
+
+        using var process = CreateFfmpegProcess(true);
+
+        Response.Headers.Add(HttpHeaderName.ContentType, "application/x-ms-asf");
+
+        process.Start();
+
+        try
+        {
+            await Request.ListenerSocket.Stream.WriteAsync(Response.GetResponseEncodedData());
+
+            Task.WaitAny(clientStream.CopyToAsync(process.StandardInput.BaseStream), process.StandardOutput.BaseStream.CopyToAsync(Request.ListenerSocket.Stream));
+        }
+        catch (IOException)
+        {
+            // NOOP
+        }
+
+        process.Kill();
+
+        Response.Handled = true;
     }
 
     [Route("/shoutcast.html")]
@@ -247,7 +296,7 @@ internal class RadioController : Controller
         else
         {
             list = await GetTop500();
-            
+
             Response.Context.SetValue("pagetitle", "Global Top500");
         }
 
@@ -255,7 +304,7 @@ internal class RadioController : Controller
     }
 
     [Route("/shoutcast.pls")]
-    public Task ListenPlaylistPls()
+    public async Task ListenPlaylistPls()
     {
         var plsResponse = new StringBuilder();
 
@@ -263,15 +312,15 @@ internal class RadioController : Controller
         plsResponse.AppendLine($"File1=http://radio.hive.com/shoutcast.mp3?id={Request.QueryParams["id"]}");
         plsResponse.AppendLine("NumberOfEntries=1");
 
-        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"shoutcast.pls\"");
+        string escapedName = await ExtractEscapedStationName(Request.QueryParams["id"]);
+
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, $"attachment; filename=\"{escapedName}.pls\"");
 
         Response.SetBodyString(plsResponse.ToString(), "audio/x-scpls");
-
-        return Task.CompletedTask;
     }
 
     [Route("/shoutcast.asx")]
-    public Task ListenPlaylistAsx()
+    public async Task ListenPlaylistAsx()
     {
         var asxResponse = new StringBuilder();
 
@@ -279,11 +328,11 @@ internal class RadioController : Controller
         asxResponse.AppendLine($"<entry><ref href=\"http://radio.hive.com/shoutcast.mp3?id={Request.QueryParams["id"]}\" /></entry>");
         asxResponse.AppendLine("</asx>");
 
-        Response.Headers.Add(HttpHeaderName.ContentDisposition, "attachment; filename=\"shoutcast.asx\"");
+        string escapedName = await ExtractEscapedStationName(Request.QueryParams["id"]);
 
-        Response.SetBodyString(asxResponse.ToString(), "video/x-ms-asf");
+        Response.Headers.Add(HttpHeaderName.ContentDisposition, $"attachment; filename=\"{escapedName}.asx\"");
 
-        return Task.CompletedTask;
+        Response.SetBodyString(asxResponse.ToString(), "application/x-ms-asf");
     }
 
     [Route("/shoutcast.mp3")]
@@ -355,10 +404,10 @@ internal class RadioController : Controller
         }
     }
 
-    private static Process CreateFfmpegProcess()
+    private static Process CreateFfmpegProcess(bool isAsf = false)
     {
         var cmdPath = GetFfmpegExecutablePath();
-        var argsff = "-i pipe:0 -c:a libmp3lame -f mp3 pipe:1";
+        var argsff = isAsf ? "-re -i pipe:0 -c:a wmav2 -b:a 128k -ar 44100 -f asf pipe:1" : "-i pipe:0 -c:a libmp3lame -f mp3 pipe:1";
 
         var process = new Process();
 
@@ -392,5 +441,25 @@ internal class RadioController : Controller
         }
 
         throw new Exception("Cannot determine operating system!");
+    }
+
+    private static async Task<string> ExtractEscapedStationName(string id)
+    {
+        var name = "unknown";
+
+        if (id.Contains('-'))
+        {
+            var station = await Mind.RadioBrowser.StationGetAsync(id);
+            name = station.Name;
+        }
+        else
+        {
+            var station = await GetStationById(id);
+            name = station.Item1.Name;
+        }
+
+        var escapedName = Uri.EscapeDataString(new string(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray()));
+
+        return escapedName;
     }
 }

@@ -4,6 +4,7 @@ namespace VintageHive.Utilities;
 
 internal static class RepoUtils
 {
+    // TODO: Allow users to add custom repositories via config file or UI
     public static Dictionary<string, Tuple<string, string>> Get()
     {
         var repos = new Dictionary<string, Tuple<string, string>>

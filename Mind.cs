@@ -16,7 +16,7 @@ namespace VintageHive;
 
 public static class Mind
 {
-    public static readonly string ApplicationVersion = typeof(HttpProxy).Assembly.GetName().Version?.ToString() ?? "NA";
+    public static readonly string ApplicationVersion = "0.4.0-alpha";
 
     static readonly DateTime StartTimeUtc = DateTime.UtcNow;
 
