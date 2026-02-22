@@ -45,6 +45,12 @@ public class DbContextBase
             walCommand.CommandText = @"PRAGMA journal_mode = 'wal'";
 
             walCommand.ExecuteNonQuery();
+
+            var busyCommand = context.CreateCommand();
+
+            busyCommand.CommandText = @"PRAGMA busy_timeout = 5000";
+
+            busyCommand.ExecuteNonQuery();
         });
     }
 
@@ -53,6 +59,10 @@ public class DbContextBase
         using var connection = new SqliteConnection(connectionString);
 
         connection.Open();
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA busy_timeout = 5000";
+        cmd.ExecuteNonQuery();
 
         return sqlTransaction(connection);
     }
@@ -63,6 +73,10 @@ public class DbContextBase
 
         connection.Open();
 
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA busy_timeout = 5000";
+        cmd.ExecuteNonQuery();
+
         sqlTransaction(connection);
     }
 
@@ -72,6 +86,10 @@ public class DbContextBase
 
         await connection.OpenAsync();
 
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA busy_timeout = 5000";
+        cmd.ExecuteNonQuery();
+
         return await sqlTransaction(connection);
     }
 
@@ -80,6 +98,10 @@ public class DbContextBase
         using var connection = new SqliteConnection(connectionString);
 
         await connection.OpenAsync();
+
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "PRAGMA busy_timeout = 5000";
+        cmd.ExecuteNonQuery();
 
         await sqlTransaction(connection);
     }

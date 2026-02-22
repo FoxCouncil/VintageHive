@@ -2,13 +2,16 @@
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
+using System.Collections.Concurrent;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
 [Domain("api.hive.com")]
 internal class ApiController : Controller
 {
-    readonly List<string> brokenList = new();
+    static readonly ConcurrentDictionary<string, string> _brokenUrls = new();
+    static readonly ConcurrentDictionary<string, Task<string>> _inflightFetches = new();
+    static readonly SemaphoreSlim _fetchThrottle = new(8, 8);
 
     [Route("/image/fetch")]
     public async Task ImageFetch()
@@ -16,7 +19,7 @@ internal class ApiController : Controller
         var url = Request.QueryParams.ContainsKey("url") && !string.IsNullOrWhiteSpace(Request.QueryParams["url"]) ? Request.QueryParams["url"] : string.Empty;
         var fallbackUrl = Request.QueryParams.ContainsKey("fburl") && !string.IsNullOrWhiteSpace(Request.QueryParams["fburl"]) ? Request.QueryParams["fburl"] : string.Empty;
 
-        if (string.IsNullOrEmpty(url) || brokenList.Contains(url))
+        if (string.IsNullOrEmpty(url) || _brokenUrls.ContainsKey(url))
         {
             if (!string.IsNullOrEmpty(fallbackUrl))
             {
@@ -30,44 +33,13 @@ internal class ApiController : Controller
             return;
         }
 
-        var imageDataBase64 = await Mind.Cache.Do<string>($"API_IMG_FETCH:{url}", TimeSpan.FromDays(365), async () =>
-        {
-            Image image;
+        var imageDataBase64 = await _inflightFetches.GetOrAdd(url, _ => FetchAndCacheImage(url));
 
-            try
-            {
-                var fetchUri = new Uri(url);
-
-                byte[] imageData;
-
-                using var httpClient = HttpClientUtils.GetHttpClient(Request);
-
-                imageData = await httpClient.GetByteArrayAsync(fetchUri);
-
-                image = Image.Load(imageData);
-            }
-            catch
-            {
-                return string.Empty;
-            }
-
-            if (image.Size.Width > 800)
-            {
-                image.Mutate(x => x.Resize(800, 0));
-            }
-
-            var memoryStream = new MemoryStream();
-
-            await image.SaveAsJpegAsync(memoryStream);
-
-            byte[] processedImageData = memoryStream.ToArray();
-
-            return Convert.ToBase64String(processedImageData);
-        });
+        _inflightFetches.TryRemove(url, out _);
 
         if (string.IsNullOrEmpty(imageDataBase64))
         {
-            brokenList.Add(url);
+            _brokenUrls.TryAdd(url, string.Empty);
 
             if (!string.IsNullOrEmpty(fallbackUrl))
             {
@@ -84,5 +56,47 @@ internal class ApiController : Controller
         Response.Headers.Add("Cache-Control", "public, max-age=15552000");
 
         Response.SetBodyData(Convert.FromBase64String(imageDataBase64), "image/jpeg");
+    }
+
+    private static async Task<string> FetchAndCacheImage(string url)
+    {
+        return await Mind.Cache.Do<string>($"API_IMG_FETCH:{url}", TimeSpan.FromDays(365), async () =>
+        {
+            await _fetchThrottle.WaitAsync();
+
+            try
+            {
+                var fetchUri = new Uri(url);
+
+                using var httpClient = HttpClientUtils.GetHttpClient();
+
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+                var imageData = await httpClient.GetByteArrayAsync(fetchUri);
+
+                var image = Image.Load(imageData);
+
+                if (image.Size.Width > 800)
+                {
+                    image.Mutate(x => x.Resize(800, 0));
+                }
+
+                var memoryStream = new MemoryStream();
+
+                await image.SaveAsJpegAsync(memoryStream);
+
+                byte[] processedImageData = memoryStream.ToArray();
+
+                return Convert.ToBase64String(processedImageData);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+            finally
+            {
+                _fetchThrottle.Release();
+            }
+        });
     }
 }

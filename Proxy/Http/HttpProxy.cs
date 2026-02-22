@@ -34,10 +34,16 @@ public class HttpProxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
+        Console.Error.WriteLine($"[PROXY-DEBUG] ProcessRequest: {read} bytes from {connection.RemoteAddress}");
+        Console.Error.WriteLine($"[PROXY-DEBUG] Raw: {Encoding.GetString(data[..Math.Min(read, 500)])}");
+        Console.Error.Flush();
+
         var httpRequest = await HttpRequest.Build(connection, Encoding, data[..read]);
 
         if (!httpRequest.IsValid)
         {
+            Console.Error.WriteLine($"[PROXY-DEBUG] INVALID REQUEST from {connection.RemoteAddress}: {Encoding.GetString(data[..Math.Min(read, 200)])}");
+            Console.Error.Flush();
             Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of HTTP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket?.TraceId.ToString() ?? "N/A");
 
             return null;
@@ -96,6 +102,19 @@ public class HttpProxy : Listener
             {
                 try
                 {
+                    // If the handler wrote directly to the socket (Handled=true but
+                    // no Body or Stream set on the response), don't generate a
+                    // duplicate HTTP response — just handle sessions and return null.
+                    if (httpResponse.Handled && httpResponse.Body == null && httpResponse.Stream == null)
+                    {
+                        if (httpResponse.SessionId != Guid.Empty)
+                        {
+                            Mind.Db.WebSessionSet(httpResponse.SessionId, httpResponse.Session);
+                        }
+
+                        return null;
+                    }
+
                     var buffer = httpResponse.GetResponseEncodedData();
 
                     if (buffer == null)
@@ -155,8 +174,12 @@ public class HttpProxy : Listener
             catch (Exception) { }
         }
 
-        // TODO: Keep-Alive respect?
-        connection.RawSocket.Close();
+        // Only close the connection if keep-alive is not requested.
+        // When IsKeepAlive=true, the Listener loop will read the next request.
+        if (!connection.IsKeepAlive)
+        {
+            connection.RawSocket.Close();
+        }
 
         return null;
     }

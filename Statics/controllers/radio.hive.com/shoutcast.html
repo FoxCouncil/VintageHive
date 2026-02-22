@@ -59,8 +59,8 @@
             <tr bgcolor="#333333">
                 <td align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
                 <td align="center">
-                    <a href="/shoutcast.pls?id={{ station.Id }}"><img src="/img/winamp.gif" alt="Winamp - {{ station.Mt }}" border="0"></a>
-                    <a href="/shoutcast.asx?id={{ station.Id }}"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Mt }}" border="0"></a>
+                    <a href="/play/{{ station.Id }}/winamp.pls"><img src="/img/winamp.gif" alt="Winamp - {{ station.Mt }}" border="0"></a>
+                    <a href="/play/{{ station.Id }}/wmp.asx"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Mt }}" border="0"></a>
                 </td>
                 <td width="100%">
                     <font face="Courier New" size="-1">[<a href="/shoutcast.html?genre={{ station.Genre }}">{{ station.Genre }}</a>]</font>

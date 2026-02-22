@@ -34,8 +34,8 @@
     <tr bgcolor="#333333">
         <td valign="middle" align="center"><font face="Courier New" size="-1">{{ forloop.index }}</font></td>
         <td valign="middle" align="center">
-            <a href="/browser.pls?id={{ station.Stationuuid }}"><img src="/img/winamp.gif" alt="Winamp - {{ station.Name }}" border="0"></a>
-            <a href="/browser.asx?id={{ station.Stationuuid }}"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Name }}" border="0"></a>
+            <a href="/play/{{ station.Stationuuid }}/winamp.pls"><img src="/img/winamp.gif" alt="Winamp - {{ station.Name }}" border="0"></a>
+            <a href="/play/{{ station.Stationuuid }}/wmp.asx"><img src="/img/wmp.gif" alt="Windows Media Player - {{ station.Name }}" border="0"></a>
         </td>
         <td valign="middle" align="center"><img src="http://api.hive.com/image/fetch?url={{ station.Favicon }}&fburl=http://radio.hive.com/img/radio.gif" width="20" height="20" border="0"></td>
         <td valign="middle" width="60%"><a href="/browser.html?id={{ station.Stationuuid }}"><font size="-1">{{ station.Name }}</font></a></td>

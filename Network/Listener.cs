@@ -183,10 +183,21 @@ public abstract class Listener
                             break;
                         }
 
+                        if (listenerSocket.IsKeepAlive)
+                        {
+                            Console.Error.WriteLine($"[LISTENER] Keep-alive: awaiting next request on {listenerSocket.TraceId}");
+                            Console.Error.Flush();
+                        }
+
                         int read = IsSecure ? await sslStream.ReadAsync(reqBuffer) : await networkStream.ReadAsync(reqBuffer);
 
                         if (read <= 0)
                         {
+                            if (listenerSocket.IsKeepAlive)
+                            {
+                                Console.Error.WriteLine($"[LISTENER] Keep-alive connection read returned {read} (remote closed) on {listenerSocket.TraceId}");
+                                Console.Error.Flush();
+                            }
                             break;
                         }
 
@@ -225,8 +236,11 @@ public abstract class Listener
                     }
                     catch (Exception ex) when (ex is SocketException || ex is IOException)
                     {
-                        /* Ignore */
-                        // Display.WriteLog("Socket Exception: \n\n" + sex.Message);
+                        if (listenerSocket.IsKeepAlive)
+                        {
+                            Console.Error.WriteLine($"[LISTENER] Keep-alive connection exception: {ex.GetType().Name}: {ex.Message} on {listenerSocket.TraceId}");
+                            Console.Error.Flush();
+                        }
                     }
                     catch (Exception ex)
                     {

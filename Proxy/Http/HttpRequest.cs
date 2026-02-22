@@ -83,6 +83,11 @@ public sealed partial class HttpRequest : Request
             {
                 headers.Add(splitHeaderKV[0], splitHeaderKV[1].Trim());
             }
+            else
+            {
+                // Per HTTP spec, combine duplicate headers with comma separator
+                headers[splitHeaderKV[0]] += ", " + splitHeaderKV[1].Trim();
+            }
         }
 
         var requestCookies = new Dictionary<string, string>();
