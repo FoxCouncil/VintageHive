@@ -9,6 +9,8 @@ namespace VintageHive.Processors.LocalServer.Streaming;
 
 internal static class RadioMmshStreaming
 {
+    private const string LogSys = "MMSH";
+
     // ===================================================================
     // ASF GUIDs
     // ===================================================================
@@ -197,8 +199,7 @@ internal static class RadioMmshStreaming
             if (BitConverter.ToInt32(headerData, i + 100) == 0)
                 BitConverter.GetBytes(128000).CopyTo(headerData, i + 100);
 
-            Console.Error.WriteLine($"[MMSH] Patched ASF File Properties: fileSize=2GB, packets=65535, preroll=3000ms, broadcast=1");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Patched ASF File Properties: fileSize=2GB, packets=65535, preroll=3000ms, broadcast=1");
             return;
         }
     }
@@ -236,14 +237,13 @@ internal static class RadioMmshStreaming
             // Send Duration: 0 (live broadcast)
             BitConverter.GetBytes((long)0).CopyTo(patched, i + 72);
 
-            // Preroll: 5000ms (matches real WMS, was 3000ms)
-            BitConverter.GetBytes((long)5000).CopyTo(patched, i + 80);
+            // Preroll: 2000ms (local network, reduced from 5000ms)
+            BitConverter.GetBytes((long)2000).CopyTo(patched, i + 80);
 
             // Flags: 0x09 (broadcast=1 + bit 3, matching real WMS capture)
             BitConverter.GetBytes((uint)0x09).CopyTo(patched, i + 88);
 
-            Console.Error.WriteLine($"[MMSH] WMP9: patched $H File Properties (fileSize={hChunk.Length}, packets=0xFFFFFFFF, preroll=5000, flags=0x09)");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: patched $H File Properties (fileSize={hChunk.Length}, packets=0xFFFFFFFF, preroll=2000, flags=0x09)");
 
             // Data Object: match real Cougar capture (Size=50, TotalDataPackets=0)
             long asfHeaderSize = BitConverter.ToInt64(patched, 12 + 16);
@@ -252,8 +252,7 @@ internal static class RadioMmshStreaming
             {
                 BitConverter.GetBytes((long)50).CopyTo(patched, dataObjStart + 16);   // Data Object Size = 50 bytes (header only)
                 BitConverter.GetBytes((long)0).CopyTo(patched, dataObjStart + 40);    // TotalDataPackets = 0 (live broadcast)
-                Console.Error.WriteLine("[MMSH] WMP9: Data Object Size=50, TotalDataPackets=0");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "WMP9: Data Object Size=50, TotalDataPackets=0");
             }
 
             return patched;
@@ -449,7 +448,6 @@ internal static class RadioMmshStreaming
     // ===================================================================
 
     private static readonly ConcurrentDictionary<string, MmshLiveSession> _liveSessions = new();
-    private static readonly ConcurrentDictionary<string, long> _clientLastSeq = new();
     private static readonly SemaphoreSlim _sessionCreateLock = new(1, 1);
 
     private class MmshLiveSession : IDisposable
@@ -474,6 +472,9 @@ internal static class RadioMmshStreaming
         private readonly Task _producerTask;
         private readonly CancellationTokenSource _cts = new();
         private bool _disposed;
+
+        private int _activeClients;
+        private CancellationTokenSource _cleanupCts;
 
         public bool IsAlive => !_producerTask.IsCompleted && !_disposed;
 
@@ -528,27 +529,24 @@ internal static class RadioMmshStreaming
 
                     if (locationId <= 100 || gapMs > 500)
                     {
-                        Console.Error.WriteLine($"[MMSH-Prod] pkt={locationId} gap={gapMs:F0}ms");
-                        Console.Error.Flush();
+                        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Producer: pkt={locationId} gap={gapMs:F0}ms");
                     }
                     else if (locationId % 500 == 0)
                     {
-                        Console.Error.WriteLine($"[MMSH-Prod] {locationId} packets");
-                        Console.Error.Flush();
+                        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Producer: {locationId} packets");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[MMSH-Prod] Error: {ex.Message}");
+                Log.WriteLine(Log.LEVEL_ERROR, LogSys, $"Producer error: {ex.Message}");
             }
             finally
             {
                 lock (_lock) { _newDataTcs.TrySetResult(); }
             }
 
-            Console.Error.WriteLine($"[MMSH-Prod] Ended ({_headSeq} total)");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Producer ended ({_headSeq} total packets)");
         }
 
         public long LivePosition { get { lock (_lock) return _headSeq; } }
@@ -573,6 +571,45 @@ internal static class RadioMmshStreaming
                 waitTask = _newDataTcs.Task;
             }
             await waitTask.WaitAsync(_cts.Token);
+        }
+
+        public void AddClient(string stationId)
+        {
+            var count = Interlocked.Increment(ref _activeClients);
+            _cleanupCts?.Cancel();
+            _cleanupCts = null;
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Station {stationId}: client connected ({count} active)");
+        }
+
+        public void RemoveClient(string stationId)
+        {
+            var count = Interlocked.Decrement(ref _activeClients);
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Station {stationId}: client disconnected ({count} active)");
+            if (count <= 0)
+            {
+                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Station {stationId}: last client left, cleanup in 30s");
+                ScheduleCleanup(stationId);
+            }
+        }
+
+        private void ScheduleCleanup(string stationId)
+        {
+            var cts = new CancellationTokenSource();
+            _cleanupCts = cts;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), cts.Token);
+                    if (_activeClients <= 0)
+                    {
+                        _liveSessions.TryRemove(stationId, out _);
+                        Dispose();
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session for {stationId} cleaned up (no clients for 30s)");
+                    }
+                }
+                catch (OperationCanceledException) { }
+            });
         }
 
         public void Dispose()
@@ -600,8 +637,7 @@ internal static class RadioMmshStreaming
                 return session;
 
             var info = await RadioStationResolver.ResolveStation(stationId);
-            Console.Error.WriteLine($"[MMSH-Session] Creating: {info.Name} ({info.Codec})");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session creating: {info.Name} ({info.Codec})");
 
             var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
             {
@@ -631,8 +667,7 @@ internal static class RadioMmshStreaming
                 {
                     icyStream = new IcyMetadataStrippingStream(rawUpstreamStream, metaInterval);
                     upstreamStream = icyStream;
-                    Console.Error.WriteLine($"[MMSH-Session] ICY metadata: interval={metaInterval}");
-                    Console.Error.Flush();
+                    Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Session: ICY metadata interval={metaInterval}");
                 }
             }
 
@@ -643,8 +678,7 @@ internal static class RadioMmshStreaming
                 using var reader = ffmpeg.StandardError;
                 while (await reader.ReadLineAsync() is { } line)
                 {
-                    Console.Error.WriteLine($"[FFMPEG] {line}");
-                    Console.Error.Flush();
+                    Log.WriteLine(Log.LEVEL_DEBUG, "FFMPEG", line);
                 }
             });
             _ = Task.Run(async () =>
@@ -695,16 +729,14 @@ internal static class RadioMmshStreaming
             uint numObjects = BitConverter.ToUInt32(finalHeaderObj, 24);
             BitConverter.GetBytes(numObjects + 1).CopyTo(finalHeaderObj, 24);
 
-            Console.Error.WriteLine($"[MMSH-Session] ASF header: {finalHeaderSize}B (with Content Description +{contentDesc.Length}B)");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Session: ASF header {finalHeaderSize}B (Content Description +{contentDesc.Length}B)");
 
             var hPayload = new byte[finalHeaderSize + 50];
             Buffer.BlockCopy(finalHeaderObj, 0, hPayload, 0, (int)finalHeaderSize);
             Buffer.BlockCopy(dataObjHeader, 0, hPayload, (int)finalHeaderSize, 50);
             var hChunk = BuildMmshChunk(0x48, 0, 0, 0x0C, hPayload);
 
-            Console.Error.WriteLine($"[MMSH-Session] ASF: header={finalHeaderSize}B packetSize={packetSize} $H={hChunk.Length}B");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session ready: header={finalHeaderSize}B packetSize={packetSize} $H={hChunk.Length}B");
 
             var newSession = new MmshLiveSession(httpClient, upstreamResponse, ffmpeg, hChunk, packetSize, ffmpegOut, info, icyStream);
 
@@ -726,15 +758,15 @@ internal static class RadioMmshStreaming
 
     public static async Task HandleWmp6Stream(HttpRequest request, HttpResponse response, string stationId)
     {
-        Console.Error.WriteLine($"[MMSH-WMP6] === {request.Method} /stream/wmp/{stationId}.asf ===");
+        var traceId = request.ListenerSocket.TraceId.ToString();
+
+        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP6: {request.Method} /stream/wmp/{stationId}.asf", traceId);
         foreach (var h in request.Headers)
-            Console.Error.WriteLine($"[MMSH-WMP6]   {h.Key}: {h.Value}");
-        Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: header {h.Key}: {h.Value}", traceId);
 
         if (request.Method == "POST")
         {
-            Console.Error.WriteLine("[MMSH-WMP6] POST log-line acknowledged");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "WMP6: POST log-line acknowledged", traceId);
             response.SetBodyString("", "text/plain");
             return;
         }
@@ -763,8 +795,7 @@ internal static class RadioMmshStreaming
             if (pragmas.TryGetValue("request-context", out var ctxStr))
                 int.TryParse(ctxStr, out requestContext);
 
-            Console.Error.WriteLine($"[MMSH-WMP6] Mode={(isPlay ? "PLAY" : "DESCRIBE")} ctx={requestContext}");
-            Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP6: mode={(isPlay ? "PLAY" : "DESCRIBE")} ctx={requestContext}", traceId);
 
             var session = await GetOrCreateSessionAsync(stationId);
             var socket = request.ListenerSocket.Stream;
@@ -786,8 +817,7 @@ internal static class RadioMmshStreaming
             {
                 var resp = BuildWmp6Response(contentLength: session.HChunk.Length);
 
-                Console.Error.WriteLine($"[MMSH-WMP6] DESCRIBE: $H={session.HChunk.Length}B");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: DESCRIBE $H={session.HChunk.Length}B", traceId);
 
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
                 await socket.WriteAsync(session.HChunk);
@@ -799,8 +829,7 @@ internal static class RadioMmshStreaming
 
                 var resp = BuildWmp6Response();
 
-                Console.Error.WriteLine($"[MMSH-WMP6] PLAY ctx={requestContext}");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP6: PLAY ctx={requestContext}", traceId);
 
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
 
@@ -809,8 +838,7 @@ internal static class RadioMmshStreaming
                 {
                     var currentTrack = session.CurrentTrack ?? session.Station?.Name ?? "Unknown";
                     hChunk = RebuildHChunkWithTitle(session, currentTrack);
-                    Console.Error.WriteLine($"[MMSH-WMP6] Reconnect: rebuilt $H with title=\"{currentTrack}\"");
-                    Console.Error.Flush();
+                    Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: reconnect rebuilt $H title=\"{currentTrack}\"", traceId);
                 }
                 else
                 {
@@ -822,9 +850,9 @@ internal static class RadioMmshStreaming
                 long readPos = Math.Max(0, session.LivePosition - 5);
                 uint sent = 0;
 
-                Console.Error.WriteLine($"[MMSH-WMP6] Streaming from seq={readPos} live={session.LivePosition}");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: streaming from seq={readPos} live={session.LivePosition}", traceId);
 
+                session.AddClient(stationId);
                 try
                 {
                     while (session.IsAlive)
@@ -838,8 +866,7 @@ internal static class RadioMmshStreaming
 
                             if (sent % 500 == 0)
                             {
-                                Console.Error.WriteLine($"[MMSH-WMP6] Sent {sent} (seq={seq})");
-                                Console.Error.Flush();
+                                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: sent {sent} (seq={seq})", traceId);
                             }
                         }
                         else
@@ -850,18 +877,20 @@ internal static class RadioMmshStreaming
                 }
                 catch (IOException)
                 {
-                    Console.Error.WriteLine($"[MMSH-WMP6] Client disconnected after {sent} packets");
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP6: client disconnected after {sent} packets", traceId);
                 }
                 catch (OperationCanceledException) { }
+                finally
+                {
+                    session.RemoveClient(stationId);
+                }
 
-                Console.Error.Flush();
                 response.Handled = true;
             }
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[MMSH-WMP6] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
-            Console.Error.Flush();
+            Log.WriteException(LogSys, ex, traceId);
             response.Handled = true;
         }
     }
@@ -912,10 +941,11 @@ internal static class RadioMmshStreaming
 
     public static async Task HandleWmp9Stream(HttpRequest request, HttpResponse response, string stationId)
     {
-        Console.Error.WriteLine($"[MMSH-WMP9] === {request.Method} /stream/wmp/{stationId}.asf ===");
+        var traceId = request.ListenerSocket.TraceId.ToString();
+
+        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: {request.Method} /stream/wmp/{stationId}.asf", traceId);
         foreach (var h in request.Headers)
-            Console.Error.WriteLine($"[MMSH-WMP9]   {h.Key}: {h.Value}");
-        Console.Error.Flush();
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: header {h.Key}: {h.Value}", traceId);
 
         var pragmas = ParseMmshPragmas(request);
         var socket = request.ListenerSocket.Stream;
@@ -935,8 +965,7 @@ internal static class RadioMmshStreaming
             if (isLogStats && !isStop)
             {
                 // LogStats POST → 204 No Content (real Cougar sends this during active stream)
-                Console.Error.WriteLine("[MMSH-WMP9] POST LogStats → 204 No Content");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "WMP9: POST LogStats -> 204 No Content", traceId);
                 var resp = BuildCougarSimpleResponse(204, "No Content", clientId, dateStr);
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
                 await socket.FlushAsync();
@@ -944,8 +973,7 @@ internal static class RadioMmshStreaming
             else
             {
                 // xStopStrm or other POST → 200 OK Content-Length: 0
-                Console.Error.WriteLine($"[MMSH-WMP9] POST {(isStop ? "xStopStrm" : "other")} → 200 OK");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: POST {(isStop ? "xStopStrm" : "other")} -> 200 OK", traceId);
                 var resp = BuildCougarSimpleResponse(200, "OK", clientId, dateStr);
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
                 await socket.FlushAsync();
@@ -996,15 +1024,14 @@ internal static class RadioMmshStreaming
                     "Content-Type: application/x-mms-framed\r\n" +
                     "Server: Cougar/9.00.00.3372\r\n" +
                     $"Date: {dateStr}\r\n" +
-                    $"Pragma: no-cache, client-id={clientId}, features=\"broadcast\", timeout=60000, AccelBW=3500000, AccelDuration=10000, Speed=1.000\r\n" +
+                    $"Pragma: no-cache, client-id={clientId}, features=\"broadcast\", timeout=60000, AccelBW=3500000, AccelDuration=2000, Speed=1.000\r\n" +
                     "Cache-Control: no-cache, max-age=0, x-wms-stream-type=\"broadcast\", user-public, must-revalidate, x-wms-proxy-split\r\n" +
                     $"Last-Modified: {lastModified}\r\n" +
                     (useChunked ? "Transfer-Encoding: chunked\r\n" : "") +
                     "Supported: com.microsoft.wm.srvppair, com.microsoft.wm.sswitch, com.microsoft.wm.predstrm, com.microsoft.wm.fastcache\r\n" +
                     "\r\n";
 
-                Console.Error.WriteLine($"[MMSH-WMP9] PLAY {(isPlayNext ? "xPlayNextEntry" : "xPlayStrm")} genId={playlistGenId} {httpVer} chunked={useChunked}");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: PLAY {(isPlayNext ? "xPlayNextEntry" : "xPlayStrm")} genId={playlistGenId} {httpVer} chunked={useChunked}", traceId);
 
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
 
@@ -1032,8 +1059,7 @@ internal static class RadioMmshStreaming
 
                 await socket.FlushAsync();
 
-                Console.Error.WriteLine($"[MMSH-WMP9] Sent $M({mChunk1.Length}B) $H({wmp9HChunk.Length}B) $C(8B) $M({mChunk2.Length}B) $H — streaming from seq={readPos} live={session.LivePosition}");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: sent $M({mChunk1.Length}B) $H({wmp9HChunk.Length}B) $C(8B) $M({mChunk2.Length}B) $H — streaming from seq={readPos} live={session.LivePosition}", traceId);
 
                 // Stream $D data packets
                 uint sent = 0;
@@ -1041,6 +1067,7 @@ internal static class RadioMmshStreaming
                 byte clientAfFlags = 0;
                 uint? sendTimeBase = null;
 
+                session.AddClient(stationId);
                 try
                 {
                     while (session.IsAlive)
@@ -1072,8 +1099,7 @@ internal static class RadioMmshStreaming
 
                             if (sent <= 50 || sent % 500 == 0)
                             {
-                                Console.Error.WriteLine($"[MMSH-WMP9] $D pkt={sent} seq={seq}");
-                                Console.Error.Flush();
+                                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: $D pkt={sent} seq={seq}", traceId);
                             }
                         }
                         else
@@ -1084,11 +1110,14 @@ internal static class RadioMmshStreaming
                 }
                 catch (IOException)
                 {
-                    Console.Error.WriteLine($"[MMSH-WMP9] Client disconnected after {sent} packets");
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: client disconnected after {sent} packets", traceId);
                 }
                 catch (OperationCanceledException) { }
+                finally
+                {
+                    session.RemoveClient(stationId);
+                }
 
-                Console.Error.Flush();
                 response.Handled = true;
             }
             else
@@ -1125,8 +1154,7 @@ internal static class RadioMmshStreaming
                     "Supported: com.microsoft.wm.srvppair, com.microsoft.wm.sswitch, com.microsoft.wm.predstrm, com.microsoft.wm.fastcache\r\n" +
                     "\r\n";
 
-                Console.Error.WriteLine($"[MMSH-WMP9] DESCRIBE: $H={wmp9HChunk.Length}B v11={isVersion11}");
-                Console.Error.Flush();
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: DESCRIBE $H={wmp9HChunk.Length}B v11={isVersion11}", traceId);
 
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
                 await socket.WriteAsync(wmp9HChunk);
@@ -1136,8 +1164,7 @@ internal static class RadioMmshStreaming
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[MMSH-WMP9] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
-            Console.Error.Flush();
+            Log.WriteException(LogSys, ex, traceId);
             response.Handled = true;
         }
     }

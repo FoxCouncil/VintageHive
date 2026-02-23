@@ -11,6 +11,10 @@ internal static class Log
     public const string LEVEL_REQUEST = "request";
     public const string LEVEL_DEBUG = "debug";
 
+    private static readonly object _fileLock = new();
+    private static StreamWriter _fileWriter;
+    private static bool _fileInitAttempted;
+
     static Log()
     {
         WriteLine(LEVEL_INFO, "LOG", "Vintage Hive Startup!", string.Empty);
@@ -32,6 +36,8 @@ internal static class Log
     {
         Mind.Db?.WriteLog(logItem);
 
+        SendFile(logItem.ToString());
+
         if ((logItem.Level == LEVEL_DEBUG && !Mind.IsDebug) || logItem.Level == LEVEL_REQUEST)
         {
             return;
@@ -44,9 +50,41 @@ internal static class Log
     {
         var logItem = new LogItem(LEVEL_ERROR, system, e.Message, traceId);
 
+        SendFile(logItem.ToString());
+        SendFile(e.ToString());
+
         SendConsole(logItem.ToString());
         SendConsole(e);
+    }
 
+    static void SendFile(string msg)
+    {
+        if (!_fileInitAttempted)
+        {
+            lock (_fileLock)
+            {
+                if (!_fileInitAttempted)
+                {
+                    _fileInitAttempted = true;
+                    try
+                    {
+                        var logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "vfs", "data");
+                        Directory.CreateDirectory(logDir);
+                        var logPath = Path.Combine(logDir, "vintagehive.log");
+                        _fileWriter = new StreamWriter(logPath, append: true) { AutoFlush = true };
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        if (_fileWriter != null)
+        {
+            lock (_fileLock)
+            {
+                try { _fileWriter.WriteLine(msg); } catch { }
+            }
+        }
     }
 
     static void SendConsole(string msg)
