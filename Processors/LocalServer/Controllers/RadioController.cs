@@ -95,7 +95,7 @@ internal class RadioController : Controller
                     var asx = new StringBuilder();
                     asx.AppendLine("<asx version=\"3.0\">");
                     asx.AppendLine($"  <title>{esc(info.Name)}</title>");
-                    asx.AppendLine($"  <author>VintageHive/{Mind.ApplicationVersion}</author>");
+                    asx.AppendLine($"  <author>{esc(info.Name)}</author>");
 
                     if (!string.IsNullOrEmpty(info.Tags))
                         asx.AppendLine($"  <abstract>{esc(info.Tags)}</abstract>");
@@ -112,7 +112,7 @@ internal class RadioController : Controller
 
                     asx.AppendLine("  <entry clientskip=\"no\">");
                     asx.AppendLine($"    <title>{esc(info.CurrentTrack ?? info.Name)}</title>");
-                    asx.AppendLine($"    <author>VintageHive/{Mind.ApplicationVersion}</author>");
+                    asx.AppendLine($"    <author>{esc(info.Name)}</author>");
 
                     if (!string.IsNullOrEmpty(info.Country))
                         asx.AppendLine($"    <copyright>{esc(info.Country)}</copyright>");
@@ -127,6 +127,14 @@ internal class RadioController : Controller
                     break;
                 }
             }
+        }
+
+        // Favicon proxy: /favicon/{id}.jpg — proxies HTTPS favicons over HTTP for WMP9/XP
+        if (!Response.Handled && rawPath.StartsWith("/favicon/") && rawPath.EndsWith(".jpg"))
+        {
+            var faviconStationId = rawPath["/favicon/".Length..^4];
+            if (!string.IsNullOrEmpty(faviconStationId))
+                await ServeFaviconProxy(faviconStationId);
         }
 
         // MMSH stream: /stream/wmp/{id}.asf — WMSP/MMSH protocol for WMP
@@ -306,6 +314,50 @@ internal class RadioController : Controller
     // ===================================================================
     // Helpers
     // ===================================================================
+
+    private async Task ServeFaviconProxy(string stationId)
+    {
+        try
+        {
+            var cacheKey = $"radio_favicon_{stationId}";
+            var cached = Mind.Cache.GetData(cacheKey);
+            byte[] imageBytes;
+
+            if (!string.IsNullOrEmpty(cached))
+            {
+                imageBytes = Convert.FromBase64String(cached);
+            }
+            else
+            {
+                var info = await RadioStationResolver.ResolveStation(stationId);
+                if (string.IsNullOrEmpty(info.Favicon))
+                {
+                    Response.SetNotFound();
+                    return;
+                }
+
+                using var client = HttpClientUtils.GetHttpClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                imageBytes = await client.GetByteArrayAsync(info.Favicon);
+
+                Mind.Cache.SetData(cacheKey, TimeSpan.FromHours(24), Convert.ToBase64String(imageBytes));
+            }
+
+            // Determine MIME type from first bytes
+            var contentType = "image/jpeg";
+            if (imageBytes.Length >= 4)
+            {
+                if (imageBytes[0] == 0x89 && imageBytes[1] == 0x50) contentType = "image/png";
+                else if (imageBytes[0] == 0x47 && imageBytes[1] == 0x49) contentType = "image/gif";
+            }
+
+            Response.SetBodyData(imageBytes, contentType);
+        }
+        catch
+        {
+            Response.SetNotFound();
+        }
+    }
 
     private void SetPlaylistResponseHeaders()
     {

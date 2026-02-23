@@ -22,6 +22,8 @@ internal class IcyMetadataStrippingStream : Stream
 
     public string CurrentTrack => _currentTrack;
 
+    public event Action<string> TrackChanged;
+
     public IcyMetadataStrippingStream(Stream inner, int metaInterval)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
@@ -80,7 +82,12 @@ internal class IcyMetadataStrippingStream : Stream
         {
             var title = match.Groups[1].Value.Trim();
             if (!string.IsNullOrEmpty(title))
+            {
+                var oldTrack = _currentTrack;
                 _currentTrack = title;
+                if (title != oldTrack)
+                    TrackChanged?.Invoke(title);
+            }
         }
     }
 
