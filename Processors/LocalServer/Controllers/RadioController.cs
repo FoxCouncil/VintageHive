@@ -92,32 +92,32 @@ internal class RadioController : Controller
                 {
                     var esc = (string s) => System.Security.SecurityElement.Escape(s ?? "");
 
+                    var serverIp = Mind.Db.ConfigGet<string>(ConfigNames.IpAddress);
+                    if (serverIp == "0.0.0.0")
+                    {
+                        serverIp = ((IPEndPoint)Request.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4().ToString();
+                    }
+
+                    // Minimal ASX — only station name as title (shown in WMP playlist pane).
+                    // No author/copyright/abstract so WMP doesn't pre-populate Now Playing
+                    // metadata fields — those come from the stream's $M and ASF header.
                     var asx = new StringBuilder();
                     asx.AppendLine("<asx version=\"3.0\">");
                     asx.AppendLine($"  <title>{esc(info.Name)}</title>");
-                    asx.AppendLine($"  <author>{esc(info.Name)}</author>");
-
-                    if (!string.IsNullOrEmpty(info.Tags))
-                        asx.AppendLine($"  <abstract>{esc(info.Tags)}</abstract>");
 
                     // Banner: random ad image (194x32 area in WMP 6.4)
                     var adUrl = GetRandomAdImageUrl();
                     if (adUrl != null)
                     {
                         asx.AppendLine($"  <banner href=\"{esc(adUrl)}\">");
-                        asx.AppendLine($"    <abstract>{esc(info.Name)}</abstract>");
                         asx.AppendLine($"    <moreinfo href=\"http://radio.hive.com/browser.html?id={id}\" />");
                         asx.AppendLine("  </banner>");
                     }
 
                     asx.AppendLine("  <entry clientskip=\"no\">");
-                    asx.AppendLine($"    <title>{esc(info.CurrentTrack ?? info.Name)}</title>");
-                    asx.AppendLine($"    <author>{esc(info.Name)}</author>");
-
-                    if (!string.IsNullOrEmpty(info.Country))
-                        asx.AppendLine($"    <copyright>{esc(info.Country)}</copyright>");
-
-                    // .asf extension triggers NSPlayer/WMSP pipeline for MMSH streaming
+                    // MMS first — protocol rollover scheme (RTSP → MMS/TCP → HTTP)
+                    asx.AppendLine($"    <ref href=\"mms://{serverIp}/stream/wmp/{id}.asf\" />");
+                    // HTTP fallback (direct MMSH)
                     asx.AppendLine($"    <ref href=\"http://radio.hive.com/stream/wmp/{id}.asf\" />");
                     asx.AppendLine("  </entry>");
                     asx.AppendLine("</asx>");
@@ -154,6 +154,12 @@ internal class RadioController : Controller
                 else
                     await RadioMmshStreaming.HandleWmp6Stream(Request, Response, stationId);
             }
+        }
+
+        // SAMI captions: 404 — TEXT script commands handle Now Playing display instead
+        if (!Response.Handled && rawPath.EndsWith(".smi"))
+        {
+            Response.SetNotFound();
         }
 
         // Plain HTTP MP3 stream: /stream/wmp/{id}.mp3 — fallback for non-WMSP clients

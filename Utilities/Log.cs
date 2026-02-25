@@ -10,6 +10,7 @@ internal static class Log
     public const string LEVEL_INFO = "info";
     public const string LEVEL_REQUEST = "request";
     public const string LEVEL_DEBUG = "debug";
+    public const string LEVEL_VERBOSE = "verbose";
 
     private static readonly object _fileLock = new();
     private static StreamWriter _fileWriter;
@@ -38,7 +39,7 @@ internal static class Log
 
         SendFile(logItem.ToString());
 
-        if ((logItem.Level == LEVEL_DEBUG && !Mind.IsDebug) || logItem.Level == LEVEL_REQUEST)
+        if ((logItem.Level == LEVEL_DEBUG && !Mind.IsDebug) || logItem.Level == LEVEL_REQUEST || logItem.Level == LEVEL_VERBOSE)
         {
             return;
         }

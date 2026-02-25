@@ -10,6 +10,7 @@ using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
+using VintageHive.Proxy.Mms;
 using VintageHive.Proxy.Telnet;
 
 namespace VintageHive;
@@ -41,6 +42,8 @@ public static class Mind
     static IrcProxy ircProxy;
 
     static OscarServer oscarServer;
+
+    static MmsServer mmsServer;
 
     static PrinterProxy printerProxy;
 
@@ -130,6 +133,8 @@ public static class Mind
 
         oscarServer = new(ipAddress);
 
+        mmsServer = new(ipAddress);
+
 #if DEBUG
 
         printerProxy = new PrinterProxy(ipAddress, 631);
@@ -176,6 +181,8 @@ public static class Mind
 #endif
 
         oscarServer.Start();
+
+        mmsServer.Start();
 
         resetEvent.WaitOne();
 

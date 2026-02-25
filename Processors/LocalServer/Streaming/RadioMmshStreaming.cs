@@ -10,6 +10,7 @@ namespace VintageHive.Processors.LocalServer.Streaming;
 internal static class RadioMmshStreaming
 {
     private const string LogSys = "MMSH";
+    private const string LogSession = "STREAM";
 
     // ===================================================================
     // ASF GUIDs
@@ -97,8 +98,8 @@ internal static class RadioMmshStreaming
         int mmsPacketSize = payload.Length + 8; // MMS header (8) + payload
         var chunk = new byte[4 + mmsPacketSize];
 
-        // Framing Header (4 bytes)
-        chunk[0] = 0x24;       // Frame = 0x24, B-bit = 0
+        // Framing Header (4 bytes) — B=1 means no Reason field (matches real WMS)
+        chunk[0] = 0xA4;       // B-bit(1) | FrameHeader(0x24) = 0xA4
         chunk[1] = chunkType;  // 'H'=0x48, 'D'=0x44, 'M'=0x4D
         BitConverter.GetBytes((ushort)mmsPacketSize).CopyTo(chunk, 2); // PacketLength
 
@@ -127,20 +128,25 @@ internal static class RadioMmshStreaming
 
         // Each entry: name_len,name,type,value_len,value
         // type 31 = string, type 3 = DWORD
+        // Order and entries match real WMS Cougar/9.00.00.3372 capture exactly:
+        //   language → branding → description → copyright → author → title → offset → duration → copied → url
         var entryList = new List<(string name, int type, string value)>
         {
             ("language", 31, ""),
             ("WMS_CONTENT_DESCRIPTION_SERVER_BRANDING_INFO", 31, branding),
-            ("WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_START_OFFSET", 3, "5000"),
-            ("WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_DURATION", 3, "0"),
-            ("WMS_CONTENT_DESCRIPTION_COPIED_METADATA_FROM_PLAYLIST_FILE", 3, "1"),
-            ("WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_URL", 31, "Push:*")
+            ("WMS_CONTENT_DESCRIPTION_DESCRIPTION", 31, ""),
+            ("copyright", 31, ""),
         };
 
-        if (!string.IsNullOrEmpty(title))
-            entryList.Add(("WMS_CONTENT_DESCRIPTION_TITLE", 31, title));
-        if (!string.IsNullOrEmpty(author))
-            entryList.Add(("WMS_CONTENT_DESCRIPTION_AUTHOR", 31, author));
+        // clientData attributes use short names per WMS spec — NOT WMS_CONTENT_DESCRIPTION_* prefix
+        // Real WMS sends: 6,author,31,13,Static_Author then 5,title,31,12,Static_Title
+        entryList.Add(("author", 31, author ?? ""));
+        entryList.Add(("title", 31, title ?? ""));
+
+        entryList.Add(("WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_START_OFFSET", 3, "3000"));
+        entryList.Add(("WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_DURATION", 3, "0"));
+        entryList.Add(("WMS_CONTENT_DESCRIPTION_COPIED_METADATA_FROM_PLAYLIST_FILE", 3, "1"));
+        entryList.Add(("WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_URL", 31, "Push:*"));
 
         var entries = entryList.ToArray();
 
@@ -149,21 +155,6 @@ internal static class RadioMmshStreaming
         var payload = Encoding.ASCII.GetBytes(metadataText);
 
         return BuildMmshChunk(0x4D, 0, 0, 0x0C, payload);
-    }
-
-    /// <summary>
-    /// Build an MMSH $C (Stream Change Notification) chunk.
-    /// Real WMS sends this after $H to signal the stream is ready.
-    /// </summary>
-    private static byte[] BuildMmshStreamChangeChunk()
-    {
-        // $C is minimal: framing header (4 bytes) + LocationId (4 bytes)
-        var chunk = new byte[8];
-        chunk[0] = 0x24;       // Frame
-        chunk[1] = 0x43;       // 'C'
-        BitConverter.GetBytes((ushort)4).CopyTo(chunk, 2); // PacketLength = 4
-        // LocationId = 0 (bytes 4-7 already zero from array init)
-        return chunk;
     }
 
     /// <summary>
@@ -271,13 +262,13 @@ internal static class RadioMmshStreaming
             // Send Duration: 0 (live broadcast)
             BitConverter.GetBytes((long)0).CopyTo(patched, i + 72);
 
-            // Preroll: 5000ms (matches $M WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_START_OFFSET)
-            BitConverter.GetBytes((long)5000).CopyTo(patched, i + 80);
+            // Preroll: 3000ms (matches $M WMS_CONTENT_DESCRIPTION_PLAYLIST_ENTRY_START_OFFSET and real WMS)
+            BitConverter.GetBytes((long)3000).CopyTo(patched, i + 80);
 
             // Flags: 0x09 (broadcast=1 + bit 3, matching real WMS capture)
             BitConverter.GetBytes((uint)0x09).CopyTo(patched, i + 88);
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: patched $H File Properties (fileSize={hChunk.Length}, packets=0xFFFFFFFF, preroll=5000, flags=0x09)");
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: patched $H File Properties (fileSize={hChunk.Length}, packets=0xFFFFFFFF, preroll=3000, flags=0x09)");
 
             // Data Object: match real Cougar capture (Size=50, TotalDataPackets=0)
             long asfHeaderSize = BitConverter.ToInt64(patched, 12 + 16);
@@ -346,12 +337,9 @@ internal static class RadioMmshStreaming
     /// </summary>
     private static byte[] BuildAsfScriptStreamProperties()
     {
-        // Type-specific data: command type names
-        // Format: CommandTypeCount (2 bytes) + per type: NameLength (2) + Name (UTF-16LE, NOT null-terminated)
-        var typeName = Encoding.Unicode.GetBytes("TEXT");
-        int typeSpecificLen = 2 + 2 + typeName.Length; // count + nameLen + name
-
-        int objectSize = 24 + 16 + 16 + 8 + 4 + 4 + 2 + 4 + typeSpecificLen;
+        // Real WMS sends Type-Specific Data Length = 0 (no command type names in header).
+        // WMP9 discovers the command type ("TEXT") from the script data packets themselves.
+        int objectSize = 24 + 16 + 16 + 8 + 4 + 4 + 2 + 4; // no type-specific data
         var obj = new byte[objectSize];
         int pos = 0;
 
@@ -365,8 +353,8 @@ internal static class RadioMmshStreaming
         Buffer.BlockCopy(AsfNoErrorCorrectionGuid, 0, obj, pos, 16); pos += 16;
         // Time Offset = 0
         BitConverter.GetBytes((long)0).CopyTo(obj, pos); pos += 8;
-        // Type-Specific Data Length
-        BitConverter.GetBytes(typeSpecificLen).CopyTo(obj, pos); pos += 4;
+        // Type-Specific Data Length = 0
+        BitConverter.GetBytes(0).CopyTo(obj, pos); pos += 4;
         // Error Correction Data Length = 0
         BitConverter.GetBytes(0).CopyTo(obj, pos); pos += 4;
         // Flags: stream number 2, no encrypted content
@@ -374,46 +362,41 @@ internal static class RadioMmshStreaming
         // Reserved
         BitConverter.GetBytes(0).CopyTo(obj, pos); pos += 4;
 
-        // Type-Specific Data
-        BitConverter.GetBytes((ushort)1).CopyTo(obj, pos); pos += 2; // 1 command type
-        BitConverter.GetBytes((ushort)typeName.Length).CopyTo(obj, pos); pos += 2;
-        Buffer.BlockCopy(typeName, 0, obj, pos, typeName.Length);
-
         return obj;
     }
 
     /// <summary>
-    /// Build an ASF data packet containing a Script Command payload for stream 2.
-    /// The packet carries a TEXT command with the track title, padded to packetSize.
+    /// Build an ASF data packet containing a TEXT script command for stream 2.
+    /// Format:
+    ///   - Compressed payload (Rep Data Len = 1, Offset = Presentation Time)
+    ///   - Sub-payload with 1-byte length prefix
+    ///   - Body = null-terminated UTF-16LE strings: "TEXT\0" + "value\0"
+    /// When targetPacketSize > 0, the packet is padded with zeros to match the
+    /// declared ASF MaxPacketSize. MMSH requires this because WMP9 expects all
+    /// $D payloads to be the fixed broadcast packet size. MMS/TCP callers pass 0
+    /// for compact (unpadded) packets since MMS framing handles variable sizes.
     /// </summary>
-    private static byte[] BuildScriptCommandPacket(string trackTitle, int packetSize, uint presentationTime)
+    internal static byte[] BuildScriptCommandPacket(string trackTitle, uint sendTime, int targetPacketSize = 0, byte mediaObjectNumber = 0)
     {
-        // Build script command body
-        var typeStr = Encoding.Unicode.GetBytes("TEXT");
-        var valueStr = Encoding.Unicode.GetBytes(trackTitle ?? "");
-        int typeChars = "TEXT".Length;
-        int valueChars = (trackTitle ?? "").Length;
+        // Build script command body: "TEXT\0" + "value\0" (null-terminated UTF-16LE)
+        var typeBytes = Encoding.Unicode.GetBytes("TEXT\0");
+        var valueBytes = Encoding.Unicode.GetBytes((trackTitle ?? "") + "\0");
+        int bodyLen = typeBytes.Length + valueBytes.Length;
 
-        // Body: typeLen(2) + type + valueLen(2) + value
-        int bodyLen = 2 + typeStr.Length + 2 + valueStr.Length;
-        var body = new byte[bodyLen];
-        int bp = 0;
-        BitConverter.GetBytes((ushort)typeChars).CopyTo(body, bp); bp += 2;
-        Buffer.BlockCopy(typeStr, 0, body, bp, typeStr.Length); bp += typeStr.Length;
-        BitConverter.GetBytes((ushort)valueChars).CopyTo(body, bp); bp += 2;
-        Buffer.BlockCopy(valueStr, 0, body, bp, valueStr.Length);
+        // Compressed payload header: stream(1) + MON(1) + presTime(4) + repDataLen=1(1) + delta(1)
+        int payloadHeaderLen = 1 + 1 + 4 + 1 + 1;
+        // Sub-payload: dataLen(1) + body
+        int subPayloadLen = 1 + bodyLen;
 
-        // Payload header: streamNum(1) + mediaObjNum(1) + offset(4) + repLen(1) + repData(8)
-        int payloadHeaderLen = 1 + 1 + 4 + 1 + 8;
-        int payloadTotalLen = payloadHeaderLen + bodyLen;
+        bool padded = targetPacketSize > 0;
 
-        // Packet header: EC(3) + LTF(1) + PropFlags(1) + paddingLen(2) + sendTime(4) + duration(2)
-        int packetHeaderLen = 3 + 1 + 1 + 2 + 4 + 2;
-        int usedBytes = packetHeaderLen + payloadTotalLen;
-        int padding = packetSize - usedBytes;
-        if (padding < 0) padding = 0;
+        // Packet header: EC(3) + LTF(1) + PF(1) + pktLen(2) + [paddingLen(2)] + sendTime(4) + duration(2)
+        int packetHeaderLen = padded ? 15 : 13; // +2 for WORD padding length field
+        int contentSize = packetHeaderLen + payloadHeaderLen + subPayloadLen;
+        int paddingLen = padded ? Math.Max(0, targetPacketSize - contentSize) : 0;
+        int totalPacketSize = padded ? targetPacketSize : contentSize;
 
-        var packet = new byte[packetSize];
+        var packet = new byte[totalPacketSize]; // zeros = implicit padding
         int pos = 0;
 
         // Error Correction: 0x82 + 2 opaque bytes
@@ -421,28 +404,37 @@ internal static class RadioMmshStreaming
         packet[pos++] = 0x00;
         packet[pos++] = 0x00;
 
-        // LTF: bits 3-4 = 10 (WORD padding length), no packet/sequence length fields
-        packet[pos++] = 0x10;
-        // Property Flags: bits 0-1=01 (BYTE rep data len), 2-3=11 (DWORD offset),
-        //   4-5=01 (BYTE media obj num), 6-7=01 (BYTE stream num)
+        // LTF: bits 5-6 = Packet Length Type (10 = WORD)
+        //       bits 3-4 = Padding Length Type (00 = none, 10 = WORD)
+        packet[pos++] = padded ? (byte)0x50 : (byte)0x40;
+        // Property Flags: 0x5D (BYTE stream, BYTE MON, DWORD offset, BYTE rep data len)
         packet[pos++] = 0x5D;
-        // Padding length (WORD)
-        BitConverter.GetBytes((ushort)padding).CopyTo(packet, pos); pos += 2;
-        // Send Time (DWORD) — must match current stream timeline or WMP discards as stale
-        BitConverter.GetBytes(presentationTime).CopyTo(packet, pos); pos += 4;
+        // Packet Length (WORD)
+        BitConverter.GetBytes((ushort)totalPacketSize).CopyTo(packet, pos); pos += 2;
+        // Padding Length (WORD) — only present when padded
+        if (padded)
+        {
+            BitConverter.GetBytes((ushort)paddingLen).CopyTo(packet, pos); pos += 2;
+        }
+        // Send Time (DWORD)
+        BitConverter.GetBytes(sendTime).CopyTo(packet, pos); pos += 4;
         // Duration (WORD) = 0
         BitConverter.GetBytes((ushort)0).CopyTo(packet, pos); pos += 2;
 
-        // Payload header
+        // Compressed payload header (Rep Data Len = 1 triggers compressed payload mode)
         packet[pos++] = 0x82; // stream 2 | key-frame bit (0x80)
-        packet[pos++] = 0x00; // media object number
-        BitConverter.GetBytes((uint)0).CopyTo(packet, pos); pos += 4; // offset = 0
-        packet[pos++] = 0x08; // replicated data length = 8
-        BitConverter.GetBytes(bodyLen).CopyTo(packet, pos); pos += 4; // media object size
-        BitConverter.GetBytes(presentationTime).CopyTo(packet, pos); pos += 4; // presentation time
+        packet[pos++] = mediaObjectNumber;
+        // Offset field = Presentation Time (reinterpreted in compressed payload mode)
+        // Real WMS: PresentationTime = SendTime + Preroll(3000)
+        BitConverter.GetBytes(sendTime + 3000u).CopyTo(packet, pos); pos += 4;
+        packet[pos++] = 0x01; // replicated data length = 1 → compressed payload
+        packet[pos++] = 0x00; // presentation time delta = 0
 
-        // Payload body (script command)
-        Buffer.BlockCopy(body, 0, packet, pos, bodyLen);
+        // Sub-payload: length(1) + body
+        packet[pos++] = (byte)bodyLen;
+        Buffer.BlockCopy(typeBytes, 0, packet, pos, typeBytes.Length); pos += typeBytes.Length;
+        Buffer.BlockCopy(valueBytes, 0, packet, pos, valueBytes.Length);
+        // Remaining bytes are already zero (padding)
 
         return packet;
     }
@@ -450,7 +442,7 @@ internal static class RadioMmshStreaming
     /// <summary>
     /// Rebuild the $H chunk with an updated Content Description title.
     /// </summary>
-    private static byte[] RebuildHChunkWithTitle(MmshLiveSession session, string newTitle)
+    internal static byte[] RebuildHChunkWithTitle(MmshLiveSession session, string newTitle)
     {
         var hChunk = session.HChunk;
 
@@ -458,6 +450,7 @@ internal static class RadioMmshStreaming
         var headerObj = new byte[asfHeaderSize];
         Buffer.BlockCopy(hChunk, 12, headerObj, 0, (int)asfHeaderSize);
 
+        // 1. Replace Content Description Object (Title field)
         int cdOffset = -1;
         for (int i = 0; i <= headerObj.Length - 24; i++)
         {
@@ -475,9 +468,9 @@ internal static class RadioMmshStreaming
 
         var newCd = BuildAsfContentDescription(
             title: newTitle,
-            author: session.Station?.Name ?? "VintageHive",
-            copyright: session.Station?.Country ?? "",
-            description: session.Station != null ? FormatStationDescription(session.Station) : "",
+            author: "",
+            copyright: "",
+            description: "",
             rating: "");
 
         int beforeCd = cdOffset;
@@ -492,12 +485,17 @@ internal static class RadioMmshStreaming
 
         BitConverter.GetBytes(newAsfHeaderSize).CopyTo(newHeaderObj, 16);
 
+        // 2. Replace Extended Content Description's WM/Title + WM/Artist
+        newHeaderObj = ReplaceExtendedContentDescriptor(newHeaderObj, "WM/Title", newTitle);
+        newHeaderObj = ReplaceExtendedContentDescriptor(newHeaderObj, "WM/Artist", "");
+
         var dataObjHeader = new byte[50];
         Buffer.BlockCopy(hChunk, 12 + (int)asfHeaderSize, dataObjHeader, 0, 50);
 
-        var hPayload = new byte[newAsfHeaderSize + 50];
-        Buffer.BlockCopy(newHeaderObj, 0, hPayload, 0, (int)newAsfHeaderSize);
-        Buffer.BlockCopy(dataObjHeader, 0, hPayload, (int)newAsfHeaderSize, 50);
+        long finalHeaderSize = BitConverter.ToInt64(newHeaderObj, 16); // re-read in case ReplaceExtended changed it
+        var hPayload = new byte[finalHeaderSize + 50];
+        Buffer.BlockCopy(newHeaderObj, 0, hPayload, 0, (int)finalHeaderSize);
+        Buffer.BlockCopy(dataObjHeader, 0, hPayload, (int)finalHeaderSize, 50);
 
         return BuildMmshChunk(0x48, 0, 0, 0x0C, hPayload);
     }
@@ -506,7 +504,7 @@ internal static class RadioMmshStreaming
     /// Safely locate the Send Time (4 bytes) and Duration (2 bytes) fields within
     /// a raw ASF data packet starting at <paramref name="offset"/> in the buffer.
     /// </summary>
-    private static bool TryFindAsfSendTimeAndDurationOffsets(
+    internal static bool TryFindAsfSendTimeAndDurationOffsets(
         byte[] buffer, int offset, int length,
         out int sendTimeOffset,
         out int durationOffset)
@@ -584,6 +582,84 @@ internal static class RadioMmshStreaming
         }
 
         return obj;
+    }
+
+    /// <summary>
+    /// Replace a single descriptor's value in the Extended Content Description Object.
+    /// Finds the descriptor by name and replaces its value in-place, adjusting sizes.
+    /// Returns the (possibly resized) header array.
+    /// </summary>
+    private static byte[] ReplaceExtendedContentDescriptor(byte[] headerObj, string descriptorName, string newValue)
+    {
+        // Find Extended Content Description Object
+        int ecdOffset = -1;
+        for (int i = 0; i <= headerObj.Length - 26; i++)
+        {
+            bool match = true;
+            for (int j = 0; j < 16; j++)
+            {
+                if (headerObj[i + j] != AsfExtendedContentDescriptionGuid[j]) { match = false; break; }
+            }
+            if (match) { ecdOffset = i; break; }
+        }
+
+        if (ecdOffset < 0) return headerObj;
+
+        long ecdSize = BitConverter.ToInt64(headerObj, ecdOffset + 16);
+        ushort count = BitConverter.ToUInt16(headerObj, ecdOffset + 24);
+
+        // Walk descriptors to find the target
+        int pos = ecdOffset + 26; // after GUID(16) + Size(8) + Count(2)
+        int ecdEnd = ecdOffset + (int)ecdSize;
+        var targetNameBytes = Encoding.Unicode.GetBytes(descriptorName + "\0");
+
+        for (int d = 0; d < count && pos + 6 <= ecdEnd; d++)
+        {
+            ushort nameLen = BitConverter.ToUInt16(headerObj, pos);
+            int nameStart = pos + 2;
+
+            if (nameStart + nameLen + 4 > ecdEnd) break;
+
+            // Check if this is our target descriptor
+            bool nameMatch = nameLen == targetNameBytes.Length;
+            if (nameMatch)
+            {
+                for (int j = 0; j < nameLen; j++)
+                {
+                    if (headerObj[nameStart + j] != targetNameBytes[j]) { nameMatch = false; break; }
+                }
+            }
+
+            ushort valueType = BitConverter.ToUInt16(headerObj, nameStart + nameLen);
+            ushort oldValueLen = BitConverter.ToUInt16(headerObj, nameStart + nameLen + 2);
+            int valueStart = nameStart + nameLen + 4;
+
+            if (nameMatch && valueType == 0) // type 0 = Unicode string
+            {
+                var newValueBytes = Encoding.Unicode.GetBytes((newValue ?? "") + "\0");
+                int sizeDiff = newValueBytes.Length - oldValueLen;
+
+                var result = new byte[headerObj.Length + sizeDiff];
+                Buffer.BlockCopy(headerObj, 0, result, 0, valueStart);
+                Buffer.BlockCopy(newValueBytes, 0, result, valueStart, newValueBytes.Length);
+                Buffer.BlockCopy(headerObj, valueStart + oldValueLen, result, valueStart + newValueBytes.Length,
+                    headerObj.Length - valueStart - oldValueLen);
+
+                // Update value length
+                BitConverter.GetBytes((ushort)newValueBytes.Length).CopyTo(result, nameStart + nameLen + 2);
+                // Update ECD object size
+                BitConverter.GetBytes(ecdSize + sizeDiff).CopyTo(result, ecdOffset + 16);
+                // Update ASF Header Object size
+                long asfSize = BitConverter.ToInt64(result, 16);
+                BitConverter.GetBytes(asfSize + sizeDiff).CopyTo(result, 16);
+
+                return result;
+            }
+
+            pos = valueStart + oldValueLen;
+        }
+
+        return headerObj;
     }
 
     /// <summary>
@@ -755,11 +831,16 @@ internal static class RadioMmshStreaming
     private static readonly ConcurrentDictionary<string, MmshLiveSession> _liveSessions = new();
     private static readonly SemaphoreSlim _sessionCreateLock = new(1, 1);
 
-    private class MmshLiveSession : IDisposable
+    internal class MmshLiveSession : IDisposable
     {
         public byte[] HChunk { get; }
         public int AsfPacketSize { get; }
         public RadioStationInfo Station { get; }
+
+        /// <summary>
+        /// Raw ASF header bytes (strips 12-byte MMSH $H framing from HChunk).
+        /// </summary>
+        public byte[] RawAsfHeader => HChunk.Length > 12 ? HChunk[12..] : Array.Empty<byte>();
         private IcyMetadataStrippingStream _icyStream;
 
         public string CurrentTrack =>
@@ -835,7 +916,7 @@ internal static class RadioMmshStreaming
                 oldTcs.TrySetResult();
             }
 
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Track changed: \"{newTrack}\"");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Track changed: \"{newTrack}\"");
         }
 
         private async Task ProduceLoop(Stream ffmpegOut, int packetSize)
@@ -875,24 +956,24 @@ internal static class RadioMmshStreaming
 
                     if (locationId <= 100 || gapMs > 500)
                     {
-                        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Producer: pkt={locationId} gap={gapMs:F0}ms");
+                        Log.WriteLine(Log.LEVEL_VERBOSE, LogSession, $"Producer: pkt={locationId} gap={gapMs:F0}ms");
                     }
                     else if (locationId % 500 == 0)
                     {
-                        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Producer: {locationId} packets");
+                        Log.WriteLine(Log.LEVEL_VERBOSE, LogSession, $"Producer: {locationId} packets");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log.WriteLine(Log.LEVEL_ERROR, LogSys, $"Producer error: {ex.Message}");
+                Log.WriteLine(Log.LEVEL_ERROR, LogSession, $"Producer error: {ex.Message}");
             }
             finally
             {
                 lock (_lock) { _newDataTcs.TrySetResult(); }
             }
 
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Producer ended ({_headSeq} total packets)");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Producer ended ({_headSeq} total packets)");
         }
 
         public long LivePosition { get { lock (_lock) return _headSeq; } }
@@ -924,16 +1005,16 @@ internal static class RadioMmshStreaming
             var count = Interlocked.Increment(ref _activeClients);
             _cleanupCts?.Cancel();
             _cleanupCts = null;
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Station {stationId}: client connected ({count} active)");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Station {stationId}: client connected ({count} active)");
         }
 
         public void RemoveClient(string stationId)
         {
             var count = Interlocked.Decrement(ref _activeClients);
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Station {stationId}: client disconnected ({count} active)");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Station {stationId}: client disconnected ({count} active)");
             if (count <= 0)
             {
-                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Station {stationId}: last client left, cleanup in 30s");
+                Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Station {stationId}: last client left, cleanup in 30s");
                 ScheduleCleanup(stationId);
             }
         }
@@ -951,7 +1032,7 @@ internal static class RadioMmshStreaming
                     {
                         _liveSessions.TryRemove(stationId, out _);
                         Dispose();
-                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session for {stationId} cleaned up (no clients for 30s)");
+                        Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session for {stationId} cleaned up (no clients for 30s)");
                     }
                 }
                 catch (OperationCanceledException) { }
@@ -971,7 +1052,7 @@ internal static class RadioMmshStreaming
         }
     }
 
-    private static async Task<MmshLiveSession> GetOrCreateSessionAsync(string stationId)
+    internal static async Task<MmshLiveSession> GetOrCreateSessionAsync(string stationId)
     {
         if (_liveSessions.TryGetValue(stationId, out var session) && session.IsAlive)
             return session;
@@ -983,7 +1064,7 @@ internal static class RadioMmshStreaming
                 return session;
 
             var info = await RadioStationResolver.ResolveStation(stationId);
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session creating: {info.Name} ({info.Codec})");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session creating: {info.Name} ({info.Codec})");
 
             var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
             {
@@ -1013,12 +1094,12 @@ internal static class RadioMmshStreaming
                 {
                     icyStream = new IcyMetadataStrippingStream(rawUpstreamStream, metaInterval);
                     upstreamStream = icyStream;
-                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session: ICY metadata interval={metaInterval}");
+                    Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: ICY metadata interval={metaInterval}");
                 }
             }
             else
             {
-                Log.WriteLine(Log.LEVEL_INFO, LogSys, "Session: upstream has no ICY metadata support");
+                Log.WriteLine(Log.LEVEL_INFO, LogSession, "Session: upstream has no ICY metadata support");
             }
 
             var ffmpeg = CreateWmaFfmpegProcess();
@@ -1028,7 +1109,7 @@ internal static class RadioMmshStreaming
                 using var reader = ffmpeg.StandardError;
                 while (await reader.ReadLineAsync() is { } line)
                 {
-                    Log.WriteLine(Log.LEVEL_DEBUG, "FFMPEG", line);
+                    Log.WriteLine(Log.LEVEL_VERBOSE, "FFMPEG", line);
                 }
             });
             _ = Task.Run(async () =>
@@ -1062,39 +1143,66 @@ internal static class RadioMmshStreaming
             int packetSize = GetAsfPacketSize(headerObj);
             PatchAsfHeaderForBroadcast(headerObj, packetSize);
 
+            // Strip any Content Description and Extended Content Description that ffmpeg wrote.
+            // We'll add our own clean versions below — having two of either corrupts the header.
+            var preStripSize = headerObj.Length;
+            headerObj = StripAsfObjectByGuid(headerObj, AsfContentDescriptionGuid);
+            headerObj = StripAsfObjectByGuid(headerObj, AsfExtendedContentDescriptionGuid);
+            asfHeaderSize = BitConverter.ToInt64(headerObj, 16);
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: stripped ffmpeg header {preStripSize}B → {headerObj.Length}B (removed {preStripSize - headerObj.Length}B)");
+
+            // Dump all sub-object GUIDs remaining in the ASF header for debugging
+            {
+                int objPos = 30;
+                int objIdx = 0;
+                while (objPos + 24 <= (int)asfHeaderSize)
+                {
+                    var guidStr = BitConverter.ToString(headerObj, objPos, 16);
+                    long objSize = BitConverter.ToInt64(headerObj, objPos + 16);
+                    Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: ASF sub-object[{objIdx}] at {objPos}: GUID={guidStr} size={objSize}B");
+                    objPos += (int)objSize;
+                    objIdx++;
+                }
+            }
+
             // By now, ffmpeg has consumed ~32KB of upstream audio through the IcyMetadataStrippingStream,
             // so the first ICY metadata block should have been parsed. Use it for the initial title.
-            var initialTrack = icyStream?.CurrentTrack ?? info.CurrentTrack ?? info.Name;
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session: initialTrack=\"{initialTrack}\" (icy={icyStream?.CurrentTrack != null})");
+            var initialTrack = icyStream?.CurrentTrack ?? info.CurrentTrack ?? "";
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: initialTrack=\"{initialTrack}\" (icy={icyStream?.CurrentTrack != null})");
 
             var contentDesc = BuildAsfContentDescription(
                 title: initialTrack,
-                author: info.Name,
-                copyright: info.Country ?? "",
-                description: FormatStationDescription(info),
+                author: "",
+                copyright: "",
+                description: "",
                 rating: "");
+
+            var extContentDesc = BuildAsfExtendedContentDescription(
+                ("WM/Title", initialTrack));
 
             var scriptStream = BuildAsfScriptStreamProperties();
 
-            var finalHeaderSize = asfHeaderSize + contentDesc.Length + scriptStream.Length;
+            var finalHeaderSize = asfHeaderSize + contentDesc.Length + extContentDesc.Length + scriptStream.Length;
             var finalHeaderObj = new byte[finalHeaderSize];
-            Buffer.BlockCopy(headerObj, 0, finalHeaderObj, 0, (int)asfHeaderSize);
-            Buffer.BlockCopy(contentDesc, 0, finalHeaderObj, (int)asfHeaderSize, contentDesc.Length);
-            Buffer.BlockCopy(scriptStream, 0, finalHeaderObj, (int)asfHeaderSize + contentDesc.Length, scriptStream.Length);
+            int copyPos = 0;
+            Buffer.BlockCopy(headerObj, 0, finalHeaderObj, copyPos, (int)asfHeaderSize); copyPos += (int)asfHeaderSize;
+            Buffer.BlockCopy(contentDesc, 0, finalHeaderObj, copyPos, contentDesc.Length); copyPos += contentDesc.Length;
+            Buffer.BlockCopy(extContentDesc, 0, finalHeaderObj, copyPos, extContentDesc.Length); copyPos += extContentDesc.Length;
+            Buffer.BlockCopy(scriptStream, 0, finalHeaderObj, copyPos, scriptStream.Length);
 
             BitConverter.GetBytes(finalHeaderSize).CopyTo(finalHeaderObj, 16);
 
             uint numObjects = BitConverter.ToUInt32(finalHeaderObj, 24);
-            BitConverter.GetBytes(numObjects + 2u).CopyTo(finalHeaderObj, 24); // +2: Content Desc + Script Stream
+            BitConverter.GetBytes(numObjects + 3u).CopyTo(finalHeaderObj, 24); // +3: Content Desc + Ext Content Desc + Script Stream
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Session: ASF header {finalHeaderSize}B (+CD:{contentDesc.Length}B +Script:{scriptStream.Length}B)");
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSession, $"Session: ASF header {finalHeaderSize}B (+CD:{contentDesc.Length}B +Script:{scriptStream.Length}B)");
 
             var hPayload = new byte[finalHeaderSize + 50];
             Buffer.BlockCopy(finalHeaderObj, 0, hPayload, 0, (int)finalHeaderSize);
             Buffer.BlockCopy(dataObjHeader, 0, hPayload, (int)finalHeaderSize, 50);
             var hChunk = BuildMmshChunk(0x48, 0, 0, 0x0C, hPayload);
 
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session ready: header={finalHeaderSize}B packetSize={packetSize} $H={hChunk.Length}B");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session ready: header={finalHeaderSize}B packetSize={packetSize} $H={hChunk.Length}B");
 
             var newSession = new MmshLiveSession(httpClient, upstreamResponse, ffmpeg, hChunk, packetSize, ffmpegOut, info, icyStream);
 
@@ -1194,7 +1302,7 @@ internal static class RadioMmshStreaming
                 byte[] hChunk;
                 if (requestContext > 2)
                 {
-                    var currentTrack = session.CurrentTrack ?? session.Station?.Name ?? "Unknown";
+                    var currentTrack = session.CurrentTrack ?? "";
                     hChunk = RebuildHChunkWithTitle(session, currentTrack);
                     Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: reconnect rebuilt $H title=\"{currentTrack}\"", traceId);
                 }
@@ -1344,8 +1452,77 @@ internal static class RadioMmshStreaming
         // ═══ GET handling ═══
         try
         {
+            bool isPipelineRequest = pragmas.ContainsKey("pipeline-request") && pragmas["pipeline-request"] == "1";
             bool isPlay = pragmas.ContainsKey("xPlayStrm") && pragmas["xPlayStrm"] == "1";
             bool isPlayNext = pragmas.ContainsKey("xPlayNextEntry") && pragmas["xPlayNextEntry"] == "1";
+
+            // ═══ Pipeline Request — WMP9 sends this before PLAY for predstrm stream selection ═══
+            // Real Cougar responds with a $T token in a chunked response.
+            // Without this, WMP9's pipeline-request falls into DESCRIBE and gets
+            // a full ASF header, which confuses the negotiation.
+            if (isPipelineRequest && !isPlay && !isPlayNext)
+            {
+                var httpVer = request.Version ?? "HTTP/1.0";
+                bool useChunked = httpVer.Contains("1.1");
+
+                // Check if this is a predstrm request (has stream-switch-entry) → $T response
+                // or a follow-up → pipeline-result response
+                bool hasSwitchEntry = pragmas.ContainsKey("stream-switch-entry");
+
+                if (hasSwitchEntry)
+                {
+                    // Predstrm: respond with $T token (4 bytes: 0x24 0x54 0x00 0x00)
+                    var resp =
+                        $"{httpVer} 200 OK\r\n" +
+                        "Server: Cougar/9.00.00.3372\r\n" +
+                        $"Date: {dateStr}\r\n" +
+                        $"Pragma: no-cache, client-id={clientId}, features=\"broadcast\", timeout=60000\r\n" +
+                        "Cache-Control: no-cache, max-age=0, x-wms-stream-type=\"broadcast\", user-public, must-revalidate, x-wms-proxy-split\r\n" +
+                        $"Last-Modified: {DateTime.UtcNow.AddSeconds(-17).ToString("R")}\r\n" +
+                        (useChunked ? "Transfer-Encoding: chunked\r\n" : "") +
+                        "Supported: com.microsoft.wm.srvppair, com.microsoft.wm.sswitch, com.microsoft.wm.predstrm, com.microsoft.wm.fastcache\r\n" +
+                        "\r\n";
+
+                    await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
+
+                    // $T token: exactly 4 bytes
+                    var tPacket = new byte[] { 0x24, 0x54, 0x00, 0x00 };
+                    if (useChunked)
+                    {
+                        await WriteHttpChunkAsync(socket, tPacket);
+                        await socket.WriteAsync(Encoding.ASCII.GetBytes("0\r\n\r\n"));
+                    }
+                    else
+                    {
+                        await socket.WriteAsync(tPacket);
+                    }
+                    await socket.FlushAsync();
+
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: pipeline-request (predstrm) → $T", traceId);
+                }
+                else
+                {
+                    // Follow-up pipeline request → pipeline-result response
+                    var resp =
+                        $"{httpVer} 200 OK\r\n" +
+                        "Server: Cougar/9.00.00.3372\r\n" +
+                        $"Date: {dateStr}\r\n" +
+                        $"Pragma: no-cache, pipeline-result=1, client-id={clientId}, features=\"broadcast\", timeout=60000\r\n" +
+                        "Cache-Control: no-cache, max-age=0, x-wms-stream-type=\"broadcast\", user-public, must-revalidate, x-wms-proxy-split\r\n" +
+                        $"Last-Modified: {DateTime.UtcNow.AddSeconds(-17).ToString("R")}\r\n" +
+                        "Supported: com.microsoft.wm.srvppair, com.microsoft.wm.sswitch, com.microsoft.wm.predstrm, com.microsoft.wm.fastcache\r\n" +
+                        "Content-Length: 0\r\n" +
+                        "\r\n";
+
+                    await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
+                    await socket.FlushAsync();
+
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: pipeline-request → pipeline-result=1", traceId);
+                }
+
+                response.Handled = true;
+                return;
+            }
 
             var session = await GetOrCreateSessionAsync(stationId);
 
@@ -1393,31 +1570,20 @@ internal static class RadioMmshStreaming
 
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
 
-                // $M → $H → $C → $M → $H (matches real Cougar sequence from PDML capture)
-                // Real server increments playlist-gen-id by 1 in the second $M.
-                var mChunk1 = BuildMmshMetadataChunk(playlistGenId);
-                var mChunk2 = BuildMmshMetadataChunk(playlistGenId + 1);
+                // Real WMS sends just ONE $M → ONE $H, then data.
+                // No $C stream change on initial connection.
+                var currentTrack = session.CurrentTrack ?? "";
+                var mChunk = BuildMmshMetadataChunk(playlistGenId, currentTrack);
 
-                if (useChunked) await WriteHttpChunkAsync(socket, mChunk1);
-                else await socket.WriteAsync(mChunk1);
-
-                if (useChunked) await WriteHttpChunkAsync(socket, wmp9HChunk);
-                else await socket.WriteAsync(wmp9HChunk);
-
-                var cChunk = BuildMmshStreamChangeChunk();
-                if (useChunked) await WriteHttpChunkAsync(socket, cChunk);
-                else await socket.WriteAsync(cChunk);
-
-                // Second $M + $H after stream change notification
-                if (useChunked) await WriteHttpChunkAsync(socket, mChunk2);
-                else await socket.WriteAsync(mChunk2);
+                if (useChunked) await WriteHttpChunkAsync(socket, mChunk);
+                else await socket.WriteAsync(mChunk);
 
                 if (useChunked) await WriteHttpChunkAsync(socket, wmp9HChunk);
                 else await socket.WriteAsync(wmp9HChunk);
 
                 await socket.FlushAsync();
 
-                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: sent $M({mChunk1.Length}B) $H({wmp9HChunk.Length}B) $C(8B) $M({mChunk2.Length}B) $H — streaming from seq={readPos} live={session.LivePosition}", traceId);
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: sent $M({mChunk.Length}B) $H({wmp9HChunk.Length}B) — streaming from seq={readPos} live={session.LivePosition}", traceId);
 
                 // Stream $D data packets — pass through producer's LocationId/AFFlags/SendTime
                 // unchanged so the MMS packet timeline stays continuous across reconnects.
@@ -1426,7 +1592,10 @@ internal static class RadioMmshStreaming
                 byte lastAfFlagsSent = 0;
                 uint lastSendTime = 0;
                 var lastKnownTrack = session.CurrentTrack;
-                int nextGenId = playlistGenId + 2; // initial sequence used genId and genId+1
+                string pendingScriptTitle = null;
+                uint packetsSinceLastText = 0;
+                const uint TextResendInterval = 50; // re-send TEXT every N audio packets
+                byte scriptObjectNumber = 0; // media object number for TEXT stream — must increment per script command
 
                 session.AddClient(stationId);
                 try
@@ -1453,6 +1622,34 @@ internal static class RadioMmshStreaming
 
                             readPos = seq + 1;
                             sent++;
+                            packetsSinceLastText++;
+
+                            // Periodic TEXT re-send: keep Now Playing fresh even without track changes
+                            if (pendingScriptTitle == null && packetsSinceLastText >= TextResendInterval)
+                            {
+                                var refreshTrack = session.CurrentTrack;
+                                if (!string.IsNullOrEmpty(refreshTrack))
+                                    pendingScriptTitle = refreshTrack;
+                            }
+
+                            // Inject TEXT $D inline after audio $D
+                            if (pendingScriptTitle != null && lastSendTime > 0)
+                            {
+                                var scriptTitle = pendingScriptTitle;
+                                pendingScriptTitle = null;
+                                packetsSinceLastText = 0;
+
+                                var scriptPacket = BuildScriptCommandPacket(scriptTitle, lastSendTime, mediaObjectNumber: scriptObjectNumber++);
+                                var scriptChunk = BuildMmshChunk(0x44,
+                                    lastLocationIdSent + 1, 1,
+                                    (byte)(lastAfFlagsSent + 1), scriptPacket);
+
+                                if (useChunked) await WriteHttpChunkAsync(socket, scriptChunk);
+                                else await socket.WriteAsync(scriptChunk);
+
+                                Log.WriteLine(Log.LEVEL_INFO, LogSys,
+                                    $"MMSH: TEXT \"{scriptTitle}\" ({scriptPacket.Length}B, sendTime={lastSendTime})", traceId);
+                            }
 
                             if (sent <= 50 || sent % 500 == 0)
                             {
@@ -1468,36 +1665,10 @@ internal static class RadioMmshStreaming
                             if (trackTask.IsCompleted && session.TryGetTrackUpdate(lastKnownTrack, out var newTrack))
                             {
                                 lastKnownTrack = newTrack;
-                                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: track changed to \"{newTrack}\"", traceId);
+                                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"MMSH: track changed to \"{newTrack}\"", traceId);
 
-                                // Script command $D for programmatic consumers (embedded OCX hosts)
-                                // Use producer-aligned LocationId/AFFlags so numbering stays continuous
-                                var scriptLocId = lastLocationIdSent + 1;
-                                var scriptAfFlags = (byte)(lastAfFlagsSent + 1);
-                                var scriptPacket = BuildScriptCommandPacket(newTrack, session.AsfPacketSize, lastSendTime);
-                                var scriptChunk = BuildMmshChunk(0x44, scriptLocId, 1, scriptAfFlags, scriptPacket);
-
-                                if (useChunked) await WriteHttpChunkAsync(socket, scriptChunk);
-                                else await socket.WriteAsync(scriptChunk);
-
-                                // $C → $M → $H for standalone player's Now Playing UI.
-                                // SendTime is never reset — audio timestamps remain monotonic.
-                                var updatedH = RebuildHChunkWithTitle(session, newTrack);
-                                var updatedWmp9H = PatchHChunkForWmp9(updatedH);
-
-                                var trackCChunk = BuildMmshStreamChangeChunk();
-                                if (useChunked) await WriteHttpChunkAsync(socket, trackCChunk);
-                                else await socket.WriteAsync(trackCChunk);
-
-                                var trackMChunk = BuildMmshMetadataChunk(nextGenId, newTrack, session.Station?.Name);
-                                if (useChunked) await WriteHttpChunkAsync(socket, trackMChunk);
-                                else await socket.WriteAsync(trackMChunk);
-
-                                if (useChunked) await WriteHttpChunkAsync(socket, updatedWmp9H);
-                                else await socket.WriteAsync(updatedWmp9H);
-
-                                nextGenId++;
-                                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: sent $C $M(genId={nextGenId - 1}) $H for \"{newTrack}\"", traceId);
+                                // TEXT only — no $M/$C/$H, those cause decoder reinit and audio glitches
+                                pendingScriptTitle = newTrack;
                             }
                         }
                     }
