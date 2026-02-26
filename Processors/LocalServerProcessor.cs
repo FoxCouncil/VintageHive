@@ -649,7 +649,7 @@ internal static class LocalServerProcessor
         {
             resourceFile = requestFilePath.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
 
-            if (!Resources.Statics.ContainsKey(resourceFile))
+            if (!VintageHive.Utilities.Resources.Statics.ContainsKey(resourceFile))
             {
                 res.SetNotFound();
 
@@ -664,7 +664,7 @@ internal static class LocalServerProcessor
         {
             case "text/html":
             {
-                var source = isReplacedFile ? await VFS.FileReadStringAsync(vfsPath) : Resources.GetStaticsResourceString(resourceFile);
+                var source = isReplacedFile ? await VFS.FileReadStringAsync(vfsPath) : VintageHive.Utilities.Resources.GetStaticsResourceString(resourceFile);
 
                 if (fluidParser.TryParse(source, out var template, out var error))
                 {
@@ -679,7 +679,7 @@ internal static class LocalServerProcessor
 
             default:
             {
-                res.SetBodyData(isReplacedFile ? await VFS.FileReadDataAsync(vfsPath) : Resources.GetStaticsResourceData(resourceFile), mimetype);
+                res.SetBodyData(isReplacedFile ? await VFS.FileReadDataAsync(vfsPath) : VintageHive.Utilities.Resources.GetStaticsResourceData(resourceFile), mimetype);
             }
             break;
         }

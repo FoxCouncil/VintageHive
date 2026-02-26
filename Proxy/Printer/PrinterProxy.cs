@@ -302,16 +302,17 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = Mind.PrinterDb.CreateJob(request.RequestingUserName);
+        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
 
         response.JobId = jobId;
-        response.JobUri = request.PrinterUri + $"/{jobId}";
+        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendUri job created; Id={jobId}", "");
 
-        request.DocumentAttributes ??= new();
-
-        FillWithDefaultValues(request.DocumentAttributes);
+        if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
+        {
+            request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
+        }
 
         response.JobState = JobState.Pending;
         response.StatusCode = IppStatusCode.SuccessfulOk;
@@ -328,16 +329,17 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = Mind.PrinterDb.CreateJob(request.RequestingUserName);
+        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
 
         response.JobId = jobId;
-        response.JobUri = request.PrinterUri + $"/{jobId}";
+        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendDocument job created; Id={jobId}", "");
 
-        request.DocumentAttributes ??= new();
-
-        FillWithDefaultValues(request.DocumentAttributes);
+        if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
+        {
+            request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
+        }
 
         response.JobState = JobState.Pending;
         response.StatusCode = IppStatusCode.SuccessfulOk;
@@ -363,7 +365,7 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = request.JobId;
+        var jobId = request.OperationAttributes.JobId;
 
         if (jobId.HasValue && Mind.PrinterDb.SetJobState(jobId.Value, PrinterJobState.Pending))
         {
@@ -382,7 +384,7 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = request.JobId;
+        var jobId = request.OperationAttributes.JobId;
 
         if (jobId.HasValue && Mind.PrinterDb.SetJobState(jobId.Value, PrinterJobState.Pending))
         {
@@ -412,18 +414,24 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = Mind.PrinterDb.CreateJob(request.RequestingUserName);
+        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
 
         response.JobId = jobId;
-        response.JobUri = request.PrinterUri + $"/{jobId}";
+        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
 
-        request.NewJobAttributes ??= new();
+        request.JobTemplateAttributes ??= new();
 
-        FillWithDefaultValues(jobId, request.NewJobAttributes);
+        FillWithDefaultValues(request.JobTemplateAttributes);
 
-        request.DocumentAttributes ??= new();
+        if (string.IsNullOrEmpty(request.OperationAttributes.JobName))
+        {
+            request.OperationAttributes.JobName = $"Job {jobId}";
+        }
 
-        FillWithDefaultValues(request.DocumentAttributes);
+        if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
+        {
+            request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
+        }
 
         response.StatusCode = IppStatusCode.SuccessfulOk;
 
@@ -441,23 +449,29 @@ internal class PrinterProxy : Listener
             JobStateReasons = [JobStateReason.None]
         };
 
-        var jobId = Mind.PrinterDb.CreateJob(request.RequestingUserName);
+        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
 
         response.JobId = jobId;
-        response.JobUri = request.PrinterUri + $"/{jobId}";
+        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
 
-        request.NewJobAttributes ??= new();
+        request.JobTemplateAttributes ??= new();
 
-        FillWithDefaultValues(jobId, request.NewJobAttributes);
+        FillWithDefaultValues(request.JobTemplateAttributes);
 
-        request.DocumentAttributes ??= new();
+        if (string.IsNullOrEmpty(request.OperationAttributes.JobName))
+        {
+            request.OperationAttributes.JobName = $"Job {jobId}";
+        }
 
-        FillWithDefaultValues(request.DocumentAttributes);
+        if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
+        {
+            request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
+        }
 
         if (!Mind.PrinterDb.SetJobDocumentData(
             jobId,
-            JsonSerializer.Serialize(request.DocumentAttributes),
-            JsonSerializer.Serialize(request.NewJobAttributes),
+            JsonSerializer.Serialize(request.OperationAttributes),
+            JsonSerializer.Serialize(request.JobTemplateAttributes),
             request.Document.ReadAllBytes()))
         {
             return response;
@@ -486,7 +500,7 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = request.JobId;
+        var jobId = request.OperationAttributes.JobId;
 
         if (jobId.HasValue && Mind.PrinterDb.SetJobState(jobId.Value, 0))
         {
@@ -498,7 +512,7 @@ internal class PrinterProxy : Listener
 
     private GetPrinterAttributesResponse GetPrinterAttributesResponse(GetPrinterAttributesRequest request)
     {
-        bool IsRequired(string attributeName) => request.RequestedAttributes?.Contains(attributeName) ?? true;
+        bool IsRequired(string attributeName) => request.OperationAttributes.RequestedAttributes?.Contains(attributeName) ?? true;
 
         return new GetPrinterAttributesResponse
         {
@@ -549,7 +563,7 @@ internal class PrinterProxy : Listener
             UriSecuritySupported = !IsRequired(PrinterAttribute.UriSecuritySupported) ? null : [UriSecurity.None],
             PrinterUpTime = !IsRequired(PrinterAttribute.PrinterUpTime) ? null : (int)Mind.TotalRuntime.TotalSeconds,
             MediaDefault = !IsRequired(PrinterAttribute.MediaDefault) ? null : DEFAULT_MEDIA_SIZE,
-            MediaColDefault = !IsRequired(PrinterAttribute.MediaDefault) ? null : DEFAULT_MEDIA_SIZE,
+            MediaColDefault = !IsRequired(PrinterAttribute.MediaDefault) ? null : new MediaCol { MediaSize = new MediaSize { XDimension = 21000, YDimension = 29700 } },
             MediaSupported = !IsRequired(PrinterAttribute.MediaSupported) ? null : [DEFAULT_MEDIA_SIZE],
             SidesDefault = !IsRequired(PrinterAttribute.SidesDefault) ? null : DEFAULT_NUMBER_OF_SIDES,
             SidesSupported = !IsRequired(PrinterAttribute.SidesSupported) ? null : Enum.GetValues(typeof(Sides)).Cast<Sides>().Where(x => x != Sides.Unsupported).ToArray(),
@@ -594,7 +608,7 @@ internal class PrinterProxy : Listener
             RequestId = request.RequestId,
             Version = request.Version,
             StatusCode = IppStatusCode.ClientErrorNotPossible,
-            JobAttributes = new JobAttributes()
+            JobAttributes = new JobDescriptionAttributes()
         };
 
         return response;
@@ -619,7 +633,7 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        if (request.JobId.HasValue && Mind.PrinterDb.SetJobState(request.JobId.Value, PrinterJobState.Canceled))
+        if (request.OperationAttributes.JobId.HasValue && Mind.PrinterDb.SetJobState(request.OperationAttributes.JobId.Value, PrinterJobState.Canceled))
         {
             response.StatusCode = IppStatusCode.SuccessfulOk;
         }
@@ -629,7 +643,7 @@ internal class PrinterProxy : Listener
 
     private CreateJobResponse GetCreateJobResponse(CreateJobRequest request)
     {
-        request.NewJobAttributes ??= new();
+        request.JobTemplateAttributes ??= new();
 
         var response = new CreateJobResponse
         {
@@ -640,19 +654,24 @@ internal class PrinterProxy : Listener
             JobStateReasons = [JobStateReason.None]
         };
 
-        var jobId = Mind.PrinterDb.CreateJob(request.RequestingUserName);
+        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
 
         response.JobId = jobId;
-        response.JobUri = request.PrinterUri + $"/{jobId}";
+        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
 
-        FillWithDefaultValues(jobId, request.NewJobAttributes);
+        FillWithDefaultValues(request.JobTemplateAttributes);
+
+        if (string.IsNullOrEmpty(request.OperationAttributes.JobName))
+        {
+            request.OperationAttributes.JobName = $"Job {jobId}";
+        }
 
         response.StatusCode = IppStatusCode.SuccessfulOk;
 
         return response;
     }
 
-    private static void FillWithDefaultValues(int jobId, NewJobAttributes attributes)
+    private static void FillWithDefaultValues(JobTemplateAttributes attributes)
     {
         attributes.PrintScaling ??= DEAFULT_PRINT_SCALING;
         attributes.Sides ??= DEFAULT_NUMBER_OF_SIDES;
@@ -664,18 +683,5 @@ internal class PrinterProxy : Listener
         attributes.Copies ??= DEFAULT_NUMBER_OF_COPIES;
         attributes.OrientationRequested ??= DEFAULT_ORIENTATION;
         attributes.JobHoldUntil ??= DEFAULT_JOB_UNTIL;
-
-        if (string.IsNullOrEmpty(attributes.JobName))
-        {
-            attributes.JobName = $"Job {jobId}";
-        }
-    }
-
-    private static void FillWithDefaultValues(DocumentAttributes attributes)
-    {
-        if (string.IsNullOrEmpty(attributes.DocumentFormat))
-        {
-            attributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
-        }
     }
 }

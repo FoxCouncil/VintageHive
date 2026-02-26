@@ -12,25 +12,6 @@ namespace VintageHive.Processors.LocalServer.Controllers;
 internal class RadioController : Controller
 {
     // ===================================================================
-    // Ad banner helpers — pick random ad image from embedded resources
-    // ===================================================================
-
-    private static readonly string AdResourcePrefix = "controllers.ads.hive.com.img.";
-
-    private static string GetRandomAdImageUrl()
-    {
-        var adKeys = Resources.Statics.Keys
-            .Where(k => k.StartsWith(AdResourcePrefix, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (adKeys.Count == 0) return null;
-
-        var key = adKeys[Random.Shared.Next(adKeys.Count)];
-        var filename = key[AdResourcePrefix.Length..];
-        return $"http://ads.hive.com/img/{filename}";
-    }
-
-    // ===================================================================
     // Play path routing — /play/{id}/{player}.{ext}
     // Serves playlist/metafiles that point to /stream/{player}?id={id}
     //
@@ -105,14 +86,10 @@ internal class RadioController : Controller
                     asx.AppendLine("<asx version=\"3.0\">");
                     asx.AppendLine($"  <title>{esc(info.Name)}</title>");
 
-                    // Banner: random ad image (194x32 area in WMP 6.4)
-                    var adUrl = GetRandomAdImageUrl();
-                    if (adUrl != null)
-                    {
-                        asx.AppendLine($"  <banner href=\"{esc(adUrl)}\">");
-                        asx.AppendLine($"    <moreinfo href=\"http://radio.hive.com/browser.html?id={id}\" />");
-                        asx.AppendLine("  </banner>");
-                    }
+                    // Banner: per-station generated image (194x32 area in WMP)
+                    asx.AppendLine($"  <banner href=\"http://radio.hive.com/banner/{id}.gif\">");
+                    asx.AppendLine($"    <moreinfo href=\"http://radio.hive.com/browser.html?id={id}\" />");
+                    asx.AppendLine("  </banner>");
 
                     asx.AppendLine("  <entry clientskip=\"no\">");
                     // MMS first — protocol rollover scheme (RTSP → MMS/TCP → HTTP)
@@ -126,6 +103,16 @@ internal class RadioController : Controller
                     Response.SetBodyString(asx.ToString(), "application/x-ms-asf");
                     break;
                 }
+            }
+        }
+
+        // Banner image: /banner/{id}.gif — per-station generated 194x32 banner for WMP
+        if (!Response.Handled && rawPath.StartsWith("/banner/") && rawPath.EndsWith(".gif"))
+        {
+            var bannerStationId = rawPath["/banner/".Length..^4];
+            if (!string.IsNullOrEmpty(bannerStationId))
+            {
+                await ServeBannerImage(bannerStationId);
             }
         }
 
@@ -320,6 +307,73 @@ internal class RadioController : Controller
     // ===================================================================
     // Helpers
     // ===================================================================
+
+    private async Task ServeBannerImage(string stationId)
+    {
+        try
+        {
+            var bannerPath = $"data/banners/{stationId}.gif";
+
+            if (VFS.FileExists(bannerPath))
+            {
+                var cached = await VFS.FileReadDataAsync(bannerPath);
+                Response.SetBodyData(cached, "image/gif");
+                return;
+            }
+
+            var info = await RadioStationResolver.ResolveStation(stationId);
+
+            if (info == null)
+            {
+                Response.SetNotFound();
+                return;
+            }
+
+            // Try to get favicon bytes (reuse same cache as ServeFaviconProxy)
+            byte[] faviconBytes = null;
+
+            try
+            {
+                var cacheKey = $"radio_favicon_{stationId}";
+                var faviconCached = Mind.Cache.GetData(cacheKey);
+
+                if (!string.IsNullOrEmpty(faviconCached))
+                {
+                    faviconBytes = Convert.FromBase64String(faviconCached);
+                }
+                else if (!string.IsNullOrEmpty(info.Favicon))
+                {
+                    using var client = HttpClientUtils.GetHttpClient();
+                    client.Timeout = TimeSpan.FromSeconds(10);
+                    faviconBytes = await client.GetByteArrayAsync(info.Favicon);
+                    Mind.Cache.SetData(cacheKey, TimeSpan.FromHours(24), Convert.ToBase64String(faviconBytes));
+                }
+            }
+            catch
+            {
+                // Favicon fetch failed — generate without it
+            }
+
+            var gifBytes = BannerGenerator.Generate(info.Name, faviconBytes);
+
+            // Ensure the banners directory exists
+            if (!VFS.DirectoryExists("data/banners"))
+            {
+                VFS.DirectoryCreate("data/banners");
+            }
+
+            using (var fs = VFS.FileWrite(bannerPath))
+            {
+                fs.Write(gifBytes, 0, gifBytes.Length);
+            }
+
+            Response.SetBodyData(gifBytes, "image/gif");
+        }
+        catch
+        {
+            Response.SetNotFound();
+        }
+    }
 
     private async Task ServeFaviconProxy(string stationId)
     {

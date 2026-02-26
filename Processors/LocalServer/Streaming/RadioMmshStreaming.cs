@@ -1165,20 +1165,20 @@ internal static class RadioMmshStreaming
                 }
             }
 
-            // By now, ffmpeg has consumed ~32KB of upstream audio through the IcyMetadataStrippingStream,
-            // so the first ICY metadata block should have been parsed. Use it for the initial title.
-            var initialTrack = icyStream?.CurrentTrack ?? info.CurrentTrack ?? "";
-            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: initialTrack=\"{initialTrack}\" (icy={icyStream?.CurrentTrack != null})");
+            // Content descriptors get the station name only — now-playing metadata
+            // is delivered via TEXT script commands so WMP doesn't show stale track
+            // info before the first ICY update arrives.
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: station=\"{info.Name}\" (icy track available={icyStream?.CurrentTrack != null})");
 
             var contentDesc = BuildAsfContentDescription(
-                title: initialTrack,
+                title: info.Name,
                 author: "",
                 copyright: "",
                 description: "",
                 rating: "");
 
             var extContentDesc = BuildAsfExtendedContentDescription(
-                ("WM/Title", initialTrack));
+                ("WM/Title", info.Name));
 
             var scriptStream = BuildAsfScriptStreamProperties();
 
