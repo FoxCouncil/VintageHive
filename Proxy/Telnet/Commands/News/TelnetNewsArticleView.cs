@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using HeyRed.Mime;
 using HtmlAgilityPack;
@@ -190,7 +190,7 @@ public class TelnetNewsArticleView : ITelnetWindow
         _text = result.ToString();
     }
 
-    public void Destroy() 
+    public void Destroy()
     {
         _startupDelay.Dispose();
     }
@@ -205,31 +205,31 @@ public class TelnetNewsArticleView : ITelnetWindow
         switch (command)
         {
             case "n":
-                // Next page
-                if (currentPage < totalPages)
-                {
-                    currentPage++;
-                }
-                break;
+            // Next page
+            if (currentPage < totalPages)
+            {
+                currentPage++;
+            }
+            break;
             case "p":
-                // Previous page
-                if (currentPage > 1)
-                {
-                    currentPage--;
-                }
-                break;
+            // Previous page
+            if (currentPage > 1)
+            {
+                currentPage--;
+            }
+            break;
             case "v":
-                // Image viewer for images in articles converted to ascii art.
-                if (articleImageLinks.Count > 0)
-                {
-                    _session.ForceAddWindow("image_gallery", articleImageLinks);
-                }
-                break;
+            // Image viewer for images in articles converted to ascii art.
+            if (articleImageLinks.Count > 0)
+            {
+                _session.ForceAddWindow("image_gallery", articleImageLinks);
+            }
+            break;
             case "q":
-                // Close window
-                _shouldRemoveNextCommand = true;
-                _session.ForceCloseWindow(this);
-                break;
+            // Close window
+            _shouldRemoveNextCommand = true;
+            _session.ForceCloseWindow(this);
+            break;
         }
 
         UpdateArticleText();

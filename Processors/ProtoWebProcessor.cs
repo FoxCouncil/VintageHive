@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
@@ -8,15 +8,15 @@ namespace VintageHive.Processors;
 internal static class ProtoWebProcessor
 {
     static readonly TimeSpan CacheTtl = TimeSpan.FromDays(365);
-    
+
     static byte[] RedirectPacketSignatureBytes { get; } = Encoding.ASCII.GetBytes(RedirectPacketSignature);
 
     const string FetchRequestUserAgent = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705)";
-    
+
     const string RedirectPacketSignature = "HTTP/1.0 301 Moved Permanently\n";
 
     static List<string> AvailableHttpSites;
-    
+
     static List<string> AvailableFtpSites;
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
@@ -27,7 +27,7 @@ internal static class ProtoWebProcessor
         {
             return false;
         }
-        
+
         if (AvailableHttpSites == null)
         {
             AvailableHttpSites = await ProtoWebUtils.GetAvailableHttpSites();
@@ -41,7 +41,7 @@ internal static class ProtoWebProcessor
         if (AvailableHttpSites.Any(x => req.Uri.Host.EndsWith(x)))
         {
             res.Cache = false;
-            
+
             var cachedResponse = Mind.Cache.GetProtoweb(req.Uri);
 
             if (cachedResponse == null)
@@ -55,7 +55,7 @@ internal static class ProtoWebProcessor
                     var contentType = proxyRes.Content.Headers.ContentType?.ToString() ?? "text/html";
 
                     byte[] contentData = await proxyClient.GetByteArrayAsync(req.Uri);
-                    
+
                     res.SetBodyData(contentData, contentType);
 
                     var cachedData = new ContentCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
@@ -92,8 +92,8 @@ internal static class ProtoWebProcessor
 
     public static async Task<bool> ProcessFtpRequest(FtpRequest req)
     {
-        if (req.ConnectionType != FtpRequestConnectionType.OverHttp) 
-        { 
+        if (req.ConnectionType != FtpRequestConnectionType.OverHttp)
+        {
             return false;
         }
 
@@ -121,7 +121,7 @@ internal static class ProtoWebProcessor
             {
                 NoDelay = true,
             };
-            
+
             tcpClient.Client.NoDelay = true;
 
             var stream = tcpClient.GetStream();

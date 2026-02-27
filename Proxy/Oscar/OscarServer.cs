@@ -1,7 +1,7 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using VintageHive.Proxy.Oscar.Services;
 using VintageHive.Network;
+using VintageHive.Proxy.Oscar.Services;
 
 namespace VintageHive.Proxy.Oscar;
 
@@ -39,7 +39,7 @@ public class OscarServer : Listener
 
     readonly List<IOscarService> services;
 
-    public OscarServer(IPAddress listenAddress) : base(listenAddress, 5190, SocketType.Stream, ProtocolType.Tcp, false) 
+    public OscarServer(IPAddress listenAddress) : base(listenAddress, 5190, SocketType.Stream, ProtocolType.Tcp, false)
     {
         services = new()
         {
@@ -164,7 +164,7 @@ public class OscarServer : Listener
         if (!Mind.Db.UserExistsByUsername(session.ScreenName))
         {
             await AuthFailedError(session);
-            
+
             return;
         }
 

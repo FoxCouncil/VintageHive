@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -132,7 +132,7 @@ public class OscarLocationService : IOscarService
                     {
                         userInfoReply.Write(tlv.Encode());
                     }
-                    
+
                     switch (type)
                     {
                         case 1:

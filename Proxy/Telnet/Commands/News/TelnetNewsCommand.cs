@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Telnet.Commands.News;
 
@@ -50,56 +50,56 @@ public class TelnetNewsCommand : ITelnetWindow
 
     public void Destroy() { }
 
-    public void Refresh() 
+    public void Refresh()
     {
         //PrintNewsMenu();
     }
 
     public void ProcessCommand(string command)
     {
-        switch (command) 
+        switch (command)
         {
             case "1":
-                // Local news
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Local);
-                break;
+            // Local news
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Local);
+            break;
             case "2":
-                // US news
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.US);
-                break;
+            // US news
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.US);
+            break;
             case "3":
-                // World news
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.World);
-                break;
+            // World news
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.World);
+            break;
             case "4":
-                // Technology
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Technology);
-                break;
+            // Technology
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Technology);
+            break;
             case "5":
-                // Science
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Science);
-                break;
+            // Science
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Science);
+            break;
             case "6":
-                // Business
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Business);
-                break;
+            // Business
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Business);
+            break;
             case "7":
-                // Entertainment
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Entertainment);
-                break;
+            // Entertainment
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Entertainment);
+            break;
             case "8":
-                // Sports
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Sports);
-                break;
+            // Sports
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Sports);
+            break;
             case "9":
-                // Health
-                _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Health);
-                break;
+            // Health
+            _session.ForceAddWindow("news_headline_view", GoogleNewsTopic.Health);
+            break;
             case "0":
-                // Close news
-                _shouldRemoveNextCommand = true;
-                _session.ForceCloseWindow(this);
-                break;
+            // Close news
+            _shouldRemoveNextCommand = true;
+            _session.ForceCloseWindow(this);
+            break;
         }
     }
 }

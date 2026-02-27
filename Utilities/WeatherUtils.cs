@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Utilities;
 
@@ -49,7 +49,7 @@ public static class WeatherUtils
                 return null;
             }
         }
-        
+
         var data = JsonSerializer.Deserialize<WeatherData>(rawData);
 
         data.Hourly.DeltaTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(location.timezone));

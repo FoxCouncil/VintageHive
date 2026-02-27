@@ -1,11 +1,10 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using VintageHive.Network;
-
-using static VintageHive.Proxy.Irc.IrcServerReplyType;
 using static VintageHive.Proxy.Irc.IrcCommand;
+using static VintageHive.Proxy.Irc.IrcServerReplyType;
 
 namespace VintageHive.Proxy.Irc;
 

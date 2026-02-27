@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using static VintageHive.Proxy.Security.Native;
 
@@ -6,9 +6,9 @@ namespace VintageHive.Proxy.Security;
 
 public class CryptoKey : NativeRef
 {
-    public CryptoKey PublicKey 
+    public CryptoKey PublicKey
     {
-        get 
+        get
         {
             using var bio = new BasicInputOutput();
 

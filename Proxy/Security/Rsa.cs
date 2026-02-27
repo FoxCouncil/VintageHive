@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using static VintageHive.Proxy.Security.Native;
 
@@ -8,11 +8,11 @@ public class Rsa : NativeRef
 {
     public int Size => CheckResultSuccess(RSA_size(this));
 
-    public Rsa() : base(RSA_new()) 
+    public Rsa() : base(RSA_new())
     {
 
     }
-    
+
     public Rsa(IntPtr pointer, bool owner) : base(pointer, owner) { }
 
     public void GenerateKey(int bits, BigNumber e)
@@ -21,7 +21,7 @@ public class Rsa : NativeRef
         {
             throw new ApplicationException("Not owner of RSA object, cannot generate a key!");
         }
-        
+
         var result = RSA_generate_key_ex(this, bits, e, IntPtr.Zero);
 
         CheckResultSuccess(result);

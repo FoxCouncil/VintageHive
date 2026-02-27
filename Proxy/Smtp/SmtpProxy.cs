@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Text.RegularExpressions;
 using VintageHive.Network;
@@ -31,7 +31,7 @@ internal partial class SmtpProxy : Listener
     private Thread postmasterThread;
     private bool postmasterThreadRunning = true;
 
-    public SmtpProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp) 
+    public SmtpProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp)
     {
         postmasterThread = new Thread(new ThreadStart(PostmasterRun))
         {
@@ -152,7 +152,7 @@ internal partial class SmtpProxy : Listener
                 bag.Clear();
 
                 bag.Add(initialHello.Key, initialHello.Value);
-                
+
                 if (username != null)
                 {
                     bag.Add(Authenticated, username);
@@ -231,7 +231,7 @@ internal partial class SmtpProxy : Listener
 
         var sb = new StringBuilder();
 
-        foreach(var message in messages)
+        foreach (var message in messages)
         {
             if (message != messages.Last())
             {

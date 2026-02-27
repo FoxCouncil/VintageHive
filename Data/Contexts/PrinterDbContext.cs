@@ -1,4 +1,6 @@
-﻿using Microsoft.Data.Sqlite;
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using Microsoft.Data.Sqlite;
 using SharpIpp.Protocol.Models;
 
 namespace VintageHive.Data.Contexts;
@@ -81,8 +83,8 @@ public class PrinterDbContext : DbContextBase
                     DocNewAttr = reader.IsDBNull(4) ? "" : reader.GetString(4),
                     DocData = reader.IsDBNull(5) ? [] : (byte[])reader.GetValue(5),
                     Created = reader.GetDateTime(6),
-                    Processed = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
-                    Completed = reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8)
+                    Processed = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    Completed = reader.IsDBNull(8) ? null : reader.GetDateTime(8)
                 };
             }
         });
@@ -110,8 +112,8 @@ public class PrinterDbContext : DbContextBase
                     State = (PrinterJobState)reader.GetInt32(1),
                     Name = reader.GetString(2),
                     Created = reader.GetDateTime(3),
-                    Processed = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4),
-                    Completed = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5)
+                    Processed = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                    Completed = reader.IsDBNull(5) ? null : reader.GetDateTime(5)
                 };
 
                 jobs.Add(job);
@@ -344,8 +346,8 @@ public class PrinterDbContext : DbContextBase
                     updateCommand.CommandText = $"UPDATE {TABLE_JOBS} SET state = @state, processed = @processed, completed = @completed WHERE id = @id";
 
                     updateCommand.Parameters.Add(new SqliteParameter("@state", (int)newState));
-                    updateCommand.Parameters.Add(new SqliteParameter("@processed", newProcessed.HasValue ? (object)newProcessed.Value : DBNull.Value));
-                    updateCommand.Parameters.Add(new SqliteParameter("@completed", newCompleted.HasValue ? (object)newCompleted.Value : DBNull.Value));
+                    updateCommand.Parameters.Add(new SqliteParameter("@processed", newProcessed.HasValue ? newProcessed.Value : DBNull.Value));
+                    updateCommand.Parameters.Add(new SqliteParameter("@completed", newCompleted.HasValue ? newCompleted.Value : DBNull.Value));
                     updateCommand.Parameters.Add(new SqliteParameter("@id", id));
 
                     var rowsAffected = updateCommand.ExecuteNonQuery();

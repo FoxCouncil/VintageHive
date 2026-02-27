@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Data.Contexts;
 using VintageHive.Network;
@@ -9,7 +9,7 @@ namespace VintageHive.Proxy.Ftp;
 public class FtpProxy : Listener
 {
     static TimeSpan CacheTtl { get; set; } = TimeSpan.FromDays(7);
-    
+
     readonly List<VintageHiveFtpProcessDelegate> Handlers = new();
 
     internal CacheDbContext CacheDb { get; set; }
@@ -40,7 +40,7 @@ public class FtpProxy : Listener
         {
             return null;
         }
-        
+
         var key = $"FPC-{req.Uri}";
 
         var cachedResponse = Mind.Cache.GetFtpProxy(key);

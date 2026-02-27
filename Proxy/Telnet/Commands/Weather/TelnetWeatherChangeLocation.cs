@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Telnet.Commands.Weather;
 
@@ -74,28 +74,28 @@ public class TelnetWeatherChangeLocation : ITelnetWindow
         switch (command)
         {
             case "exit":
+            _shouldRemoveNextCommand = true;
+            _session.ForceCloseWindow(this);
+            break;
+            case "y":
+            if (_potentialLocation != null)
+            {
+                // Saves the potential location as actual location!
+                Mind.Db.ConfigSet(ConfigNames.Location, _potentialLocation);
+
+                // We close this window, purpose served!
                 _shouldRemoveNextCommand = true;
                 _session.ForceCloseWindow(this);
-                break;
-            case "y":
-                if (_potentialLocation != null)
-                {
-                    // Saves the potential location as actual location!
-                    Mind.Db.ConfigSet(ConfigNames.Location, _potentialLocation);
-
-                    // We close this window, purpose served!
-                    _shouldRemoveNextCommand = true;
-                    _session.ForceCloseWindow(this);
-                }
-                else
-                {
-                    // Otherwise we treat the Y as just a search query as anything else would.
-                    _potentialLocation = WeatherUtils.FindLocation(command);
-                }
-                break;
-            default:
+            }
+            else
+            {
+                // Otherwise we treat the Y as just a search query as anything else would.
                 _potentialLocation = WeatherUtils.FindLocation(command);
-                break;
+            }
+            break;
+            default:
+            _potentialLocation = WeatherUtils.FindLocation(command);
+            break;
         }
 
         UpdateLocationData();

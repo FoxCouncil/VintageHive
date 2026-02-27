@@ -1,4 +1,6 @@
-﻿using SharpIpp;
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using SharpIpp;
 using SharpIpp.Exceptions;
 using SharpIpp.Models;
 using SharpIpp.Protocol;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar;
 
@@ -16,7 +16,7 @@ public class Tlv
 
     public Tlv(ushort type, string value) : this(type, Encoding.ASCII.GetBytes(value)) { }
 
-    public Tlv(ushort type, ushort value) 
+    public Tlv(ushort type, ushort value)
     {
         Type = type;
 

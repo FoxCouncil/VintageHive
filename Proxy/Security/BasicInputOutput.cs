@@ -1,7 +1,7 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using static VintageHive.Proxy.Security.Native;
 using static System.Text.Encoding;
+using static VintageHive.Proxy.Security.Native;
 
 namespace VintageHive.Proxy.Security;
 
@@ -13,7 +13,7 @@ public class BasicInputOutput : NativeRef
 
     public BasicInputOutput() : base(BIO_new(BIO_s_mem())) { }
 
-    public BasicInputOutput(string data) : this() 
+    public BasicInputOutput(string data) : this()
     {
         Write(data);
     }

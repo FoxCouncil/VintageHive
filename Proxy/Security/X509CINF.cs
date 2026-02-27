@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Runtime.InteropServices;
 
@@ -7,25 +7,25 @@ namespace VintageHive.Proxy.Security;
 [StructLayout(LayoutKind.Sequential)]
 internal struct X509CINF
 {
-	public IntPtr version;
+    public IntPtr version;
 
-	public IntPtr serialNumber;
+    public IntPtr serialNumber;
 
-	public IntPtr signature;
+    public IntPtr signature;
 
-	public IntPtr issuer;
+    public IntPtr issuer;
 
-	public IntPtr validity;
+    public IntPtr validity;
 
-	public IntPtr subject;
+    public IntPtr subject;
 
-	public IntPtr key;
+    public IntPtr key;
 
-	public IntPtr issuerUID;
+    public IntPtr issuerUID;
 
-	public IntPtr subjectUID;
+    public IntPtr subjectUID;
 
-	public IntPtr extensions;
+    public IntPtr extensions;
 
-	public Asn1Encoding enc;
+    public Asn1Encoding enc;
 }

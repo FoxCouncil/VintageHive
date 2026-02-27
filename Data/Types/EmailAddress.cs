@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace VintageHive.Data.Types;
 

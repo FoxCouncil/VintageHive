@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -11,7 +11,7 @@ public static class AsciiUtils
     public static string ConvertToAsciiArt(Image<Rgba32> image, int maxWidth, int maxHeight)
     {
         // Calculate the aspect ratio of the image
-        double aspectRatio = (double)image.Width / (double)image.Height;
+        double aspectRatio = image.Width / (double)image.Height;
 
         // Calculate the width and height of the output image based on the aspect ratio and the maximum width and height
         int outputWidth = (int)Math.Min(maxWidth, aspectRatio * maxHeight);

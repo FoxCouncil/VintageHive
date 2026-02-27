@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using static VintageHive.Proxy.Security.Native;
 
@@ -22,7 +22,7 @@ public class X509Name : NativeRef
         {
             var parts = name.Split('/');
 
-            foreach(var part in parts)
+            foreach (var part in parts)
             {
                 if (string.IsNullOrEmpty(part))
                 {

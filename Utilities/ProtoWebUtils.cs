@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using HtmlAgilityPack;
 
@@ -58,7 +58,7 @@ namespace VintageHive.Utilities
                 var ftpLinksList = new List<string>();
 
                 var primedHttpDomains = new string[] { "counter.inode.com", "inode.com" };
-                foreach(var httpDomain in primedHttpDomains)
+                foreach (var httpDomain in primedHttpDomains)
                 {
                     httpLinksList.Add(httpDomain);
                     linkList.Add(new Tuple<string, string>("http", httpDomain));
@@ -112,7 +112,7 @@ namespace VintageHive.Utilities
         public static async Task<List<string>> GetAvailableHttpSites()
         {
             var linkList = await GetSites();
-            
+
             if (linkList == null || !linkList.Any())
             {
                 return null;

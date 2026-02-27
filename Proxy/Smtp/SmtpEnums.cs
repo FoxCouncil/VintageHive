@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Smtp;
 
@@ -37,7 +37,7 @@ public static class SmtpEnums
 
         AuthenticationChallenge = 334,
         StartMailInput = 354,
-        
+
         SyntaxError = 500,
         CommandNotImplemented = 502,
         BadSequenceOfCommands = 503,

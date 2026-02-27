@@ -1,7 +1,7 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace VintageHive.Proxy.Security;
 
@@ -25,7 +25,7 @@ public static class CertificateAuthority
         }
 
         var caCert = Mind.Db.CertGet(Name);
-        
+
         if (caCert != null && !string.IsNullOrEmpty(caCert.Certificate) && !string.IsNullOrEmpty(caCert.Key))
         {
             caCertificate = X509Certificate2.CreateFromPem(caCert.Certificate, caCert.Key);

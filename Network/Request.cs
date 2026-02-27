@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Network;
 
@@ -31,7 +31,7 @@ public class Request
         EnsureValiditionOrThrow();
 
         await ListenerSocket.Stream.WriteAsync(Encoding.GetBytes(response));
-    }    
+    }
 
     public async Task<string> ReadRawResponseAsync()
     {

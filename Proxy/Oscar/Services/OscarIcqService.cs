@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -243,7 +243,7 @@ internal class OscarIcqService : IOscarService
             }
             break;
         }
-    }    
+    }
 
     private async Task SendBasicUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
     {
@@ -393,7 +393,7 @@ internal class OscarIcqService : IOscarService
 
         workUserData.WriteByte(0x0A); // Success Byte
 
-        workUserData.Write(WriteIcqString(FakeUser.Notes));      
+        workUserData.Write(WriteIcqString(FakeUser.Notes));
 
         await SendMetaData(session, snac, icqMetaReq, META_NOTES_USERINFO, workUserData, false);
     }

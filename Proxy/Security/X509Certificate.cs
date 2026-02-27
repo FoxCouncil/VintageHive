@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Runtime.InteropServices;
 using static VintageHive.Proxy.Security.Native;
@@ -9,7 +9,7 @@ public class X509Certificate : NativeRef
 {
     public static int GlobalSerialNumber { get; private set; } = 1;
 
-    public int Version 
+    public int Version
     {
         get { return 0; }
         set { CheckResultSuccess(X509_set_version(this, value)); }
@@ -88,7 +88,7 @@ public class X509Certificate : NativeRef
 
     X509Raw Raw { get { return (X509Raw)Marshal.PtrToStructure(this, typeof(X509Raw)); } }
 
-    X509CINF RawCertInfo { get { return (X509CINF)Marshal.PtrToStructure(Raw.cert_info, typeof(X509CINF));  } }
+    X509CINF RawCertInfo { get { return (X509CINF)Marshal.PtrToStructure(Raw.cert_info, typeof(X509CINF)); } }
 
     X509VAL RawValidity { get { return (X509VAL)Marshal.PtrToStructure(RawCertInfo.validity, typeof(X509VAL)); } }
 
@@ -105,7 +105,7 @@ public class X509Certificate : NativeRef
         Subject = subject;
 
         Issuer = issuer;
-        
+
         Version = 2;
 
         SerialNumber = GlobalSerialNumber++;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Microsoft.Data.Sqlite;
 
@@ -8,7 +8,7 @@ public class GeonamesDbContext : DbContextBase
 {
     const string dbPath = "libs/geonames.db";
 
-    public GeonamesDbContext() : base(dbPath) 
+    public GeonamesDbContext() : base(dbPath)
     {
         if (IsNewDb)
         {

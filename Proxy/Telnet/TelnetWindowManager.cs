@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Reflection;
 
@@ -12,7 +12,7 @@ public class TelnetWindowManager
     public TelnetWindowManager()
     {
         var commands = GetAllCommands(true);
-        foreach (var cmd in commands) 
+        foreach (var cmd in commands)
         {
             _windowDict.Add(cmd.Key, cmd.Value);
         }

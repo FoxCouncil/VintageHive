@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Telnet.Commands.Weather;
 
@@ -54,14 +54,14 @@ public class TelnetWeatherChangeTemp : ITelnetWindow
 
     public void ProcessCommand(string command)
     {
-        switch (command) 
+        switch (command)
         {
             case "1":
-                Mind.Db.ConfigLocalSet(_session.Client.RemoteIP, ConfigNames.TemperatureUnits, "fahrenheit");
-                break;
+            Mind.Db.ConfigLocalSet(_session.Client.RemoteIP, ConfigNames.TemperatureUnits, "fahrenheit");
+            break;
             case "2":
-                Mind.Db.ConfigLocalSet(_session.Client.RemoteIP, ConfigNames.TemperatureUnits, "celsius");
-                break;
+            Mind.Db.ConfigLocalSet(_session.Client.RemoteIP, ConfigNames.TemperatureUnits, "celsius");
+            break;
         }
 
         UpdateTempData(_session);

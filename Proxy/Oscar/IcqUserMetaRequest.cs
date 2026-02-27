@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Proxy.Oscar.Services;
 
@@ -11,7 +11,7 @@ internal class IcqUserMetaRequest
     public uint ClientUin { get; }
 
     public ushort RequestType { get; }
-    
+
     public ushort RequestSubType { get; }
 
     public ushort Sequence { get; }

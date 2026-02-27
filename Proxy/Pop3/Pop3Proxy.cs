@@ -1,4 +1,6 @@
-﻿using VintageHive.Network;
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using VintageHive.Network;
 
 namespace VintageHive.Proxy.Pop3;
 
@@ -92,7 +94,7 @@ internal class Pop3Proxy : Listener
 
                 var selectedIndex = int.Parse(Message);
 
-                var message = messages[selectedIndex-1];
+                var message = messages[selectedIndex - 1];
 
                 var reply = $"{message.Size} octets{EOL}{message.Data}{EOL}.";
 

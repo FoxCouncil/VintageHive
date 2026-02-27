@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Utilities;
 
@@ -10,7 +10,7 @@ internal class HttpFixerDelegatingStream : DelegatingStream
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        var read = await base.ReadAsync(buffer, cancellationToken);        
+        var read = await base.ReadAsync(buffer, cancellationToken);
 
         if (buffer.Span[0] == icyHeaderSignature[0] && buffer.Span[1] == icyHeaderSignature[1] && buffer.Span[2] == icyHeaderSignature[2])
         {

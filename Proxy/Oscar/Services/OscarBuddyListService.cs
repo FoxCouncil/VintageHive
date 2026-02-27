@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -105,7 +105,7 @@ public class OscarBuddyListService : IOscarService
 
     private async Task ProcessOnlineNotifications(OscarSession session, List<string> buddies)
     {
-        foreach(var buddy in buddies)
+        foreach (var buddy in buddies)
         {
             var buddySession = OscarServer.Sessions.GetByScreenName(buddy);
 
@@ -169,5 +169,5 @@ public class OscarBuddyListService : IOscarService
 
             await session.SendSnac(isOnlineSnac);
         }
-        }
+    }
 }

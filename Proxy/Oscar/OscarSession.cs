@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Data;
 using VintageHive.Network;
@@ -46,11 +46,11 @@ public class OscarSession
     public OscarSession(IDataReader reader)
     {
         Cookie = reader.GetString(0);
-        
+
         ScreenName = reader.GetString(1);
-        
+
         Status = (OscarSessionOnlineStatus)reader.GetInt32(2);
-        
+
         AwayMessageMimeType = reader.GetString(3);
         AwayMessage = reader.GetString(4);
 

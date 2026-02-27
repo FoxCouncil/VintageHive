@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 using VintageHive.Processors.LocalServer.Streaming;
@@ -101,55 +101,55 @@ internal class MmsSession
         switch (mid)
         {
             case MmsCommand.MID_Connect:
-                await HandleConnect(fields);
-                break;
+            await HandleConnect(fields);
+            break;
 
             case MmsCommand.MID_FunnelInfo:
-                await HandleFunnelInfo(fields);
-                break;
+            await HandleFunnelInfo(fields);
+            break;
 
             case MmsCommand.MID_ConnectFunnel:
-                await HandleConnectFunnel(fields);
-                break;
+            await HandleConnectFunnel(fields);
+            break;
 
             case MmsCommand.MID_OpenFile:
-                await HandleOpenFile(fields);
-                break;
+            await HandleOpenFile(fields);
+            break;
 
             case MmsCommand.MID_ReadBlock:
-                await HandleReadBlock(fields);
-                break;
+            await HandleReadBlock(fields);
+            break;
 
             case MmsCommand.MID_StreamSwitch:
-                await HandleStreamSwitch(fields);
-                break;
+            await HandleStreamSwitch(fields);
+            break;
 
             case MmsCommand.MID_StartPlaying:
-                await HandleStartPlaying(fields);
-                break;
+            await HandleStartPlaying(fields);
+            break;
 
             case MmsCommand.MID_StopPlaying:
-                await HandleStopPlaying(fields);
-                break;
+            await HandleStopPlaying(fields);
+            break;
 
             case MmsCommand.MID_CloseFile:
-                HandleCloseFile();
-                break;
+            HandleCloseFile();
+            break;
 
             case MmsCommand.MID_Pong:
-                break;
+            break;
 
             case MmsCommand.MID_Logging:
-                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Rx Logging", _traceId);
-                break;
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Rx Logging", _traceId);
+            break;
 
             case MmsCommand.MID_CancelReadBlock:
-                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Rx CancelReadBlock", _traceId);
-                break;
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Rx CancelReadBlock", _traceId);
+            break;
 
             default:
-                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Rx unknown MID=0x{mid:X8}", _traceId);
-                break;
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Rx unknown MID=0x{mid:X8}", _traceId);
+            break;
         }
     }
 
@@ -335,33 +335,33 @@ internal class MmsSession
                         switch (mid)
                         {
                             case MmsCommand.MID_Pong:
-                                break;
+                            break;
                             case MmsCommand.MID_Logging:
-                                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Rx Logging (streaming)", _traceId);
-                                break;
+                            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Rx Logging (streaming)", _traceId);
+                            break;
                             case MmsCommand.MID_StopPlaying:
-                                await HandleStopPlaying(fields);
-                                return;
+                            await HandleStopPlaying(fields);
+                            return;
                             case MmsCommand.MID_CloseFile:
-                                HandleCloseFile();
-                                return;
+                            HandleCloseFile();
+                            return;
                             case MmsCommand.MID_StartPlaying:
-                                var newPlayInc = fields.Length >= 32 ? BitConverter.ToUInt32(fields, 28) : _playIncarnation;
-                                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Rx StartPlaying (streaming) incarnation=0x{newPlayInc:X2}", _traceId);
-                                _playIncarnation = newPlayInc;
-                                _incarnation = (byte)newPlayInc;
-                                var spFields = MmsCommand.BuildStartedPlayingFields(_playIncarnation, _openFileId);
-                                await SendCommand(MmsCommand.MID_StartedPlaying, spFields);
-                                break;
+                            var newPlayInc = fields.Length >= 32 ? BitConverter.ToUInt32(fields, 28) : _playIncarnation;
+                            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Rx StartPlaying (streaming) incarnation=0x{newPlayInc:X2}", _traceId);
+                            _playIncarnation = newPlayInc;
+                            _incarnation = (byte)newPlayInc;
+                            var spFields = MmsCommand.BuildStartedPlayingFields(_playIncarnation, _openFileId);
+                            await SendCommand(MmsCommand.MID_StartedPlaying, spFields);
+                            break;
                             case MmsCommand.MID_StreamSwitch:
-                                await HandleStreamSwitch(fields);
-                                break;
+                            await HandleStreamSwitch(fields);
+                            break;
                             case MmsCommand.MID_ReadBlock:
-                                await HandleReadBlock(fields);
-                                break;
+                            await HandleReadBlock(fields);
+                            break;
                             default:
-                                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Rx MID=0x{mid:X8} (streaming)", _traceId);
-                                break;
+                            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Rx MID=0x{mid:X8} (streaming)", _traceId);
+                            break;
                         }
                     }
                 }

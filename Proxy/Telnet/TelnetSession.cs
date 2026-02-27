@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 
@@ -18,7 +18,7 @@ public class TelnetSession
 
     public string TopWindowOutputBuffer { get; set; } = string.Empty;
 
-    public string CurrentOutput { get; set;} = string.Empty;
+    public string CurrentOutput { get; set; } = string.Empty;
 
     public string LastOutput { get; set; } = string.Empty;
 
@@ -108,7 +108,7 @@ public class TelnetSession
                 {
                     topWindow.ProcessCommand(cleanCmd);
                 }
-                
+
                 // Normal processing of command will not occur when a window accepts commands.
                 return;
             }
@@ -179,7 +179,7 @@ public class TelnetSession
 
         // Check that current top window is not null.
         var topWindow = _windowManager.GetTopWindow();
-        if (topWindow == null) 
+        if (topWindow == null)
         {
             // Since there is no window below, we don't have to run a refresh on it.
             return;

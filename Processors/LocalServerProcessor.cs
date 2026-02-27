@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Fluid;
 using Fluid.Ast;
@@ -67,7 +67,7 @@ internal static class LocalServerProcessor
             }
 
             var sb = new StringBuilder();
-            
+
             foreach (var tag in tags)
             {
                 sb.Append($"| <a href=\"/browser.html?tag={HttpUtility.UrlEncode(tag)}\">{tag.ApplyCase(LetterCasing.Sentence)}</a> ");
@@ -631,7 +631,7 @@ internal static class LocalServerProcessor
             return true;
         }
 
-        var requestFilePath = Path.Combine("controllers/", req.Uri.Host+"/", Path.IsPathRooted(fileRequestPath) ? fileRequestPath[1..] : fileRequestPath);
+        var requestFilePath = Path.Combine("controllers/", req.Uri.Host + "/", Path.IsPathRooted(fileRequestPath) ? fileRequestPath[1..] : fileRequestPath);
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"RequestedPath: {requestFilePath}", req.ListenerSocket.TraceId.ToString());
 
@@ -642,7 +642,7 @@ internal static class LocalServerProcessor
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"VirtualPath: {virtualPath}", req.ListenerSocket.TraceId.ToString());
 
         var isReplacedFile = VFS.FileExists(virtualPath);
-        
+
         var resourceFile = "";
 
         if (!isReplacedFile)

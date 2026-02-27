@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
 using VintageHive.Data.Contexts;
@@ -6,11 +6,11 @@ using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Irc;
+using VintageHive.Proxy.Mms;
 using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
-using VintageHive.Proxy.Mms;
 using VintageHive.Proxy.Telnet;
 
 namespace VintageHive;
