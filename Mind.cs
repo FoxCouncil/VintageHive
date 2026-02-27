@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
 using VintageHive.Data.Contexts;
@@ -39,8 +39,6 @@ public static class Mind
 
     static Pop3Proxy pop3Proxy;
 
-    static IrcProxy ircProxy;
-
     static OscarServer oscarServer;
 
     static MmsServer mmsServer;
@@ -69,6 +67,10 @@ public static class Mind
 
     public static RadioBrowserClient RadioBrowser { get; private set; }
 
+    public static IrcDbContext IrcDb { get; private set; }
+
+    internal static IrcProxy IrcServer { get; private set; }
+
     public static SynchronizationContext MainThread { get; } = SynchronizationContext.Current;
 
     public static async Task Init()
@@ -82,6 +84,7 @@ public static class Mind
         Db = new();
         PostOfficeDb = new();
         PrinterDb = new();
+        IrcDb = new();
 
         // Services
         Geonames = new();
@@ -135,6 +138,12 @@ public static class Mind
 
         mmsServer = new(ipAddress);
 
+        var ircProxyPort = Db.ConfigGet<int>(ConfigNames.PortIrc);
+
+        IrcServer = new(ipAddress, ircProxyPort);
+
+        IrcServer.InitChannels();
+
 #if DEBUG
 
         printerProxy = new PrinterProxy(ipAddress, 631);
@@ -146,10 +155,6 @@ public static class Mind
         var pop3ProxyPort = Db.ConfigGet<int>(ConfigNames.PortPop3);
 
         pop3Proxy = new(ipAddress, pop3ProxyPort);
-
-        var ircProxyPort = Db.ConfigGet<int>(ConfigNames.PortIrc);
-
-        ircProxy = new(ipAddress, ircProxyPort);
 
         // ==== TESTING AREA =====
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
@@ -168,14 +173,14 @@ public static class Mind
 
         telnetServer.Start();
 
+        IrcServer.Start();
+
 #if DEBUG
         printerProxy.Start();
 
         smtpProxy.Start();
 
         pop3Proxy.Start();
-
-        ircProxy.Start();
 
         // socks5Proxy.Start();
 #endif
@@ -189,4 +194,3 @@ public static class Mind
         IsRunning = false;
     }
 }
-

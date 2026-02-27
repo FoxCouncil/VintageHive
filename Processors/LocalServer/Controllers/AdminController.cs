@@ -214,10 +214,17 @@ internal partial class AdminController : Controller
             return;
         }
 
+        var ircChannels = Mind.IrcServer?.GetChannelStats()?.Select(c => new { name = c.Name, members = c.MemberCount, topic = c.Topic }).ToList();
+
         var data = new {
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
-            protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb)
+            protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb),
+            irc = new {
+                users = Mind.IrcServer?.UserCount ?? 0,
+                channels = Mind.IrcServer?.ChannelCount ?? 0,
+                channelList = ircChannels
+            }
         };
 
         Response.SetBodyString(JsonSerializer.Serialize(data), "application/json");

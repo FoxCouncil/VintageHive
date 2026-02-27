@@ -18,7 +18,7 @@ internal static class Log
 
     static Log()
     {
-        WriteLine(LEVEL_INFO, "LOG", "Vintage Hive Startup!", string.Empty);
+        WriteLine(LEVEL_INFO, "LOG", $"Vintage Hive v{Mind.ApplicationVersion} Startup!", string.Empty);
     }
 
     public static void WriteLine()

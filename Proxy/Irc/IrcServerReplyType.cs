@@ -1,4 +1,6 @@
-﻿namespace VintageHive.Proxy.Irc;
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+namespace VintageHive.Proxy.Irc;
 
 public enum IrcServerReplyType
 {
@@ -7,7 +9,7 @@ public enum IrcServerReplyType
     RPL_YOURHOST = 002,
     RPL_CREATED = 003,
     RPL_MYINFO = 004,
-    RPL_BOUNCE = 005, // Also known as RPL_ISUPPORT in some implementations
+    RPL_BOUNCE = 005,
 
     RPL_USERHOST = 302,
     RPL_ISON = 303,
@@ -22,16 +24,24 @@ public enum IrcServerReplyType
     RPL_ENDOFWHOIS = 318,
     RPL_WHOISCHANNELS = 319,
 
-    RPL_WHOREPLY = 352,
-    RPL_ENDOFWHO = 315,
+    RPL_LISTSTART = 321,
     RPL_LIST = 322,
     RPL_LISTEND = 323,
     RPL_CHANNELMODEIS = 324,
+    RPL_CREATIONTIME = 329,
     RPL_NOTOPIC = 331,
     RPL_TOPIC = 332,
+    RPL_TOPICWHOTIME = 333,
+    RPL_INVITING = 341,
+
+    RPL_WHOREPLY = 352,
+    RPL_ENDOFWHO = 315,
 
     RPL_NAMREPLY = 353,
     RPL_ENDOFNAMES = 366,
+
+    RPL_BANLIST = 367,
+    RPL_ENDOFBANLIST = 368,
 
     RPL_MOTD = 372,
     RPL_MOTDSTART = 375,
@@ -69,9 +79,20 @@ public enum IrcServerReplyType
     ERR_BADCHANMASK = 476,
     ERR_NOCHANMODES = 477,
     ERR_BANLISTFULL = 478,
+    ERR_NOPRIVILEGES = 481,
+    ERR_CHANOPRIVSNEEDED = 482,
 
     // Custom entries
     STR_NOTICE = 900,
     STR_PRIVMSG = 901,
+    STR_JOIN = 902,
+    STR_PART = 903,
+    STR_QUIT = 904,
+    STR_KICK = 905,
+    STR_NICK = 906,
+    STR_TOPIC = 907,
+    STR_MODE = 908,
+    STR_INVITE = 909,
+    STR_PING = 910,
+    STR_PONG = 911,
 }
-

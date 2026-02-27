@@ -1,31 +1,40 @@
-﻿using VintageHive.Network;
+// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+
+using VintageHive.Network;
 
 namespace VintageHive.Proxy.Irc;
 
 public class IrcUser
 {
-    // Nickname of the user
     public string Nick { get; set; }
 
-    // Username (ident)
     public string Username { get; set; }
 
-    // Hostname
     public string Hostname { get; set; }
 
-    // Real name (gecos)
     public string Realname { get; set; }
 
-    // Channels the user is currently in
-    public HashSet<string> Channels { get; set; } = new HashSet<string>();
+    public HashSet<string> Channels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    // User modes
-    public HashSet<char> Modes { get; set; } = new HashSet<char>();
+    public HashSet<char> Modes { get; set; } = new();
 
-    // Reference to the ListenerSocket to manage communication
     public ListenerSocket ListenerSocket { get; set; }
 
     public string Fullname => $"{Nick}!{Username}@{Hostname}";
+
+    public bool IsAuthenticated { get; set; }
+
+    public bool IsAway { get; set; }
+
+    public string AwayMessage { get; set; } = string.Empty;
+
+    public DateTime ConnectedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime LastMessageAt { get; set; } = DateTime.UtcNow;
+
+    public int MessageCount { get; set; }
+
+    public bool IsOperator { get; set; }
 
     public IrcUser(ListenerSocket listenerSocket)
     {
