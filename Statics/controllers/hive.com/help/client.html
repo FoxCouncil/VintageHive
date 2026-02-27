@@ -15,11 +15,12 @@
         <tr><td>
             <font face="Courier New" size="2">
             <b>Jump to:</b>
-            <a href="#win31">Windows 3.1x</a> |
-            <a href="#win9x">Windows 95/98</a> |
-            <a href="#win2k">Windows 2000/XP</a> |
-            <a href="#macos">Mac OS</a> |
-            <a href="#linux">Linux/Unix</a>
+            <a href="#ie">Internet Explorer</a> |
+            <a href="#netscape">Netscape Navigator</a> |
+            <a href="#mosaic">NCSA Mosaic</a> |
+            <a href="#opera">Opera</a> |
+            <a href="#aol">AOL Browser</a> |
+            <a href="#tips">Compatibility Tips</a>
             </font>
         </td></tr>
     </table>
@@ -47,70 +48,276 @@
 
     <hr>
 
-    <a name="win31"></a>
+    <a name="ie"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
-            <td><font face="Courier New" size="3"><b>Windows 3.1x</b></font></td>
+            <td><font face="Courier New" size="3"><b><img src="/img/help/ie.gif" alt="IE"> Internet Explorer 3.x / 4.x / 5.x / 6.x</b></font></td>
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Internet Explorer 3.x / 4.x:</b></p>
+                <ol>
+                    <li>Open <b>View &gt; Options</b> (or <b>Tools &gt; Internet Options</b> in IE5)</li>
+                    <li>Click the <b>Connection</b> tab</li>
+                    <li>Click <b>Proxy Settings</b> or <b>LAN Settings</b></li>
+                    <li>Check <b>Use a proxy server</b></li>
+                    <li>Click <b>Advanced</b></li>
+                    <li>Set the following:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Type</b></td>
+                                <td><b>Address</b></td>
+                            </tr>
+                            <tr>
+                                <td>HTTP</td>
+                                <td><font color="cyan">{{ serverip }}:{{ port_http }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Secure (HTTPS)</td>
+                                <td><font color="cyan">{{ serverip }}:{{ port_https }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP</td>
+                                <td><font color="cyan">{{ serverip }}:{{ port_ftp }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b> on all dialogs</li>
+                </ol>
+
+                <p><b>Internet Explorer 5.x / 6.x:</b></p>
+                <ol>
+                    <li>Open the <b>Tools</b> menu, then select <b>Internet Options</b></li>
+                    <li>Click on the <b>Connections</b> tab</li>
+                    <li>Click <b>LAN Settings</b></li>
+                    <li>Check <b>Use a proxy server for your LAN</b></li>
+                    <li>Click <b>Advanced</b></li>
+                    <li>Set the same addresses as the table above</li>
+                    <li>Click <b>OK</b> on all dialogs</li>
+                </ol>
+
+                <center><img src="/img/help/ie_proxy.png" alt="Internet Explorer Proxy Settings"></center>
             </td>
         </tr>
     </table>
 
     <br>
 
-    <a name="win9x"></a>
+    <a name="netscape"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
-            <td><font face="Courier New" size="3"><b>Windows 95/98</b></font></td>
+            <td><font face="Courier New" size="3"><b><img src="/img/help/netscape.gif" alt="Netscape"> Netscape Navigator 3.x / 4.x</b></font></td>
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Netscape Navigator 3.x:</b></p>
+                <ol>
+                    <li>Open <b>Options &gt; Network Preferences</b></li>
+                    <li>Click the <b>Proxies</b> tab</li>
+                    <li>Select <b>Manual Proxy Configuration</b> and click <b>View...</b></li>
+                    <li>Set the following:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Type</b></td>
+                                <td><b>Address</b></td>
+                                <td><b>Port</b></td>
+                            </tr>
+                            <tr>
+                                <td>HTTP Proxy</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                                <td><font color="cyan">{{ port_http }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Security Proxy</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                                <td><font color="cyan">{{ port_https }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP Proxy</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                                <td><font color="cyan">{{ port_ftp }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <center>
+                    <img src="/img/help/ns3_proxies.gif" alt="Netscape 3 Proxies Tab"><br>
+                    <img src="/img/help/ns3_proxy.gif" alt="Netscape 3 Manual Proxy Configuration">
+                </center>
+
+                <br>
+
+                <p><b>Netscape Communicator 4.x:</b></p>
+                <ol>
+                    <li>Open <b>Edit &gt; Preferences</b></li>
+                    <li>Navigate to <b>Advanced &gt; Proxies</b></li>
+                    <li>Select <b>Manual Proxy Configuration</b> and click <b>View...</b></li>
+                    <li>Set the same addresses as the table above</li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <center>
+                    <img src="/img/help/ns4_proxy.gif" alt="Netscape 4 Manual Proxy Configuration">
+                </center>
             </td>
         </tr>
     </table>
 
     <br>
 
-    <a name="win2k"></a>
+    <a name="mosaic"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
-            <td><font face="Courier New" size="3"><b>Windows 2000/XP</b></font></td>
+            <td><font face="Courier New" size="3"><b><img src="/img/help/mosaic.gif" alt="Mosaic"> NCSA Mosaic</b></font></td>
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <ol>
+                    <li>Open <b>Options &gt; Network Preferences</b></li>
+                    <li>Enable <b>Use Proxy Server</b></li>
+                    <li>Set the following:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Type</b></td>
+                                <td><b>Address</b></td>
+                                <td><b>Port</b></td>
+                            </tr>
+                            <tr>
+                                <td>HTTP Proxy</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                                <td><font color="cyan">{{ port_http }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP Proxy</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                                <td><font color="cyan">{{ port_ftp }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+                <p><i>Note: Mosaic does not support SSL/HTTPS. Only HTTP and FTP proxying will work.</i></p>
             </td>
         </tr>
     </table>
 
     <br>
 
-    <a name="macos"></a>
+    <a name="opera"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
-            <td><font face="Courier New" size="3"><b>Mac OS</b></font></td>
+            <td><font face="Courier New" size="3"><b><img src="/img/help/opera.gif" alt="Opera"> Opera 3.x / 4.x</b></font></td>
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <ol>
+                    <li>Open <b>File &gt; Preferences</b></li>
+                    <li>Click the <b>Network</b> tab</li>
+                    <li>Click <b>Proxy Servers</b></li>
+                    <li>Set the following:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Type</b></td>
+                                <td><b>Address</b></td>
+                            </tr>
+                            <tr>
+                                <td>HTTP</td>
+                                <td><font color="cyan">{{ serverip }}:{{ port_http }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>HTTPS</td>
+                                <td><font color="cyan">{{ serverip }}:{{ port_https }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP</td>
+                                <td><font color="cyan">{{ serverip }}:{{ port_ftp }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b></li>
+                </ol>
             </td>
         </tr>
     </table>
 
     <br>
 
-    <a name="linux"></a>
+    <a name="aol"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
-            <td><font face="Courier New" size="3"><b>Linux/Unix</b></font></td>
+            <td><font face="Courier New" size="3"><b><img src="/img/help/aol.gif" alt="AOL"> AOL Browser</b></font></td>
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <ol>
+                    <li>Open <b>My AOL &gt; Preferences</b></li>
+                    <li>Click the <b>WWW</b> icon</li>
+                    <li>Select the <b>Connection</b> tab</li>
+                    <li>Click <b>Setup</b></li>
+                    <li>Enable <b>Connect through proxy server</b></li>
+                    <li>Set HTTP Proxy: <font color="cyan">{{ serverip }}</font> Port: <font color="cyan">{{ port_http }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="tips"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Compatibility Tips</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Windows 3.1 / 95 Users:</b></p>
+                <ul>
+                    <li>If you can't type the <b>.</b> in the IP address, use the numeric keypad</li>
+                    <li>Some browsers may require <b>localhost</b> instead of <b>127.0.0.1</b></li>
+                </ul>
+
+                <p><b>SSL / HTTPS Support:</b></p>
+                <table border="1" cellpadding="4" width="100%">
+                    <tr bgcolor="#222222">
+                        <td><b>Browser</b></td>
+                        <td><b>SSL Support</b></td>
+                    </tr>
+                    <tr>
+                        <td>Internet Explorer 3.x</td>
+                        <td>Limited &mdash; may need additional patches</td>
+                    </tr>
+                    <tr>
+                        <td>Netscape 3+</td>
+                        <td>Full SSL with certificate import</td>
+                    </tr>
+                    <tr>
+                        <td>NCSA Mosaic</td>
+                        <td>No SSL support (HTTP only)</td>
+                    </tr>
+                    <tr>
+                        <td>Opera 3+</td>
+                        <td>Varies by version</td>
+                    </tr>
+                </table>
+
+                <p><b>Certificate Installation:</b></p>
+                <ol>
+                    <li>Visit <font color="cyan">http://admin.hive.com/ca.crt</font> in your browser</li>
+                    <li><b>Netscape:</b> Select &quot;Accept this Certificate Authority for Certifying network sites&quot;</li>
+                    <li><b>Internet Explorer:</b> Click &quot;Install Certificate&quot; and follow the wizard</li>
+                    <li><b>Opera:</b> Save the file and import via <b>File &gt; Preferences &gt; Security &gt; Certificates</b></li>
+                </ol>
+
+                <p><b>Known Issues:</b></p>
+                <ul>
+                    <li>Some browsers may show certificate warnings for HTTPS sites</li>
+                    <li>FTP passive mode may not work in older browsers</li>
+                    <li>JavaScript support varies significantly between browsers</li>
+                    <li>Some browsers may require system proxy settings instead of browser settings</li>
+                </ul>
             </td>
         </tr>
     </table>

@@ -24,6 +24,28 @@
 
     <hr>
 
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Setting</b></td>
+            <td><b>Value</b></td>
+        </tr>
+        <tr>
+            <td>News Server (NNTP)</td>
+            <td><font color="cyan">news.eternal-september.org</font> port <font color="cyan">119</font></td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <p><i>VintageHive's built-in NNTP server is planned for a future release.
+    In the meantime, you can access Usenet through
+    <b>Eternal September</b> &mdash; a free public news server that is accessible
+    through VintageHive's HTTP proxy passthrough.
+    You will need a free account at
+    <font color="cyan">http://eternal-september.org</font> to connect.</i></p>
+
+    <hr>
+
     <a name="outlookexpress"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
@@ -31,7 +53,40 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Outlook Express 4.x / 5.x / 6.x:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Accounts</b></li>
+                    <li>Click <b>Add &gt; News</b></li>
+                    <li>Enter your display name and click <b>Next</b></li>
+                    <li>Enter your e-mail address and click <b>Next</b></li>
+                    <li>Set the news server:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>News (NNTP) server</td>
+                                <td><font color="cyan">news.eternal-september.org</font></td>
+                            </tr>
+                            <tr>
+                                <td>My news server requires me to log on</td>
+                                <td><font color="cyan">Checked</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Enter your Eternal September <b>username</b> and <b>password</b></li>
+                    <li>Click <b>Finish</b></li>
+                    <li>When asked &quot;Would you like to download newsgroups?&quot;, click <b>Yes</b></li>
+                </ol>
+
+                <p><b>Reading Newsgroups:</b></p>
+                <ol>
+                    <li>Click on the news server in the folder list</li>
+                    <li>Click <b>Newsgroups</b> to browse available groups</li>
+                    <li>Type a topic in the search box (e.g. <font color="cyan">comp.sys</font>) to filter</li>
+                    <li>Select a group and click <b>Subscribe</b>, then <b>Go to</b></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -45,7 +100,44 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Forte Free Agent 1.x / Agent 2.x:</b></p>
+                <ol>
+                    <li>Open <b>Options &gt; General Preferences</b></li>
+                    <li>Click the <b>System</b> tab</li>
+                    <li>Set the following:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>News Server</td>
+                                <td><font color="cyan">news.eternal-september.org</font></td>
+                            </tr>
+                            <tr>
+                                <td>Email Address</td>
+                                <td>Your e-mail address</td>
+                            </tr>
+                            <tr>
+                                <td>Full Name</td>
+                                <td>Your display name</td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b></li>
+                    <li>Open <b>Options &gt; News Server Properties</b></li>
+                    <li>Check <b>News server requires login</b></li>
+                    <li>Enter your Eternal September username and password</li>
+                    <li>Click <b>OK</b></li>
+                    <li>Press <b>F5</b> or <b>Online &gt; Refresh Groups List</b> to download newsgroups</li>
+                </ol>
+
+                <p><b>Subscribing to groups:</b></p>
+                <ol>
+                    <li>Open <b>Group &gt; Show All Groups</b></li>
+                    <li>Type a search term to filter (e.g. <font color="cyan">alt.folklore</font>)</li>
+                    <li>Double-click a group to subscribe</li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -59,7 +151,29 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Netscape Communicator 4.x:</b></p>
+                <ol>
+                    <li>Open <b>Edit &gt; Preferences</b></li>
+                    <li>Navigate to <b>Mail &amp; Newsgroups &gt; Newsgroup Servers</b></li>
+                    <li>Click <b>Add</b></li>
+                    <li>Set Server: <font color="cyan">news.eternal-september.org</font></li>
+                    <li>Set Port: <font color="cyan">119</font></li>
+                    <li>Check <b>Always use name and password</b></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>Netscape Navigator 3.x:</b></p>
+                <ol>
+                    <li>Open <b>Options &gt; Mail and News Preferences</b></li>
+                    <li>Click the <b>Servers</b> tab</li>
+                    <li>Set News (NNTP) Server to: <font color="cyan">news.eternal-september.org</font></li>
+                    <li>Click <b>OK</b></li>
+                    <li>Open <b>Window &gt; Netscape News</b> to access newsgroups</li>
+                </ol>
+
+                <p><i>Note: Netscape 3.x does not support NNTP authentication natively.
+                If Eternal September requires a login, use Netscape Communicator 4.x
+                or a dedicated newsreader like Forte Agent.</i></p>
             </td>
         </tr>
     </table>

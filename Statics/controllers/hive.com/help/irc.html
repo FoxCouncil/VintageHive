@@ -45,7 +45,40 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <ol>
+                    <li>Open <b>File &gt; Options</b> (or press <b>Alt+O</b>)</li>
+                    <li>In the tree, select <b>Connect &gt; Servers</b></li>
+                    <li>Click <b>Add</b> and fill in:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Description</td>
+                                <td><font color="cyan">VintageHive IRC</font></td>
+                            </tr>
+                            <tr>
+                                <td>IRC Server</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Port</td>
+                                <td><font color="cyan">{{ port_irc }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>If you have a VintageHive account, enter your password in the <b>Password</b> field</li>
+                    <li>Click <b>OK</b>, then click <b>Connect to Server</b></li>
+                    <li>Once connected, type: <font color="lime">/join #hive</font></li>
+                </ol>
+
+                <p><b>Auto-join channels on connect:</b></p>
+                <ol>
+                    <li>Open <b>File &gt; Options &gt; Connect &gt; Options &gt; Perform</b></li>
+                    <li>Check <b>Enable perform on connect</b></li>
+                    <li>Add the line: <font color="lime">/join #hive</font></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -59,7 +92,32 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <ol>
+                    <li>Open <b>Server &gt; Setup</b></li>
+                    <li>Click <b>New</b> to create a new server entry</li>
+                    <li>Fill in:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Description</td>
+                                <td><font color="cyan">VintageHive IRC</font></td>
+                            </tr>
+                            <tr>
+                                <td>Server</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Port</td>
+                                <td><font color="cyan">{{ port_irc }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>If you have a VintageHive account, enter your password in the <b>Server Password</b> field</li>
+                    <li>Click <b>OK</b> and then <b>Connect</b></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -73,7 +131,53 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p>Connect directly from the command line:</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ irc yournick {{ serverip }}:{{ port_irc }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>Or with BitchX:</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ BitchX -c #hive yournick {{ serverip }}:{{ port_irc }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>Once connected, use these commands:</p>
+                <table border="1" cellpadding="4" bgcolor="#000000">
+                    <tr bgcolor="#222222">
+                        <td><b>Command</b></td>
+                        <td><b>Description</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">/join #hive</font></td>
+                        <td>Join the main channel</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">/list</font></td>
+                        <td>List all channels</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">/msg nick message</font></td>
+                        <td>Send a private message</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">/whois nick</font></td>
+                        <td>Look up user info</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">/quit</font></td>
+                        <td>Disconnect</td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>
@@ -87,7 +191,29 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <table border="1" cellpadding="5" width="100%">
+                    <tr bgcolor="#222222">
+                        <td><b>Channel</b></td>
+                        <td><b>Topic</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">#hive</font></td>
+                        <td>Welcome to VintageHive IRC! &mdash; the main hangout</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">#vintage</font></td>
+                        <td>All things retro computing</td>
+                    </tr>
+                </table>
+
+                <p>Users can also create their own channels by joining a channel name that
+                doesn't exist yet (e.g. <font color="lime">/join #mychannel</font>). User-created
+                channels persist as long as they have members.</p>
+
+                <p><b>Authentication:</b> Logging in is optional. If your nickname matches a
+                registered VintageHive account, you must provide your password (via the
+                server password field or <font color="lime">/PASS</font>) to use that nick.
+                Unregistered nicknames can connect freely.</p>
             </td>
         </tr>
     </table>

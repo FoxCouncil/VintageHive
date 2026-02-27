@@ -38,6 +38,12 @@
 
     <hr>
 
+    <p><i>VintageHive's FTP server does not require authentication.
+    Connect using any FTP client with the settings above.
+    Passive mode is supported on ports 1900&ndash;1910.</i></p>
+
+    <hr>
+
     <a name="wsftp"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
@@ -45,7 +51,39 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>WS_FTP LE / Pro:</b></p>
+                <ol>
+                    <li>Open <b>WS_FTP</b> &mdash; the Session Properties dialog will appear</li>
+                    <li>Click <b>New</b> to create a new session</li>
+                    <li>Fill in:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Profile Name</td>
+                                <td><font color="cyan">VintageHive</font></td>
+                            </tr>
+                            <tr>
+                                <td>Host Name/Address</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Host Type</td>
+                                <td><font color="cyan">Automatic detect</font></td>
+                            </tr>
+                            <tr>
+                                <td>User ID</td>
+                                <td><font color="cyan">anonymous</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click the <b>Advanced</b> tab</li>
+                    <li>If the port is not the default (21), set <b>Remote Port</b> to: <font color="cyan">{{ port_ftp }}</font></li>
+                    <li>Ensure <b>Passive transfers</b> is checked</li>
+                    <li>Click <b>OK</b>, then <b>Connect</b></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -59,7 +97,48 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>CuteFTP 2.x / 3.x:</b></p>
+                <ol>
+                    <li>Open <b>FTP &gt; Site Manager</b> (or press <b>F4</b>)</li>
+                    <li>Click <b>New</b></li>
+                    <li>Fill in:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Label</td>
+                                <td><font color="cyan">VintageHive</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP Host Address</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP Site User Name</td>
+                                <td><font color="cyan">anonymous</font></td>
+                            </tr>
+                            <tr>
+                                <td>FTP Site Password</td>
+                                <td>(leave blank)</td>
+                            </tr>
+                            <tr>
+                                <td>Port</td>
+                                <td><font color="cyan">{{ port_ftp }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>Connect</b></li>
+                </ol>
+
+                <p><b>Enabling Passive Mode:</b></p>
+                <ol>
+                    <li>In Site Manager, select the VintageHive entry</li>
+                    <li>Click <b>Edit</b></li>
+                    <li>Check <b>Use PASV mode</b> (or under the Advanced tab)</li>
+                    <li>Click <b>OK</b></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -73,7 +152,70 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Windows / DOS:</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        C:\&gt; ftp {{ serverip }} {{ port_ftp }}<br>
+                        User: anonymous<br>
+                        Password: (press Enter)<br>
+                        ftp&gt; dir<br>
+                        ftp&gt; get filename.txt<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p><b>Unix / Linux / Mac:</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ ftp {{ serverip }} {{ port_ftp }}<br>
+                        Name: anonymous<br>
+                        Password: (press Enter)<br>
+                        ftp&gt; passive<br>
+                        ftp&gt; ls<br>
+                        ftp&gt; get filename.txt<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p><b>Common FTP Commands:</b></p>
+                <table border="1" cellpadding="4" bgcolor="#000000">
+                    <tr bgcolor="#222222">
+                        <td><b>Command</b></td>
+                        <td><b>Description</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">dir</font> / <font color="lime">ls</font></td>
+                        <td>List files in the current directory</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">cd dirname</font></td>
+                        <td>Change directory</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">get filename</font></td>
+                        <td>Download a file</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">put filename</font></td>
+                        <td>Upload a file</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">binary</font></td>
+                        <td>Switch to binary transfer mode</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">passive</font></td>
+                        <td>Toggle passive mode</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">quit</font></td>
+                        <td>Disconnect</td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>
@@ -87,7 +229,32 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Listing of available archived FTP sites coming soon.</i></p>
+                <p>VintageHive can proxy archived FTP sites from the
+                <a href="http://www.protoweb.org">ProtoWeb</a> project.
+                When you connect to an FTP host through VintageHive's proxy,
+                it checks if that site is available in the ProtoWeb FTP archive
+                and serves the archived content.</p>
+
+                <p>To browse ProtoWeb FTP archives, configure your browser's
+                FTP proxy to point at VintageHive (see <a href="client">Client Settings</a>),
+                then visit FTP URLs directly in your browser, e.g.:</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="cyan">
+                        ftp://ftp.cdrom.com/<br>
+                        ftp://ftp.microsoft.com/<br>
+                        ftp://ftp.netscape.com/<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>You can also browse the full list of available ProtoWeb sites
+                from the <a href="http://hive.com">VintageHive intranet portal</a>
+                under the <b>ProtoWeb Browser</b> section.</p>
+
+                <p><i>Note: The list of available FTP sites is fetched from ProtoWeb
+                and cached for 6 hours. Not all historical FTP sites are archived.</i></p>
             </td>
         </tr>
     </table>

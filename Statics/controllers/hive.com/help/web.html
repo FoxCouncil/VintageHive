@@ -32,7 +32,29 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p>VintageHive uses the <b>Internet Archive Wayback Machine</b> to serve
+                archived versions of websites. When you visit a URL through the proxy,
+                VintageHive looks up that page in the Wayback Machine and returns the
+                archived version.</p>
+
+                <p><b>How it works:</b></p>
+                <ol>
+                    <li>Configure your browser's proxy settings (see <a href="client">Client Settings</a>)</li>
+                    <li>Browse to any website URL as you normally would</li>
+                    <li>VintageHive checks ProtoWeb first, then falls back to the Internet Archive</li>
+                    <li>The archived page is cleaned up and served to your vintage browser</li>
+                </ol>
+
+                <p><b>Target Year:</b> By default, VintageHive fetches pages from <b>1999</b>.
+                The target year can be changed (1997&ndash;2021) through the Admin Panel at
+                <font color="cyan">http://admin.hive.com</font>.</p>
+
+                <p><b>Caching:</b> Archived pages are cached locally for 365 days to improve
+                loading speed. Caches can be cleared through the Admin Panel.</p>
+
+                <p><i>Note: Not every page on the internet was archived. If a page wasn't
+                captured by the Wayback Machine in your target year, you may see a
+                not-found page.</i></p>
             </td>
         </tr>
     </table>
@@ -46,7 +68,38 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><a href="http://www.protoweb.org">ProtoWeb</a> is a community project
+                that maintains high-quality archives of classic websites. VintageHive checks
+                ProtoWeb <b>before</b> the Internet Archive, so ProtoWeb sites load with
+                better fidelity and accuracy.</p>
+
+                <p><b>How it works:</b></p>
+                <ul>
+                    <li>VintageHive maintains a list of all sites available on ProtoWeb</li>
+                    <li>When you visit a URL, it checks if that domain exists on ProtoWeb</li>
+                    <li>If found, the page is served from ProtoWeb's archive</li>
+                    <li>If not found, it falls through to the Internet Archive</li>
+                </ul>
+
+                <p><b>Browsing ProtoWeb sites:</b></p>
+                <p>You can browse the full catalog of available ProtoWeb sites from the
+                VintageHive intranet portal at <font color="cyan">http://hive.com</font>
+                under the <b>ProtoWeb Browser</b> section. This includes both HTTP websites
+                and FTP archives.</p>
+
+                <p><b>Direct passthrough sites:</b></p>
+                <p>Some retro-friendly websites are served live from the modern web
+                (not archived). These include:</p>
+                <ul>
+                    <li><font color="cyan">68k.news</font> &mdash; news formatted for vintage browsers</li>
+                    <li><font color="cyan">frogfind.com</font> &mdash; a search engine for old browsers</li>
+                    <li><font color="cyan">razorback95.com</font> &mdash; Windows 95/98 software archive</li>
+                    <li><font color="cyan">webtv.zone</font> &mdash; WebTV community site</li>
+                    <li><font color="cyan">windowsupdaterestored.com</font> &mdash; classic Windows Update</li>
+                </ul>
+
+                <p>These sites are fetched directly and do not go through the
+                Wayback Machine or ProtoWeb.</p>
             </td>
         </tr>
     </table>
@@ -60,7 +113,35 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p>DialNine is VintageHive's HTTPS/SSL proxy. It allows vintage browsers
+                to access HTTPS websites that would otherwise be unreachable due to
+                modern TLS requirements.</p>
+
+                <p><b>How it works:</b></p>
+                <ul>
+                    <li>Your browser sends the HTTPS request to VintageHive's HTTPS proxy port</li>
+                    <li>VintageHive connects to the target site using modern TLS on your behalf</li>
+                    <li>The content is relayed back to your browser over a legacy SSL connection
+                        that older browsers can understand</li>
+                </ul>
+
+                <p><b>Setup:</b></p>
+                <ol>
+                    <li>In your browser's proxy settings, set the <b>Secure / HTTPS proxy</b>
+                        to: <font color="cyan">{{ serverip }}:{{ port_https }}</font></li>
+                    <li>Install VintageHive's CA certificate (see <a href="client#tips">Client Settings &gt; Compatibility Tips</a>)</li>
+                    <li>Browse HTTPS sites normally &mdash; the proxy handles the rest</li>
+                </ol>
+
+                <p><b>Certificate Installation:</b></p>
+                <ol>
+                    <li>Visit <font color="cyan">http://admin.hive.com/ca.crt</font> in your browser</li>
+                    <li>Install the certificate when prompted (see <a href="client#tips">Client Settings</a> for per-browser instructions)</li>
+                </ol>
+
+                <p><i>Note: HTTPS support is experimental. Some sites may not render
+                correctly, and certificate warnings may appear in some browsers.
+                Not all vintage browsers support SSL.</i></p>
             </td>
         </tr>
     </table>
@@ -74,7 +155,50 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Browser-specific tips and compatibility notes coming soon.</i></p>
+                <p><b>Recommended Browsers:</b></p>
+                <table border="1" cellpadding="5" width="100%">
+                    <tr bgcolor="#222222">
+                        <td><b>Browser</b></td>
+                        <td><b>Best For</b></td>
+                    </tr>
+                    <tr>
+                        <td>Internet Explorer 5.x / 6.x</td>
+                        <td>Best overall compatibility; supports CSS1, JavaScript, SSL</td>
+                    </tr>
+                    <tr>
+                        <td>Netscape Navigator 4.x</td>
+                        <td>Good compatibility; full SSL with cert import</td>
+                    </tr>
+                    <tr>
+                        <td>Internet Explorer 3.x</td>
+                        <td>Works well for HTML-only sites; limited CSS</td>
+                    </tr>
+                    <tr>
+                        <td>NCSA Mosaic</td>
+                        <td>Basic HTML browsing; no SSL, limited features</td>
+                    </tr>
+                    <tr>
+                        <td>Opera 3.x&ndash;5.x</td>
+                        <td>Fast and lightweight; good CSS support</td>
+                    </tr>
+                </table>
+
+                <p><b>Browsing Tips:</b></p>
+                <ul>
+                    <li><b>Start at the portal:</b> Visit <font color="cyan">http://hive.com</font>
+                        for news, weather, web search, and curated links</li>
+                    <li><b>Search the web:</b> Use the search bar on
+                        <font color="cyan">http://hive.com</font> &mdash; it uses DuckDuckGo
+                        and returns results optimized for vintage browsers</li>
+                    <li><b>Article reader:</b> VintageHive includes a built-in article reader
+                        that strips modern web clutter and renders clean HTML</li>
+                    <li><b>Change the year:</b> If a site looks wrong, try changing the
+                        Internet Archive target year through the Admin Panel</li>
+                    <li><b>JavaScript:</b> Most archived sites work fine without JavaScript.
+                        If a page is broken, it may rely on scripts that can't be archived</li>
+                    <li><b>Images:</b> Large modern images may load slowly on vintage hardware.
+                        Some browsers support disabling images for faster browsing</li>
+                </ul>
             </td>
         </tr>
     </table>

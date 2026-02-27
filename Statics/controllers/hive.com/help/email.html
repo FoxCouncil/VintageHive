@@ -42,6 +42,14 @@
 
     <hr>
 
+    <p><i>A VintageHive user account is required to send and receive e-mail.
+    Accounts can be created through the <b>Admin Panel</b> at
+    <font color="cyan">http://admin.hive.com</font>.
+    Your e-mail address is <font color="cyan">username@hive.com</font>
+    (where &quot;username&quot; is your VintageHive account name).</i></p>
+
+    <hr>
+
     <a name="outlook"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
@@ -49,7 +57,52 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Outlook Express 4.x / 5.x / 6.x:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Accounts</b></li>
+                    <li>Click <b>Add &gt; Mail</b></li>
+                    <li>Enter your display name and click <b>Next</b></li>
+                    <li>Enter your e-mail address: <font color="cyan">username@hive.com</font></li>
+                    <li>Set the mail servers:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Setting</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Incoming mail server type</td>
+                                <td><font color="cyan">POP3</font></td>
+                            </tr>
+                            <tr>
+                                <td>Incoming mail (POP3)</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Outgoing mail (SMTP)</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Enter your VintageHive <b>username</b> and <b>password</b></li>
+                    <li>Click <b>Finish</b></li>
+                </ol>
+
+                <p><b>Setting custom ports:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Accounts</b>, select your account, click <b>Properties</b></li>
+                    <li>Click the <b>Advanced</b> tab</li>
+                    <li>Set Outgoing mail (SMTP) port to: <font color="cyan">{{ port_smtp }}</font></li>
+                    <li>Set Incoming mail (POP3) port to: <font color="cyan">{{ port_pop3 }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>Enable SMTP authentication:</b></p>
+                <ol>
+                    <li>In account <b>Properties</b>, click the <b>Servers</b> tab</li>
+                    <li>Check <b>My server requires authentication</b> under Outgoing Mail Server</li>
+                    <li>Click <b>Settings</b> and select <b>Use same settings as my incoming mail server</b></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -63,7 +116,44 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Eudora 3.x / 4.x / 5.x:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Options</b></li>
+                    <li>Select <b>Getting Started</b> in the left panel</li>
+                    <li>Fill in:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>POP Account</td>
+                                <td><font color="cyan">username@{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Real Name</td>
+                                <td>Your display name</td>
+                            </tr>
+                            <tr>
+                                <td>Return Address</td>
+                                <td><font color="cyan">username@hive.com</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Select <b>Hosts</b> in the left panel</li>
+                    <li>Set SMTP server to: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Select <b>Ports</b> in the left panel (if available)</li>
+                    <li>Set POP3 port to: <font color="cyan">{{ port_pop3 }}</font></li>
+                    <li>Set SMTP port to: <font color="cyan">{{ port_smtp }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>SMTP Authentication (Eudora 5.x):</b></p>
+                <ol>
+                    <li>In <b>Tools &gt; Options &gt; Sending Mail</b></li>
+                    <li>Check <b>SMTP server requires authentication</b></li>
+                    <li>Select <b>Use POP account login</b></li>
+                </ol>
             </td>
         </tr>
     </table>
@@ -77,7 +167,52 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Netscape Communicator 4.x:</b></p>
+                <ol>
+                    <li>Open <b>Edit &gt; Preferences</b></li>
+                    <li>Navigate to <b>Mail &amp; Groups &gt; Mail Server</b></li>
+                    <li>Set the following:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Outgoing mail (SMTP) server</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Incoming mail server</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Mail server type</td>
+                                <td><font color="cyan">POP3</font></td>
+                            </tr>
+                            <tr>
+                                <td>Mail server user name</td>
+                                <td><font color="cyan">username</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>Netscape Messenger 4.5+:</b></p>
+                <ol>
+                    <li>Open <b>Edit &gt; Preferences</b></li>
+                    <li>Navigate to <b>Mail &amp; Newsgroups &gt; Mail Servers</b></li>
+                    <li>Under <b>Incoming Mail Servers</b>, click <b>Add</b></li>
+                    <li>Set Server Name: <font color="cyan">{{ serverip }}</font>, Server Type: <b>POP3</b>,
+                        User Name: <font color="cyan">username</font></li>
+                    <li>Set Outgoing Mail Server to: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><i>Note: Netscape's default SMTP port is 25 and POP3 port is 110.
+                If VintageHive is using non-standard ports, Netscape 4.x may not
+                support changing them directly. In that case, ensure VintageHive is
+                configured to listen on the standard ports, or use a different client.</i></p>
             </td>
         </tr>
     </table>
@@ -91,7 +226,31 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Claris Emailer (Mac OS Classic):</b></p>
+                <ol>
+                    <li>Open <b>Setup &gt; Internet Account Setup</b></li>
+                    <li>Click <b>New</b> and select <b>POP</b></li>
+                    <li>Set POP Server: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set SMTP Server: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Enter your VintageHive <b>username</b> and <b>password</b></li>
+                    <li>Set your e-mail address to: <font color="cyan">username@hive.com</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>Eudora for Mac:</b></p>
+                <p>Follow the same steps as the Eudora section above. The Mac version
+                uses the same menu structure and settings.</p>
+
+                <p><b>Outlook Express for Mac:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Accounts</b></li>
+                    <li>Click <b>New &gt; POP</b></li>
+                    <li>Set Incoming POP server: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set Outgoing SMTP server: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Enter your VintageHive <b>username</b> and <b>password</b></li>
+                    <li>Set e-mail address: <font color="cyan">username@hive.com</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
             </td>
         </tr>
     </table>

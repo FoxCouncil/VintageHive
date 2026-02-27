@@ -17,7 +17,8 @@
             <b>Jump to:</b>
             <a href="#windows">Windows Telnet</a> |
             <a href="#putty">PuTTY</a> |
-            <a href="#unix">Unix/Mac</a>
+            <a href="#unix">Unix/Mac</a> |
+            <a href="#commands">Commands</a>
             </font>
         </td></tr>
     </table>
@@ -37,6 +38,11 @@
 
     <hr>
 
+    <p><i>VintageHive's Telnet server is a text-mode BBS. No login is required &mdash;
+    just connect and start typing commands. Terminal size is 80 columns by 24 rows.</i></p>
+
+    <hr>
+
     <a name="windows"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
@@ -44,7 +50,33 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p><b>Windows 95 / 98 / ME:</b></p>
+                <ol>
+                    <li>Open <b>Start &gt; Run</b></li>
+                    <li>Type: <font color="cyan">telnet {{ serverip }} {{ port_telnet }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>Windows 3.1x:</b></p>
+                <ol>
+                    <li>Open <b>File Manager</b> or <b>Program Manager</b></li>
+                    <li>Run <b>telnet.exe</b> from the Windows directory</li>
+                    <li>Open <b>Connect &gt; Remote System</b></li>
+                    <li>Set Host Name: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set Port: <font color="cyan">{{ port_telnet }}</font></li>
+                    <li>Set Terminal Type: <b>VT100</b></li>
+                    <li>Click <b>Connect</b></li>
+                </ol>
+
+                <p><b>From the DOS prompt:</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        C:\&gt; telnet {{ serverip }} {{ port_telnet }}<br>
+                        </font>
+                    </td></tr>
+                </table>
             </td>
         </tr>
     </table>
@@ -58,7 +90,37 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <ol>
+                    <li>Open <b>PuTTY</b></li>
+                    <li>In the <b>Session</b> settings:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Host Name</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Port</td>
+                                <td><font color="cyan">{{ port_telnet }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Connection type</td>
+                                <td><font color="cyan">Telnet</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Optionally, type a name in <b>Saved Sessions</b> and click <b>Save</b></li>
+                    <li>Click <b>Open</b></li>
+                </ol>
+
+                <p><b>Recommended PuTTY settings:</b></p>
+                <ul>
+                    <li><b>Terminal &gt; Keyboard:</b> set Backspace key to <b>Control-H</b></li>
+                    <li><b>Window &gt; Columns:</b> 80, <b>Rows:</b> 24</li>
+                </ul>
             </td>
         </tr>
     </table>
@@ -68,11 +130,70 @@
     <a name="unix"></a>
     <table border="1" cellpadding="8" width="100%">
         <tr bgcolor="#222222">
-            <td><font face="Courier New" size="3"><b>Unix/Mac</b></font></td>
+            <td><font face="Courier New" size="3"><b>Unix / Mac</b></font></td>
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p><i>Instructions coming soon.</i></p>
+                <p>Open a terminal and run:</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ telnet {{ serverip }} {{ port_telnet }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>On Mac OS X (if telnet is not installed):</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ nc {{ serverip }} {{ port_telnet }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="commands"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Available Commands</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>Once connected, type any of the following commands at the prompt:</p>
+
+                <table border="1" cellpadding="5" width="100%">
+                    <tr bgcolor="#222222">
+                        <td><b>Command</b></td>
+                        <td><b>Description</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">help</font></td>
+                        <td>List all available commands</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">news</font></td>
+                        <td>Browse news headlines by category (Local, US, World, Tech, Science, Business, Entertainment, Sports, Health)</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">weather</font></td>
+                        <td>Current weather conditions and forecast; change your location and temperature units</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">riddle</font></td>
+                        <td>Interactive riddle game &mdash; you get 3 guesses per riddle</td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">exit</font> / <font color="lime">quit</font></td>
+                        <td>Disconnect from the BBS</td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>

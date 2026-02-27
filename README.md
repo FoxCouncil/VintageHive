@@ -211,7 +211,7 @@ Visit `http://admin.hive.com:1990` to:
 - In the Local Area Network Settings dialog box, select the `Use a proxy server for your LAN` settings check box
 - Input your host IP address and the port `1990` in the HTTP proxy field
 
-### <img src="Statics/controllers/hive.com/img/netscape.gif" height="16"> Netscape Navigator 3.x/4.x
+### <img src="Statics/controllers/hive.com/img/netscape.gif"> Netscape Navigator 3.x/4.x
 1. Open `Edit > Preferences`
 2. Navigate to `Advanced > Proxies`
 3. Select `Manual Proxy Configuration`
@@ -221,7 +221,7 @@ Visit `http://admin.hive.com:1990` to:
    - FTP Proxy: `127.0.0.1` Port: `1971`
 5. Click `OK`
 
-### <img src="Statics/controllers/hive.com/img/ie.gif" height="16"> Internet Explorer 3.x/4.x/5.x
+### <img src="Statics/controllers/hive.com/img/ie.gif"> Internet Explorer 3.x/4.x/5.x
 1. Open `View > Options` (or `Tools > Internet Options` in IE5)
 2. Click `Connection` tab
 3. Click `Proxy Settings` or `LAN Settings`
@@ -233,7 +233,7 @@ Visit `http://admin.hive.com:1990` to:
    - FTP: `127.0.0.1:1971`
 7. Click `OK` on all dialogs
 
-### <img src="Statics/controllers/hive.com/img/mosaic.gif" height="16"> NCSA Mosaic
+### <img src="Statics/controllers/hive.com/img/mosaic.gif"> NCSA Mosaic
 1. Open `Options > Network Preferences`
 2. Enable `Use Proxy Server`
 3. Set:
@@ -241,7 +241,7 @@ Visit `http://admin.hive.com:1990` to:
    - FTP Proxy: `127.0.0.1` Port: `1971`
 4. Click `OK`
 
-### <img src="Statics/controllers/hive.com/img/opera.gif" height="16"> Opera 3.x/4.x
+### <img src="Statics/controllers/hive.com/img/opera.gif"> Opera 3.x/4.x
 1. Open `File > Preferences`
 2. Click `Network` tab
 3. Click `Proxy Servers`
@@ -251,7 +251,7 @@ Visit `http://admin.hive.com:1990` to:
    - FTP: `127.0.0.1:1971`
 5. Click `OK`
 
-### <img src="Statics/controllers/hive.com/img/aol.gif" height="16"> AOL Browser
+### <img src="Statics/controllers/hive.com/img/aol.gif"> AOL Browser
 1. Open `My AOL > Preferences`
 2. Click `WWW` icon
 3. Select `Connection` tab
