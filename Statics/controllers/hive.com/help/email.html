@@ -1,0 +1,103 @@
+{% assign title = "Help - E-Mail" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% include 'partials/helptoc.html' %}
+
+
+    <hr>
+
+    <table cellpadding="6" width="100%" bgcolor="#111111">
+        <tr><td>
+            <font face="Courier New" size="2">
+            <b>Jump to:</b>
+            <a href="#outlook">Outlook Express</a> |
+            <a href="#eudora">Eudora</a> |
+            <a href="#netscape">Netscape Mail</a> |
+            <a href="#mac">Mac OS Mail</a>
+            </font>
+        </td></tr>
+    </table>
+
+    <hr>
+
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Setting</b></td>
+            <td><b>Value</b></td>
+        </tr>
+        <tr>
+            <td>SMTP Server (Outgoing)</td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_smtp }}</font></td>
+        </tr>
+        <tr>
+            <td>POP3 Server (Incoming)</td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_pop3 }}</font></td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <a name="outlook"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Outlook Express</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="eudora"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Eudora</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="netscape"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Netscape Mail</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="mac"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Mac OS Mail</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

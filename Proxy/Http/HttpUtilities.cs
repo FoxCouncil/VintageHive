@@ -79,6 +79,8 @@ namespace VintageHive.Proxy.Http
 
                 public const string Pdf = "application/pdf";
 
+                public const string PostScript = "application/postscript";
+
                 public const string XWwwFormUrlEncoded = "application/x-www-form-urlencoded";
             }
 

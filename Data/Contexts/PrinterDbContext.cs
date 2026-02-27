@@ -291,6 +291,13 @@ public class PrinterDbContext : DbContextBase
                 switch (newState)
                 {
                     case PrinterJobState.Pending when currentState == PrinterJobState.Aborted:
+                    case PrinterJobState.Pending when currentState == PrinterJobState.PendingHeld:
+                    {
+                        allowStateChange = true;
+                    }
+                    break;
+
+                    case PrinterJobState.PendingHeld when currentState == PrinterJobState.Pending:
                     {
                         allowStateChange = true;
                     }

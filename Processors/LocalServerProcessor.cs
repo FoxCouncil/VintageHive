@@ -21,6 +21,11 @@ internal static class LocalServerProcessor
     {
         TemplateOptions.Default.MemberAccessStrategy = new UnsafeMemberAccessStrategy();
 
+        if (Mind.IsDebug)
+        {
+            TemplateOptions.Default.TemplateCache = null;
+        }
+
         TemplateOptions.Default.Filters.AddFilter("bytes", (input, arguments, context) =>
         {
             return StringValue.Create(((long)input.ToNumberValue()).Bytes().Humanize());

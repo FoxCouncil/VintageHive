@@ -1,0 +1,332 @@
+{% assign title = "Help - Printing" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% include 'partials/helptoc.html' %}
+
+
+    <hr>
+
+    <table cellpadding="6" width="100%" bgcolor="#111111">
+        <tr><td>
+            <font face="Courier New" size="2">
+            <b>Jump to:</b>
+            <a href="#dos">DOS</a> |
+            <a href="#win31">Windows 3.1x</a> |
+            <a href="#win9x">Windows 95/98/ME</a> |
+            <a href="#win2k">Windows 2000/XP</a> |
+            <a href="#macclassic">Mac OS Classic</a> |
+            <a href="#macosx">Mac OS X</a> |
+            <a href="#linux">Linux/Unix</a> |
+            <a href="#drivers">Driver Recommendations</a>
+            </font>
+        </td></tr>
+    </table>
+
+    <hr>
+
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Protocol</b></td>
+            <td><b>Port</b></td>
+            <td><b>Best For</b></td>
+        </tr>
+        <tr>
+            <td>IPP (Internet Printing Protocol)</td>
+            <td><font color="cyan">{{ port_ipp }}</font></td>
+            <td>Windows 2000/XP, Mac OS X, Linux/CUPS</td>
+        </tr>
+        <tr>
+            <td>LPD (Line Printer Daemon)</td>
+            <td><font color="cyan">{{ port_lpd }}</font></td>
+            <td>Windows NT/95/98, Unix, Mac OS Classic</td>
+        </tr>
+        <tr>
+            <td>Raw TCP / JetDirect</td>
+            <td><font color="cyan">{{ port_rawprint }}</font></td>
+            <td>DOS, Windows 3.x, any OS with raw TCP printing</td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <a name="dos"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from DOS</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>DOS applications print to LPT ports. Redirect LPT1 to VintageHive's Raw TCP port:</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        C:\&gt; net use LPT1: \\{{ serverip }}\PRINTER<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>If your DOS TCP/IP stack supports LPR, you can also use:</p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        C:\&gt; lpr -S {{ serverip }} -P printer filename.txt<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>Most DOS applications (WordPerfect, Lotus 1-2-3, etc.) will print using
+                ESC/P or IBM ProPrinter commands. Select an <b>Epson FX-80</b> or
+                <b>IBM ProPrinter</b> driver in your application for best results.</p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="win31"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from Windows 3.1x</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>Windows 3.1x can print via LPT port redirection (same as DOS above), or
+                through a network redirector if your TCP/IP stack supports it.</p>
+
+                <ol>
+                    <li>In <b>Control Panel</b>, open <b>Printers</b></li>
+                    <li>Click <b>Add</b> and select a PostScript or ESC/P compatible driver
+                        (e.g. <b>Apple LaserWriter</b> for PostScript, <b>Epson FX-80</b> for dot matrix)</li>
+                    <li>Set the port to <b>LPT1:</b></li>
+                    <li>From a DOS prompt, redirect LPT1 to VintageHive:</li>
+                </ol>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        C:\&gt; net use LPT1: \\{{ serverip }}\PRINTER<br>
+                        </font>
+                    </td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="win9x"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from Windows 95/98/ME</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Option A: Raw TCP (Recommended)</b></p>
+                <ol>
+                    <li>Open <b>Start &gt; Settings &gt; Printers</b></li>
+                    <li>Run <b>Add Printer</b> wizard, choose <b>Network printer</b></li>
+                    <li>For the network path, enter: <font color="cyan">\\{{ serverip }}\PRINTER</font></li>
+                    <li>Select a printer driver &mdash; <b>HP LaserJet 4</b> (PCL) or
+                        <b>Apple LaserWriter</b> (PostScript) work well</li>
+                </ol>
+
+                <p><b>Option B: LPR (requires Microsoft LPR client)</b></p>
+                <ol>
+                    <li>Install <b>Microsoft TCP/IP Printing</b> from Windows Setup if not already present</li>
+                    <li>In Add Printer, select <b>Network printer</b></li>
+                    <li>Choose <b>LPR Port</b>, enter server: <font color="cyan">{{ serverip }}</font>, queue: <font color="cyan">printer</font></li>
+                    <li>Select your printer driver and finish the wizard</li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="win2k"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from Windows 2000/XP</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Option A: IPP (Recommended)</b></p>
+                <ol>
+                    <li>Open <b>Printers and Faxes</b> (or <b>Printers</b>)</li>
+                    <li>Run <b>Add Printer</b>, select <b>Network printer</b></li>
+                    <li>Choose <b>Connect to a printer on the Internet</b></li>
+                    <li>Enter URL: <font color="cyan">http://{{ serverip }}:{{ port_ipp }}/ipp/print</font></li>
+                    <li>Select a PostScript driver (e.g. <b>HP Color LaserJet PS</b>)</li>
+                </ol>
+
+                <p><b>Option B: LPR Port</b></p>
+                <ol>
+                    <li>In Add Printer, choose <b>Local printer</b> (uncheck auto-detect)</li>
+                    <li>Create a new port &gt; <b>Standard TCP/IP Port</b></li>
+                    <li>Enter address: <font color="cyan">{{ serverip }}</font></li>
+                    <li>In port settings, select <b>LPR</b> protocol, queue name: <font color="cyan">printer</font></li>
+                    <li>Select your printer driver and finish</li>
+                </ol>
+
+                <p><b>Option C: Raw TCP (Port 9100)</b></p>
+                <ol>
+                    <li>Same as LPR above, but in port settings select <b>Raw</b> protocol</li>
+                    <li>Port number: <font color="cyan">{{ port_rawprint }}</font></li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="macclassic"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from Mac OS Classic (7.x - 9.x)</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>Mac OS Classic can print via LPR using the <b>Desktop Printer Utility</b>
+                or <b>LaserWriter 8</b> driver:</p>
+
+                <ol>
+                    <li>Open <b>Chooser</b> from the Apple menu</li>
+                    <li>Select <b>LaserWriter 8</b></li>
+                    <li>If LPR printers are not shown, use the <b>Desktop Printer Utility</b>:</li>
+                    <li>Choose <b>Printer (LPR)</b>, click <b>Change...</b></li>
+                    <li>Enter LPR address: <font color="cyan">{{ serverip }}</font>, queue: <font color="cyan">printer</font></li>
+                    <li>Select a PostScript Printer Description (PPD) file &mdash; <b>Generic</b> or any LaserWriter PPD</li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="macosx"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from Mac OS X</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Option A: IPP (Recommended)</b></p>
+                <ol>
+                    <li>Open <b>System Preferences &gt; Print &amp; Fax</b></li>
+                    <li>Click <b>+</b> to add a printer</li>
+                    <li>Select the <b>IP</b> tab</li>
+                    <li>Protocol: <b>Internet Printing Protocol - IPP</b></li>
+                    <li>Address: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Queue: <font color="cyan">ipp/print</font></li>
+                    <li>Select <b>Generic PostScript Printer</b> as the driver</li>
+                </ol>
+
+                <p><b>Option B: LPD</b></p>
+                <ol>
+                    <li>Same steps as above, but select Protocol: <b>Line Printer Daemon - LPD</b></li>
+                    <li>Address: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Queue: <font color="cyan">printer</font></li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="linux"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printing from Linux/Unix</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Using CUPS (IPP):</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ lpadmin -p VintageHive -E \<br>
+                        &nbsp;&nbsp;-v ipp://{{ serverip }}:{{ port_ipp }}/ipp/print \<br>
+                        &nbsp;&nbsp;-m everywhere<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p><b>Using lpr (LPD):</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ lpr -P printer@{{ serverip }} filename.ps<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p><b>Using netcat (Raw TCP):</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ cat filename.ps | nc {{ serverip }} {{ port_rawprint }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="drivers"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Printer Driver Recommendations</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <table border="1" cellpadding="5" width="100%">
+                    <tr bgcolor="#222222">
+                        <td><b>Application Type</b></td>
+                        <td><b>Recommended Driver</b></td>
+                        <td><b>Output Format</b></td>
+                    </tr>
+                    <tr>
+                        <td>DOS text / word processors</td>
+                        <td>Epson FX-80 / IBM ProPrinter</td>
+                        <td>ESC/P</td>
+                    </tr>
+                    <tr>
+                        <td>Windows GUI applications</td>
+                        <td>Apple LaserWriter / HP LaserJet PS</td>
+                        <td>PostScript</td>
+                    </tr>
+                    <tr>
+                        <td>Mac applications</td>
+                        <td>LaserWriter 8 / Generic PostScript</td>
+                        <td>PostScript</td>
+                    </tr>
+                    <tr>
+                        <td>Plain text files</td>
+                        <td>Generic / Text Only</td>
+                        <td>Plain text</td>
+                    </tr>
+                </table>
+
+                <p>VintageHive automatically detects the print data format (PostScript, ESC/P,
+                IBM ProPrinter, PCL, or plain text) and converts it to PDF.</p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

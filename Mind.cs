@@ -45,6 +45,10 @@ public static class Mind
 
     static PrinterProxy printerProxy;
 
+    static LpdProxy lpdProxy;
+
+    static RawPrintProxy rawPrintProxy;
+
     public static TimeSpan TotalRuntime => DateTime.UtcNow - StartTimeUtc;
 
     public static bool IsRunning { get; private set; } = true;
@@ -144,10 +148,22 @@ public static class Mind
 
         IrcServer.InitChannels();
 
-#if DEBUG
+        // Print services (IPP, LPD, Raw TCP) and shared spooler
+        PrintSpooler.Init();
 
-        printerProxy = new PrinterProxy(ipAddress, 631);
+        var ippPort = Db.ConfigGet<int>(ConfigNames.PortIpp);
 
+        printerProxy = new PrinterProxy(ipAddress, ippPort);
+
+        var lpdPort = Db.ConfigGet<int>(ConfigNames.PortLpd);
+
+        lpdProxy = new LpdProxy(ipAddress, lpdPort);
+
+        var rawPrintPort = Db.ConfigGet<int>(ConfigNames.PortRawPrint);
+
+        rawPrintProxy = new RawPrintProxy(ipAddress, rawPrintPort);
+
+        // Email services
         var smtpProxyPort = Db.ConfigGet<int>(ConfigNames.PortSmtp);
 
         smtpProxy = new(ipAddress, smtpProxyPort);
@@ -160,7 +176,6 @@ public static class Mind
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
         // socks5Proxy = new(ipAddress, socks5Port);
-#endif
     }
 
     public static void Start()
@@ -175,15 +190,15 @@ public static class Mind
 
         IrcServer.Start();
 
-#if DEBUG
         printerProxy.Start();
+        lpdProxy.Start();
+        rawPrintProxy.Start();
 
         smtpProxy.Start();
 
         pop3Proxy.Start();
 
         // socks5Proxy.Start();
-#endif
 
         oscarServer.Start();
 

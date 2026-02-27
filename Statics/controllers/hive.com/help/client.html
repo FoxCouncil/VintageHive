@@ -1,0 +1,122 @@
+{% assign title = "Help - Client Settings" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% include 'partials/helptoc.html' %}
+
+
+    <hr>
+
+    <table cellpadding="6" width="100%" bgcolor="#111111">
+        <tr><td>
+            <font face="Courier New" size="2">
+            <b>Jump to:</b>
+            <a href="#win31">Windows 3.1x</a> |
+            <a href="#win9x">Windows 95/98</a> |
+            <a href="#win2k">Windows 2000/XP</a> |
+            <a href="#macos">Mac OS</a> |
+            <a href="#linux">Linux/Unix</a>
+            </font>
+        </td></tr>
+    </table>
+
+    <hr>
+
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Setting</b></td>
+            <td><b>Value</b></td>
+        </tr>
+        <tr>
+            <td>Proxy Address</td>
+            <td><font color="cyan">{{ serverip }}</font></td>
+        </tr>
+        <tr>
+            <td>HTTP Port</td>
+            <td><font color="cyan">{{ port_http }}</font></td>
+        </tr>
+        <tr>
+            <td>HTTPS Port</td>
+            <td><font color="cyan">{{ port_https }}</font></td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <a name="win31"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Windows 3.1x</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="win9x"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Windows 95/98</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="win2k"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Windows 2000/XP</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="macos"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Mac OS</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="linux"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Linux/Unix</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

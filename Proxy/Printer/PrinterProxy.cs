@@ -5,7 +5,6 @@ using SharpIpp.Exceptions;
 using SharpIpp.Models;
 using SharpIpp.Protocol;
 using SharpIpp.Protocol.Models;
-using System.Text.Json.Nodes;
 using VintageHive.Network;
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
@@ -14,8 +13,6 @@ namespace VintageHive.Proxy.Printer;
 
 internal class PrinterProxy : Listener
 {
-    const string DEFAULT_PS_SIGNATURE = "%!PS-Adobe-3.0";
-
     const string DEFAULT_PRINTER_NAME = "VintageHiveIPP";
 
     const string DEFAULT_MEDIA_SIZE = "iso_a4_210x297mm";
@@ -44,23 +41,8 @@ internal class PrinterProxy : Listener
 
     static string PrinterUrl;
 
-    static string SpoolerPath;
-
-    static string DepotPath;
-
     public PrinterProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp)
     {
-        GhostScriptNative.Init();
-
-        SpoolerPath = $"{VFS.DataPath}printspooler/";
-
-        DepotPath = $"{VFS.DownloadsPath}printer/";
-
-        VFS.DirectoryCreate(SpoolerPath);
-
-        VFS.DirectoryCreate(DepotPath);
-
-        Task.Run(() => PrinterSpoolerThread());
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -161,128 +143,6 @@ internal class PrinterProxy : Listener
                 return null;
             }
         }
-    }
-
-    async Task PrinterSpoolerThread()
-    {
-        while (Mind.IsRunning)
-        {
-            var job = Mind.PrinterDb.GetNextJob();
-
-            if (job != null)
-            {
-                Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"Job found! Processing job {job.Id}!");
-
-                try
-                {
-                    if (job.DocData.Length == 0)
-                    {
-                        if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Canceled))
-                        {
-                            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Failed to set job state to canceled; {job.Id}", "");
-                        }
-
-                        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"{job.Id} has no data, looping!");
-
-                        continue;
-                    }
-
-                    var docNewAttributes = JsonSerializer.Deserialize<JsonObject>(job.DocNewAttr);
-
-                    var jobName = docNewAttributes["JobName"].ToString();
-
-                    if (job.DocData.AsSpan().IndexOf(Encoding.ASCII.GetBytes(DEFAULT_PS_SIGNATURE)) >= 0)
-                    {
-                        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"Job {job.Id} is a PS file!");
-
-                        // PostScript
-                        var tempInputPath = $"{SpoolerPath}{job.Id}.ps";
-                        var tempOutputPath = $"{SpoolerPath}{job.Id}.pdf";
-
-                        using var inputFileStream = VFS.FileWrite(tempInputPath);
-
-                        await inputFileStream.WriteAsync(job.DocData, 0, job.DocData.Length);
-                        await inputFileStream.FlushAsync();
-
-                        inputFileStream.Close();
-
-                        GhostScriptNative.ConvertPsToPdf(VFS.GetFullPath(tempInputPath), VFS.GetFullPath(tempOutputPath));
-
-                        var ouputData = await VFS.FileReadDataAsync(tempOutputPath);
-
-                        if (!Mind.PrinterDb.SetJobPrintData(job.Id, ouputData, HttpContentTypeMimeType.Application.Pdf))
-                        {
-                            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Failed to set job print data; {job.Id}", "");
-
-                            continue;
-                        }
-
-                        using var outputFile = VFS.FileWrite($"{DepotPath}{job.Id}_{jobName}.pdf");
-
-                        await outputFile.WriteAsync(ouputData);
-                        await outputFile.FlushAsync();
-
-                        VFS.FileDelete(tempInputPath);
-                        VFS.FileDelete(tempOutputPath);
-
-                        if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Completed))
-                        {
-                            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Failed to set job state to completed; {job.Id}", "");
-
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"Job {job.Id} is a plain text file!");
-
-                        // Plain Text
-                        if (!Mind.PrinterDb.SetJobPrintData(job.Id, job.DocData, HttpContentTypeMimeType.Text.Plain))
-                        {
-                            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Failed to set job print data; {job.Id}", "");
-
-                            continue;
-                        }
-
-                        var fileName = $"{DepotPath}{job.Id}_{jobName}.txt";
-
-                        if (VFS.FileExists(fileName))
-                        {
-                            VFS.FileDelete(fileName);
-                        }
-
-                        using var outputFile = VFS.FileWrite(fileName);
-
-                        await outputFile.WriteAsync(job.DocData);
-                        await outputFile.FlushAsync();
-
-                        if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Completed))
-                        {
-                            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Failed to set job state to completed; {job.Id}", "");
-
-                            continue;
-                        }
-                    }
-
-                    Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"Job completed; {job.Id}", "");
-                }
-                catch (Exception ex)
-                {
-                    if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Canceled))
-                    {
-                        Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Failed to set job state to canceled; {job.Id}", "");
-                    }
-
-                    Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Error in PrinterSpoolerThread; {ex}", "");
-                }
-            }
-            else
-            {
-                Thread.Sleep(100);
-            }
-        }
-
-        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), "PrinterSpoolerThread exited", "");
     }
 
     private ValidateJobResponse GetValidateJobResponse(ValidateJobRequest request)
@@ -504,7 +364,7 @@ internal class PrinterProxy : Listener
 
         var jobId = request.OperationAttributes.JobId;
 
-        if (jobId.HasValue && Mind.PrinterDb.SetJobState(jobId.Value, 0))
+        if (jobId.HasValue && Mind.PrinterDb.SetJobState(jobId.Value, PrinterJobState.PendingHeld))
         {
             response.StatusCode = IppStatusCode.SuccessfulOk;
         }
@@ -554,7 +414,12 @@ internal class PrinterProxy : Listener
                 IppOperation.ResumePrinter
             ],
             QueuedJobCount = !IsRequired(PrinterAttribute.QueuedJobCount) ? null : Mind.PrinterDb.GetProcessingJobCount(),
-            DocumentFormatSupported = !IsRequired(PrinterAttribute.DocumentFormatSupported) ? null : [DEFAULT_DOCUMENT_FORMAT],
+            DocumentFormatSupported = !IsRequired(PrinterAttribute.DocumentFormatSupported) ? null : [
+                HttpContentTypeMimeType.Application.Pdf,
+                HttpContentTypeMimeType.Application.PostScript,
+                HttpContentTypeMimeType.Text.Plain,
+                HttpContentTypeMimeType.Application.OctetStream,
+            ],
             MultipleDocumentJobsSupported = !IsRequired(PrinterAttribute.MultipleDocumentJobsSupported) ? null : true,
             CompressionSupported = !IsRequired(PrinterAttribute.CompressionSupported) ? null : [Compression.None],
             PrinterLocation = !IsRequired(PrinterAttribute.PrinterLocation) ? null : "VintageHive",
@@ -594,12 +459,42 @@ internal class PrinterProxy : Listener
 
     private GetJobsResponse GetJobsResponse(GetJobsRequest request)
     {
+        var allJobs = Mind.PrinterDb.GetAllJobs();
+
+        // Filter by requested states if specified
+        var whichJobs = request.OperationAttributes?.WhichJobs;
+        var filteredJobs = allJobs;
+
+        if (whichJobs == WhichJobs.Completed)
+        {
+            filteredJobs = allJobs.Where(j => j.State == PrinterJobState.Completed || j.State == PrinterJobState.Canceled || j.State == PrinterJobState.Aborted).ToList();
+        }
+        else if (whichJobs == WhichJobs.NotCompleted)
+        {
+            filteredJobs = allJobs.Where(j => j.State != PrinterJobState.Completed && j.State != PrinterJobState.Canceled && j.State != PrinterJobState.Aborted).ToList();
+        }
+
+        var limit = request.OperationAttributes?.Limit ?? 50;
+        filteredJobs = filteredJobs.Take(limit).ToList();
+
+        var jobs = filteredJobs.Select(j => new JobDescriptionAttributes
+        {
+            JobId = j.Id,
+            JobState = MapJobState(j.State),
+            JobName = j.Name ?? $"Job {j.Id}",
+            JobUri = PrinterUrl + j.Id,
+            JobStateReasons = [MapJobStateReason(j.State)],
+            TimeAtCreation = (int)(j.Created - DateTime.UnixEpoch).TotalSeconds,
+            TimeAtProcessing = j.Processed.HasValue ? (int)(j.Processed.Value - DateTime.UnixEpoch).TotalSeconds : 0,
+            TimeAtCompleted = j.Completed.HasValue ? (int)(j.Completed.Value - DateTime.UnixEpoch).TotalSeconds : 0,
+        }).ToArray();
+
         return new GetJobsResponse
         {
             RequestId = request.RequestId,
             Version = request.Version,
             StatusCode = IppStatusCode.SuccessfulOk,
-            Jobs = []
+            Jobs = jobs
         };
     }
 
@@ -611,6 +506,34 @@ internal class PrinterProxy : Listener
             Version = request.Version,
             StatusCode = IppStatusCode.ClientErrorNotPossible,
             JobAttributes = new JobDescriptionAttributes()
+        };
+
+        var jobId = request.OperationAttributes?.JobId;
+
+        if (!jobId.HasValue)
+        {
+            return response;
+        }
+
+        var job = Mind.PrinterDb.GetJob(jobId.Value);
+
+        if (job == null)
+        {
+            return response;
+        }
+
+        response.StatusCode = IppStatusCode.SuccessfulOk;
+        response.JobAttributes = new JobDescriptionAttributes
+        {
+            JobId = job.Id,
+            JobState = MapJobState(job.State),
+            JobName = job.Name ?? $"Job {job.Id}",
+            JobUri = PrinterUrl + job.Id,
+            JobPrinterUri = PrinterUrl,
+            JobStateReasons = [MapJobStateReason(job.State)],
+            TimeAtCreation = (int)(job.Created - DateTime.UnixEpoch).TotalSeconds,
+            TimeAtProcessing = job.Processed.HasValue ? (int)(job.Processed.Value - DateTime.UnixEpoch).TotalSeconds : 0,
+            TimeAtCompleted = job.Completed.HasValue ? (int)(job.Completed.Value - DateTime.UnixEpoch).TotalSeconds : 0,
         };
 
         return response;
@@ -685,5 +608,32 @@ internal class PrinterProxy : Listener
         attributes.Copies ??= DEFAULT_NUMBER_OF_COPIES;
         attributes.OrientationRequested ??= DEFAULT_ORIENTATION;
         attributes.JobHoldUntil ??= DEFAULT_JOB_UNTIL;
+    }
+
+    private static JobState MapJobState(PrinterJobState state)
+    {
+        return state switch
+        {
+            PrinterJobState.Pending => JobState.Pending,
+            PrinterJobState.PendingHeld => JobState.PendingHeld,
+            PrinterJobState.Processing => JobState.Processing,
+            PrinterJobState.ProcessingStopped => JobState.ProcessingStopped,
+            PrinterJobState.Canceled => JobState.Canceled,
+            PrinterJobState.Aborted => JobState.Aborted,
+            PrinterJobState.Completed => JobState.Completed,
+            _ => JobState.Pending
+        };
+    }
+
+    private static JobStateReason MapJobStateReason(PrinterJobState state)
+    {
+        return state switch
+        {
+            PrinterJobState.Completed => JobStateReason.JobCompletedSuccessfully,
+            PrinterJobState.Canceled => JobStateReason.JobCanceledByUser,
+            PrinterJobState.Aborted => JobStateReason.AbortedBySystem,
+            PrinterJobState.Processing => JobStateReason.JobPrinting,
+            _ => JobStateReason.None
+        };
     }
 }

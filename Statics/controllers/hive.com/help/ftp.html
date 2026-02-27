@@ -1,0 +1,99 @@
+{% assign title = "Help - FTP" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% include 'partials/helptoc.html' %}
+
+
+    <hr>
+
+    <table cellpadding="6" width="100%" bgcolor="#111111">
+        <tr><td>
+            <font face="Courier New" size="2">
+            <b>Jump to:</b>
+            <a href="#wsftp">WS_FTP</a> |
+            <a href="#cuteftp">CuteFTP</a> |
+            <a href="#commandline">Command Line</a> |
+            <a href="#protoweb">ProtoWeb FTP Sites</a>
+            </font>
+        </td></tr>
+    </table>
+
+    <hr>
+
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Setting</b></td>
+            <td><b>Value</b></td>
+        </tr>
+        <tr>
+            <td>FTP Server</td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_ftp }}</font></td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <a name="wsftp"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>WS_FTP</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="cuteftp"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>CuteFTP</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="commandline"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Command Line FTP</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Instructions coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="protoweb"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>ProtoWeb FTP Sites</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Listing of available archived FTP sites coming soon.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

@@ -24,6 +24,12 @@ public static class ConfigNames
 
     public const string PortIrc = "portirc";
 
+    public const string PortIpp = "portipp";
+
+    public const string PortLpd = "portlpd";
+
+    public const string PortRawPrint = "portrawprint";
+
     public const string ServiceInternetArchive = "serviceinternetarchive";
 
     public const string ServiceInternetArchiveYear = "serviceinternetarchiveyear";
@@ -41,6 +47,8 @@ public static class ConfigNames
     public const string ServiceUsenet = "serviceusenet";
 
     public const string ServiceIrc = "serviceirc";
+
+    public const string ServicePrinter = "serviceprinter";
 
     public const string Location = "location";
 

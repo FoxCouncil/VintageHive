@@ -30,6 +30,6 @@ internal class LocalServerFileProvider : IFileProvider
 
     public IChangeToken Watch(string filter)
     {
-        throw new NotImplementedException();
+        return NullChangeToken.Singleton;
     }
 }
