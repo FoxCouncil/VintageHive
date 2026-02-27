@@ -19,5 +19,11 @@ public class EmailMessage
     public int Size { get; set; }
 
     public string Data { get; set; }
+
+    public int Uid { get; set; }
+
+    public string Flags { get; set; } = string.Empty;
+
+    public int MailboxId { get; set; }
 }
 

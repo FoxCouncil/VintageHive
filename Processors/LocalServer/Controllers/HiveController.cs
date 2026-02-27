@@ -547,6 +547,7 @@ internal class HiveController : Controller
         Response.Context.SetValue("port_smtp", Mind.Db.ConfigGet<int>(ConfigNames.PortSmtp));
         Response.Context.SetValue("port_pop3", Mind.Db.ConfigGet<int>(ConfigNames.PortPop3));
         Response.Context.SetValue("port_irc", Mind.Db.ConfigGet<int>(ConfigNames.PortIrc));
+        Response.Context.SetValue("port_imap", Mind.Db.ConfigGet<int>(ConfigNames.PortImap));
         Response.Context.SetValue("port_ipp", Mind.Db.ConfigGet<int>(ConfigNames.PortIpp));
         Response.Context.SetValue("port_lpd", Mind.Db.ConfigGet<int>(ConfigNames.PortLpd));
         Response.Context.SetValue("port_rawprint", Mind.Db.ConfigGet<int>(ConfigNames.PortRawPrint));

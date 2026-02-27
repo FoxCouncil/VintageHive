@@ -38,6 +38,10 @@
             <td>POP3 Server (Incoming)</td>
             <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_pop3 }}</font></td>
         </tr>
+        <tr>
+            <td>IMAP4 Server (Incoming)</td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_imap }}</font></td>
+        </tr>
     </table>
 
     <hr>
@@ -47,6 +51,11 @@
     <font color="cyan">http://admin.hive.com</font>.
     Your e-mail address is <font color="cyan">username@hive.com</font>
     (where &quot;username&quot; is your VintageHive account name).</i></p>
+
+    <p><i><b>Thunderbird / Modern clients:</b> VintageHive supports automatic account
+    configuration. If your DNS resolves <font color="cyan">autoconfig.hive.com</font>
+    to the VintageHive server, Thunderbird will auto-detect the correct
+    IMAP/POP3/SMTP settings when you add a new account.</i></p>
 
     <hr>
 
@@ -71,7 +80,7 @@
                             </tr>
                             <tr>
                                 <td>Incoming mail server type</td>
-                                <td><font color="cyan">POP3</font></td>
+                                <td><font color="cyan">POP3</font> or <font color="cyan">IMAP</font></td>
                             </tr>
                             <tr>
                                 <td>Incoming mail (POP3)</td>
@@ -92,7 +101,8 @@
                     <li>Open <b>Tools &gt; Accounts</b>, select your account, click <b>Properties</b></li>
                     <li>Click the <b>Advanced</b> tab</li>
                     <li>Set Outgoing mail (SMTP) port to: <font color="cyan">{{ port_smtp }}</font></li>
-                    <li>Set Incoming mail (POP3) port to: <font color="cyan">{{ port_pop3 }}</font></li>
+                    <li>Set Incoming mail (POP3) port to: <font color="cyan">{{ port_pop3 }}</font>
+                        (or IMAP port: <font color="cyan">{{ port_imap }}</font>)</li>
                     <li>Click <b>OK</b></li>
                 </ol>
 

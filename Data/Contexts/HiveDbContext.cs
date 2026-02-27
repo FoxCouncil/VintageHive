@@ -47,6 +47,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.PortPop3, 1984 },
         { ConfigNames.PortUsenet, 1986 },
         { ConfigNames.PortIrc, 1988 },
+        { ConfigNames.PortImap, 1985 },
         { ConfigNames.PortIpp, 631 },
         { ConfigNames.PortLpd, 515 },
         { ConfigNames.PortRawPrint, 9100 },
@@ -65,6 +66,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServicePop3, true },
         { ConfigNames.ServiceUsenet, true },
         { ConfigNames.ServiceIrc, true },
+        { ConfigNames.ServiceImap, true },
         { ConfigNames.ServicePrinter, true },
     };
 

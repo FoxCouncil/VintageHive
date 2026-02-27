@@ -46,7 +46,7 @@ internal partial class SmtpProxy : Listener
     {
         connection.IsKeepAlive = true;
 
-        return await SendResponse(ServiceReady, "stmp.hive.com ESMTP ready");
+        return await SendResponse(ServiceReady, "smtp.hive.com ESMTP ready");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -126,6 +126,21 @@ internal partial class SmtpProxy : Listener
                 }
 
                 return null;
+            }
+
+            case SmtpCommands.NOOP:
+            {
+                return await SendResponse(RequestedMailActionCompleted, "OK");
+            }
+
+            case SmtpCommands.HELP:
+            {
+                return await SendResponse(SmtpResponseCodes.CommandNotImplemented, "VintageHive SMTP server. For help, visit http://hive.com/help/email.html");
+            }
+
+            case SmtpCommands.VRFY:
+            {
+                return await SendResponse(CannotVerifyUser, "Cannot VRFY user, but will accept message and attempt delivery");
             }
 
             case SmtpCommands.QUIT:
@@ -220,7 +235,7 @@ internal partial class SmtpProxy : Listener
 
             default:
             {
-                return null;
+                return await SendResponse(SyntaxError, "Syntax error, command unrecognized");
             }
         }
     }
@@ -300,6 +315,19 @@ internal partial class SmtpProxy : Listener
                 if (Mind.Db.UserExistsByUsername(toUser))
                 {
                     Mind.PostOfficeDb.MarkEmailAsDelivered(email.Id);
+
+                    var inbox = Mind.PostOfficeDb.GetMailboxByName(toUser, "INBOX");
+
+                    if (inbox == null)
+                    {
+                        Mind.PostOfficeDb.CreateDefaultMailboxes(toUser);
+                        inbox = Mind.PostOfficeDb.GetMailboxByName(toUser, "INBOX");
+                    }
+
+                    if (inbox != null)
+                    {
+                        Mind.PostOfficeDb.AssignMessageToMailbox(email.Id, inbox.Value.Id);
+                    }
 
                     Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) SUCCESSFULLY DELIVERED!", "");
                 }

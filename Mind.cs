@@ -5,6 +5,7 @@ using VintageHive.Data.Contexts;
 using VintageHive.Processors;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
+using VintageHive.Proxy.Imap;
 using VintageHive.Proxy.Irc;
 using VintageHive.Proxy.Mms;
 using VintageHive.Proxy.Oscar;
@@ -38,6 +39,8 @@ public static class Mind
     static SmtpProxy smtpProxy;
 
     static Pop3Proxy pop3Proxy;
+
+    static ImapProxy imapProxy;
 
     static OscarServer oscarServer;
 
@@ -172,6 +175,10 @@ public static class Mind
 
         pop3Proxy = new(ipAddress, pop3ProxyPort);
 
+        var imapProxyPort = Db.ConfigGet<int>(ConfigNames.PortImap);
+
+        imapProxy = new(ipAddress, imapProxyPort);
+
         // ==== TESTING AREA =====
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
@@ -197,6 +204,8 @@ public static class Mind
         smtpProxy.Start();
 
         pop3Proxy.Start();
+
+        imapProxy.Start();
 
         // socks5Proxy.Start();
 
