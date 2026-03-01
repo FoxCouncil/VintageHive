@@ -33,6 +33,7 @@ internal static class HiveHelpGenerator
             "  - Usenet (NNTP)  News server with real historical archives\r\n" +
             "  - FTP            File server with ProtoWeb archive proxy\r\n" +
             "  - SOCKS Proxy    SOCKS4/4a/5 TCP tunneling proxy\r\n" +
+            "  - DNS            Intercepts all lookups to VintageHive's IP\r\n" +
             "  - Telnet BBS     Text-mode bulletin board system\r\n" +
             "  - Printing       Network print server (IPP, LPD, Raw TCP)\r\n" +
             "\r\n" +
@@ -291,6 +292,62 @@ internal static class HiveHelpGenerator
             "  Eudora:  Tools > Options > Advanced Network\r\n" +
             "\r\n" +
             "See http://hive.com/help/socks for detailed setup with screenshots."
+        ));
+
+        articles.Add(MakeArticle(++n, "DNS - Domain Name Configuration", now.AddMinutes(n),
+            "DNS via VintageHive\r\n" +
+            "===================\r\n" +
+            "\r\n" +
+            "VintageHive includes a DNS server that intercepts all domain\r\n" +
+            "name lookups and resolves them to VintageHive's IP address.\r\n" +
+            "This lets vintage computers find VintageHive services by\r\n" +
+            "hostname without a real DNS server or hosts file entries.\r\n" +
+            "\r\n" +
+            "SERVER SETTINGS:\r\n" +
+            "  Server:    VintageHive's IP address\r\n" +
+            "  Port:      DNS port (see admin panel, default 1953)\r\n" +
+            "  Protocol:  UDP\r\n" +
+            "\r\n" +
+            "HOW IT WORKS:\r\n" +
+            "  Every A record query returns VintageHive's IP. The vintage\r\n" +
+            "  computer connects to VintageHive, which proxies the request\r\n" +
+            "  through its HTTP proxy, FTP proxy, SOCKS proxy, etc.\r\n" +
+            "\r\n" +
+            "  Non-A queries (AAAA, MX, CNAME, etc.) return an empty\r\n" +
+            "  response. Only A records are needed for vintage networking.\r\n" +
+            "\r\n" +
+            "WINDOWS 95/98:\r\n" +
+            "  1. Control Panel > Network\r\n" +
+            "  2. Select TCP/IP for your adapter, click Properties\r\n" +
+            "  3. DNS Configuration tab > Enable DNS\r\n" +
+            "  4. Add VintageHive's IP under DNS Server Search Order\r\n" +
+            "\r\n" +
+            "WINDOWS 2000/XP:\r\n" +
+            "  1. Control Panel > Network Connections\r\n" +
+            "  2. Right-click connection > Properties\r\n" +
+            "  3. Internet Protocol (TCP/IP) > Properties\r\n" +
+            "  4. Set Preferred DNS server to VintageHive's IP\r\n" +
+            "\r\n" +
+            "MAC OS CLASSIC:\r\n" +
+            "  1. Control Panels > TCP/IP\r\n" +
+            "  2. Set Name server addr. to VintageHive's IP\r\n" +
+            "\r\n" +
+            "UNIX / LINUX:\r\n" +
+            "  Edit /etc/resolv.conf:\r\n" +
+            "    nameserver <VintageHive IP>\r\n" +
+            "\r\n" +
+            "NOTE ON PORT:\r\n" +
+            "  Standard DNS uses port 53. VintageHive defaults to port 1953\r\n" +
+            "  to avoid requiring administrator/root privileges. Most vintage\r\n" +
+            "  operating systems only support port 53, so you may need to\r\n" +
+            "  change the port in VintageHive's admin panel or use port\r\n" +
+            "  forwarding.\r\n" +
+            "\r\n" +
+            "TESTING:\r\n" +
+            "  nslookup www.yahoo.com <VintageHive IP>\r\n" +
+            "  dig @<VintageHive IP> -p <port> www.yahoo.com A\r\n" +
+            "\r\n" +
+            "See http://hive.com/help/dns for detailed setup instructions."
         ));
 
         articles.Add(MakeArticle(++n, "Printing - Network Print Server", now.AddMinutes(n),

@@ -13,6 +13,7 @@ using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Telnet;
+using VintageHive.Proxy.Dns;
 using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Usenet;
 
@@ -26,7 +27,7 @@ public static class Mind
 
     static readonly ManualResetEvent resetEvent = new(false);
 
-    // static DnsProxy dnsProxy;
+    static DnsProxy dnsProxy;
 
     static SocksProxy socksProxy;
 
@@ -192,6 +193,11 @@ public static class Mind
         var socksPort = Db.ConfigGet<int>(ConfigNames.PortSocks5);
 
         socksProxy = new(ipAddress, socksPort);
+
+        // DNS proxy (UDP, intercepts all lookups → VintageHive IP)
+        var dnsPort = Db.ConfigGet<int>(ConfigNames.PortDns);
+
+        dnsProxy = new(ipAddress, dnsPort, ipAddress);
     }
 
     public static void Start()
@@ -219,6 +225,8 @@ public static class Mind
         nntpProxy.Start();
 
         socksProxy.Start();
+
+        dnsProxy.Start();
 
         oscarServer.Start();
 

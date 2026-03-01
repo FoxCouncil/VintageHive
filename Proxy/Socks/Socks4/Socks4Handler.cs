@@ -60,7 +60,7 @@ internal static class Socks4Handler
 
             try
             {
-                var addresses = await Dns.GetHostAddressesAsync(destHost, ct);
+                var addresses = await System.Net.Dns.GetHostAddressesAsync(destHost, ct);
 
                 destAddress = addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                            ?? addresses.First();

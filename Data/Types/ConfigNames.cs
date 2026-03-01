@@ -32,6 +32,10 @@ public static class ConfigNames
 
     public const string PortRawPrint = "portrawprint";
 
+    public const string PortDns = "portdns";
+
+    public const string ServiceDns = "servicedns";
+
     public const string ServiceInternetArchive = "serviceinternetarchive";
 
     public const string ServiceInternetArchiveYear = "serviceinternetarchiveyear";

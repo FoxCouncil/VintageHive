@@ -434,6 +434,13 @@ internal class HiveController : Controller
         SetHelpContext();
     }
 
+    [Route("/help/dns.html")]
+    public async Task HelpDns()
+    {
+        await Task.Delay(0);
+        SetHelpContext();
+    }
+
     [Route("/settings.html")]
     public async Task Settings()
     {
@@ -567,6 +574,7 @@ internal class HiveController : Controller
         Response.Context.SetValue("port_rawprint", Mind.Db.ConfigGet<int>(ConfigNames.PortRawPrint));
         Response.Context.SetValue("port_usenet", Mind.Db.ConfigGet<int>(ConfigNames.PortUsenet));
         Response.Context.SetValue("port_socks", Mind.Db.ConfigGet<int>(ConfigNames.PortSocks5));
+        Response.Context.SetValue("port_dns", Mind.Db.ConfigGet<int>(ConfigNames.PortDns));
     }
 
     private void NotAuthorized(string error = "Not Authorized")

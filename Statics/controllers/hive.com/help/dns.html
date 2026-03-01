@@ -1,0 +1,274 @@
+{% assign title = "Help - DNS" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% include 'partials/helptoc.html' %}
+
+
+    <hr>
+
+    <table cellpadding="6" width="100%" bgcolor="#111111">
+        <tr><td>
+            <font face="Courier New" size="2">
+            <b>Jump to:</b>
+            <a href="#about">About DNS</a> |
+            <a href="#win9x">Windows 95/98</a> |
+            <a href="#winnt">Windows NT/2000/XP</a> |
+            <a href="#mac">Mac OS</a> |
+            <a href="#unix">Unix / Linux</a> |
+            <a href="#testing">Testing</a>
+            </font>
+        </td></tr>
+    </table>
+
+    <hr>
+
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Setting</b></td>
+            <td><b>Value</b></td>
+        </tr>
+        <tr>
+            <td>DNS Server</td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_dns }}</font></td>
+        </tr>
+        <tr>
+            <td>Protocol</td>
+            <td>UDP</td>
+        </tr>
+        <tr>
+            <td>Supported Query Types</td>
+            <td>A records (all others return empty response)</td>
+        </tr>
+        <tr>
+            <td>Authentication</td>
+            <td>Not required</td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <a name="about"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>About DNS</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>VintageHive includes a DNS server that intercepts all domain name
+                lookups and resolves them to the VintageHive server's IP address.
+                This allows vintage computers to connect to VintageHive services
+                by hostname without needing a real DNS server or hosts file entries.</p>
+
+                <p><b>How it works:</b> Every A record query (hostname &rarr; IP address)
+                returns VintageHive's IP. The vintage computer then connects to
+                VintageHive, which proxies the request to the appropriate service
+                (web proxy, FTP, IRC, etc.).</p>
+
+                <p><b>Non-standard port:</b> VintageHive's DNS server listens on
+                port <font color="cyan">{{ port_dns }}</font> by default instead of
+                the standard port 53. Some operating systems allow you to specify
+                a custom DNS port, while others require port 53. If your OS requires
+                port 53, you can change VintageHive's DNS port in the admin panel,
+                or set up port forwarding.</p>
+
+                <p><i>Note: AAAA (IPv6), MX, CNAME, and all other query types
+                return an empty response (NOERROR with zero answers). Only A record
+                lookups are needed for vintage networking.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="win9x"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Windows 95 / 98 / Me</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Setting DNS in TCP/IP Properties:</b></p>
+                <ol>
+                    <li>Open <b>Control Panel</b> &gt; <b>Network</b></li>
+                    <li>Select <b>TCP/IP</b> bound to your network adapter and click <b>Properties</b></li>
+                    <li>Click the <b>DNS Configuration</b> tab</li>
+                    <li>Select <b>Enable DNS</b></li>
+                    <li>Under <b>DNS Server Search Order</b>, add:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr><td><font color="cyan">{{ serverip }}</font></td></tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b>, then <b>OK</b> again. Restart if prompted.</li>
+                </ol>
+
+                <p><i>Windows 9x uses standard port 53 for DNS. If VintageHive's
+                DNS port is not 53, you will need to configure port forwarding on
+                your network, or change the DNS port to 53 in VintageHive's admin panel.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="winnt"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Windows NT 4.0 / 2000 / XP</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Windows 2000 / XP:</b></p>
+                <ol>
+                    <li>Open <b>Control Panel</b> &gt; <b>Network Connections</b></li>
+                    <li>Right-click your connection, select <b>Properties</b></li>
+                    <li>Select <b>Internet Protocol (TCP/IP)</b> and click <b>Properties</b></li>
+                    <li>Select <b>Use the following DNS server addresses</b></li>
+                    <li>Set <b>Preferred DNS server</b> to:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr><td><font color="cyan">{{ serverip }}</font></td></tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b> and close the dialogs</li>
+                </ol>
+
+                <p><b>Windows NT 4.0:</b></p>
+                <ol>
+                    <li>Open <b>Control Panel</b> &gt; <b>Network</b></li>
+                    <li>Click the <b>Protocols</b> tab, select <b>TCP/IP Protocol</b>,
+                        click <b>Properties</b></li>
+                    <li>Click the <b>DNS</b> tab</li>
+                    <li>Under <b>DNS Service Search Order</b>, click <b>Add</b></li>
+                    <li>Enter <font color="cyan">{{ serverip }}</font> and click <b>Add</b></li>
+                    <li>Click <b>OK</b> and restart if prompted</li>
+                </ol>
+
+                <p><i>Like Windows 9x, these versions use port 53 only.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="mac"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Mac OS</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Mac OS 7.x / 8.x / 9.x (Open Transport):</b></p>
+                <ol>
+                    <li>Open <b>Control Panels</b> &gt; <b>TCP/IP</b></li>
+                    <li>Set <b>Connect via</b> to <b>Ethernet</b></li>
+                    <li>Set <b>Configure</b> to <b>Manually</b> (or keep DHCP
+                        and override the Name Server)</li>
+                    <li>In the <b>Name server addr.</b> field, enter:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr><td><font color="cyan">{{ serverip }}</font></td></tr>
+                        </table>
+                    </li>
+                    <li>Close the control panel and save changes</li>
+                </ol>
+
+                <p><b>Mac OS X:</b></p>
+                <ol>
+                    <li>Open <b>System Preferences</b> &gt; <b>Network</b></li>
+                    <li>Select your connection, click <b>Advanced</b></li>
+                    <li>Click the <b>DNS</b> tab</li>
+                    <li>Click <b>+</b> and add <font color="cyan">{{ serverip }}</font></li>
+                    <li>Remove any other DNS servers</li>
+                    <li>Click <b>OK</b>, then <b>Apply</b></li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="unix"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Unix / Linux</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Edit /etc/resolv.conf:</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ sudo vi /etc/resolv.conf<br>
+                        <br>
+                        nameserver {{ serverip }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>Replace any existing <b>nameserver</b> lines with VintageHive's
+                IP address. On some Linux distributions, NetworkManager or
+                systemd-resolved may overwrite this file. Check your distribution's
+                documentation for making DNS changes permanent.</p>
+
+                <p><i>Standard resolv.conf uses port 53 only. If VintageHive's
+                DNS port is non-standard, use port forwarding (e.g., iptables)
+                or configure the DNS port to 53 in VintageHive.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="testing"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Testing Your DNS Configuration</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Using nslookup (Windows / Unix):</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ nslookup www.yahoo.com {{ serverip }}<br>
+                        <br>
+                        Server:  {{ serverip }}<br>
+                        Address: {{ serverip }}#{{ port_dns }}<br>
+                        <br>
+                        Name:    www.yahoo.com<br>
+                        Address: {{ serverip }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p><b>Using dig (Unix / Mac OS X):</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ dig @{{ serverip }} -p {{ port_dns }} www.yahoo.com A<br>
+                        <br>
+                        ;; ANSWER SECTION:<br>
+                        www.yahoo.com.  300  IN  A  {{ serverip }}<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p>If both commands return VintageHive's IP address, DNS is
+                working correctly. All domain names should resolve to the same
+                IP &mdash; this is by design, as VintageHive intercepts all
+                traffic and routes it through its proxy services.</p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>
