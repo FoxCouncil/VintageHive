@@ -1,0 +1,10 @@
+[
+  { "name": "comp.test.hardware", "description": "Test hardware discussions" },
+  { "name": "comp.test.software", "description": "Test software discussions" },
+  { "name": "rec.test.games", "description": "Test game discussions" },
+  { "name": "alt.hive.help", "description": "VintageHive help and documentation" },
+  { "name": "sci.test.space", "description": "Test space discussions" },
+  { "name": "news.test.general", "description": "Test news discussions" },
+  { "name": "misc.test.forsale", "description": "Test forsale discussions" },
+  { "name": "soc.test.culture", "description": "Test culture discussions" }
+]

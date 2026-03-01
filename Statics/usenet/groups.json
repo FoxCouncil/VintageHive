@@ -1,0 +1,106 @@
+﻿[
+  {
+    "name": "alt.hive.help",
+    "description": "VintageHive help and documentation"
+  },
+  {
+    "name": "comp.os.minix",
+    "description": "MINIX operating system discussions"
+  },
+  {
+    "name": "comp.lang.python",
+    "description": "Python programming language"
+  },
+  {
+    "name": "comp.unix.wizards",
+    "description": "Questions for Unix wizards"
+  },
+  {
+    "name": "comp.sys.ibm.pc.hardware",
+    "description": "IBM PC hardware discussions"
+  },
+  {
+    "name": "comp.os.linux.misc",
+    "description": "Linux operating system miscellaneous"
+  },
+  {
+    "name": "comp.os.ms-windows.win95",
+    "description": "Microsoft Windows 95 discussions"
+  },
+  {
+    "name": "comp.sys.mac.hardware",
+    "description": "Macintosh hardware discussions"
+  },
+  {
+    "name": "comp.infosystems.www.misc",
+    "description": "World Wide Web discussions"
+  },
+  {
+    "name": "comp.security.misc",
+    "description": "Computer security discussions"
+  },
+  {
+    "name": "comp.dcom.modems",
+    "description": "Modem and dial-up discussions"
+  },
+  {
+    "name": "rec.arts.movies",
+    "description": "Movie discussions and reviews"
+  },
+  {
+    "name": "rec.music.makers",
+    "description": "Music creation and performance"
+  },
+  {
+    "name": "rec.arts.startrek.misc",
+    "description": "Star Trek discussions"
+  },
+  {
+    "name": "rec.games.video.classic",
+    "description": "Classic video game discussions"
+  },
+  {
+    "name": "rec.autos",
+    "description": "Automobile discussions"
+  },
+  {
+    "name": "alt.hackers",
+    "description": "Hacker culture discussions"
+  },
+  {
+    "name": "alt.fan.bill-gates",
+    "description": "Discussion of Bill Gates"
+  },
+  {
+    "name": "alt.bbs",
+    "description": "Bulletin board system culture"
+  },
+  {
+    "name": "alt.internet.services",
+    "description": "Internet services and resources"
+  },
+  {
+    "name": "sci.space",
+    "description": "Space science and exploration"
+  },
+  {
+    "name": "sci.electronics",
+    "description": "Electronic circuits and components"
+  },
+  {
+    "name": "sci.space.shuttle",
+    "description": "Space Shuttle program discussions"
+  },
+  {
+    "name": "news.announce.newusers",
+    "description": "Explanatory postings for new users"
+  },
+  {
+    "name": "news.groups",
+    "description": "Discussions and lists of newsgroups"
+  },
+  {
+    "name": "misc.forsale.computers",
+    "description": "Computers and parts for sale"
+  }
+]

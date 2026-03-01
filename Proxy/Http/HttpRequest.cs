@@ -50,7 +50,7 @@ public sealed partial class HttpRequest : Request
 
         var rawHeaders = bodyPointer == -1 ? rawRequest : rawRequest[..bodyPointer];
 
-        var rawBodyData = rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..];
+        var rawBodyData = bodyPointer == -1 ? string.Empty : rawRequest[(bodyPointer + HttpBodySeperator.Length)..];
 
         var rawBody = bodyPointer == -1 ? string.Empty : rawBodyData;
 

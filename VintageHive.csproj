@@ -25,11 +25,13 @@
     <ItemGroup>
       <Compile Remove="docker\**" />
       <Compile Remove="Tests\**" />
+      <Compile Remove="Tools\**" />
     </ItemGroup>
 
     <ItemGroup>
       <None Remove="docker\**" />
       <None Remove="Tests\**" />
+      <None Remove="Tools\**" />
       <None Remove="libs\**\*.*" />
       <None Remove="Statics\**\*.*" />
     </ItemGroup>
@@ -70,7 +72,10 @@
 
     <ItemGroup>
       <Folder Include="Proxy\Socks\Socks4\" />
-      <Folder Include="Proxy\Usenet\" />
-    </ItemGroup>    
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="VintageHiveTests" />
+    </ItemGroup>
     
 </Project>

@@ -13,6 +13,7 @@ using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Telnet;
+using VintageHive.Proxy.Usenet;
 
 namespace VintageHive;
 
@@ -51,6 +52,8 @@ public static class Mind
     static LpdProxy lpdProxy;
 
     static RawPrintProxy rawPrintProxy;
+
+    static NntpProxy nntpProxy;
 
     public static TimeSpan TotalRuntime => DateTime.UtcNow - StartTimeUtc;
 
@@ -179,6 +182,11 @@ public static class Mind
 
         imapProxy = new(ipAddress, imapProxyPort);
 
+        // Usenet (NNTP) service
+        var nntpProxyPort = Db.ConfigGet<int>(ConfigNames.PortUsenet);
+
+        nntpProxy = new(ipAddress, nntpProxyPort);
+
         // ==== TESTING AREA =====
         // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
 
@@ -206,6 +214,8 @@ public static class Mind
         pop3Proxy.Start();
 
         imapProxy.Start();
+
+        nntpProxy.Start();
 
         // socks5Proxy.Start();
 

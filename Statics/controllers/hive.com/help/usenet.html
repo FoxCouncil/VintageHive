@@ -17,7 +17,9 @@
             <b>Jump to:</b>
             <a href="#outlookexpress">Outlook Express</a> |
             <a href="#forte">Forte Agent / Free Agent</a> |
-            <a href="#netscape">Netscape News</a>
+            <a href="#netscape">Netscape News</a> |
+            <a href="#groups">Available Groups</a> |
+            <a href="#curator">Fetching Archives</a>
             </font>
         </td></tr>
     </table>
@@ -31,18 +33,26 @@
         </tr>
         <tr>
             <td>News Server (NNTP)</td>
-            <td><font color="cyan">news.eternal-september.org</font> port <font color="cyan">119</font></td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_usenet }}</font></td>
+        </tr>
+        <tr>
+            <td>Authentication</td>
+            <td>Not required (any credentials accepted)</td>
+        </tr>
+        <tr>
+            <td>Posting</td>
+            <td>Read-only (posting not allowed)</td>
         </tr>
     </table>
 
     <hr>
 
-    <p><i>VintageHive's built-in NNTP server is planned for a future release.
-    In the meantime, you can access Usenet through
-    <b>Eternal September</b> &mdash; a free public news server that is accessible
-    through VintageHive's HTTP proxy passthrough.
-    You will need a free account at
-    <font color="cyan">http://eternal-september.org</font> to connect.</i></p>
+    <p><i>VintageHive includes a built-in NNTP news server with a curated collection
+    of real Usenet newsgroup posts from the 1980s and 1990s, sourced from the
+    Internet Archive's public Usenet collections. Point your favourite vintage
+    newsreader at the server address above to browse groups and read articles.
+    No account or password is needed &mdash; if your newsreader asks for credentials,
+    enter anything and it will be accepted.</i></p>
 
     <hr>
 
@@ -67,17 +77,24 @@
                             </tr>
                             <tr>
                                 <td>News (NNTP) server</td>
-                                <td><font color="cyan">news.eternal-september.org</font></td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
                             </tr>
                             <tr>
                                 <td>My news server requires me to log on</td>
-                                <td><font color="cyan">Checked</font></td>
+                                <td><font color="cyan">Unchecked</font></td>
                             </tr>
                         </table>
                     </li>
-                    <li>Enter your Eternal September <b>username</b> and <b>password</b></li>
-                    <li>Click <b>Finish</b></li>
+                    <li>Click <b>Next</b>, then <b>Finish</b></li>
                     <li>When asked &quot;Would you like to download newsgroups?&quot;, click <b>Yes</b></li>
+                </ol>
+
+                <p><b>Setting a custom port:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Accounts</b>, select the news account, click <b>Properties</b></li>
+                    <li>Click the <b>Advanced</b> tab</li>
+                    <li>Set News (NNTP) port to: <font color="cyan">{{ port_usenet }}</font></li>
+                    <li>Click <b>OK</b></li>
                 </ol>
 
                 <p><b>Reading Newsgroups:</b></p>
@@ -112,7 +129,7 @@
                             </tr>
                             <tr>
                                 <td>News Server</td>
-                                <td><font color="cyan">news.eternal-september.org</font></td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
                             </tr>
                             <tr>
                                 <td>Email Address</td>
@@ -126,8 +143,8 @@
                     </li>
                     <li>Click <b>OK</b></li>
                     <li>Open <b>Options &gt; News Server Properties</b></li>
-                    <li>Check <b>News server requires login</b></li>
-                    <li>Enter your Eternal September username and password</li>
+                    <li>Set the port to: <font color="cyan">{{ port_usenet }}</font></li>
+                    <li>Leave <b>News server requires login</b> unchecked</li>
                     <li>Click <b>OK</b></li>
                     <li>Press <b>F5</b> or <b>Online &gt; Refresh Groups List</b> to download newsgroups</li>
                 </ol>
@@ -156,9 +173,9 @@
                     <li>Open <b>Edit &gt; Preferences</b></li>
                     <li>Navigate to <b>Mail &amp; Newsgroups &gt; Newsgroup Servers</b></li>
                     <li>Click <b>Add</b></li>
-                    <li>Set Server: <font color="cyan">news.eternal-september.org</font></li>
-                    <li>Set Port: <font color="cyan">119</font></li>
-                    <li>Check <b>Always use name and password</b></li>
+                    <li>Set Server: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set Port: <font color="cyan">{{ port_usenet }}</font></li>
+                    <li>Leave <b>Always use name and password</b> unchecked</li>
                     <li>Click <b>OK</b></li>
                 </ol>
 
@@ -166,14 +183,227 @@
                 <ol>
                     <li>Open <b>Options &gt; Mail and News Preferences</b></li>
                     <li>Click the <b>Servers</b> tab</li>
-                    <li>Set News (NNTP) Server to: <font color="cyan">news.eternal-september.org</font></li>
+                    <li>Set News (NNTP) Server to: <font color="cyan">{{ serverip }}</font></li>
                     <li>Click <b>OK</b></li>
                     <li>Open <b>Window &gt; Netscape News</b> to access newsgroups</li>
                 </ol>
 
-                <p><i>Note: Netscape 3.x does not support NNTP authentication natively.
-                If Eternal September requires a login, use Netscape Communicator 4.x
-                or a dedicated newsreader like Forte Agent.</i></p>
+                <p><i>Note: Netscape 3.x uses the default NNTP port 119. If VintageHive
+                is configured to use a different port, use Netscape Communicator 4.x
+                or a dedicated newsreader like Forte Agent that supports custom ports.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="groups"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Available Newsgroups</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><i>Articles are sourced from the Internet Archive's public Usenet
+                collections (archive.org). These are real historical posts from the
+                1980s and 1990s.</i></p>
+
+                <table border="1" cellpadding="5" width="100%">
+                    <tr bgcolor="#222222">
+                        <td><b>Group</b></td>
+                        <td><b>Topic</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="lime">alt.hive.help</font></td>
+                        <td>VintageHive help and documentation (always available)</td>
+                    </tr>
+                    <tr><td colspan="2" bgcolor="#222222"><font size="1">&nbsp;</font></td></tr>
+                    <tr>
+                        <td><font color="cyan">comp.os.minix</font></td>
+                        <td>MINIX operating system (home of Linus's Linux announcement!)</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.lang.c</font></td>
+                        <td>The C programming language</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.lang.python</font></td>
+                        <td>Python programming language</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.lang.perl.misc</font></td>
+                        <td>Perl programming language</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.unix.wizards</font></td>
+                        <td>Questions for Unix wizards</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.arch</font></td>
+                        <td>Computer architecture discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.sys.ibm.pc.hardware</font></td>
+                        <td>IBM PC hardware discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.os.linux.misc</font></td>
+                        <td>Linux operating system</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.os.ms-windows.win95</font></td>
+                        <td>Microsoft Windows 95</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.sys.mac.hardware</font></td>
+                        <td>Macintosh hardware</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.infosystems.www.misc</font></td>
+                        <td>World Wide Web discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.security.misc</font></td>
+                        <td>Computer security discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">comp.dcom.modems</font></td>
+                        <td>Modem and dial-up discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.games.computer.doom</font></td>
+                        <td>DOOM game discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.arts.movies</font></td>
+                        <td>Movie discussions and reviews</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.music.makers</font></td>
+                        <td>Music creation and performance</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.humor</font></td>
+                        <td>Jokes and humorous articles</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.arts.startrek.misc</font></td>
+                        <td>Star Trek discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.games.video.classic</font></td>
+                        <td>Classic video game discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">rec.autos</font></td>
+                        <td>Automobile discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">alt.folklore.computers</font></td>
+                        <td>Stories and strife of computing</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">alt.hackers</font></td>
+                        <td>Hacker culture discussions</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">alt.fan.bill-gates</font></td>
+                        <td>Discussion of Bill Gates</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">alt.bbs</font></td>
+                        <td>Bulletin board system culture</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">alt.internet.services</font></td>
+                        <td>Internet services and resources</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">sci.space</font></td>
+                        <td>Space science and exploration</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">sci.electronics</font></td>
+                        <td>Electronic circuits and components</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">sci.space.shuttle</font></td>
+                        <td>Space Shuttle program</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">news.announce.newusers</font></td>
+                        <td>Explanatory postings for new users</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">news.groups</font></td>
+                        <td>Discussions about newsgroups</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">misc.forsale.computers</font></td>
+                        <td>Computers for sale</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">soc.culture.usa</font></td>
+                        <td>American culture and society</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">talk.bizarre</font></td>
+                        <td>The unusual, the strstrstrstrsting bizarre</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="curator"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Fetching Usenet Archives</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>VintageHive ships with a companion tool called <b>UsenetCurator.exe</b>
+                that downloads real historical Usenet posts from the Internet Archive
+                and prepares them for browsing.</p>
+
+                <p><b>Quick Start:</b></p>
+                <ol>
+                    <li>Find <font color="cyan">UsenetCurator.exe</font> in the same folder as VintageHive.exe</li>
+                    <li>Run it from the command line:
+                        <br><br>
+                        <table cellpadding="4" bgcolor="#000000">
+                            <tr><td><font face="Courier New" color="lime">UsenetCurator.exe</font></td></tr>
+                        </table>
+                        <br>
+                    </li>
+                    <li>Wait for the downloads to complete (this may take a while)</li>
+                    <li>Restart VintageHive &mdash; the new groups will appear automatically</li>
+                </ol>
+
+                <p><b>Options:</b></p>
+                <table border="1" cellpadding="4" bgcolor="#000000">
+                    <tr bgcolor="#222222">
+                        <td><b>Flag</b></td>
+                        <td><b>Description</b></td>
+                    </tr>
+                    <tr>
+                        <td><font face="Courier New" color="cyan">--output &lt;path&gt;</font></td>
+                        <td>Where to write output files (default: data\usenet\)</td>
+                    </tr>
+                    <tr>
+                        <td><font face="Courier New" color="cyan">--groups &lt;list&gt;</font></td>
+                        <td>Comma-separated list of groups to download</td>
+                    </tr>
+                    <tr>
+                        <td><font face="Courier New" color="cyan">--max-per-group &lt;n&gt;</font></td>
+                        <td>Maximum articles per group</td>
+                    </tr>
+                </table>
+
+                <p><i>Downloaded mbox archives are cached locally. Subsequent runs
+                skip already-downloaded files, making reruns much faster.</i></p>
             </td>
         </tr>
     </table>

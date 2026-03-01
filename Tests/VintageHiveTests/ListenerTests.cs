@@ -34,8 +34,8 @@ public class ListenerTests
     [TestMethod]
     public void Start_Should_Start_ProcessThread()
     {
-        // Arrange
-        var listener = new Mock<Listener>(IPAddress.Loopback, 80, SocketType.Stream, ProtocolType.Tcp, false).Object;
+        // Arrange — port 0 lets the OS pick an available ephemeral port
+        var listener = new Mock<Listener>(IPAddress.Loopback, 0, SocketType.Stream, ProtocolType.Tcp, false).Object;
 
         // Act
         listener.Start();
@@ -47,8 +47,8 @@ public class ListenerTests
     [TestMethod]
     public void Start_Should_Start_With_Correct_State()
     {
-        // Arrange
-        var port = 80;
+        // Arrange — port 0 lets the OS pick an available ephemeral port
+        var port = 0;
         var secure = false;
         var listener = new Mock<Listener>(IPAddress.Loopback, port, SocketType.Stream, ProtocolType.Tcp, secure).Object;
 
@@ -59,7 +59,7 @@ public class ListenerTests
         Assert.IsTrue(listener.ProcessThread.IsAlive);
         Assert.AreEqual(listener.IsSecure, secure);
         Assert.AreEqual(listener.Port, port);
-        Thread.Sleep(1); // ahah, prolly a better way?? 
+        Thread.Sleep(1); // ahah, prolly a better way??
         Assert.IsTrue(listener.IsListening);
     }
 
