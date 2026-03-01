@@ -13,6 +13,7 @@ using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Telnet;
+using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Usenet;
 
 namespace VintageHive;
@@ -27,7 +28,7 @@ public static class Mind
 
     // static DnsProxy dnsProxy;
 
-    // static Socks5Proxy socks5Proxy;
+    static SocksProxy socksProxy;
 
     static HttpProxy httpProxy;
 
@@ -187,10 +188,10 @@ public static class Mind
 
         nntpProxy = new(ipAddress, nntpProxyPort);
 
-        // ==== TESTING AREA =====
-        // var socks5Port = ConfigDb.SettingGet<int>(ConfigNames.PortSocks5);
+        // SOCKS proxy (SOCKS4/4a + SOCKS5 on single port)
+        var socksPort = Db.ConfigGet<int>(ConfigNames.PortSocks5);
 
-        // socks5Proxy = new(ipAddress, socks5Port);
+        socksProxy = new(ipAddress, socksPort);
     }
 
     public static void Start()
@@ -217,7 +218,7 @@ public static class Mind
 
         nntpProxy.Start();
 
-        // socks5Proxy.Start();
+        socksProxy.Start();
 
         oscarServer.Start();
 

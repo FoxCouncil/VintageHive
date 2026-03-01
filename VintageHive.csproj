@@ -71,10 +71,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Proxy\Socks\Socks4\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <InternalsVisibleTo Include="VintageHiveTests" />
     </ItemGroup>
     

@@ -420,6 +420,13 @@ internal class HiveController : Controller
         SetHelpContext();
     }
 
+    [Route("/help/socks.html")]
+    public async Task HelpSocks()
+    {
+        await Task.Delay(0);
+        SetHelpContext();
+    }
+
     [Route("/help/usenet.html")]
     public async Task HelpUsenet()
     {
@@ -559,6 +566,7 @@ internal class HiveController : Controller
         Response.Context.SetValue("port_lpd", Mind.Db.ConfigGet<int>(ConfigNames.PortLpd));
         Response.Context.SetValue("port_rawprint", Mind.Db.ConfigGet<int>(ConfigNames.PortRawPrint));
         Response.Context.SetValue("port_usenet", Mind.Db.ConfigGet<int>(ConfigNames.PortUsenet));
+        Response.Context.SetValue("port_socks", Mind.Db.ConfigGet<int>(ConfigNames.PortSocks5));
     }
 
     private void NotAuthorized(string error = "Not Authorized")

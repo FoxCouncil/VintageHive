@@ -32,6 +32,7 @@ internal static class HiveHelpGenerator
             "  - IRC            Internet Relay Chat server\r\n" +
             "  - Usenet (NNTP)  News server with real historical archives\r\n" +
             "  - FTP            File server with ProtoWeb archive proxy\r\n" +
+            "  - SOCKS Proxy    SOCKS4/4a/5 TCP tunneling proxy\r\n" +
             "  - Telnet BBS     Text-mode bulletin board system\r\n" +
             "  - Printing       Network print server (IPP, LPD, Raw TCP)\r\n" +
             "\r\n" +
@@ -245,6 +246,53 @@ internal static class HiveHelpGenerator
             "  exit      Disconnect (also: quit)"
         ));
 
+        articles.Add(MakeArticle(++n, "SOCKS Proxy - TCP Tunneling Setup", now.AddMinutes(n),
+            "SOCKS Proxy via VintageHive\r\n" +
+            "===========================\r\n" +
+            "\r\n" +
+            "VintageHive includes a SOCKS proxy that supports SOCKS4, SOCKS4a,\r\n" +
+            "and SOCKS5 on a single port. SOCKS proxies work at the TCP level,\r\n" +
+            "so any application that supports SOCKS can tunnel through VintageHive.\r\n" +
+            "\r\n" +
+            "SERVER SETTINGS:\r\n" +
+            "  Server:  VintageHive's IP address\r\n" +
+            "  Port:    SOCKS port (see admin panel)\r\n" +
+            "  Auth:    None (no credentials required)\r\n" +
+            "\r\n" +
+            "SUPPORTED VERSIONS:\r\n" +
+            "  SOCKS4   Basic TCP connect, client resolves DNS, IPv4 only\r\n" +
+            "  SOCKS4a  Like SOCKS4, but the server resolves hostnames\r\n" +
+            "  SOCKS5   TCP connect with server-side DNS, IPv4 and IPv6\r\n" +
+            "\r\n" +
+            "INTERNET EXPLORER:\r\n" +
+            "  1. Tools > Internet Options > Connections > LAN Settings\r\n" +
+            "  2. Check 'Use a proxy server', click Advanced\r\n" +
+            "  3. In the Socks row, set Address and Port\r\n" +
+            "  4. Leave HTTP/Secure/FTP rows empty for SOCKS-only mode\r\n" +
+            "\r\n" +
+            "NETSCAPE 4.x:\r\n" +
+            "  1. Edit > Preferences > Advanced > Proxies\r\n" +
+            "  2. Manual proxy configuration > View\r\n" +
+            "  3. Set SOCKS Host and Port\r\n" +
+            "\r\n" +
+            "TRUMPET WINSOCK:\r\n" +
+            "  1. File > Setup > SOCKS tab\r\n" +
+            "  2. Enable SOCKS Firewall, set server and port\r\n" +
+            "\r\n" +
+            "SOCKSCAP / SOCKSCAP32:\r\n" +
+            "  Wraps any Winsock application to use SOCKS5. Useful for\r\n" +
+            "  programs without built-in SOCKS support. Set type to\r\n" +
+            "  SOCKS5, no authentication, enter server and port.\r\n" +
+            "\r\n" +
+            "APPLICATION-LEVEL SOCKS:\r\n" +
+            "  mIRC:    File > Options > Connect > Firewall (SOCKS5)\r\n" +
+            "  CuteFTP: Edit > Settings > Connection > SOCKS\r\n" +
+            "  WS_FTP:  Session Properties > Firewall tab\r\n" +
+            "  Eudora:  Tools > Options > Advanced Network\r\n" +
+            "\r\n" +
+            "See http://hive.com/help/socks for detailed setup with screenshots."
+        ));
+
         articles.Add(MakeArticle(++n, "Printing - Network Print Server", now.AddMinutes(n),
             "Network Printing via VintageHive\r\n" +
             "================================\r\n" +
@@ -421,7 +469,7 @@ internal static class HiveHelpGenerator
             "Q: What is VintageHive?\r\n" +
             "A: A suite of network services that make vintage computers\r\n" +
             "   useful on modern networks. It provides web proxy, email,\r\n" +
-            "   IRC, Usenet, FTP, Telnet BBS, and network printing.\r\n" +
+            "   IRC, Usenet, FTP, SOCKS proxy, Telnet BBS, and printing.\r\n" +
             "\r\n" +
             "Q: Do I need a username and password?\r\n" +
             "A: Only for email and AIM/ICQ. Most services work without\r\n" +

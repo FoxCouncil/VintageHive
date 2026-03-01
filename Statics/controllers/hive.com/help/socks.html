@@ -1,0 +1,314 @@
+{% assign title = "Help - SOCKS Proxy" %}
+<html>
+<head>
+    {% include 'partials/head.html' %}
+</head>
+<body bgcolor="black" text="white" link="#FFFFFF" alink="#FFFFFF" vlink="#FFFFFF">
+    {% include 'partials/header.html' %}
+
+    {% include 'partials/helptoc.html' %}
+
+
+    <hr>
+
+    <table cellpadding="6" width="100%" bgcolor="#111111">
+        <tr><td>
+            <font face="Courier New" size="2">
+            <b>Jump to:</b>
+            <a href="#about">About SOCKS</a> |
+            <a href="#ie">Internet Explorer</a> |
+            <a href="#netscape">Netscape Navigator</a> |
+            <a href="#trumpet">Trumpet Winsock</a> |
+            <a href="#commandline">Command Line (curl)</a> |
+            <a href="#apps">Application-Level SOCKS</a>
+            </font>
+        </td></tr>
+    </table>
+
+    <hr>
+
+    <table border="1" cellpadding="5" width="80%">
+        <tr bgcolor="#222222">
+            <td><b>Setting</b></td>
+            <td><b>Value</b></td>
+        </tr>
+        <tr>
+            <td>SOCKS Server</td>
+            <td><font color="cyan">{{ serverip }}</font> port <font color="cyan">{{ port_socks }}</font></td>
+        </tr>
+        <tr>
+            <td>Supported Versions</td>
+            <td>SOCKS4, SOCKS4a, and SOCKS5</td>
+        </tr>
+        <tr>
+            <td>Authentication</td>
+            <td>Not required (no authentication)</td>
+        </tr>
+        <tr>
+            <td>Supported Commands</td>
+            <td>CONNECT only (TCP tunneling)</td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <a name="about"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>About SOCKS</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>VintageHive includes a SOCKS proxy that handles SOCKS4, SOCKS4a,
+                and SOCKS5 connections on a single port. SOCKS is a general-purpose
+                proxy protocol that works at the TCP level &mdash; any application
+                that supports SOCKS can tunnel its connections through VintageHive.</p>
+
+                <p>Unlike an HTTP proxy (which only handles web traffic), SOCKS
+                can proxy <i>any</i> TCP connection: FTP clients, IRC clients,
+                Telnet sessions, and more. Many vintage applications that don't have
+                built-in HTTP proxy support <i>do</i> support SOCKS.</p>
+
+                <p><b>Which version should I use?</b></p>
+                <table border="1" cellpadding="4" bgcolor="#000000">
+                    <tr bgcolor="#222222">
+                        <td><b>Version</b></td>
+                        <td><b>Features</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">SOCKS4</font></td>
+                        <td>Basic TCP connect. Client resolves hostnames. IPv4 only.</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">SOCKS4a</font></td>
+                        <td>Like SOCKS4, but the server resolves hostnames (better for vintage clients without DNS).</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">SOCKS5</font></td>
+                        <td>TCP connect with server-side DNS, IPv4 and IPv6 support.</td>
+                    </tr>
+                </table>
+
+                <p><i>If your application lets you choose, SOCKS5 is recommended.
+                If it only supports SOCKS4, enable the &quot;4a&quot; option if available
+                so the server handles DNS resolution.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="ie"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Internet Explorer</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Internet Explorer 4.x / 5.x / 6.x:</b></p>
+                <ol>
+                    <li>Open <b>Tools &gt; Internet Options</b></li>
+                    <li>Click the <b>Connections</b> tab, then <b>LAN Settings</b></li>
+                    <li>Check <b>Use a proxy server</b></li>
+                    <li>Click <b>Advanced</b></li>
+                    <li>In the <b>Socks</b> row, fill in:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>Socks</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Port</td>
+                                <td><font color="cyan">{{ port_socks }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Leave the HTTP, Secure, and FTP rows empty (unless you also
+                        want VintageHive's HTTP proxy &mdash; see <a href="client.html">Client Settings</a>)</li>
+                    <li>Click <b>OK</b> three times to save</li>
+                </ol>
+
+                <p><i>Note: Internet Explorer uses SOCKS4 by default. SOCKS5 requires
+                a registry tweak or using a third-party SOCKS client like SocksCap.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="netscape"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Netscape Navigator</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Netscape Communicator 4.x:</b></p>
+                <ol>
+                    <li>Open <b>Edit &gt; Preferences</b></li>
+                    <li>Navigate to <b>Advanced &gt; Proxies</b></li>
+                    <li>Select <b>Manual proxy configuration</b> and click <b>View</b></li>
+                    <li>In the <b>SOCKS Host</b> field, enter:
+                        <table border="1" cellpadding="4" bgcolor="#000000">
+                            <tr bgcolor="#222222">
+                                <td><b>Field</b></td>
+                                <td><b>Value</b></td>
+                            </tr>
+                            <tr>
+                                <td>SOCKS Host</td>
+                                <td><font color="cyan">{{ serverip }}</font></td>
+                            </tr>
+                            <tr>
+                                <td>Port</td>
+                                <td><font color="cyan">{{ port_socks }}</font></td>
+                            </tr>
+                        </table>
+                    </li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>Netscape Navigator 3.x:</b></p>
+                <ol>
+                    <li>Open <b>Options &gt; Network Preferences</b></li>
+                    <li>Click the <b>Proxies</b> tab</li>
+                    <li>Select <b>Manual Proxy Configuration</b> and click <b>View</b></li>
+                    <li>Set SOCKS Host to: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set Port to: <font color="cyan">{{ port_socks }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><i>Netscape 4.x supports both SOCKS4 and SOCKS5 (set via the
+                SOCKS version radio buttons in the proxy dialog).</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="trumpet"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Trumpet Winsock / SocksCap</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Trumpet Winsock 3.x:</b></p>
+                <p>Trumpet Winsock can route all TCP connections through a SOCKS server,
+                making it ideal for 16-bit Windows applications that have no proxy
+                support of their own.</p>
+                <ol>
+                    <li>Open <b>File &gt; Setup</b></li>
+                    <li>Click the <b>SOCKS</b> tab</li>
+                    <li>Check <b>Enable SOCKS Firewall</b></li>
+                    <li>Set Server to: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set Port to: <font color="cyan">{{ port_socks }}</font></li>
+                    <li>Click <b>OK</b></li>
+                </ol>
+
+                <p><b>SocksCap / SocksCap32:</b></p>
+                <p>SocksCap wraps any Winsock application to use SOCKS5. This is
+                useful for programs that don't have built-in SOCKS support.</p>
+                <ol>
+                    <li>Open SocksCap and go to <b>File &gt; Settings</b></li>
+                    <li>Set SOCKS Server to: <font color="cyan">{{ serverip }}</font></li>
+                    <li>Set Port to: <font color="cyan">{{ port_socks }}</font></li>
+                    <li>Set Protocol to: <font color="cyan">SOCKS5</font></li>
+                    <li>Leave <b>Authentication</b> as <b>No Authentication</b></li>
+                    <li>Click <b>OK</b></li>
+                    <li>Drag application shortcuts into SocksCap, then launch them from there</li>
+                </ol>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="commandline"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Command Line (curl)</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p><b>Testing with curl:</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ curl --socks5 {{ serverip }}:{{ port_socks }} http://example.com<br>
+                        <br>
+                        $ curl --socks4 {{ serverip }}:{{ port_socks }} http://example.com<br>
+                        <br>
+                        $ curl --socks4a {{ serverip }}:{{ port_socks }} http://example.com<br>
+                        </font>
+                    </td></tr>
+                </table>
+
+                <p><b>SSH tunnel via SOCKS:</b></p>
+
+                <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
+                    <tr><td>
+                        <font face="Courier New" color="lime">
+                        $ ssh -o ProxyCommand="nc -X 5 -x {{ serverip }}:{{ port_socks }} %h %p" user@host<br>
+                        </font>
+                    </td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <a name="apps"></a>
+    <table border="1" cellpadding="8" width="100%">
+        <tr bgcolor="#222222">
+            <td><font face="Courier New" size="3"><b>Application-Level SOCKS</b></font></td>
+        </tr>
+        <tr>
+            <td bgcolor="#111111">
+                <p>Many vintage applications have built-in SOCKS support. Here are
+                some common ones:</p>
+
+                <table border="1" cellpadding="4" bgcolor="#000000">
+                    <tr bgcolor="#222222">
+                        <td><b>Application</b></td>
+                        <td><b>Where to Configure</b></td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">mIRC</font></td>
+                        <td>File &gt; Options &gt; Connect &gt; Firewall. Set to SOCKS5, enter server and port.</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">CuteFTP</font></td>
+                        <td>Edit &gt; Settings &gt; Connection &gt; SOCKS. Set type, server, and port.</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">WS_FTP</font></td>
+                        <td>Session Properties &gt; Firewall tab. Set type to SOCKS, enter server and port.</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">Eudora</font></td>
+                        <td>Tools &gt; Options &gt; Advanced Network. Set SOCKS server and port.</td>
+                    </tr>
+                    <tr>
+                        <td><font color="cyan">Forte Agent</font></td>
+                        <td>Options &gt; Firewall. Set type to SOCKS5, enter server and port.</td>
+                    </tr>
+                </table>
+
+                <p><i>For applications without SOCKS support, use SocksCap (Windows)
+                or tsocks (Unix) to transparently redirect their connections through
+                the SOCKS proxy.</i></p>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>
