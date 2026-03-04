@@ -34,7 +34,23 @@ public static class ConfigNames
 
     public const string PortDns = "portdns";
 
+    public const string PortIls = "portils";
+
+    public const string PortRas = "portras";
+
+    public const string PortH323 = "porth323";
+
+    public const string PortT120 = "portt120";
+
     public const string ServiceDns = "servicedns";
+
+    public const string ServiceIls = "serviceils";
+
+    public const string ServiceRas = "serviceras";
+
+    public const string ServiceH323 = "serviceh323";
+
+    public const string ServiceT120 = "servicet120";
 
     public const string ServiceInternetArchive = "serviceinternetarchive";
 

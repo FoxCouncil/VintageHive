@@ -14,6 +14,9 @@ using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Telnet;
 using VintageHive.Proxy.Dns;
+using VintageHive.Proxy.NetMeeting.H225;
+using VintageHive.Proxy.NetMeeting.ILS;
+using VintageHive.Proxy.NetMeeting.T120;
 using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Usenet;
 
@@ -28,6 +31,14 @@ public static class Mind
     static readonly ManualResetEvent resetEvent = new(false);
 
     static DnsProxy dnsProxy;
+
+    static IlsServer ilsServer;
+
+    static RasServer rasServer;
+
+    static H323Server h323Server;
+
+    static T120Server t120Server;
 
     static SocksProxy socksProxy;
 
@@ -198,6 +209,26 @@ public static class Mind
         var dnsPort = Db.ConfigGet<int>(ConfigNames.PortDns);
 
         dnsProxy = new(ipAddress, dnsPort, ipAddress);
+
+        // ILS directory server (LDAP for NetMeeting user registration + lookup)
+        var ilsPort = Db.ConfigGet<int>(ConfigNames.PortIls);
+
+        ilsServer = new(ipAddress, ilsPort);
+
+        // H.225.0 RAS Gatekeeper (UDP, endpoint registration + call admission)
+        var rasPort = Db.ConfigGet<int>(ConfigNames.PortRas);
+
+        rasServer = new(ipAddress, rasPort);
+
+        // H.225.0 Call Signaling (TCP, gatekeeper-routed call proxy)
+        var h323Port = Db.ConfigGet<int>(ConfigNames.PortH323);
+
+        h323Server = new(ipAddress, h323Port, rasServer.Registry);
+
+        // T.120 Data Conferencing (TCP, MCS domain server for chat/whiteboard/file transfer)
+        var t120Port = Db.ConfigGet<int>(ConfigNames.PortT120);
+
+        t120Server = new(ipAddress, t120Port);
     }
 
     public static void Start()
@@ -227,6 +258,14 @@ public static class Mind
         socksProxy.Start();
 
         dnsProxy.Start();
+
+        ilsServer.Start();
+
+        rasServer.Start();
+
+        h323Server.Start();
+
+        t120Server.Start();
 
         oscarServer.Start();
 
