@@ -18,7 +18,8 @@ internal class RadioController : Controller
     // Supported players:
     //   winamp  → .pls  → /stream/winamp
     //   wmp     → .asx  → /stream/wmp
-    //   (future: itunes → .m3u, real → .ram, etc.)
+    //   real    → .ram  → pnm://{ip}:7070/stream/real
+    //   (future: itunes → .m3u, etc.)
     // ===================================================================
 
     private static bool TryParsePlayPath(string rawPath, out string id, out string player, out string ext)
@@ -67,6 +68,19 @@ internal class RadioController : Controller
 
                     SetPlaylistResponseHeaders();
                     Response.SetBodyString(pls.ToString(), "audio/x-scpls");
+                    break;
+                }
+                case "real" when ext == "ram":
+                {
+                    var serverIp = Mind.Db.ConfigGet<string>(ConfigNames.IpAddress);
+                    if (serverIp == "0.0.0.0")
+                    {
+                        serverIp = ((IPEndPoint)Request.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4().ToString();
+                    }
+
+                    var ram = $"http://radio.hive.com/stream/real/{id}.ra\n";
+                    SetPlaylistResponseHeaders();
+                    Response.SetBodyString(ram, "audio/x-pn-realaudio");
                     break;
                 }
                 case "wmp" when ext == "asx":
@@ -147,6 +161,16 @@ internal class RadioController : Controller
         if (!Response.Handled && rawPath.EndsWith(".smi"))
         {
             Response.SetNotFound();
+        }
+
+        // RealAudio stream: /stream/real/{id}.ra — raw RM container over HTTP
+        if (!Response.Handled && rawPath.StartsWith("/stream/real/") && rawPath.EndsWith(".ra"))
+        {
+            var stationId = rawPath["/stream/real/".Length..^3]; // strip ".ra"
+            if (!string.IsNullOrEmpty(stationId))
+            {
+                await RadioPnaStreaming.HandleRealStream(Request, Response, stationId);
+            }
         }
 
         // Plain HTTP MP3 stream: /stream/wmp/{id}.mp3 — fallback for non-WMSP clients

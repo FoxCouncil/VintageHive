@@ -8,6 +8,7 @@ using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Imap;
 using VintageHive.Proxy.Irc;
 using VintageHive.Proxy.Mms;
+using VintageHive.Proxy.Pna;
 using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
@@ -59,6 +60,8 @@ public static class Mind
     static OscarServer oscarServer;
 
     static MmsServer mmsServer;
+
+    static PnaServer pnaServer;
 
     static PrinterProxy printerProxy;
 
@@ -160,6 +163,8 @@ public static class Mind
         oscarServer = new(ipAddress);
 
         mmsServer = new(ipAddress);
+
+        pnaServer = new(ipAddress);
 
         var ircProxyPort = Db.ConfigGet<int>(ConfigNames.PortIrc);
 
@@ -270,6 +275,8 @@ public static class Mind
         oscarServer.Start();
 
         mmsServer.Start();
+
+        pnaServer.Start();
 
         resetEvent.WaitOne();
 
