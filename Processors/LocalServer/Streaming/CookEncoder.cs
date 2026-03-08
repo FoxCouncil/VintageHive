@@ -756,9 +756,10 @@ internal class CookEncoder
 
                 // DC removal highpass: y[n] = (x[n] - dcOffset) - dcState;
                 //                      dcState += alpha * y[n]
-                float dcRemoved = ((float)s - CookData.DcOffset) - _dcState[ch];
-                _dcState[ch] -= dcRemoved * CookData.DcFilterAlpha;
-                samples[ch][i] = dcRemoved;
+                // DLL x87 keeps intermediates in 80-bit FPU; use double to approximate
+                double dcRemoved = ((double)(int)s - (double)CookData.DcOffset) - (double)_dcState[ch];
+                _dcState[ch] = (float)((double)_dcState[ch] - dcRemoved * (double)CookData.DcFilterAlpha);
+                samples[ch][i] = (float)dcRemoved;
             }
         }
 
@@ -817,62 +818,13 @@ internal class CookEncoder
         Array.Copy(_overlapBuf[ch], 0, _lpcOutput[ch], 0, N * 2);
         if (_prevGainInfo[ch][0] != 0 || _currGainInfo[ch][0] != 0)
         {
-            if (_frameCounter == 24 && ch == 0)
-            {
-                Console.Error.WriteLine($"LPC frame_ctr={_frameCounter} ch{ch}: prev_count={_prevGainInfo[ch][0]} curr_count={_currGainInfo[ch][0]}");
-                for (int gi = 0; gi < _currGainInfo[ch][0]; gi++)
-                {
-                    Console.Error.WriteLine($"  curr event {gi}: sub={_currGainInfo[ch][gi + 1]} gain={_currGainInfo[ch][gi + 9]}");
-                }
-                // Dump energy per time-domain gain subband BEFORE LPC
-                for (int gs = 0; gs < 8; gs++)
-                {
-                    float e1 = 0, e2 = 0;
-                    for (int s = 0; s < _subbandSize; s++)
-                    {
-                        e1 += _lpcOutput[ch][gs * _subbandSize + s] * _lpcOutput[ch][gs * _subbandSize + s];
-                        e2 += _lpcOutput[ch][N + gs * _subbandSize + s] * _lpcOutput[ch][N + gs * _subbandSize + s];
-                    }
-                    Console.Error.WriteLine($"  pre-LPC sub{gs}: half1_nrg={e1:E3} half2_nrg={e2:E3}");
-                }
-            }
             LpcFilter(_lpcOutput[ch], _prevGainInfo[ch], _currGainInfo[ch], N, -1);
-            if (_frameCounter == 24 && ch == 0)
-            {
-                // Dump energy per time-domain gain subband AFTER LPC
-                for (int gs = 0; gs < 8; gs++)
-                {
-                    float e1 = 0, e2 = 0;
-                    for (int s = 0; s < _subbandSize; s++)
-                    {
-                        e1 += _lpcOutput[ch][gs * _subbandSize + s] * _lpcOutput[ch][gs * _subbandSize + s];
-                        e2 += _lpcOutput[ch][N + gs * _subbandSize + s] * _lpcOutput[ch][N + gs * _subbandSize + s];
-                    }
-                    Console.Error.WriteLine($"  post-LPC sub{gs}: half1_nrg={e1:E3} half2_nrg={e2:E3}");
-                }
-            }
         }
 
         // ---------------------------------------------------------------
         // Step 7: Forward MDCT on 2N work buffer
         // ---------------------------------------------------------------
         ApplyMdct(_lpcOutput[ch]);
-
-        // Diagnostic: dump MDCT coefficients and energy for first diverging frame
-        if (_frameCounter == 13)
-        {
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Frame {_frameCounter} ch{ch} MDCT coeffs (first 40):");
-            for (int d = 0; d < 40; d++)
-            {
-                sb.Append($" {_coeffs[d]:E4}");
-                if ((d & 7) == 7) { sb.AppendLine(); }
-            }
-            sb.AppendLine($"Overlap[0..7]: {_overlapBuf[ch][0]:E4} {_overlapBuf[ch][1]:E4} {_overlapBuf[ch][2]:E4} {_overlapBuf[ch][3]:E4} {_overlapBuf[ch][4]:E4} {_overlapBuf[ch][5]:E4} {_overlapBuf[ch][6]:E4} {_overlapBuf[ch][7]:E4}");
-            sb.AppendLine($"Overlap[{_frameSize*2}..+7]: {_overlapBuf[ch][_frameSize*2]:E4} {_overlapBuf[ch][_frameSize*2+1]:E4} {_overlapBuf[ch][_frameSize*2+2]:E4} {_overlapBuf[ch][_frameSize*2+3]:E4}");
-            sb.AppendLine($"LPC[0..7]: {_lpcOutput[ch][0]:E4} {_lpcOutput[ch][1]:E4} {_lpcOutput[ch][2]:E4} {_lpcOutput[ch][3]:E4} {_lpcOutput[ch][4]:E4} {_lpcOutput[ch][5]:E4} {_lpcOutput[ch][6]:E4} {_lpcOutput[ch][7]:E4}");
-            Console.Error.Write(sb.ToString());
-        }
 
         _frameCounter++;
 
@@ -942,20 +894,6 @@ internal class CookEncoder
         var category = new byte[CookData.MaxSubbands * 2];
         var catIndex = new byte[127];
         BitAlloc(_frameSize, bitsLeft, vectorBits, totalBands, qindex, category, catIndex);
-
-        // Diagnostic: show qi/cat for key frames
-        if ((_frameCounter >= 24 && _frameCounter <= 30 && ch == 0) ||
-            (_frameCounter == 101 && ch == 0))
-        {
-            int audioFrame = _frameCounter / 2;
-            var sb = new System.Text.StringBuilder();
-            sb.Append($"Frame {audioFrame} (ctr={_frameCounter}) ch{ch}: qi=[");
-            for (int i = 0; i < totalBands; i++) { sb.Append($"{qindex[i]},"); }
-            sb.Append($"] cat=[");
-            for (int i = 0; i < totalBands; i++) { sb.Append($"{category[i]},"); }
-            sb.Append($"] bits={bitsLeft} env={bitsAfterEnvelope}");
-            Console.Error.WriteLine(sb.ToString());
-        }
 
         // Step 10: Quantize and pack VQ codewords using real step-size quantization
         var packedBands = new PackedCoeffs[totalBands];
@@ -1502,7 +1440,10 @@ internal class CookEncoder
 
         for (int i = 0; i < 10; i++)
         {
-            float ratio = currPeaks[i] / Math.Max(currPeaks[8], 1e-30f);
+            // DLL computes FDIV in x87 80-bit, stores result as float via FSTP,
+            // then reads float bits for IEEE exponent extraction.
+            // Using double division + float cast is the closest we can get on x64.
+            float ratio = (float)((double)currPeaks[i] / (double)currPeaks[8]);
             int bits = BitConverter.SingleToInt32Bits(ratio);
             int exp = ((bits >> 23) & 0xFF) - 127;
             exp = exp - (exp >> 31);
@@ -1511,7 +1452,7 @@ internal class CookEncoder
 
         for (int i = 0; i < 10; i++)
         {
-            float ratio = prevPeaks[i] / Math.Max(prevPeaks[8], 1e-30f);
+            float ratio = (float)((double)prevPeaks[i] / (double)prevPeaks[8]);
             int bits = BitConverter.SingleToInt32Bits(ratio);
             int exp = ((bits >> 23) & 0xFF) - 127;
             exp = exp - (exp >> 31);
