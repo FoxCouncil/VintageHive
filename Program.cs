@@ -17,9 +17,20 @@ if (args.Contains("--cook-test"))
     {
         var outputPath = Path.ChangeExtension(inputFile, ".cook.rm");
         Console.WriteLine($"Encoding {inputFile} → {outputPath}");
-        var rmData = CookEncoder.EncodeWavFile(inputFile);
+        var (rmData, encoder) = CookEncoder.EncodeWavFileWithEncoder(inputFile);
         File.WriteAllBytes(outputPath, rmData);
         Console.WriteLine($"Written {rmData.Length} bytes ({rmData.Length / 1024}KB)");
+
+        // Dump raw cook frames for DLL comparison
+        var rawPath = Path.ChangeExtension(inputFile, ".cook.raw");
+        using (var rawFs = File.Create(rawPath))
+        {
+            foreach (var frame in encoder.RawFrames)
+            {
+                rawFs.Write(frame, 0, frame.Length);
+            }
+        }
+        Console.WriteLine($"Raw frames: {encoder.RawFrames.Count} × {encoder.RawFrames[0].Length} bytes → {rawPath}");
     }
     else
     {
