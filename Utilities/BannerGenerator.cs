@@ -203,12 +203,7 @@ internal static class BannerGenerator
                     {
                         var noise = rng.Next(-20, 21);
 
-                        image[x, y] = new Rgba32(
-                            ClampByte(rgba1.R + noise),
-                            ClampByte(rgba1.G + noise),
-                            ClampByte(rgba1.B + noise),
-                            255
-                        );
+                        image[x, y] = new Rgba32(ClampByte(rgba1.R + noise), ClampByte(rgba1.G + noise), ClampByte(rgba1.B + noise), 255);
                     }
                 }
 
@@ -232,12 +227,7 @@ internal static class BannerGenerator
 
     private static Rgba32 LerpPixel(Rgba32 a, Rgba32 b, float t)
     {
-        return new Rgba32(
-            ClampByte((int)(a.R + (b.R - a.R) * t)),
-            ClampByte((int)(a.G + (b.G - a.G) * t)),
-            ClampByte((int)(a.B + (b.B - a.B) * t)),
-            255
-        );
+        return new Rgba32(ClampByte((int)(a.R + (b.R - a.R) * t)), ClampByte((int)(a.G + (b.G - a.G) * t)), ClampByte((int)(a.B + (b.B - a.B) * t)), 255);
     }
 
     private static byte ClampByte(int value)

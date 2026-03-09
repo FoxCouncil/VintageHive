@@ -57,9 +57,7 @@ internal class RtpRelayManager : IDisposable
 
         _relays[channelNumber] = pair;
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"Created relay pair for channel {channelNumber} ({sessionLabel}): " +
-            $"RTP={rtpPort}, RTCP={rtpPort + 1}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Created relay pair for channel {channelNumber} ({sessionLabel}): RTP={rtpPort}, RTCP={rtpPort + 1}", "");
 
         return pair;
     }
@@ -67,14 +65,11 @@ internal class RtpRelayManager : IDisposable
     /// <summary>
     /// Start a relay pair. Sets endpoints and begins forwarding.
     /// </summary>
-    public void StartRelay(int channelNumber,
-        IPEndPoint callerRtp, IPEndPoint callerRtcp,
-        IPEndPoint calleeRtp, IPEndPoint calleeRtcp)
+    public void StartRelay(int channelNumber, IPEndPoint callerRtp, IPEndPoint callerRtcp, IPEndPoint calleeRtp, IPEndPoint calleeRtcp)
     {
         if (!_relays.TryGetValue(channelNumber, out var pair))
         {
-            throw new InvalidOperationException(
-                $"No relay pair for channel {channelNumber}");
+            throw new InvalidOperationException($"No relay pair for channel {channelNumber}");
         }
 
         pair.RtpRelay.SetEndpoints(callerRtp, calleeRtp);
@@ -84,9 +79,7 @@ internal class RtpRelayManager : IDisposable
         pair.RtpTask = pair.RtpRelay.RunAsync(_cts.Token);
         pair.RtcpTask = pair.RtcpRelay.RunAsync(_cts.Token);
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"Started relay for channel {channelNumber}: " +
-            $"A[{callerRtp}] ↔ B[{calleeRtp}]", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Started relay for channel {channelNumber}: A[{callerRtp}] ↔ B[{calleeRtp}]", "");
     }
 
     /// <summary>
@@ -116,10 +109,7 @@ internal class RtpRelayManager : IDisposable
         pair.RtpRelay.Dispose();
         pair.RtcpRelay.Dispose();
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"Stopped relay for channel {channelNumber}. " +
-            $"RTP: {pair.RtpRelay.TotalPackets} pkts, " +
-            $"RTCP: {pair.RtcpRelay.TotalPackets} pkts", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Stopped relay for channel {channelNumber}. RTP: {pair.RtpRelay.TotalPackets} pkts, RTCP: {pair.RtcpRelay.TotalPackets} pkts", "");
     }
 
     /// <summary>

@@ -85,8 +85,7 @@ internal class RtpRelay : IDisposable
         _running = true;
         StartedAt = DateTime.UtcNow;
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"{_label} relay started on port {LocalPort}: {EndpointA} ↔ {EndpointB}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{_label} relay started on port {LocalPort}: {EndpointA} ↔ {EndpointB}", "");
 
         try
         {
@@ -128,8 +127,7 @@ internal class RtpRelay : IDisposable
                         }
                         catch (SocketException ex)
                         {
-                            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                                $"{_label} send to B failed: {ex.Message}", "");
+                            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{_label} send to B failed: {ex.Message}", "");
                         }
                     }
                 }
@@ -146,8 +144,7 @@ internal class RtpRelay : IDisposable
                         }
                         catch (SocketException ex)
                         {
-                            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                                $"{_label} send to A failed: {ex.Message}", "");
+                            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{_label} send to A failed: {ex.Message}", "");
                         }
                     }
                 }
@@ -157,19 +154,16 @@ internal class RtpRelay : IDisposable
                     if (EndpointA == null)
                     {
                         EndpointA = sender;
-                        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                            $"{_label} learned endpoint A: {sender}", "");
+                        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{_label} learned endpoint A: {sender}", "");
                     }
                     else if (EndpointB == null)
                     {
                         EndpointB = sender;
-                        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                            $"{_label} learned endpoint B: {sender}", "");
+                        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{_label} learned endpoint B: {sender}", "");
                     }
                     else
                     {
-                        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                            $"{_label} ignoring packet from unknown {sender}", "");
+                        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{_label} ignoring packet from unknown {sender}", "");
                     }
                 }
             }
@@ -183,9 +177,7 @@ internal class RtpRelay : IDisposable
             _running = false;
             StoppedAt = DateTime.UtcNow;
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"{_label} relay stopped. A→B: {PacketsAtoB} pkts/{BytesAtoB} bytes, " +
-                $"B→A: {PacketsBtoA} pkts/{BytesBtoA} bytes", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{_label} relay stopped. A→B: {PacketsAtoB} pkts/{BytesAtoB} bytes, B→A: {PacketsBtoA} pkts/{BytesBtoA} bytes", "");
         }
     }
 

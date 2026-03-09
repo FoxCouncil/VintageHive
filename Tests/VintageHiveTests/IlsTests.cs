@@ -573,8 +573,7 @@ public class IlsServerIntegrationTests
         return enc.ToArray();
     }
 
-    private static byte[] BuildAddRequest(int messageId, string dn,
-        params (string name, string[] values)[] attributes)
+    private static byte[] BuildAddRequest(int messageId, string dn, params (string name, string[] values)[] attributes)
     {
         var enc = new BerEncoder();
         enc.WriteSequence(msg =>
@@ -732,13 +731,7 @@ public class IlsServerIntegrationTests
         await SendAndReceiveAsync(stream, BuildBindRequest(1));
 
         // Add
-        var addReq = BuildAddRequest(2,
-            "c=-,o=Microsoft, cn=test-add@hive.com, objectClass=rtPerson",
-            ("cn", new[] { "test-add@hive.com" }),
-            ("objectClass", new[] { "rtPerson" }),
-            ("sipaddress", new[] { "16777343" }),
-            ("sflags", new[] { "1" })
-        );
+        var addReq = BuildAddRequest(2, "c=-,o=Microsoft, cn=test-add@hive.com, objectClass=rtPerson", ("cn", new[] { "test-add@hive.com" }), ("objectClass", new[] { "rtPerson" }), ("sipaddress", new[] { "16777343" }), ("sflags", new[] { "1" }));
 
         var response = await SendAndReceiveAsync(stream, addReq);
         Assert.IsNotNull(response);
@@ -759,13 +752,7 @@ public class IlsServerIntegrationTests
         await SendAndReceiveAsync(stream, BuildBindRequest(1));
 
         // Add user
-        var addReq = BuildAddRequest(2,
-            "c=-,o=Microsoft, cn=searcher@hive.com, objectClass=rtPerson",
-            ("cn", new[] { "searcher@hive.com" }),
-            ("objectClass", new[] { "rtPerson" }),
-            ("sappid", new[] { "ms-netmeeting" }),
-            ("sflags", new[] { "1" })
-        );
+        var addReq = BuildAddRequest(2, "c=-,o=Microsoft, cn=searcher@hive.com, objectClass=rtPerson", ("cn", new[] { "searcher@hive.com" }), ("objectClass", new[] { "rtPerson" }), ("sappid", new[] { "ms-netmeeting" }), ("sflags", new[] { "1" }));
         await SendAndReceiveAsync(stream, addReq);
 
         // Search with NetMeeting-style filter
@@ -849,10 +836,7 @@ public class IlsServerIntegrationTests
 
         // Add
         var dn = "c=-,o=Microsoft, cn=to-delete@hive.com, objectClass=rtPerson";
-        var addReq = BuildAddRequest(2, dn,
-            ("cn", new[] { "to-delete@hive.com" }),
-            ("objectClass", new[] { "rtPerson" })
-        );
+        var addReq = BuildAddRequest(2, dn, ("cn", new[] { "to-delete@hive.com" }), ("objectClass", new[] { "rtPerson" }));
         await SendAndReceiveAsync(stream, addReq);
 
         // Delete

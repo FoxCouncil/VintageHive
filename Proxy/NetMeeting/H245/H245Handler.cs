@@ -66,16 +66,14 @@ internal class H245Handler : IDisposable
             using var inboundClient = await AcceptWithCancellation(ct);
             var inboundStream = inboundClient.GetStream();
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"H.245 inbound connected from {inboundClient.Client.RemoteEndPoint}", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"H.245 inbound connected from {inboundClient.Client.RemoteEndPoint}", "");
 
             // Connect outbound to the other side's H.245 address
             using var outboundClient = new TcpClient();
             await outboundClient.ConnectAsync(remoteH245Address.Address, remoteH245Address.Port);
             var outboundStream = outboundClient.GetStream();
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"H.245 outbound connected to {remoteH245Address}", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"H.245 outbound connected to {remoteH245Address}", "");
 
             // Proxy bidirectionally
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -94,8 +92,7 @@ internal class H245Handler : IDisposable
             catch (OperationCanceledException) { }
             catch (IOException) { }
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"H.245 session ended, {MessageCount} messages proxied", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"H.245 session ended, {MessageCount} messages proxied", "");
         }
         finally
         {
@@ -103,8 +100,7 @@ internal class H245Handler : IDisposable
         }
     }
 
-    private async Task ProxyDirection(NetworkStream source, NetworkStream dest,
-        string direction, CancellationTokenSource cts)
+    private async Task ProxyDirection(NetworkStream source, NetworkStream dest, string direction, CancellationTokenSource cts)
     {
         try
         {
@@ -122,13 +118,11 @@ internal class H245Handler : IDisposable
                     var msg = H245Codec.Decode(payload);
                     InspectMessage(msg, direction);
 
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"H.245 {direction}: {msg}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"H.245 {direction}: {msg}", "");
                 }
                 catch
                 {
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"H.245 {direction}: (unparsed, {payload.Length} bytes)", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"H.245 {direction}: (unparsed, {payload.Length} bytes)", "");
                 }
 
                 // Forward raw TPKT frame to other side

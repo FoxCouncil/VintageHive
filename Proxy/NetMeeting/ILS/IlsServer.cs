@@ -22,8 +22,7 @@ internal class IlsServer : Listener
     public IlsServer(IPAddress address, int port)
         : base(address, port, SocketType.Stream, ProtocolType.Tcp)
     {
-        _ttlTimer = new Timer(_ => _directory.CleanExpired(), null,
-            TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
+        _ttlTimer = new Timer(_ => _directory.CleanExpired(), null, TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60));
     }
 
     public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
@@ -69,8 +68,7 @@ internal class IlsServer : Listener
     public override async Task ProcessDisconnection(ListenerSocket connection)
     {
         _directory.RemoveBySession(connection.TraceId);
-        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-            $"ILS disconnect from {connection.RemoteAddress}, cleaned up session entries", "");
+        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"ILS disconnect from {connection.RemoteAddress}, cleaned up session entries", "");
         await Task.CompletedTask;
     }
 
@@ -93,8 +91,7 @@ internal class IlsServer : Listener
 
         if (tagByte != 0x30)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"Expected SEQUENCE tag (0x30), got 0x{tagByte:X2}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Expected SEQUENCE tag (0x30), got 0x{tagByte:X2}", "");
             return null;
         }
         buffer.WriteByte(0x30);
@@ -137,8 +134,7 @@ internal class IlsServer : Listener
 
         if (contentLength > LdapConstants.MAX_MESSAGE_SIZE)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"LDAP message too large: {contentLength} bytes", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"LDAP message too large: {contentLength} bytes", "");
             return null;
         }
 
@@ -225,8 +221,7 @@ internal class IlsServer : Listener
             default:
             {
                 Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Unsupported LDAP operation: {opTag}", "");
-                return BuildLdapResult(messageId, opTag.Number + 1,
-                    LdapConstants.RESULT_PROTOCOL_ERROR, "", "Unsupported operation");
+                return BuildLdapResult(messageId, opTag.Number + 1, LdapConstants.RESULT_PROTOCOL_ERROR, "", "Unsupported operation");
             }
         }
     }
@@ -243,11 +238,9 @@ internal class IlsServer : Listener
         var name = body.ReadString();
 
         // Accept any authentication — ILS uses anonymous simple bind
-        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-            $"Bind: version={version} dn=\"{name}\"", "");
+        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Bind: version={version} dn=\"{name}\"", "");
 
-        return BuildLdapResult(messageId, LdapConstants.OP_BIND_RESPONSE,
-            LdapConstants.RESULT_SUCCESS, "", "");
+        return BuildLdapResult(messageId, LdapConstants.OP_BIND_RESPONSE, LdapConstants.RESULT_SUCCESS, "", "");
     }
 
     private byte[] HandleSearch(int messageId, BerDecoder body)
@@ -281,8 +274,7 @@ internal class IlsServer : Listener
             results = results.Take(sizeLimit).ToList();
         }
 
-        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-            $"Search: base=\"{baseDn}\" scope={scope} results={results.Count}", "");
+        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Search: base=\"{baseDn}\" scope={scope} results={results.Count}", "");
 
         // Build response: one SearchResultEntry per match, then SearchResultDone
         var response = new MemoryStream();
@@ -293,8 +285,7 @@ internal class IlsServer : Listener
             response.Write(entry, 0, entry.Length);
         }
 
-        var done = BuildLdapResult(messageId, LdapConstants.OP_SEARCH_RESULT_DONE,
-            LdapConstants.RESULT_SUCCESS, "", "");
+        var done = BuildLdapResult(messageId, LdapConstants.OP_SEARCH_RESULT_DONE, LdapConstants.RESULT_SUCCESS, "", "");
         response.Write(done, 0, done.Length);
 
         return response.ToArray();
@@ -333,11 +324,9 @@ internal class IlsServer : Listener
         _directory.AddOrUpdate(user);
 
         var cn = IlsDirectory.ExtractCnFromDn(dn);
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"Add: cn=\"{cn}\" (directory has {_directory.Count} users)", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Add: cn=\"{cn}\" (directory has {_directory.Count} users)", "");
 
-        return BuildLdapResult(messageId, LdapConstants.OP_ADD_RESPONSE,
-            LdapConstants.RESULT_SUCCESS, "", "");
+        return BuildLdapResult(messageId, LdapConstants.OP_ADD_RESPONSE, LdapConstants.RESULT_SUCCESS, "", "");
     }
 
     private byte[] HandleModify(int messageId, BerDecoder body)
@@ -347,10 +336,8 @@ internal class IlsServer : Listener
 
         if (user == null)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"Modify: dn=\"{dn}\" not found", "");
-            return BuildLdapResult(messageId, LdapConstants.OP_MODIFY_RESPONSE,
-                LdapConstants.RESULT_NO_SUCH_OBJECT, "", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Modify: dn=\"{dn}\" not found", "");
+            return BuildLdapResult(messageId, LdapConstants.OP_MODIFY_RESPONSE, LdapConstants.RESULT_NO_SUCH_OBJECT, "", "");
         }
 
         var changesSeq = body.ReadSequence();
@@ -392,11 +379,9 @@ internal class IlsServer : Listener
             }
         }
 
-        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-            $"Modify: dn=\"{dn}\" applied", "");
+        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Modify: dn=\"{dn}\" applied", "");
 
-        return BuildLdapResult(messageId, LdapConstants.OP_MODIFY_RESPONSE,
-            LdapConstants.RESULT_SUCCESS, "", "");
+        return BuildLdapResult(messageId, LdapConstants.OP_MODIFY_RESPONSE, LdapConstants.RESULT_SUCCESS, "", "");
     }
 
     private byte[] HandleDelete(int messageId, BerDecoder body)
@@ -409,11 +394,9 @@ internal class IlsServer : Listener
             : LdapConstants.RESULT_NO_SUCH_OBJECT;
 
         var cn = IlsDirectory.ExtractCnFromDn(dn);
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"Delete: cn=\"{cn}\" removed={removed} (directory has {_directory.Count} users)", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Delete: cn=\"{cn}\" removed={removed} (directory has {_directory.Count} users)", "");
 
-        return BuildLdapResult(messageId, LdapConstants.OP_DELETE_RESPONSE,
-            resultCode, "", "");
+        return BuildLdapResult(messageId, LdapConstants.OP_DELETE_RESPONSE, resultCode, "", "");
     }
 
     // ──────────────────────────────────────────────────────────
@@ -454,8 +437,7 @@ internal class IlsServer : Listener
             if (user != null)
             {
                 user.ExpiresAt = DateTime.UtcNow.AddMinutes(ttlMinutes.Value);
-                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                    $"TTL refresh: cn=\"{cn}\" ttl={ttlMinutes}m", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"TTL refresh: cn=\"{cn}\" ttl={ttlMinutes}m", "");
             }
         }
     }
@@ -464,8 +446,7 @@ internal class IlsServer : Listener
     //  Response builders
     // ──────────────────────────────────────────────────────────
 
-    private static byte[] BuildLdapResult(int messageId, int responseTagNumber,
-        int resultCode, string matchedDn, string diagnosticMessage)
+    private static byte[] BuildLdapResult(int messageId, int responseTagNumber, int resultCode, string matchedDn, string diagnosticMessage)
     {
         var enc = new BerEncoder();
         enc.WriteSequence(msg =>
@@ -481,8 +462,7 @@ internal class IlsServer : Listener
         return enc.ToArray();
     }
 
-    private static byte[] BuildSearchResultEntry(int messageId, IlsUser user,
-        List<string> requestedAttrs)
+    private static byte[] BuildSearchResultEntry(int messageId, IlsUser user, List<string> requestedAttrs)
     {
         var attributes = user.GetSelectedAttributes(requestedAttrs);
 

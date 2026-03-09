@@ -41,8 +41,7 @@ internal class T120Server : Listener
         var stream = connection.Stream;
         var remote = connection.Remote;
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"T.120 connection from {remote}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"T.120 connection from {remote}", "");
 
         T120Session session = null;
 
@@ -59,22 +58,17 @@ internal class T120Server : Listener
 
             if (x224.Type != X224Message.TYPE_CR)
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                    $"Expected X.224 CR, got {X224Message.TypeName(x224.Type)}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Expected X.224 CR, got {X224Message.TypeName(x224.Type)}", "");
                 return null;
             }
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"X.224 CR from {remote}: SrcRef=0x{x224.SrcRef:X4}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"X.224 CR from {remote}: SrcRef=0x{x224.SrcRef:X4}", "");
 
             // Send X.224 Connection Confirm
-            var cc = X224Message.BuildConnectionConfirm(
-                dstRef: x224.SrcRef,
-                srcRef: 1);
+            var cc = X224Message.BuildConnectionConfirm(dstRef: x224.SrcRef, srcRef: 1);
             await TpktFrame.WriteAsync(stream, cc);
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"X.224 CC sent to {remote}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"X.224 CC sent to {remote}", "");
 
             // ── Phase 2: MCS Connect ───────────────────────────────
             var mcsPayload = await ReadX224Data(stream);
@@ -85,23 +79,16 @@ internal class T120Server : Listener
 
             if (!McsCodec.IsConnectInitial(mcsPayload))
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                    $"Expected MCS Connect-Initial, got 0x{mcsPayload[0]:X2}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Expected MCS Connect-Initial, got 0x{mcsPayload[0]:X2}", "");
                 return null;
             }
 
             var connectInitial = McsCodec.DecodeConnectInitial(mcsPayload);
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"MCS Connect-Initial from {remote}: " +
-                $"MaxChannels={connectInitial.CallingDomainParameters.MaxChannelIds}, " +
-                $"MaxUsers={connectInitial.CallingDomainParameters.MaxUserIds}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"MCS Connect-Initial from {remote}: MaxChannels={connectInitial.CallingDomainParameters.MaxChannelIds}, MaxUsers={connectInitial.CallingDomainParameters.MaxUserIds}", "");
 
             // Negotiate domain parameters (use calling params as basis)
-            var negotiatedParams = NegotiateDomainParameters(
-                connectInitial.CallingDomainParameters,
-                connectInitial.MinimumDomainParameters,
-                connectInitial.MaximumDomainParameters);
+            var negotiatedParams = NegotiateDomainParameters(connectInitial.CallingDomainParameters, connectInitial.MinimumDomainParameters, connectInitial.MaximumDomainParameters);
 
             // Decode GCC ConferenceCreateRequest from MCS userData
             ConferenceCreateRequest gccRequest = null;
@@ -113,23 +100,13 @@ internal class T120Server : Listener
                 {
                     gccRequest = GccCodec.DecodeConferenceCreateRequest(connectInitial.UserData);
 
-                    Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                        $"GCC ConferenceCreateRequest from {remote}: " +
-                        $"name=\"{gccRequest.ConferenceNameNumeric}\", " +
-                        $"userData={gccRequest.UserData?.Length ?? 0} blocks", "");
+                    Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"GCC ConferenceCreateRequest from {remote}: name=\"{gccRequest.ConferenceNameNumeric}\", userData={gccRequest.UserData?.Length ?? 0} blocks", "");
 
                     // Assign a node ID for this participant
                     var nodeId = Interlocked.Increment(ref _nextUserId);
 
                     // Build proper GCC ConferenceCreateResponse
-                    gccResponseData = GccCodec.EncodeConferenceCreateResponse(
-                        new ConferenceCreateResponse
-                        {
-                            NodeId = nodeId,
-                            Tag = 1,
-                            Result = GccConstants.RESULT_SUCCESS,
-                            UserData = gccRequest.UserData // Echo client's user data blocks
-                        });
+                    gccResponseData = GccCodec.EncodeConferenceCreateResponse(new ConferenceCreateResponse { NodeId = nodeId, Tag = 1, Result = GccConstants.RESULT_SUCCESS, UserData = gccRequest.UserData });
                 }
                 catch (Exception ex)
                 {
@@ -156,8 +133,7 @@ internal class T120Server : Listener
             var dtPayload = X224Message.BuildDataTransfer(connectResponse);
             await TpktFrame.WriteAsync(stream, dtPayload);
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"MCS Connect-Response sent to {remote}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"MCS Connect-Response sent to {remote}", "");
 
             // ── Phase 3: MCS Domain ────────────────────────────────
             session = new T120Session
@@ -192,11 +168,7 @@ internal class T120Server : Listener
                 RemoveSession(session);
                 session.DisconnectedAt = DateTime.UtcNow;
 
-                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                    $"T.120 session ended for {remote}: " +
-                    $"UserId={session.UserId}, " +
-                    $"Channels={session.JoinedChannels.Count}, " +
-                    $"DataPdus={session.DataPduCount}", "");
+                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"T.120 session ended for {remote}: UserId={session.UserId}, Channels={session.JoinedChannels.Count}, DataPdus={session.DataPduCount}", "");
             }
         }
 
@@ -209,8 +181,7 @@ internal class T120Server : Listener
 
     public override Task ProcessDisconnection(ListenerSocket connection)
     {
-        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-            $"T.120 disconnect from {connection.RemoteAddress}", "");
+        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"T.120 disconnect from {connection.RemoteAddress}", "");
 
         return Task.CompletedTask;
     }
@@ -238,13 +209,11 @@ internal class T120Server : Listener
             }
             catch (Exception ex)
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                    $"Failed to decode domain PDU: {ex.Message}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Failed to decode domain PDU: {ex.Message}", "");
                 continue;
             }
 
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"Domain PDU from {session.Remote}: {pdu}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Domain PDU from {session.Remote}: {pdu}", "");
 
             switch (pdu.Type)
             {
@@ -264,12 +233,10 @@ internal class T120Server : Listener
                     _sessions[userId] = session;
 
                     // Send AttachUserConfirm
-                    var confirm = McsCodec.EncodeAttachUserConfirm(
-                        McsConstants.RESULT_SUCCESSFUL, userId);
+                    var confirm = McsCodec.EncodeAttachUserConfirm(McsConstants.RESULT_SUCCESSFUL, userId);
                     await WriteX224Data(stream, confirm);
 
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"Assigned UserId={userId} to {session.Remote}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Assigned UserId={userId} to {session.Remote}", "");
                 }
                 break;
 
@@ -278,12 +245,10 @@ internal class T120Server : Listener
                     session.JoinedChannels.Add(pdu.ChannelId);
 
                     // Send ChannelJoinConfirm
-                    var confirm = McsCodec.EncodeChannelJoinConfirm(
-                        McsConstants.RESULT_SUCCESSFUL, pdu.UserId, pdu.ChannelId);
+                    var confirm = McsCodec.EncodeChannelJoinConfirm(McsConstants.RESULT_SUCCESSFUL, pdu.UserId, pdu.ChannelId);
                     await WriteX224Data(stream, confirm);
 
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"UserId={pdu.UserId} joined channel {pdu.ChannelId}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"UserId={pdu.UserId} joined channel {pdu.ChannelId}", "");
                 }
                 break;
 
@@ -292,8 +257,7 @@ internal class T120Server : Listener
                     session.DataPduCount++;
 
                     // Relay as SendDataIndication to all other sessions on this channel
-                    var indication = McsCodec.EncodeSendDataIndication(
-                        pdu.Initiator, pdu.ChannelId, pdu.DataPriority, pdu.UserData);
+                    var indication = McsCodec.EncodeSendDataIndication(pdu.Initiator, pdu.ChannelId, pdu.DataPriority, pdu.UserData);
 
                     await RelayToChannel(pdu.ChannelId, session.UserId, indication);
                 }
@@ -301,15 +265,13 @@ internal class T120Server : Listener
 
                 case McsConstants.DOMAIN_DISCONNECT_PROVIDER_ULTIMATUM:
                 {
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"DisconnectProviderUltimatum from UserId={session.UserId}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"DisconnectProviderUltimatum from UserId={session.UserId}", "");
                     return; // End session
                 }
 
                 default:
                 {
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"Unhandled domain PDU type {pdu.Type} from {session.Remote}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Unhandled domain PDU type {pdu.Type} from {session.Remote}", "");
                 }
                 break;
             }
@@ -340,8 +302,7 @@ internal class T120Server : Listener
 
         if (x224.Type != X224Message.TYPE_DT)
         {
-            throw new InvalidDataException(
-                $"Expected X.224 DT, got {X224Message.TypeName(x224.Type)}");
+            throw new InvalidDataException($"Expected X.224 DT, got {X224Message.TypeName(x224.Type)}");
         }
 
         return x224.Data;
@@ -399,8 +360,7 @@ internal class T120Server : Listener
             }
             catch (Exception ex)
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                    $"Failed to relay to UserId={kvp.Key}: {ex.Message}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Failed to relay to UserId={kvp.Key}: {ex.Message}", "");
             }
         }
     }
@@ -409,10 +369,7 @@ internal class T120Server : Listener
     //  Domain parameter negotiation
     // ──────────────────────────────────────────────────────────
 
-    private static McsDomainParameters NegotiateDomainParameters(
-        McsDomainParameters target,
-        McsDomainParameters minimum,
-        McsDomainParameters maximum)
+    private static McsDomainParameters NegotiateDomainParameters(McsDomainParameters target, McsDomainParameters minimum, McsDomainParameters maximum)
     {
         return new McsDomainParameters
         {

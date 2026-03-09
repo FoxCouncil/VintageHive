@@ -9,7 +9,7 @@ jobs:
     name: Binaries Release
     strategy:
       matrix:
-        kind: ['linux', 'windows', 'macOS']
+        kind: ['linux', 'windows', 'macOS', 'macOS-arm64']
         include:
           - kind: linux
             os: ubuntu-latest
@@ -20,6 +20,9 @@ jobs:
           - kind: macOS
             os: macos-latest
             target: osx-x64
+          - kind: macOS-arm64
+            os: macos-latest
+            target: osx-arm64
     
     runs-on: ${{ matrix.os }}
 
@@ -51,7 +54,7 @@ jobs:
         # Delete output directory
         rm -r "$release_name"
     - name: Publish
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: "VintageHive-v*"
       env:

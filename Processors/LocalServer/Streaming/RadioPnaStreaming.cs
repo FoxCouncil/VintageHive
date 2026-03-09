@@ -2,7 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Pna;
 
@@ -16,17 +16,16 @@ internal static class RadioPnaStreaming
     private static readonly SemaphoreSlim _sessionCreateLock = new(1, 1);
 
     // ===================================================================
-    // FFmpeg process creation — decodes upstream to raw PCM for cook encoding
+    // FFmpeg process creation
     // ===================================================================
 
-    private const int CookSampleRate = 11025;
-    private const int CookChannels = 2;
-    private const int CookBitrate = 19000;
-
-    private static Process CreateRaFfmpegProcess()
+    /// <summary>
+    /// Create FFmpeg process that decodes upstream audio to raw PCM for CookEncoder.
+    /// </summary>
+    private static Process CreateCookFfmpegProcess(RealCodecProfile profile)
     {
-        var cmdPath = GetFfmpegExecutablePath();
-        var args = $"-probesize 32768 -analyzeduration 0 -i pipe:0 -fflags nobuffer -flush_packets 1 -c:a pcm_s16le -ar {CookSampleRate} -ac {CookChannels} -f s16le pipe:1";
+        var cmdPath = FfmpegUtils.GetExecutablePath();
+        var args = $"-probesize 32768 -analyzeduration 0 -i pipe:0 -fflags nobuffer -flush_packets 1 -c:a pcm_s16le -ar {profile.SampleRate} -ac {profile.Channels} -f s16le pipe:1";
 
         var process = new Process();
 
@@ -40,27 +39,26 @@ internal static class RadioPnaStreaming
         return process;
     }
 
-    private static string GetFfmpegExecutablePath()
+    /// <summary>
+    /// Create FFmpeg process that encodes upstream audio directly to RM container
+    /// with the ra_144 (14.4kbps lpcJ) codec. FFmpeg handles everything —
+    /// we just read RM chunks from stdout.
+    /// </summary>
+    private static Process CreateRa144FfmpegProcess()
     {
-        if (!Environment.Is64BitProcess)
-        {
-            throw new ApplicationException("Somehow, it's not x64? Everything VintageHive is 64bit. What?");
-        }
+        var cmdPath = FfmpegUtils.GetExecutablePath();
+        var args = "-probesize 32768 -analyzeduration 0 -i pipe:0 -fflags nobuffer -flush_packets 1 -c:a ra_144 -f rm pipe:1";
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return @"libs\ffmpeg.exe";
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            return @"libs\ffmpeg.osx.intel";
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return @"libs\ffmpeg.amd64";
-        }
+        var process = new Process();
 
-        throw new Exception("Cannot determine operating system!");
+        process.StartInfo.FileName = cmdPath;
+        process.StartInfo.Arguments = args;
+        process.StartInfo.CreateNoWindow = true;
+        process.StartInfo.RedirectStandardInput = true;
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+
+        return process;
     }
 
     // ===================================================================
@@ -75,7 +73,14 @@ internal static class RadioPnaStreaming
         /// </summary>
         public byte[] RmHeaders { get; }
 
+        /// <summary>
+        /// Full RM file headers (.RMF + PROP + CONT + MDPR + DATA header).
+        /// Used by HTTP clients. Rebuilt with current track title on access.
+        /// </summary>
+        public byte[] RmFileHeaders { get; }
+
         public RadioStationInfo Station { get; }
+        public RealCodecProfile Profile { get; }
 
         private const int RingCapacity = 300;
         private readonly byte[][] _ring = new byte[RingCapacity][];
@@ -95,23 +100,98 @@ internal static class RadioPnaStreaming
 
         public bool IsAlive => !_producerTask.IsCompleted && !_disposed;
 
+        /// <summary>CookEncoder instance (null for ra_144 pipeline).</summary>
         public CookEncoder Encoder { get; }
 
-        public PnaLiveSession(HttpClient httpClient, HttpResponseMessage upstreamResponse,
-            Process ffmpeg, byte[] rmHeaders, Stream ffmpegOutput, RadioStationInfo stationInfo,
-            CookEncoder encoder)
+        // Track metadata from ICY stream
+        private readonly IcyMetadataStrippingStream _icyStream;
+
+        /// <summary>Current track title from upstream ICY metadata, or station default.</summary>
+        public string CurrentTrack => _icyStream?.CurrentTrack ?? Station?.CurrentTrack;
+
+        // Track change notification (mirrors MmshLiveSession pattern)
+        private readonly object _trackLock = new();
+        private TaskCompletionSource _trackChangeTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private string _lastNotifiedTrack;
+        private long _lastTrackChangeTimestamp;
+
+        public Task TrackChangeTask { get { lock (_trackLock) return _trackChangeTcs.Task; } }
+
+        public bool TryGetTrackUpdate(string lastKnown, out string newTrack)
+        {
+            newTrack = CurrentTrack;
+            return newTrack != null && newTrack != lastKnown;
+        }
+
+        /// <summary>Cook pipeline: CookEncoder encodes PCM from FFmpeg.</summary>
+        public PnaLiveSession(HttpClient httpClient, HttpResponseMessage upstreamResponse, Process ffmpeg, byte[] rmHeaders, byte[] rmFileHeaders, Stream ffmpegOutput, RadioStationInfo stationInfo, RealCodecProfile profile, CookEncoder encoder, IcyMetadataStrippingStream icyStream = null)
         {
             _httpClient = httpClient;
             _upstreamResponse = upstreamResponse;
             _ffmpeg = ffmpeg;
             RmHeaders = rmHeaders;
+            RmFileHeaders = rmFileHeaders;
             Station = stationInfo;
+            Profile = profile;
             Encoder = encoder;
+            _icyStream = icyStream;
+            _lastNotifiedTrack = stationInfo?.CurrentTrack;
 
-            _producerTask = Task.Run(() => ProduceLoop(ffmpegOutput));
+            if (_icyStream != null)
+            {
+                _icyStream.TrackChanged += OnTrackChanged;
+            }
+
+            _producerTask = Task.Run(() => ProduceCookLoop(ffmpegOutput));
         }
 
-        private async Task ProduceLoop(Stream ffmpegOut)
+        /// <summary>Ra144 pipeline: FFmpeg produces complete RM data packets.</summary>
+        public PnaLiveSession(HttpClient httpClient, HttpResponseMessage upstreamResponse, Process ffmpeg, byte[] rmHeaders, byte[] rmFileHeaders, Stream ffmpegOutput, RadioStationInfo stationInfo, RealCodecProfile profile, IcyMetadataStrippingStream icyStream = null)
+        {
+            _httpClient = httpClient;
+            _upstreamResponse = upstreamResponse;
+            _ffmpeg = ffmpeg;
+            RmHeaders = rmHeaders;
+            RmFileHeaders = rmFileHeaders;
+            Station = stationInfo;
+            Profile = profile;
+            Encoder = null;
+            _icyStream = icyStream;
+            _lastNotifiedTrack = stationInfo?.CurrentTrack;
+
+            if (_icyStream != null)
+            {
+                _icyStream.TrackChanged += OnTrackChanged;
+            }
+
+            _producerTask = Task.Run(() => ProduceRa144Loop(ffmpegOutput));
+        }
+
+        private void OnTrackChanged(string newTrack)
+        {
+            var now = Stopwatch.GetTimestamp();
+            lock (_trackLock)
+            {
+                // Debounce: skip if less than 5 seconds since last change
+                var elapsedMs = (now - _lastTrackChangeTimestamp) * 1000.0 / Stopwatch.Frequency;
+                if (_lastTrackChangeTimestamp != 0 && elapsedMs < 5000)
+                {
+                    return;
+                }
+
+                _lastTrackChangeTimestamp = now;
+                _lastNotifiedTrack = newTrack;
+
+                var oldTcs = _trackChangeTcs;
+                _trackChangeTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                oldTcs.TrySetResult();
+            }
+
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Track changed: \"{newTrack}\"");
+        }
+
+        /// <summary>Cook pipeline producer: reads raw PCM from FFmpeg, encodes via CookEncoder.</summary>
+        private async Task ProduceCookLoop(Stream ffmpegOut)
         {
             uint packetCount = 0;
             uint readCount = 0;
@@ -134,8 +214,7 @@ internal static class RadioPnaStreaming
 
                     if (readCount <= 20 || readCount % 200 == 0)
                     {
-                        Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                            $"Producer: read#{readCount} {bytesRead}B (total PCM={totalPcmBytes}, pkts={packetCount})");
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Producer: read#{readCount} {bytesRead}B (total PCM={totalPcmBytes}, pkts={packetCount})");
                     }
 
                     // Feed raw PCM to cook encoder — it returns RM data packets
@@ -143,20 +222,10 @@ internal static class RadioPnaStreaming
 
                     foreach (var packet in packets)
                     {
-                        TaskCompletionSource oldTcs;
-                        lock (_lock)
-                        {
-                            _ring[_headSeq % RingCapacity] = packet;
-                            _headSeq++;
-                            oldTcs = _newDataTcs;
-                            _newDataTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                        }
-                        oldTcs.TrySetResult();
-
+                        PushPacket(packet);
                         packetCount++;
 
-                        Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                            $"Producer: superpacket #{packetCount} len={packet.Length} (after {readCount} reads)");
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Producer: superpacket #{packetCount} len={packet.Length} (after {readCount} reads)");
                     }
                 }
             }
@@ -171,6 +240,79 @@ internal static class RadioPnaStreaming
             }
 
             Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Producer ended ({packetCount} total packets, {readCount} reads)");
+        }
+
+        /// <summary>Ra144 pipeline producer: reads complete RM data packets from FFmpeg stdout.</summary>
+        private async Task ProduceRa144Loop(Stream ffmpegOut)
+        {
+            uint packetCount = 0;
+
+            try
+            {
+                // FFmpeg produces RM container: skip header chunks, then read data packets
+                // Read and discard RM header chunks (.RMF, PROP, CONT, MDPR, DATA header)
+                // until we reach the DATA chunk, then read data packets
+                while (!_cts.IsCancellationRequested)
+                {
+                    var (tag, chunk) = await PnaCommand.ReadRmChunkAsync(ffmpegOut);
+                    if (tag == 0 || chunk == null)
+                    {
+                        Log.WriteLine(Log.LEVEL_ERROR, LogSys, "Ra144 producer: failed to read RM header chunks");
+                        return;
+                    }
+
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Ra144 producer: header chunk {PnaCommand.FourCCToString(tag)} ({chunk.Length} bytes)");
+
+                    if (tag == PnaCommand.RM_DATA_TAG)
+                    {
+                        break; // DATA chunk found — data packets follow
+                    }
+                }
+
+                // Read RM data packets from the DATA section
+                while (!_cts.IsCancellationRequested)
+                {
+                    var packet = await PnaCommand.ReadRmDataPacketAsync(ffmpegOut);
+                    if (packet == null)
+                    {
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Ra144 producer: FFmpeg EOF after {packetCount} packets");
+                        break;
+                    }
+
+                    PushPacket(packet);
+                    packetCount++;
+
+                    if (packetCount <= 20 || packetCount % 200 == 0)
+                    {
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Ra144 producer: packet #{packetCount} len={packet.Length}");
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, LogSys, $"Ra144 producer error: {ex.Message}\n{ex.StackTrace}");
+            }
+            finally
+            {
+                lock (_lock) { _newDataTcs.TrySetResult(); }
+            }
+
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Ra144 producer ended ({packetCount} total packets)");
+        }
+
+        /// <summary>Push an RM data packet into the ring buffer and wake consumers.</summary>
+        private void PushPacket(byte[] packet)
+        {
+            TaskCompletionSource oldTcs;
+            lock (_lock)
+            {
+                _ring[_headSeq % RingCapacity] = packet;
+                _headSeq++;
+                oldTcs = _newDataTcs;
+                _newDataTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+            oldTcs.TrySetResult();
         }
 
         public long LivePosition { get { lock (_lock) return _headSeq; } }
@@ -197,29 +339,26 @@ internal static class RadioPnaStreaming
             await waitTask.WaitAsync(_cts.Token);
         }
 
-        public void AddClient(string stationId)
+        public void AddClient(string sessionKey)
         {
             var count = Interlocked.Increment(ref _activeClients);
             _cleanupCts?.Cancel();
             _cleanupCts = null;
-            Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                $"Station {stationId}: client connected ({count} active)");
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey}: client connected ({count} active)");
         }
 
-        public void RemoveClient(string stationId)
+        public void RemoveClient(string sessionKey)
         {
             var count = Interlocked.Decrement(ref _activeClients);
-            Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                $"Station {stationId}: client disconnected ({count} active)");
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey}: client disconnected ({count} active)");
             if (count <= 0)
             {
-                Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                    $"Station {stationId}: last client left, cleanup in 30s");
-                ScheduleCleanup(stationId);
+                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey}: last client left, cleanup in 30s");
+                ScheduleCleanup(sessionKey);
             }
         }
 
-        private void ScheduleCleanup(string stationId)
+        private void ScheduleCleanup(string sessionKey)
         {
             var cts = new CancellationTokenSource();
             _cleanupCts = cts;
@@ -230,10 +369,9 @@ internal static class RadioPnaStreaming
                     await Task.Delay(TimeSpan.FromSeconds(30), cts.Token);
                     if (_activeClients <= 0)
                     {
-                        _liveSessions.TryRemove(stationId, out _);
+                        _liveSessions.TryRemove(sessionKey, out _);
                         Dispose();
-                        Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                            $"Session for {stationId} cleaned up (no clients for 30s)");
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey} cleaned up (no clients for 30s)");
                     }
                 }
                 catch (OperationCanceledException) { }
@@ -244,6 +382,12 @@ internal static class RadioPnaStreaming
         {
             if (_disposed) return;
             _disposed = true;
+
+            if (_icyStream != null)
+            {
+                _icyStream.TrackChanged -= OnTrackChanged;
+            }
+
             _cts.Cancel();
             try { _ffmpeg.Kill(); } catch { }
             try { _ffmpeg.Dispose(); } catch { }
@@ -257,9 +401,12 @@ internal static class RadioPnaStreaming
     // Session factory
     // ===================================================================
 
-    internal static async Task<PnaLiveSession> GetOrCreateSessionAsync(string stationId)
+    internal static async Task<PnaLiveSession> GetOrCreateSessionAsync(string stationId, RealCodecProfile profile = null)
     {
-        if (_liveSessions.TryGetValue(stationId, out var session) && session.IsAlive)
+        profile ??= RealCodecProfile.CookStereo11k;
+        var sessionKey = $"{stationId}:{profile.Key}";
+
+        if (_liveSessions.TryGetValue(sessionKey, out var session) && session.IsAlive)
         {
             return session;
         }
@@ -267,20 +414,19 @@ internal static class RadioPnaStreaming
         await _sessionCreateLock.WaitAsync();
         try
         {
-            if (_liveSessions.TryGetValue(stationId, out session) && session.IsAlive)
+            if (_liveSessions.TryGetValue(sessionKey, out session) && session.IsAlive)
             {
                 return session;
             }
 
             var info = await RadioStationResolver.ResolveStation(stationId);
-            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session creating: {info.Name} ({info.Codec})");
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session creating: {info.Name} ({info.Codec}) profile={profile}");
 
             var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
             {
                 AllowAutoRedirect = true,
                 MaxAutomaticRedirections = 3,
-                PlaintextStreamFilter = (filterContext, ct) =>
-                    new ValueTask<Stream>(new HttpFixerDelegatingStream(filterContext.PlaintextStream))
+                PlaintextStreamFilter = (filterContext, ct) => new ValueTask<Stream>(new HttpFixerDelegatingStream(filterContext.PlaintextStream))
             });
             httpClient.Timeout = TimeSpan.FromSeconds(15);
 
@@ -309,39 +455,22 @@ internal static class RadioPnaStreaming
                 }
             }
 
-            var ffmpeg = CreateRaFfmpegProcess();
-            ffmpeg.Start();
-            _ = Task.Run(async () =>
+            PnaLiveSession newSession;
+
+            if (profile.CodecType == RealCodecType.Ra144)
             {
-                using var reader = ffmpeg.StandardError;
-                while (await reader.ReadLineAsync() is { } line)
-                {
-                    Log.WriteLine(Log.LEVEL_VERBOSE, "FFMPEG-RA", line);
-                }
-            });
-            _ = Task.Run(async () =>
+                newSession = await CreateRa144Session(httpClient, upstreamResponse, upstreamStream, info, profile, icyStream);
+            }
+            else
             {
-                try { await upstreamStream.CopyToAsync(ffmpeg.StandardInput.BaseStream); }
-                catch { }
-                try { ffmpeg.StandardInput.Close(); } catch { }
-            });
+                newSession = await CreateCookSession(httpClient, upstreamResponse, upstreamStream, info, profile, icyStream);
+            }
 
-            var ffmpegOut = ffmpeg.StandardOutput.BaseStream;
-
-            // Create cook encoder and build RM headers ourselves
-            var encoder = new CookEncoder(CookSampleRate, CookChannels, CookBitrate);
-            var rmHeaders = encoder.BuildRmHeaders(info.Name);
-
-            Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                $"Session ready: cook encoder, RM headers={rmHeaders.Length}B station=\"{info.Name}\"");
-
-            var newSession = new PnaLiveSession(httpClient, upstreamResponse, ffmpeg, rmHeaders, ffmpegOut, info, encoder);
-
-            if (_liveSessions.TryGetValue(stationId, out var old))
+            if (_liveSessions.TryGetValue(sessionKey, out var old))
             {
                 old.Dispose();
             }
-            _liveSessions[stationId] = newSession;
+            _liveSessions[sessionKey] = newSession;
 
             return newSession;
         }
@@ -351,9 +480,99 @@ internal static class RadioPnaStreaming
         }
     }
 
+    private static async Task<PnaLiveSession> CreateCookSession(HttpClient httpClient, HttpResponseMessage upstreamResponse, Stream upstreamStream, RadioStationInfo info, RealCodecProfile profile, IcyMetadataStrippingStream icyStream)
+    {
+        var ffmpeg = CreateCookFfmpegProcess(profile);
+        ffmpeg.Start();
+        _ = Task.Run(async () =>
+        {
+            using var reader = ffmpeg.StandardError;
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                Log.WriteLine(Log.LEVEL_VERBOSE, "FFMPEG-RA", line);
+            }
+        });
+        _ = Task.Run(async () =>
+        {
+            try { await upstreamStream.CopyToAsync(ffmpeg.StandardInput.BaseStream); }
+            catch { }
+            try { ffmpeg.StandardInput.Close(); } catch { }
+        });
+
+        var ffmpegOut = ffmpeg.StandardOutput.BaseStream;
+
+        var encoder = new CookEncoder(profile.SampleRate, profile.Channels, profile.Bitrate);
+
+        // Build title with current track if available
+        var title = BuildStreamTitle(info, icyStream?.CurrentTrack);
+        var rmHeaders = encoder.BuildRmHeaders(title);
+        var rmFileHeaders = encoder.BuildRmFileHeaders(title);
+
+        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session ready: cook {profile}, RM headers={rmHeaders.Length}B station=\"{info.Name}\"");
+
+        return new PnaLiveSession(httpClient, upstreamResponse, ffmpeg, rmHeaders, rmFileHeaders, ffmpegOut, info, profile, encoder, icyStream);
+    }
+
+    private static async Task<PnaLiveSession> CreateRa144Session(HttpClient httpClient, HttpResponseMessage upstreamResponse, Stream upstreamStream, RadioStationInfo info, RealCodecProfile profile, IcyMetadataStrippingStream icyStream)
+    {
+        var ffmpeg = CreateRa144FfmpegProcess();
+        ffmpeg.Start();
+        _ = Task.Run(async () =>
+        {
+            using var reader = ffmpeg.StandardError;
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                Log.WriteLine(Log.LEVEL_VERBOSE, "FFMPEG-RA144", line);
+            }
+        });
+        _ = Task.Run(async () =>
+        {
+            try { await upstreamStream.CopyToAsync(ffmpeg.StandardInput.BaseStream); }
+            catch { }
+            try { ffmpeg.StandardInput.Close(); } catch { }
+        });
+
+        var ffmpegOut = ffmpeg.StandardOutput.BaseStream;
+
+        // Read RM header chunks from FFmpeg's RM muxer output
+        // Collect PROP+CONT+MDPR+DATA for PNA, and .RMF+PROP+CONT+MDPR+DATA for HTTP
+        using var pnaHeaderMs = new MemoryStream();
+        using var httpHeaderMs = new MemoryStream();
+
+        while (true)
+        {
+            var (tag, chunk) = await PnaCommand.ReadRmChunkAsync(ffmpegOut);
+            if (tag == 0 || chunk == null)
+            {
+                throw new InvalidOperationException("FFmpeg ra_144: failed to read RM header chunks");
+            }
+
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Ra144: header chunk {PnaCommand.FourCCToString(tag)} ({chunk.Length} bytes)");
+
+            // HTTP gets everything; PNA skips .RMF
+            httpHeaderMs.Write(chunk, 0, chunk.Length);
+            if (tag != PnaCommand.RM_RMF_TAG)
+            {
+                pnaHeaderMs.Write(chunk, 0, chunk.Length);
+            }
+
+            if (tag == PnaCommand.RM_DATA_TAG)
+            {
+                break;
+            }
+        }
+
+        var rmHeaders = pnaHeaderMs.ToArray();
+        var rmFileHeaders = httpHeaderMs.ToArray();
+
+        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session ready: ra_144, PNA headers={rmHeaders.Length}B HTTP headers={rmFileHeaders.Length}B station=\"{info.Name}\"");
+
+        return new PnaLiveSession(httpClient, upstreamResponse, ffmpeg, rmHeaders, rmFileHeaders, ffmpegOut, info, profile, icyStream);
+    }
+
     // ===================================================================
     // HTTP streaming — /stream/real/{id}.ra
-    // Serves cook codec (.ra5 header) over HTTP for RealPlayer G2+
+    // Serves RealAudio over HTTP for RealPlayer G2+
     // ===================================================================
 
     public static async Task HandleRealStream(HttpRequest request, HttpResponse response, string stationId)
@@ -362,11 +581,15 @@ internal static class RadioPnaStreaming
         Log.WriteLine(Log.LEVEL_INFO, LogSys, $"HTTP: /stream/real/{stationId}", traceId);
 
         PnaLiveSession session = null;
+        string sessionKey = null;
 
         try
         {
-            session = await GetOrCreateSessionAsync(stationId);
-            session.AddClient(stationId);
+            // HTTP path defaults to cook stereo 11kHz (proven compatible)
+            var profile = RealCodecProfile.CookStereo11k;
+            session = await GetOrCreateSessionAsync(stationId, profile);
+            sessionKey = $"{stationId}:{profile.Key}";
+            session.AddClient(sessionKey);
 
             // Mark handled immediately — we're writing directly to the socket.
             response.Handled = true;
@@ -382,13 +605,23 @@ internal static class RadioPnaStreaming
                 "\r\n";
             await socket.WriteAsync(Encoding.ASCII.GetBytes(httpHeaders));
 
-            // Send full RM file headers (.RMF + PROP + CONT + MDPR + DATA)
-            var rmFileHeaders = session.Encoder.BuildRmFileHeaders(session.Station.Name);
+            // Build RM file headers with current track title
+            byte[] rmFileHeaders;
+            if (session.Encoder != null)
+            {
+                var title = BuildStreamTitle(session.Station, session.CurrentTrack);
+                rmFileHeaders = session.Encoder.BuildRmFileHeaders(title);
+            }
+            else
+            {
+                // Ra144: use stored headers from FFmpeg
+                rmFileHeaders = session.RmFileHeaders;
+            }
+
             await socket.WriteAsync(rmFileHeaders);
             await socket.FlushAsync();
 
-            Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                $"HTTP: sent RM file headers ({rmFileHeaders.Length} bytes)", traceId);
+            Log.WriteLine(Log.LEVEL_INFO, LogSys, $"HTTP: sent RM file headers ({rmFileHeaders.Length} bytes)", traceId);
 
             // Stream full RM data packets (with 12-byte headers intact)
             long readPos = Math.Max(0, session.LivePosition - 5);
@@ -406,8 +639,7 @@ internal static class RadioPnaStreaming
 
                     if (sent <= 15 || sent % 50 == 0)
                     {
-                        Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                            $"HTTP: packet #{sent} sent, len={chunk.Length}, seq={seq}", traceId);
+                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"HTTP: packet #{sent} sent, len={chunk.Length}, seq={seq}", traceId);
                     }
 
                     // Flush aggressively during initial buffering (first 2 groups),
@@ -438,11 +670,28 @@ internal static class RadioPnaStreaming
         }
         finally
         {
-            if (session != null)
+            if (session != null && sessionKey != null)
             {
-                session.RemoveClient(stationId);
+                session.RemoveClient(sessionKey);
             }
         }
     }
 
+    // ===================================================================
+    // Helpers
+    // ===================================================================
+
+    /// <summary>
+    /// Build a stream title combining station name and current track.
+    /// Used for CONT chunk in RM headers.
+    /// </summary>
+    private static string BuildStreamTitle(RadioStationInfo info, string currentTrack)
+    {
+        if (!string.IsNullOrEmpty(currentTrack))
+        {
+            return $"{info.Name} - {currentTrack}";
+        }
+
+        return info.Name;
+    }
 }

@@ -51,10 +51,7 @@ public class HttpRequestTests
         var domain = "example.org";
         var contentType = "application/json";
 
-        var rawRequest = BuildHttpString(type, version, path, "",
-            new Tuple<string, string>(HttpHeaderName.Host, domain),
-            new Tuple<string, string>(HttpHeaderName.ContentType, contentType)
-        );
+        var rawRequest = BuildHttpString(type, version, path, "", new Tuple<string, string>(HttpHeaderName.Host, domain), new Tuple<string, string>(HttpHeaderName.ContentType, contentType));
 
         // Act
         var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);
@@ -77,10 +74,7 @@ public class HttpRequestTests
 
         var userAgent = "Mozilla/3.04 (WinNT; U)";
 
-        var rawRequest = BuildHttpString(type, version, path, "",
-            new Tuple<string, string>(HttpHeaderName.Host, domain),
-            new Tuple<string, string>(HttpHeaderName.UserAgent, userAgent)
-        );
+        var rawRequest = BuildHttpString(type, version, path, "", new Tuple<string, string>(HttpHeaderName.Host, domain), new Tuple<string, string>(HttpHeaderName.UserAgent, userAgent));
 
         // Act
         var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);
@@ -103,9 +97,7 @@ public class HttpRequestTests
 
         var userAgent = "Mozilla/3.04 (WinNT; U)";
 
-        var rawRequest = BuildHttpString(type, version, path, "",
-            new Tuple<string, string>(HttpHeaderName.UserAgent, userAgent)
-        );
+        var rawRequest = BuildHttpString(type, version, path, "", new Tuple<string, string>(HttpHeaderName.UserAgent, userAgent));
 
         // Act
         var request = HttpRequest.Parse(Encoding.UTF8.GetBytes(rawRequest), rawRequest, Encoding.ASCII);

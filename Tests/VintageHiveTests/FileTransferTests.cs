@@ -599,8 +599,7 @@ public class MbftDetectionTests
         // Encode a DirectoryRequest (index 9) — not fully decoded
         var enc = new VintageHive.Proxy.NetMeeting.Asn1.PerEncoder();
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(FileTransferConstants.PDU_DIRECTORY_REQUEST,
-            FileTransferConstants.MBFT_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(FileTransferConstants.PDU_DIRECTORY_REQUEST, FileTransferConstants.MBFT_ROOT_COUNT, extensible: false, isExtension: false);
         enc.WriteConstrainedWholeNumber(0, 0, 65535);
         var data = enc.ToArray();
 

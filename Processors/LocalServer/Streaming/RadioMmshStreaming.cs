@@ -2,7 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+
 using VintageHive.Proxy.Http;
 
 namespace VintageHive.Processors.LocalServer.Streaming;
@@ -801,28 +801,7 @@ internal static class RadioMmshStreaming
         return process;
     }
 
-    private static string GetFfmpegExecutablePath()
-    {
-        if (!Environment.Is64BitProcess)
-        {
-            throw new ApplicationException("Somehow, it's not x64? Everything VintageHive is 64bit. What?");
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return @"libs\ffmpeg.exe";
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            return @"libs\ffmpeg.osx.intel";
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return @"libs\ffmpeg.amd64";
-        }
-
-        throw new Exception("Cannot determine operating system!");
-    }
+    private static string GetFfmpegExecutablePath() => FfmpegUtils.GetExecutablePath();
 
     // ===================================================================
     // Shared MMSH live sessions
@@ -1647,8 +1626,7 @@ internal static class RadioMmshStreaming
                                 if (useChunked) await WriteHttpChunkAsync(socket, scriptChunk);
                                 else await socket.WriteAsync(scriptChunk);
 
-                                Log.WriteLine(Log.LEVEL_INFO, LogSys,
-                                    $"MMSH: TEXT \"{scriptTitle}\" ({scriptPacket.Length}B, sendTime={lastSendTime})", traceId);
+                                Log.WriteLine(Log.LEVEL_INFO, LogSys, $"MMSH: TEXT \"{scriptTitle}\" ({scriptPacket.Length}B, sendTime={lastSendTime})", traceId);
                             }
 
                             if (sent <= 50 || sent % 500 == 0)

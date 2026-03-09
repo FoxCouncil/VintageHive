@@ -218,8 +218,7 @@ internal static class WhiteboardCodec
 
         // SIPDU CHOICE: extensible, 35 root alternatives
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_DRAWING_CREATE,
-            WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_DRAWING_CREATE, WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
 
         // DrawingCreatePDU SEQUENCE (extensible, with optional fields)
         enc.WriteExtensionBit(false);
@@ -249,8 +248,7 @@ internal static class WhiteboardCodec
 
         // drawingType CHOICE (extensible, 6 root)
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(pdu.DrawingType,
-            WhiteboardConstants.DRAWING_TYPE_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(pdu.DrawingType, WhiteboardConstants.DRAWING_TYPE_ROOT_COUNT, extensible: false, isExtension: false);
         // Most drawing types are NULL — no additional data needed
 
         // attributes OPTIONAL SET OF DrawingAttribute
@@ -275,8 +273,7 @@ internal static class WhiteboardCodec
 
         // SIPDU CHOICE
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_DRAWING_DELETE,
-            WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_DRAWING_DELETE, WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
 
         // DrawingDeletePDU SEQUENCE (extensible)
         enc.WriteExtensionBit(false);
@@ -297,8 +294,7 @@ internal static class WhiteboardCodec
 
         // SIPDU CHOICE: extensible, 35 root alternatives
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_DRAWING_EDIT,
-            WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_DRAWING_EDIT, WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
 
         // DrawingEditPDU SEQUENCE (extensible, with optional fields)
         enc.WriteExtensionBit(false);
@@ -340,8 +336,7 @@ internal static class WhiteboardCodec
 
         // SIPDU CHOICE
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_WORKSPACE_CREATE,
-            WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_WORKSPACE_CREATE, WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
 
         // WorkspaceCreatePDU SEQUENCE (extensible, has extension "refresh")
         enc.WriteExtensionBit(false);
@@ -617,8 +612,7 @@ internal static class WhiteboardCodec
         var count = points?.Length ?? 0;
 
         // PointList CHOICE (3 root, not extensible)
-        enc.WriteChoiceIndex(pointListType, WhiteboardConstants.POINT_LIST_ROOT_COUNT,
-            extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(pointListType, WhiteboardConstants.POINT_LIST_ROOT_COUNT, extensible: false, isExtension: false);
 
         // SEQUENCE OF (SIZE 0..255)
         enc.WriteConstrainedWholeNumber(count, 0, 255);
@@ -655,8 +649,7 @@ internal static class WhiteboardCodec
 
     private static (int pointListType, PointDelta[] points) DecodePointList(PerDecoder dec)
     {
-        var pointListType = (int)dec.ReadConstrainedWholeNumber(0,
-            WhiteboardConstants.POINT_LIST_ROOT_COUNT - 1);
+        var pointListType = (int)dec.ReadConstrainedWholeNumber(0, WhiteboardConstants.POINT_LIST_ROOT_COUNT - 1);
 
         var count = (int)dec.ReadConstrainedWholeNumber(0, 255);
         var points = new PointDelta[count];
@@ -705,8 +698,7 @@ internal static class WhiteboardCodec
         {
             // DrawingAttribute CHOICE (extensible, 9 root)
             enc.WriteExtensionBit(false);
-            enc.WriteChoiceIndex(attr.Type,
-                WhiteboardConstants.ATTR_ROOT_COUNT, extensible: false, isExtension: false);
+            enc.WriteChoiceIndex(attr.Type, WhiteboardConstants.ATTR_ROOT_COUNT, extensible: false, isExtension: false);
 
             switch (attr.Type)
             {
@@ -726,16 +718,14 @@ internal static class WhiteboardCodec
                 case WhiteboardConstants.ATTR_PEN_NIB:
                 {
                     enc.WriteExtensionBit(false);
-                    enc.WriteChoiceIndex(attr.PenNib,
-                        WhiteboardConstants.PEN_NIB_ROOT_COUNT, extensible: false, isExtension: false);
+                    enc.WriteChoiceIndex(attr.PenNib, WhiteboardConstants.PEN_NIB_ROOT_COUNT, extensible: false, isExtension: false);
                 }
                 break;
 
                 case WhiteboardConstants.ATTR_LINE_STYLE:
                 {
                     enc.WriteExtensionBit(false);
-                    enc.WriteChoiceIndex(attr.LineStyle,
-                        WhiteboardConstants.LINE_STYLE_ROOT_COUNT, extensible: false, isExtension: false);
+                    enc.WriteChoiceIndex(attr.LineStyle, WhiteboardConstants.LINE_STYLE_ROOT_COUNT, extensible: false, isExtension: false);
                 }
                 break;
 

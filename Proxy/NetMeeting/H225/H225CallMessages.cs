@@ -228,15 +228,7 @@ internal static class H225CallCodec
         // OPTIONAL fields: h245Address[0], sourceAddress[1], destinationAddress[2],
         //   destCallSignalAddress[3], destExtraCallInfo[4], destExtraCRV[5], callServices[6]
         enc.WriteExtensionBit(false);
-        enc.WriteOptionalBitmap(
-            setup.H245Address != null,       // h245Address
-            setup.SourceAliases != null,     // sourceAddress
-            setup.DestinationAliases != null, // destinationAddress
-            setup.DestCallSignalAddress != null, // destCallSignalAddress
-            false,                            // destExtraCallInfo
-            false,                            // destExtraCRV
-            false                             // callServices
-        );
+        enc.WriteOptionalBitmap(setup.H245Address != null, setup.SourceAliases != null, setup.DestinationAliases != null, setup.DestCallSignalAddress != null, false, false, false);
 
         enc.WriteObjectIdentifier(setup.ProtocolIdentifier ?? H225Constants.ProtocolOid);
 
@@ -399,11 +391,7 @@ internal static class H225CallCodec
         // Facility-UUIE SEQUENCE (extensible)
         // OPTIONAL: alternativeAddress[0], alternativeAliasAddress[1], conferenceID[2]
         enc.WriteExtensionBit(false);
-        enc.WriteOptionalBitmap(
-            fac.AlternativeAddress != null,
-            fac.AlternativeAliases != null,
-            fac.ConferenceId != null
-        );
+        enc.WriteOptionalBitmap(fac.AlternativeAddress != null, fac.AlternativeAliases != null, fac.ConferenceId != null);
 
         enc.WriteObjectIdentifier(fac.ProtocolIdentifier ?? H225Constants.ProtocolOid);
 

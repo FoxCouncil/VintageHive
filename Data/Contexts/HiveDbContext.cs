@@ -53,6 +53,9 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.PortRawPrint, 9100 },
         { ConfigNames.PortDns, 1953 },
         { ConfigNames.PortIls, 1002 },
+        { ConfigNames.PortRas, 1719 },
+        { ConfigNames.PortH323, 1720 },
+        { ConfigNames.PortT120, 1503 },
 
         // System Display Settings
         { ConfigNames.TemperatureUnits, WeatherUtils.TemperatureUnits.Celsius },
@@ -72,6 +75,9 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServicePrinter, true },
         { ConfigNames.ServiceDns, true },
         { ConfigNames.ServiceIls, true },
+        { ConfigNames.ServiceRas, true },
+        { ConfigNames.ServiceH323, true },
+        { ConfigNames.ServiceT120, true },
     };
 
     static readonly IReadOnlyDictionary<string, string> kDefaultLinks = new Dictionary<string, string>()

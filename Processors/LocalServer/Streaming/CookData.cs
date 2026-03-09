@@ -537,7 +537,7 @@ internal static class CookData
     }
 
     // ===================================================================
-    // DC removal constants (from cokr3260.dll)
+    // DC removal constants (from reference encoder)
     // ===================================================================
 
     public const float DcOffset = -1.0000000195414814e-24f; // effectively 0
@@ -558,14 +558,14 @@ internal static class CookData
     public static readonly int[] VqMaxIndex = { 13, 9, 6, 4, 3, 2, 1 };
 
     // ===================================================================
-    // Pre-emphasis filter coefficients (from cokr3260.dll DAT_633f6070)
+    // Pre-emphasis filter coefficients (VA 0x633f6070)
     // 23 sets of 3 biquad sections, 5 coefficients each (b0,b1,b2,a1,a2)
     // Index = (1024 / samples_per_channel) * num_subbands - 28
     // ===================================================================
 
     public static readonly float[] PreemphasisCoeffs =
     {
-        // Extracted from cokr3260.dll at VA 0x633f6070, hex-verified bit-exact
+        // Extracted from reference encoder at VA 0x633f6070, hex-verified bit-exact
         // set 0
         0.2594019473f, 0.4251267016f, 0.2594019473f, -0.2012073994f, 0.1451380104f,
         0.6479971409f, 0.4168010056f, 0.6479971409f, 0.04961553961f, 0.6639857292f,
@@ -667,7 +667,7 @@ internal static class CookData
 
     public static readonly float[] WindowFilterCoeffs =
     {
-        // Exact DLL values from 0x633f6048 (hex-verified)
+        // Exact values from VA 0x633f6048 (hex-verified)
         0.604494154f, -1.2061352f, 0.604494154f, -1.0888425f, 0.326279581f,
         0.7979072f, -1.5742248f, 0.7979072f, -1.4553148f, 0.7150912f,
     };
@@ -681,7 +681,7 @@ internal static class CookData
 
     // ===================================================================
     // Gain power base values for interpolation step ratios.
-    // 23 entries: 2^(-11) through 2^(+11), matching DLL g_gain_pow_base.
+    // 23 entries: 2^(-11) through 2^(+11), matching g_gain_pow_base.
     // Step ratio for delta d = pow(GainPowBase[d+11], 1/subbandSize) = 2^(d/subbandSize).
     // ===================================================================
 

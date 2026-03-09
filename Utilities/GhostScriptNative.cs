@@ -7,8 +7,11 @@ namespace VintageHive.Utilities;
 #pragma warning disable IDE1006 // Naming Styles
 public static class GhostScriptNative
 {
-    // Define the name of the Ghostscript DLL based on the platform (32-bit or 64-bit)
-    private const string DLL_NAME = "libs\\gsdll64.dll"; // Use "gsdll64.dll" for 64-bit
+#if _WINDOWS
+    private const string DLL_NAME = "libs\\gsdll64";
+#else
+    private const string DLL_NAME = "libgs";
+#endif
 
     public static void Init()
     {
@@ -28,12 +31,14 @@ public static class GhostScriptNative
         var product = revisionInfo.product.ToManagedString();
         var copyright = revisionInfo.copyright.ToManagedString();
 
+#if _WINDOWS
         if (revisionInfo.revision != 10040 || revisionInfo.revisiondate != 20240918)
         {
             throw new Exception($"Incorrect Ghostscript DLL version! ");
         }
+#endif
 
-        Log.WriteLine(Log.LEVEL_INFO, "GhostScript", $"Initialized {product}", "");
+        Log.WriteLine(Log.LEVEL_INFO, "GhostScript", $"Initialized {product} (rev {revisionInfo.revision})", "");
         Log.WriteLine(Log.LEVEL_INFO, "GhostScript", copyright, "");
     }
 

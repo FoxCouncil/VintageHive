@@ -1,6 +1,7 @@
 #See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
+RUN apt-get update && apt-get install -y --no-install-recommends ghostscript && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # FTP PASSIVE MODE
@@ -23,6 +24,51 @@ EXPOSE 5190
 
 # HTTPS
 EXPOSE 9999
+
+# DNS
+EXPOSE 1953/udp
+
+# SMTP
+EXPOSE 1980
+
+# POP3
+EXPOSE 1984
+
+# IMAP
+EXPOSE 1985
+
+# NNTP/Usenet
+EXPOSE 1986
+
+# IRC
+EXPOSE 1988
+
+# IPP Printing
+EXPOSE 631
+
+# LPD Printing
+EXPOSE 515
+
+# Raw Print
+EXPOSE 9100
+
+# ILS (NetMeeting directory)
+EXPOSE 1002
+
+# H.225 RAS Gatekeeper
+EXPOSE 1719/udp
+
+# H.225 Call Signaling
+EXPOSE 1720
+
+# T.120 Data Conferencing
+EXPOSE 1503
+
+# MMS (Windows Media)
+EXPOSE 1755
+
+# PNA (RealPlayer)
+EXPOSE 7070
 
 # Create data volume
 VOLUME /app/data

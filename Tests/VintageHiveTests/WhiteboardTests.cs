@@ -693,8 +693,7 @@ public class SipduDetectionTests
         // Encode a bitmap abort (index 4) — not fully decoded
         var enc = new VintageHive.Proxy.NetMeeting.Asn1.PerEncoder();
         enc.WriteExtensionBit(false);
-        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_BITMAP_ABORT,
-            WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
+        enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_BITMAP_ABORT, WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
         // Write some dummy data
         enc.WriteConstrainedWholeNumber(42, 0, uint.MaxValue);
         var data = enc.ToArray();

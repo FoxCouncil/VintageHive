@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
 using static VintageHive.Utilities.SCUtils;
@@ -31,28 +31,7 @@ internal static class RadioMp3Streaming
         return process;
     }
 
-    private static string GetFfmpegExecutablePath()
-    {
-        if (!Environment.Is64BitProcess)
-        {
-            throw new ApplicationException("Somehow, it's not x64? Everything VintageHive is 64bit. What?");
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return @"libs\ffmpeg.exe";
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            return @"libs\ffmpeg.osx.intel";
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return @"libs\ffmpeg.amd64";
-        }
-
-        throw new Exception("Cannot determine operating system!");
-    }
+    private static string GetFfmpegExecutablePath() => FfmpegUtils.GetExecutablePath();
 
     // ===================================================================
     // Winamp streaming — /stream/winamp?id={id}

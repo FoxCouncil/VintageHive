@@ -38,8 +38,7 @@ internal class H323Server : Listener
         var callerStream = connection.Stream;
         var callerEndpoint = connection.Remote;
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-            $"Call signaling connection from {callerEndpoint}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Call signaling connection from {callerEndpoint}", "");
 
         TcpClient calleeClient = null;
         NetworkStream calleeStream = null;
@@ -57,11 +56,9 @@ internal class H323Server : Listener
 
             if (setupQ931.MessageType != Q931Message.MSG_SETUP)
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                    $"Expected Setup, got {Q931Message.MessageTypeName(setupQ931.MessageType)}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Expected Setup, got {Q931Message.MessageTypeName(setupQ931.MessageType)}", "");
 
-                await SendReleaseComplete(callerStream, setupQ931.CallReference, true,
-                    H225CallCodec.REL_UNDEFINED_REASON);
+                await SendReleaseComplete(callerStream, setupQ931.CallReference, true, H225CallCodec.REL_UNDEFINED_REASON);
 
                 return null;
             }
@@ -100,19 +97,16 @@ internal class H323Server : Listener
 
             _activeCalls[call.CallId] = call;
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"{call}: received Setup", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: received Setup", "");
 
             // Look up callee in RAS registry
             var calleeEp = FindCallee(call.CalleeAliases, setupUuie?.Setup?.DestCallSignalAddress);
 
             if (calleeEp == null)
             {
-                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                    $"{call}: callee not found, sending ReleaseComplete", "");
+                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: callee not found, sending ReleaseComplete", "");
 
-                await SendReleaseComplete(callerStream, call.CallReference, true,
-                    H225CallCodec.REL_UNREACHABLE_DEST);
+                await SendReleaseComplete(callerStream, call.CallReference, true, H225CallCodec.REL_UNREACHABLE_DEST);
 
                 call.State = H323CallState.Released;
                 call.ReleasedAt = DateTime.UtcNow;
@@ -137,18 +131,14 @@ internal class H323Server : Listener
             try
             {
                 calleeClient = new TcpClient();
-                await calleeClient.ConnectAsync(
-                    call.CalleeSignalAddress.Address,
-                    call.CalleeSignalAddress.Port);
+                await calleeClient.ConnectAsync(call.CalleeSignalAddress.Address, call.CalleeSignalAddress.Port);
                 calleeStream = calleeClient.GetStream();
             }
             catch (Exception ex)
             {
-                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                    $"{call}: failed to connect to callee at {call.CalleeSignalAddress}: {ex.Message}", "");
+                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: failed to connect to callee at {call.CalleeSignalAddress}: {ex.Message}", "");
 
-                await SendReleaseComplete(callerStream, call.CallReference, true,
-                    H225CallCodec.REL_UNREACHABLE_DEST);
+                await SendReleaseComplete(callerStream, call.CallReference, true, H225CallCodec.REL_UNREACHABLE_DEST);
 
                 call.State = H323CallState.Released;
                 call.ReleasedAt = DateTime.UtcNow;
@@ -156,8 +146,7 @@ internal class H323Server : Listener
                 return null;
             }
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"{call}: connected to callee at {call.CalleeSignalAddress}", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: connected to callee at {call.CalleeSignalAddress}", "");
 
             // Forward Setup to callee
             await TpktFrame.WriteAsync(calleeStream, setupPayload);
@@ -197,8 +186,7 @@ internal class H323Server : Listener
 
     public override Task ProcessDisconnection(ListenerSocket connection)
     {
-        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-            $"Call signaling disconnect from {connection.RemoteAddress}", "");
+        Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Call signaling disconnect from {connection.RemoteAddress}", "");
 
         return Task.CompletedTask;
     }
@@ -207,8 +195,7 @@ internal class H323Server : Listener
     //  Call signaling proxy
     // ──────────────────────────────────────────────────────────
 
-    private async Task ProxyCallSignaling(H323Call call,
-        NetworkStream callerStream, NetworkStream calleeStream)
+    private async Task ProxyCallSignaling(H323Call call, NetworkStream callerStream, NetworkStream calleeStream)
     {
         using var cts = new CancellationTokenSource();
 
@@ -253,9 +240,7 @@ internal class H323Server : Listener
         Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: signaling ended", "");
     }
 
-    private async Task ProxyDirection(H323Call call,
-        NetworkStream source, NetworkStream dest,
-        string direction, bool fromCallee, CancellationTokenSource cts)
+    private async Task ProxyDirection(H323Call call, NetworkStream source, NetworkStream dest, string direction, bool fromCallee, CancellationTokenSource cts)
     {
         try
         {
@@ -273,8 +258,7 @@ internal class H323Server : Listener
                     var q931 = Q931Message.Parse(payload);
                     UpdateCallState(call, q931, fromCallee);
 
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"{call}: {direction} {Q931Message.MessageTypeName(q931.MessageType)}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{call}: {direction} {Q931Message.MessageTypeName(q931.MessageType)}", "");
                 }
                 catch
                 {
@@ -396,11 +380,7 @@ internal class H323Server : Listener
                 if (channelInfo.SenderMediaChannel != null && channelInfo.ReceiverMediaChannel != null)
                 {
                     var pair = relay.CreateRelay(channelNumber);
-                    relay.StartRelay(channelNumber,
-                        channelInfo.SenderMediaChannel,
-                        channelInfo.SenderMediaControlChannel,
-                        channelInfo.ReceiverMediaChannel,
-                        channelInfo.ReceiverMediaControlChannel);
+                    relay.StartRelay(channelNumber, channelInfo.SenderMediaChannel, channelInfo.SenderMediaControlChannel, channelInfo.ReceiverMediaChannel, channelInfo.ReceiverMediaControlChannel);
                 }
             };
 
@@ -414,25 +394,21 @@ internal class H323Server : Listener
             {
                 try
                 {
-                    Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                        $"{call}: H.245 relay listening on port {handler.Port}", "");
+                    Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: H.245 relay listening on port {handler.Port}", "");
 
                     await handler.RunAsync(call.CalleeH245Address);
                 }
                 catch (Exception ex)
                 {
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                        $"{call}: H.245 relay error: {ex.Message}", "");
+                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{call}: H.245 relay error: {ex.Message}", "");
                 }
             });
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC,
-                $"{call}: H.245 relay started", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: H.245 relay started", "");
         }
         catch (Exception ex)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC,
-                $"{call}: failed to start H.245 relay: {ex.Message}", "");
+            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{call}: failed to start H.245 relay: {ex.Message}", "");
         }
     }
 
@@ -479,8 +455,7 @@ internal class H323Server : Listener
         return null;
     }
 
-    private static async Task SendReleaseComplete(NetworkStream stream, int callRef,
-        bool fromDest, int reason)
+    private static async Task SendReleaseComplete(NetworkStream stream, int callRef, bool fromDest, int reason)
     {
         var rcUuie = H225CallCodec.EncodeReleaseComplete(new ReleaseCompleteUuie
         {

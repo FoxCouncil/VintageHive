@@ -3,11 +3,11 @@
 
 [![Version](https://img.shields.io/badge/version-0.4.0--alpha-blue)](https://github.com/FoxCouncil/VintageHive/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-purple)](https://dotnet.microsoft.com/)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-purple)](https://dotnet.microsoft.com/)
 
 ## What Is VintageHive?
 
-VintageHive is a retro internet proxy and service emulator that lets vintage computers browse the modern web. It intercepts HTTP, FTP, and Telnet traffic and routes it through a chain of processors — including [ProtoWeb](https://protoweb.org/) and the [Internet Archive Wayback Machine](https://web.archive.org/) — so you can browse the web like it's 1999. It also provides a full suite of period-accurate services: an intranet portal with weather and news, internet radio streaming, an AIM/ICQ-compatible chat server, a Telnet BBS, FTP hosting, and more.
+VintageHive is a retro internet proxy and service emulator that lets vintage computers browse the modern web. It intercepts HTTP, FTP, and Telnet traffic and routes it through a chain of processors — including [ProtoWeb](https://protoweb.org/) and the [Internet Archive Wayback Machine](https://web.archive.org/) — so you can browse the web like it's 1999. It also provides a full suite of period-accurate services: an intranet portal with weather and news, internet radio streaming (MP3, WMA, and RealAudio), an AIM/ICQ-compatible chat server, a Telnet BBS, FTP hosting, a Usenet/NNTP server, Microsoft NetMeeting conferencing, and more.
 
 Point your vintage browser's proxy settings at VintageHive and you're online.
 
@@ -59,9 +59,12 @@ A full internet radio experience for vintage media players:
 - Browse stations by **country**, **genre/tag**, or **keyword search**
 - Top 100 stations, top countries, and top tags
 - **Shoutcast** directory with genre browsing and search
-- Streams in **MP3** and **ASF/WMA** formats with ICY metadata
-- Automatic codec transcoding via FFmpeg (AAC, OGG, etc. converted to MP3)
-- Generates **PLS** and **ASX** playlists for one-click playback
+- Streams in **MP3**, **ASF/WMA**, and **RealAudio** formats with ICY metadata
+- **RealPlayer** support via PNA protocol (port 7070) with Cook and RA 14.4 codecs, bandwidth-adaptive codec selection
+- **Windows Media Player** support via MMS protocol (port 1755) with ASF/WMA streaming
+- Automatic codec transcoding via FFmpeg (AAC, OGG, etc. converted to the target format)
+- Generates **PLS**, **ASX**, and **RAM** playlists for one-click playback
+- Live **Now Playing** track metadata from upstream ICY streams
 
 ### Admin Panel — admin.hive.com
 
@@ -102,14 +105,36 @@ A text-mode BBS accessible from any Telnet client:
 - Full FTP command support (LIST, RETR, STOR, CWD, MKD, DELE, PASV, etc.)
 - Passive mode on ports 1900–1910
 
+### DNS Proxy — port 1953
+
+A local DNS proxy that resolves `*.hive.com` domains to the VintageHive host, forwarding all other queries upstream. Allows vintage machines to use VintageHive as their DNS server so intranet domains resolve without hosts file editing.
+
+### Usenet / NNTP Server — port 1986
+
+A fully functional NNTP server with curated newsgroups:
+
+- **Standard NNTP commands** — GROUP, ARTICLE, HEAD, BODY, STAT, LIST, XOVER, XHDR, POST
+- **Curated content** — Newsgroups populated from configured sources
+- Compatible with vintage Usenet readers (Outlook Express, Free Agent, tin, etc.)
+
+### NetMeeting — ports 1002, 1503, 1719, 1720
+
+Full Microsoft NetMeeting conferencing support with a complete H.323/T.120 protocol stack:
+
+- **ILS Directory** (port 1002) — Internet Locator Service for user registration and lookup via LDAP, compatible with NetMeeting 2.x/3.x
+- **H.225 RAS Gatekeeper** (port 1719/UDP) — Endpoint discovery, registration, and admission control
+- **H.323 Call Signaling** (port 1720) — Q.931 call setup with bidirectional message proxying, H.245 control channel relay, and RTP/RTCP media relay
+- **T.120 Data Conferencing** (port 1503) — Full MCS domain management supporting Chat, Whiteboard (T.126 drawing primitives), and File Transfer (MBFT)
+
 ### Debug / Experimental Services
 
 These services are functional but considered experimental:
 
-- **Printer Proxy** (port 631) — IPP printing with PostScript-to-PDF conversion via GhostScript
-- **SMTP Server** — Email sending with authentication and mail spooling
-- **POP3 Server** — Email retrieval with message management
-- **IRC Server** — Basic IRC with private messaging and channel support (`irc.hive.com`)
+- **Printer Proxy** (ports 631, 515, 9100) — IPP, LPD, and Raw printing with PostScript-to-PDF conversion via GhostScript
+- **SMTP Server** (port 1980) — Email sending with authentication and mail spooling
+- **POP3 Server** (port 1984) — Email retrieval with message management
+- **IMAP Server** (port 1985) — Email access with folder support
+- **IRC Server** (port 1988) — Basic IRC with private messaging and channel support (`irc.hive.com`)
 
 # Installation
 
@@ -188,16 +213,28 @@ Visit `http://admin.hive.com:1990` to:
 
 | Service | Port | Protocol | Status |
 |---------|------|----------|--------|
-| HTTP Proxy | 1990 | HTTP | Stable |
-| HTTPS Proxy | 9999 | HTTPS/SSL | Experimental |
-| FTP Server | 1971 | FTP | Stable |
-| Telnet Server | 1969 | Telnet | Stable |
-| OSCAR (AIM/ICQ) | 5190 | OSCAR/FLAP | Stable |
-| FTP Passive Range | 1900–1910 | FTP Data | Stable |
-| SOCKS5 Proxy | 1996 | SOCKS5 | Experimental |
-| SMTP Server | 1980 | SMTP | Debug |
-| POP3 Server | 1984 | POP3 | Debug |
-| IRC Server | 1988 | IRC | Debug |
+| HTTP Proxy | 1990 | TCP | Stable |
+| HTTPS Proxy | 9999 | TCP (SSL) | Experimental |
+| FTP Server | 1971 | TCP | Stable |
+| FTP Passive Range | 1900–1910 | TCP | Stable |
+| Telnet Server | 1969 | TCP | Stable |
+| OSCAR (AIM/ICQ) | 5190 | TCP | Stable |
+| SOCKS5 Proxy | 1996 | TCP | Experimental |
+| DNS Proxy | 1953 | UDP | Experimental |
+| MMS (Windows Media) | 1755 | TCP | Stable |
+| PNA (RealPlayer) | 7070 | TCP | Stable |
+| NNTP / Usenet | 1986 | TCP | Experimental |
+| ILS (NetMeeting Directory) | 1002 | TCP | Experimental |
+| H.225 RAS Gatekeeper | 1719 | UDP | Experimental |
+| H.323 Call Signaling | 1720 | TCP | Experimental |
+| T.120 Data Conferencing | 1503 | TCP | Experimental |
+| SMTP Server | 1980 | TCP | Debug |
+| POP3 Server | 1984 | TCP | Debug |
+| IMAP Server | 1985 | TCP | Debug |
+| IRC Server | 1988 | TCP | Debug |
+| IPP Printer | 631 | TCP | Debug |
+| LPD Printer | 515 | TCP | Debug |
+| Raw Print | 9100 | TCP | Debug |
 
 # Browser Setup Guides
 
@@ -298,22 +335,41 @@ docker run -d \
   -p 1969:1969 \
   -p 5190:5190 \
   -p 1900-1910:1900-1910 \
+  -p 1953:1953/udp \
+  -p 1755:1755 \
+  -p 7070:7070 \
+  -p 1986:1986 \
+  -p 1002:1002 \
+  -p 1719:1719/udp \
+  -p 1720:1720 \
+  -p 1503:1503 \
+  -p 1980:1980 \
+  -p 1984:1984 \
+  -p 1985:1985 \
+  -p 1988:1988 \
+  -p 631:631 \
+  -p 515:515 \
+  -p 9100:9100 \
   -v vintagehive_data:/app/data \
   foxcouncil/vintagehive:latest
 ```
-The container exposes the following ports:
+The container exposes all service ports. Key ports:
 - 1990: HTTP Proxy
 - 9999: HTTPS Proxy
 - 1971: FTP Server
-- 1969: TELNET Server
+- 1969: Telnet Server
 - 5190: OSCAR (AIM/ICQ) Server
-- 1900-1910: FTP Passive Mode Range
+- 1755: MMS (Windows Media) Streaming
+- 7070: PNA (RealPlayer) Streaming
+- 1002/1719/1720/1503: NetMeeting (ILS, RAS, H.323, T.120)
+- 1986: NNTP / Usenet
+- 1953/udp: DNS Proxy
 
-Data is persisted in the `vintagehive_data` volume.
+See [Service Ports](#service-ports) for the complete list. Data is persisted in the `vintagehive_data` volume.
 
 # Architecture Overview
 
-VintageHive is built on .NET 8 and follows a processor chain pattern for request handling.
+VintageHive is built on .NET 10 and follows a processor chain pattern for request handling.
 
 ### Processor Chain
 
@@ -331,7 +387,7 @@ The `LocalServerProcessor` uses domain-based routing to dispatch requests to con
 |--------|-----------|
 | `hive.com` | HiveController — portal, weather, news, search |
 | `admin.hive.com` | AdminController — admin panel |
-| `radio.hive.com` | RadioController — internet radio |
+| `radio.hive.com` | RadioController — internet radio (MP3, WMA, RealAudio) |
 | `api.hive.com` | ApiController — image proxy and API |
 
 ### Template Engine
@@ -353,17 +409,21 @@ VintageHive uses SQLite for persistent storage, with separate database contexts 
 - ~~ICQ Support~~
 - ~~Internet Radio (RadioBrowser + Shoutcast)~~
 - ~~Telnet BBS~~
-- ~~Printer Proxy (IPP)~~
-- ~~POP3 / SMTP / IRC (debug)~~
+- ~~Printer Proxy (IPP / LPD / Raw)~~
+- ~~POP3 / SMTP / IMAP / IRC (debug)~~
+- ~~USENET / NNTP Server~~
+- ~~DNS Proxy~~
+- ~~NetMeeting Support (ILS, H.225 RAS, H.323, H.245, T.120, Chat, Whiteboard, File Transfer)~~
+- ~~MMS / Windows Media Streaming~~
+- ~~RealAudio / PNA Streaming (Cook, RA 14.4)~~
 
 ### Planned
 - HTTPS re-enablement and certificate improvements
 - Gopher protocol support
 - FTP authentication
-- USENET / NNTP server
 - SOCKS5 proxy improvements
 - Yahoo! IM and MSN Messenger
-- NetMeeting support
+- NetMeeting App Sharing (T.128)
 - Community servers
 
 # Configuration
@@ -372,7 +432,7 @@ Most settings are managed through the **Admin Panel** at `http://admin.hive.com:
 
 Key configuration options:
 - **Internet Archive Year** — Which year to fetch archived pages from (1997–2021)
-- **Service Toggles** — Enable or disable ProtoWeb, Internet Archive, Intranet, SMTP, POP3, IRC
+- **Service Toggles** — Enable or disable ProtoWeb, Internet Archive, Intranet, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, ILS, H.323, RAS, T.120
 - **Temperature Units** — Celsius or Fahrenheit
 - **Distance Units** — Metric or Imperial
 

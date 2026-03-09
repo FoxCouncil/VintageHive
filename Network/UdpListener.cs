@@ -101,8 +101,7 @@ public abstract class UdpListener
 
         var logSource = GetType().Name;
 
-        Log.WriteLine(Log.LEVEL_INFO, logSource,
-            $"Starting {logSource}...{_address}:{BoundPort}", "");
+        Log.WriteLine(Log.LEVEL_INFO, logSource, $"Starting {logSource}...{_address}:{BoundPort}", "");
 
         while (_running)
         {
@@ -128,8 +127,7 @@ public abstract class UdpListener
 
             try
             {
-                var response = await ProcessDatagram(
-                    result.RemoteEndPoint, result.Buffer, result.Buffer.Length);
+                var response = await ProcessDatagram(result.RemoteEndPoint, result.Buffer, result.Buffer.Length);
 
                 if (response != null && _running)
                 {
@@ -142,7 +140,6 @@ public abstract class UdpListener
             }
         }
 
-        Log.WriteLine(Log.LEVEL_INFO, logSource,
-            $"Stopping {logSource}...", "");
+        Log.WriteLine(Log.LEVEL_INFO, logSource, $"Stopping {logSource}...", "");
     }
 }
