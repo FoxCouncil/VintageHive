@@ -153,7 +153,17 @@ These services are functional but considered experimental:
 ## Linux
 
 1. Download the latest `VintageHive-v*-linux-x64.tar.gz` from the [Releases](https://github.com/FoxCouncil/VintageHive/releases/latest) page
-2. Open a terminal and navigate to your download directory
+2. Install dependencies:
+   ```bash
+   # Required: OpenSSL 1.0.2a shared libraries are bundled, but need execstack cleared on modern kernels
+   sudo apt install execstack
+   cd VintageHive-v*-linux-x64/libs
+   execstack -c libcrypto.so libssl.so
+   cd ..
+
+   # Optional: GhostScript for PostScript/PCL print-to-PDF (printing works without it, but PS jobs are saved as raw files)
+   sudo apt install libgs-dev
+   ```
 3. Extract the archive:
    ```bash
    tar xzf VintageHive-v*-linux-x64.tar.gz
@@ -171,7 +181,7 @@ These services are functional but considered experimental:
    - HTTP Proxy: `http://127.0.0.1:1990`
    - Admin Interface: `http://admin.hive.com:1990`
 
-Note: On Linux, you might need to run with sudo if you want to use privileged ports (< 1024)
+Note: On Linux, you might need to run with sudo if you want to use privileged ports (< 1024). Port 631 (IPP Printing) may conflict with CUPS — VintageHive will log an error and skip that listener if the port is in use.
 
 ## macOS
 

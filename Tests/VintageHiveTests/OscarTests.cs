@@ -839,4 +839,645 @@ public class FlapFrameTypeTests
     }
 }
 
+[TestClass]
+public class OscarSsiItemTests
+{
+    #region Type Constants
+
+    [TestMethod]
+    public void TypeBuddy_Is0x0000()
+    {
+        Assert.AreEqual((ushort)0x0000, OscarSsiItem.TYPE_BUDDY);
+    }
+
+    [TestMethod]
+    public void TypeGroup_Is0x0001()
+    {
+        Assert.AreEqual((ushort)0x0001, OscarSsiItem.TYPE_GROUP);
+    }
+
+    [TestMethod]
+    public void TypePermit_Is0x0002()
+    {
+        Assert.AreEqual((ushort)0x0002, OscarSsiItem.TYPE_PERMIT);
+    }
+
+    [TestMethod]
+    public void TypeDeny_Is0x0003()
+    {
+        Assert.AreEqual((ushort)0x0003, OscarSsiItem.TYPE_DENY);
+    }
+
+    [TestMethod]
+    public void TypePermitDenySettings_Is0x0004()
+    {
+        Assert.AreEqual((ushort)0x0004, OscarSsiItem.TYPE_PERMIT_DENY_SETTINGS);
+    }
+
+    [TestMethod]
+    public void TypePresence_Is0x0005()
+    {
+        Assert.AreEqual((ushort)0x0005, OscarSsiItem.TYPE_PRESENCE);
+    }
+
+    [TestMethod]
+    public void TypeIcon_Is0x0014()
+    {
+        Assert.AreEqual((ushort)0x0014, OscarSsiItem.TYPE_ICON);
+    }
+
+    #endregion
+
+    #region Encode
+
+    [TestMethod]
+    public void Encode_ProducesCorrectWireFormat()
+    {
+        var item = new OscarSsiItem
+        {
+            Name = "Fox",
+            GroupId = 1,
+            ItemId = 2,
+            ItemType = OscarSsiItem.TYPE_BUDDY,
+            TlvData = Array.Empty<byte>()
+        };
+
+        var encoded = item.Encode();
+
+        // name_len(2) + name(3) + groupId(2) + itemId(2) + itemType(2) + tlvData_len(2) = 13
+        Assert.AreEqual(13, encoded.Length);
+
+        // Name length: 0x00 0x03
+        Assert.AreEqual(0x00, encoded[0]);
+        Assert.AreEqual(0x03, encoded[1]);
+
+        // Name: "Fox"
+        Assert.AreEqual((byte)'F', encoded[2]);
+        Assert.AreEqual((byte)'o', encoded[3]);
+        Assert.AreEqual((byte)'x', encoded[4]);
+
+        // GroupId: 0x00 0x01
+        Assert.AreEqual(0x00, encoded[5]);
+        Assert.AreEqual(0x01, encoded[6]);
+
+        // ItemId: 0x00 0x02
+        Assert.AreEqual(0x00, encoded[7]);
+        Assert.AreEqual(0x02, encoded[8]);
+
+        // ItemType: 0x00 0x00 (BUDDY)
+        Assert.AreEqual(0x00, encoded[9]);
+        Assert.AreEqual(0x00, encoded[10]);
+
+        // TlvData length: 0x00 0x00
+        Assert.AreEqual(0x00, encoded[11]);
+        Assert.AreEqual(0x00, encoded[12]);
+    }
+
+    [TestMethod]
+    public void Encode_WithTlvData_IncludesPayload()
+    {
+        var tlvData = new byte[] { 0xAA, 0xBB, 0xCC };
+
+        var item = new OscarSsiItem
+        {
+            Name = "AB",
+            GroupId = 0,
+            ItemId = 5,
+            ItemType = OscarSsiItem.TYPE_GROUP,
+            TlvData = tlvData
+        };
+
+        var encoded = item.Encode();
+
+        // name_len(2) + name(2) + groupId(2) + itemId(2) + itemType(2) + tlvData_len(2) + tlvData(3) = 15
+        Assert.AreEqual(15, encoded.Length);
+
+        // TlvData length: 0x00 0x03
+        Assert.AreEqual(0x00, encoded[10]);
+        Assert.AreEqual(0x03, encoded[11]);
+
+        // TlvData payload
+        Assert.AreEqual(0xAA, encoded[12]);
+        Assert.AreEqual(0xBB, encoded[13]);
+        Assert.AreEqual(0xCC, encoded[14]);
+    }
+
+    [TestMethod]
+    public void Encode_EmptyName_EncodesZeroLengthName()
+    {
+        var item = new OscarSsiItem
+        {
+            Name = "",
+            GroupId = 0,
+            ItemId = 0,
+            ItemType = OscarSsiItem.TYPE_PERMIT_DENY_SETTINGS,
+            TlvData = new byte[] { 0x01 }
+        };
+
+        var encoded = item.Encode();
+
+        // name_len(2) + name(0) + groupId(2) + itemId(2) + itemType(2) + tlvData_len(2) + tlvData(1) = 11
+        Assert.AreEqual(11, encoded.Length);
+
+        // Name length: 0
+        Assert.AreEqual(0x00, encoded[0]);
+        Assert.AreEqual(0x00, encoded[1]);
+
+        // GroupId starts immediately at index 2
+        Assert.AreEqual(0x00, encoded[2]);
+        Assert.AreEqual(0x00, encoded[3]);
+    }
+
+    #endregion
+
+    #region Default Values
+
+    [TestMethod]
+    public void DefaultConstructor_TlvDataIsEmpty()
+    {
+        var item = new OscarSsiItem();
+
+        Assert.IsNotNull(item.TlvData);
+        Assert.AreEqual(0, item.TlvData.Length);
+    }
+
+    #endregion
+}
+
+[TestClass]
+public class OscarChatRoomTests
+{
+    #region FullyQualifiedName
+
+    [TestMethod]
+    public void FullyQualifiedName_FormatsCorrectly()
+    {
+        var room = new OscarChatRoom { Name = "TestRoom" };
+
+        Assert.AreEqual("!aol://2719:10-4-TestRoom", room.FullyQualifiedName);
+    }
+
+    #endregion
+
+    #region EncodeChatRoomInfo
+
+    [TestMethod]
+    public void EncodeChatRoomInfo_ProducesCorrectWireFormat()
+    {
+        var room = new OscarChatRoom
+        {
+            Name = "Fox",
+            Exchange = 4,
+            Instance = 1
+        };
+
+        var encoded = room.EncodeChatRoomInfo();
+
+        // Exchange(2) + cookie_len(1) + cookie("Fox" = 3) + Instance(2) = 8
+        Assert.AreEqual(8, encoded.Length);
+
+        // Exchange: 0x00 0x04
+        Assert.AreEqual(0x00, encoded[0]);
+        Assert.AreEqual(0x04, encoded[1]);
+
+        // Cookie length: 3
+        Assert.AreEqual(0x03, encoded[2]);
+
+        // Cookie: "Fox"
+        Assert.AreEqual((byte)'F', encoded[3]);
+        Assert.AreEqual((byte)'o', encoded[4]);
+        Assert.AreEqual((byte)'x', encoded[5]);
+
+        // Instance: 0x00 0x01
+        Assert.AreEqual(0x00, encoded[6]);
+        Assert.AreEqual(0x01, encoded[7]);
+    }
+
+    #endregion
+
+    #region EncodeRoomInfoTlvs
+
+    [TestMethod]
+    public void EncodeRoomInfoTlvs_ContainsSixTlvs()
+    {
+        var room = new OscarChatRoom
+        {
+            Name = "Test",
+            CreatedAt = DateTimeOffset.FromUnixTimeSeconds(1000000)
+        };
+
+        var encoded = room.EncodeRoomInfoTlvs();
+
+        // Parse TLVs back out
+        var tlvs = OscarUtils.DecodeTlvs(encoded);
+
+        Assert.AreEqual(6, tlvs.Length);
+    }
+
+    [TestMethod]
+    public void EncodeRoomInfoTlvs_ContainsRoomName()
+    {
+        var room = new OscarChatRoom { Name = "ChatLounge" };
+
+        var encoded = room.EncodeRoomInfoTlvs();
+        var tlvs = OscarUtils.DecodeTlvs(encoded);
+
+        var nameTlv = tlvs.GetTlv(0x00D3);
+
+        Assert.IsNotNull(nameTlv);
+        Assert.AreEqual("ChatLounge", Encoding.ASCII.GetString(nameTlv.Value));
+    }
+
+    [TestMethod]
+    public void EncodeRoomInfoTlvs_ContainsLanguage()
+    {
+        var room = new OscarChatRoom { Name = "Test" };
+
+        var encoded = room.EncodeRoomInfoTlvs();
+        var tlvs = OscarUtils.DecodeTlvs(encoded);
+
+        var langTlv = tlvs.GetTlv(0x00D6);
+
+        Assert.IsNotNull(langTlv);
+        Assert.AreEqual("us-ascii", Encoding.ASCII.GetString(langTlv.Value));
+    }
+
+    [TestMethod]
+    public void EncodeRoomInfoTlvs_OccupantCount_MatchesMembers()
+    {
+        var room = new OscarChatRoom { Name = "Test" };
+
+        // Empty room — 0 members
+        var encoded = room.EncodeRoomInfoTlvs();
+        var tlvs = OscarUtils.DecodeTlvs(encoded);
+
+        var occupantsTlv = tlvs.GetTlv(0x00DA);
+
+        Assert.IsNotNull(occupantsTlv);
+        Assert.AreEqual((ushort)0, OscarUtils.ToUInt16(occupantsTlv.Value));
+    }
+
+    [TestMethod]
+    public void EncodeRoomInfoTlvs_CreationTime_EncodesAsUInt32()
+    {
+        var createdAt = DateTimeOffset.FromUnixTimeSeconds(1710000000);
+        var room = new OscarChatRoom { Name = "Test", CreatedAt = createdAt };
+
+        var encoded = room.EncodeRoomInfoTlvs();
+        var tlvs = OscarUtils.DecodeTlvs(encoded);
+
+        var timeTlv = tlvs.GetTlv(0x00D7);
+
+        Assert.IsNotNull(timeTlv);
+        Assert.AreEqual(4, timeTlv.Value.Length);
+        Assert.AreEqual((uint)1710000000, OscarUtils.ToUInt32(timeTlv.Value));
+    }
+
+    #endregion
+
+    #region Default Values
+
+    [TestMethod]
+    public void DefaultExchange_Is4()
+    {
+        var room = new OscarChatRoom();
+
+        Assert.AreEqual((ushort)4, room.Exchange);
+    }
+
+    [TestMethod]
+    public void DefaultTopic_IsEmpty()
+    {
+        var room = new OscarChatRoom();
+
+        Assert.AreEqual(string.Empty, room.Topic);
+    }
+
+    [TestMethod]
+    public void Members_IsEmptyByDefault()
+    {
+        var room = new OscarChatRoom();
+
+        Assert.IsNotNull(room.Members);
+        Assert.AreEqual(0, room.Members.Count);
+    }
+
+    #endregion
+}
+
+[TestClass]
+public class OscarSessionTests
+{
+    #region Warning System
+
+    [TestMethod]
+    public void ApplyWarning_Normal_Adds100()
+    {
+        var session = new OscarSession();
+
+        session.ApplyWarning(isAnonymous: false);
+
+        Assert.AreEqual((ushort)100, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void ApplyWarning_Anonymous_Adds33()
+    {
+        var session = new OscarSession();
+
+        session.ApplyWarning(isAnonymous: true);
+
+        Assert.AreEqual((ushort)33, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void ApplyWarning_Accumulates()
+    {
+        var session = new OscarSession();
+
+        session.ApplyWarning(isAnonymous: false);
+        session.ApplyWarning(isAnonymous: false);
+        session.ApplyWarning(isAnonymous: true);
+
+        Assert.AreEqual((ushort)233, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void ApplyWarning_CapsAt9990()
+    {
+        var session = new OscarSession();
+        session.WarningLevel = 9950;
+
+        session.ApplyWarning(isAnonymous: false);
+
+        Assert.AreEqual((ushort)9990, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void ApplyWarning_AlreadyAtMax_StaysAtMax()
+    {
+        var session = new OscarSession();
+        session.WarningLevel = 9990;
+
+        session.ApplyWarning(isAnonymous: true);
+
+        Assert.AreEqual((ushort)9990, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void DecayWarning_ReducesByOne()
+    {
+        var session = new OscarSession();
+        session.WarningLevel = 100;
+
+        session.DecayWarning();
+
+        Assert.AreEqual((ushort)99, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void DecayWarning_AtZero_StaysAtZero()
+    {
+        var session = new OscarSession();
+
+        session.DecayWarning();
+
+        Assert.AreEqual((ushort)0, session.WarningLevel);
+    }
+
+    #endregion
+
+    #region Idle Tracking
+
+    [TestMethod]
+    public void SetIdle_PositiveSeconds_SetsIdleSince()
+    {
+        var session = new OscarSession();
+
+        session.SetIdle(300);
+
+        Assert.AreEqual((uint)300, session.IdleTime);
+        Assert.AreNotEqual(DateTimeOffset.MinValue, session.IdleSince);
+    }
+
+    [TestMethod]
+    public void SetIdle_Zero_ClearsIdleSince()
+    {
+        var session = new OscarSession();
+        session.SetIdle(300);
+
+        session.SetIdle(0);
+
+        Assert.AreEqual((uint)0, session.IdleTime);
+        Assert.AreEqual(DateTimeOffset.MinValue, session.IdleSince);
+    }
+
+    [TestMethod]
+    public void GetCurrentIdleSeconds_NotIdle_ReturnsZero()
+    {
+        var session = new OscarSession();
+
+        Assert.AreEqual((uint)0, session.GetCurrentIdleSeconds());
+    }
+
+    [TestMethod]
+    public void GetCurrentIdleSeconds_WhenIdle_ReturnsElapsedTime()
+    {
+        var session = new OscarSession();
+        session.SetIdle(60);
+
+        // IdleSince was just set, so elapsed should be very small (0 or 1 second)
+        var idle = session.GetCurrentIdleSeconds();
+
+        Assert.IsTrue(idle <= 2, $"Expected idle <= 2 but was {idle}");
+    }
+
+    #endregion
+
+    #region LoadFromOtherSession
+
+    [TestMethod]
+    public void LoadFromOtherSession_CopiesAllFields()
+    {
+        var source = new OscarSession
+        {
+            Cookie = "ABCD1234",
+            ScreenName = "TestUser",
+            Status = OscarSessionOnlineStatus.Away,
+            AwayMessage = "Be right back",
+            AwayMessageMimeType = "text/x-aolrtf",
+            Profile = "Hello world",
+            ProfileMimeType = "text/aolrtf",
+            Buddies = new List<string> { "Friend1", "Friend2" },
+            Capabilities = new List<string> { "CAP1" },
+            UserAgent = "AIM/5.9"
+        };
+
+        var target = new OscarSession();
+
+        target.LoadFromOtherSession(source);
+
+        Assert.AreEqual("ABCD1234", target.Cookie);
+        Assert.AreEqual("TestUser", target.ScreenName);
+        Assert.AreEqual(OscarSessionOnlineStatus.Away, target.Status);
+        Assert.AreEqual("Be right back", target.AwayMessage);
+        Assert.AreEqual("text/x-aolrtf", target.AwayMessageMimeType);
+        Assert.AreEqual("Hello world", target.Profile);
+        Assert.AreEqual("text/aolrtf", target.ProfileMimeType);
+        Assert.AreEqual(2, target.Buddies.Count);
+        Assert.AreEqual(1, target.Capabilities.Count);
+    }
+
+    [TestMethod]
+    public void LoadFromOtherSession_PreservesExistingUserAgent()
+    {
+        var source = new OscarSession { UserAgent = "AIM/5.9" };
+        var target = new OscarSession { UserAgent = "ICQ/2003" };
+
+        target.LoadFromOtherSession(source);
+
+        // Target already had a UserAgent, so it should NOT be overwritten
+        Assert.AreEqual("ICQ/2003", target.UserAgent);
+    }
+
+    [TestMethod]
+    public void LoadFromOtherSession_SetsUserAgent_WhenEmpty()
+    {
+        var source = new OscarSession { UserAgent = "AIM/5.9" };
+        var target = new OscarSession();
+
+        target.LoadFromOtherSession(source);
+
+        Assert.AreEqual("AIM/5.9", target.UserAgent);
+    }
+
+    #endregion
+
+    #region Default Values
+
+    [TestMethod]
+    public void DefaultWarningLevel_IsZero()
+    {
+        var session = new OscarSession();
+
+        Assert.AreEqual((ushort)0, session.WarningLevel);
+    }
+
+    [TestMethod]
+    public void DefaultPrivacyMode_IsAllowAll()
+    {
+        var session = new OscarSession();
+
+        Assert.AreEqual((byte)1, session.PrivacyMode);
+    }
+
+    [TestMethod]
+    public void DefaultIdleSince_IsMinValue()
+    {
+        var session = new OscarSession();
+
+        Assert.AreEqual(DateTimeOffset.MinValue, session.IdleSince);
+    }
+
+    [TestMethod]
+    public void DefaultLists_AreEmpty()
+    {
+        var session = new OscarSession();
+
+        Assert.AreEqual(0, session.PermitList.Count);
+        Assert.AreEqual(0, session.DenyList.Count);
+        Assert.AreEqual(0, session.Buddies.Count);
+    }
+
+    #endregion
+}
+
+[TestClass]
+public class OscarServiceFamilyTests
+{
+    [TestMethod]
+    public void GenericServiceControls_Family_Is0x01()
+    {
+        Assert.AreEqual((ushort)0x0001, VintageHive.Proxy.Oscar.Services.OscarGenericServiceControls.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void LocationService_Family_Is0x02()
+    {
+        Assert.AreEqual((ushort)0x0002, VintageHive.Proxy.Oscar.Services.OscarLocationService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void BuddyListService_Family_Is0x03()
+    {
+        Assert.AreEqual((ushort)0x0003, VintageHive.Proxy.Oscar.Services.OscarBuddyListService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void IcbmService_Family_Is0x04()
+    {
+        Assert.AreEqual((ushort)0x0004, VintageHive.Proxy.Oscar.Services.OscarIcbmService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void InvitationService_Family_Is0x06()
+    {
+        Assert.AreEqual((ushort)0x0006, VintageHive.Proxy.Oscar.Services.OscarInvitationService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void PrivacyService_Family_Is0x09()
+    {
+        Assert.AreEqual((ushort)0x0009, VintageHive.Proxy.Oscar.Services.OscarPrivacyService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void UserLookupService_Family_Is0x0A()
+    {
+        Assert.AreEqual((ushort)0x000A, VintageHive.Proxy.Oscar.Services.OscarUserLookupService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void UsageStatsService_Family_Is0x0B()
+    {
+        Assert.AreEqual((ushort)0x000B, VintageHive.Proxy.Oscar.Services.OscarUsageStatsServices.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void ChatNavService_Family_Is0x0D()
+    {
+        Assert.AreEqual((ushort)0x000D, VintageHive.Proxy.Oscar.Services.OscarChatNavService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void ChatService_Family_Is0x0E()
+    {
+        Assert.AreEqual((ushort)0x000E, VintageHive.Proxy.Oscar.Services.OscarChatService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void BartService_Family_Is0x10()
+    {
+        Assert.AreEqual((ushort)0x0010, VintageHive.Proxy.Oscar.Services.OscarBartService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void SsiService_Family_Is0x13()
+    {
+        Assert.AreEqual((ushort)0x0013, VintageHive.Proxy.Oscar.Services.OscarSsiService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void IcqService_Family_Is0x15()
+    {
+        Assert.AreEqual((ushort)0x0015, VintageHive.Proxy.Oscar.Services.OscarIcqService.FAMILY_ID);
+    }
+
+    [TestMethod]
+    public void AuthorizationService_Family_Is0x17()
+    {
+        Assert.AreEqual((ushort)0x0017, VintageHive.Proxy.Oscar.Services.OscarAuthorizationService.FAMILY_ID);
+    }
+}
+
 #pragma warning restore MSTEST0025

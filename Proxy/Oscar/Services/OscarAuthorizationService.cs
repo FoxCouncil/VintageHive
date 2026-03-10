@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Security.Cryptography;
 
@@ -11,6 +11,7 @@ public class OscarAuthorizationService : IOscarService
     public const ushort CLI_MD5_LOGIN = 0x02;
     public const ushort SRV_LOGIN_REPLY = 0x03;
     public const ushort CLI_REGISTRATION_REQUEST = 0x04;
+    public const ushort SRV_REGISTRATION_REPLY = 0x05;
     public const ushort CLI_AUTH_REQUEST = 0x06;
     public const ushort SRV_AUTH_KEY_RESPONSE = 0x07;
 
@@ -27,6 +28,8 @@ public class OscarAuthorizationService : IOscarService
 
     public async Task ProcessSnac(OscarSession session, Snac snac)
     {
+        var traceId = session.Client.TraceId.ToString();
+
         switch (snac.SubType)
         {
             case CLI_MD5_LOGIN:
@@ -37,7 +40,7 @@ public class OscarAuthorizationService : IOscarService
 
                 if (!Mind.Db.UserExistsByUsername(session.ScreenName))
                 {
-                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (unknown user): {session.ScreenName}", session.Client.TraceId.ToString());
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (unknown user): {session.ScreenName}", traceId);
 
                     await FailAuth(session, snac);
 
@@ -69,6 +72,9 @@ public class OscarAuthorizationService : IOscarService
                         Mind.Db.OscarInsertOrUpdateSession(session);
                     }
 
+                    // Ensure user profile exists
+                    Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+
                     var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 
                     var authSuccessTlvs = new List<Tlv>
@@ -85,11 +91,11 @@ public class OscarAuthorizationService : IOscarService
 
                     await session.SendSnac(authSuccessSnac);
 
-                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth successful: {session.ScreenName} ({session.UserAgent})", session.Client.TraceId.ToString());
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth successful: {session.ScreenName} ({session.UserAgent})", traceId);
                 }
                 else
                 {
-                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (bad password): {session.ScreenName}", session.Client.TraceId.ToString());
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (bad password): {session.ScreenName}", traceId);
 
                     await FailAuth(session, snac);
                 }
@@ -98,7 +104,57 @@ public class OscarAuthorizationService : IOscarService
 
             case CLI_REGISTRATION_REQUEST:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Registration request (not implemented)", session.Client.TraceId.ToString());
+                var tlvs = OscarUtils.DecodeTlvs(snac.RawData);
+
+                var screenNameTlv = tlvs.GetTlv(0x01);
+                var passwordTlv = tlvs.GetTlv(0x02);
+
+                if (screenNameTlv == null || passwordTlv == null)
+                {
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), "Registration request missing screenname or password", traceId);
+
+                    var failSnac = snac.NewReply(Family, SRV_REGISTRATION_REPLY);
+
+                    failSnac.WriteTlv(new Tlv(0x01, OscarUtils.GetBytes((ushort)0x0001))); // Error
+                    failSnac.WriteTlv(new Tlv(Tlv.Type_ErrorSubCode, (ushort)OscarAuthError.ServiceTemporarilyUnavailable));
+
+                    await session.SendSnac(failSnac);
+
+                    return;
+                }
+
+                var newScreenName = screenNameTlv.Value.ToASCII();
+                var newPassword = passwordTlv.Value.ToASCII();
+
+                if (Mind.Db.UserExistsByUsername(newScreenName))
+                {
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"Registration failed (user exists): {newScreenName}", traceId);
+
+                    var failSnac = snac.NewReply(Family, SRV_REGISTRATION_REPLY);
+
+                    failSnac.WriteTlv(new Tlv(Tlv.Type_ScreenName, newScreenName));
+                    failSnac.WriteTlv(new Tlv(Tlv.Type_ErrorSubCode, (ushort)OscarAuthError.IncorrectScreenNameOrPassword));
+
+                    await session.SendSnac(failSnac);
+
+                    return;
+                }
+
+                // Create the user account
+                Mind.Db.UserCreate(newScreenName, newPassword);
+
+                // Create default profile
+                Mind.Db.OscarEnsureProfileExists(newScreenName);
+
+                Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"New user registered: {newScreenName}", traceId);
+
+                // Send success reply
+                var successSnac = snac.NewReply(Family, SRV_REGISTRATION_REPLY);
+
+                successSnac.WriteTlv(new Tlv(Tlv.Type_ScreenName, newScreenName));
+                successSnac.WriteTlv(new Tlv(0x0004, OscarServer.LoginHelpUrl));
+
+                await session.SendSnac(successSnac);
             }
             break;
 
@@ -119,7 +175,7 @@ public class OscarAuthorizationService : IOscarService
 
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", traceId);
             }
             break;
         }

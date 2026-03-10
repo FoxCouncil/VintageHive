@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -14,6 +14,13 @@ internal class OscarIcqService : IOscarService
     public const ushort META_DATA = 0x07DA;
 
     public const ushort CLI_FULLINFO_REQUEST2 = 0x04D0;
+    public const ushort CLI_SET_BASIC_INFO = 0x03EA;
+    public const ushort CLI_SET_WORK_INFO = 0x03F3;
+    public const ushort CLI_SET_MORE_INFO = 0x03FD;
+    public const ushort CLI_SET_NOTES_INFO = 0x0406;
+    public const ushort CLI_SET_EMAIL_INFO = 0x040B;
+    public const ushort CLI_SET_INTERESTS_INFO = 0x0410;
+    public const ushort CLI_SET_AFFILIATIONS_INFO = 0x041A;
 
     public const ushort META_BASIC_USERINFO = 0x00C8;
     public const ushort META_MORE_USERINFO = 0x00DC;
@@ -26,6 +33,7 @@ internal class OscarIcqService : IOscarService
     public const ushort META_XML_INFO = 0x08A2;
     public const ushort META_SET_PERMS_USERINFO = 0x0424;
     public const ushort META_SET_PERMS_ACK = 0x00A0;
+    public const ushort META_SET_ACK = 0x00B4;
     public const ushort META_USER_FOUND_LAST = 0x01AE;
     public const ushort CLI_OFFLINE_MESSAGE_REQ = 0x003C;
     public const ushort SRV_END_OF_OFFLINE_MSGS = 0x0042;
@@ -39,38 +47,6 @@ internal class OscarIcqService : IOscarService
     public const string XML_REQ_BANNERIP = "<key>BannersIP</key>";
 
     public ushort Family => FAMILY_ID;
-
-    public dynamic FakeUser = new
-    {
-        Nickname = "Fox",
-        Firstname = "Fox",
-        Lastname = "Fox",
-        Email = "fox@world.com",
-        HomeCity = "Seattle",
-        HomeState = "WA",
-        HomePhone = "1 (555) 555-1212",
-        HomeFax = "1 (555) 555-1213",
-        HomeAddress = "123 Yiff Court",
-        CellPhone = "1 (555) 555-9999",
-        HomeZip = "90210",
-        Age = (ushort)69,
-        Gender = (byte)1,
-        Homepage = "http://foxcouncil.com/",
-        BirthYear = (ushort)1969,
-        BirthMonth = (byte)12,
-        BirthDay = (byte)25,
-        WorkCity = "Redmond",
-        WorkState = "WA",
-        WorkPhone = "1 (555) 555-0069",
-        WorkFax = "1 (555) 555-0420",
-        WorkAddress = "1 Fox Street",
-        WorkZip = "98052-6399",
-        WorkCompany = "Macrohard",
-        WorkDepartment = "Executive",
-        WorkPosition = "Chief Executive Officer",
-        WorkHomepage = "http://macrohard.com/",
-        Notes = "Really, really, really, gay."
-    };
 
     public OscarServer Server { get; }
 
@@ -97,6 +73,17 @@ internal class OscarIcqService : IOscarService
 
                     case CLI_OFFLINE_MESSAGE_REQ:
                     {
+                        // Deliver any pending offline messages via ICQ format
+                        var offlineMessages = Mind.Db.OscarGetOfflineMessages(session.ScreenName);
+
+                        foreach (var msg in offlineMessages)
+                        {
+                            await SendIcqOfflineMessage(session, snac, icqMetaReq, msg);
+                        }
+
+                        Mind.Db.OscarDeleteOfflineMessages(session.ScreenName);
+
+                        // Send end-of-offline-messages marker
                         var mem = new MemoryStream();
 
                         mem.Write(BitConverter.GetBytes((ushort)9));
@@ -134,19 +121,23 @@ internal class OscarIcqService : IOscarService
 
     private async Task HandleMetaInfoRequest(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
     {
+        var traceId = session.Client.TraceId.ToString();
+
         switch (icqMetaReq.RequestSubType)
         {
             case CLI_FULLINFO_REQUEST2:
             {
-                // TODO: User Retrieval.
-                await SendBasicUserInfo(session, snac, icqMetaReq);
-                await SendMoreUserInfo(session, snac, icqMetaReq);
-                await SendEmailUserInfo(session, snac, icqMetaReq);
+                // Get real profile from database
+                var profile = GetProfileForUin(icqMetaReq.SearchUin, session.ScreenName);
+
+                await SendBasicUserInfo(session, snac, icqMetaReq, profile);
+                await SendMoreUserInfo(session, snac, icqMetaReq, profile);
+                await SendEmailUserInfo(session, snac, icqMetaReq, profile);
                 await SendHomepageCatUserInfo(session, snac, icqMetaReq);
-                await SendWorkUserInfo(session, snac, icqMetaReq);
-                await SendNotesUserInfo(session, snac, icqMetaReq);
-                await SendInterestsUserInfo(session, snac, icqMetaReq);
-                await SendAffiliationUserInfo(session, snac, icqMetaReq);
+                await SendWorkUserInfo(session, snac, icqMetaReq, profile);
+                await SendNotesUserInfo(session, snac, icqMetaReq, profile);
+                await SendInterestsUserInfo(session, snac, icqMetaReq, profile);
+                await SendAffiliationUserInfo(session, snac, icqMetaReq, profile);
             }
             break;
 
@@ -167,7 +158,7 @@ internal class OscarIcqService : IOscarService
 
                     default:
                     {
-                        Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown XML request key: {icqMetaReq.XmlKey}", session.Client.TraceId.ToString());
+                        Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown XML request key: {icqMetaReq.XmlKey}", traceId);
                     }
                     break;
                 }
@@ -184,32 +175,62 @@ internal class OscarIcqService : IOscarService
             }
             break;
 
+            case CLI_SET_BASIC_INFO:
+            {
+                await HandleSetBasicInfo(session, snac, icqMetaReq);
+            }
+            break;
+
+            case CLI_SET_WORK_INFO:
+            {
+                await HandleSetWorkInfo(session, snac, icqMetaReq);
+            }
+            break;
+
+            case CLI_SET_MORE_INFO:
+            {
+                await HandleSetMoreInfo(session, snac, icqMetaReq);
+            }
+            break;
+
+            case CLI_SET_NOTES_INFO:
+            {
+                await HandleSetNotesInfo(session, snac, icqMetaReq);
+            }
+            break;
+
+            case CLI_SET_INTERESTS_INFO:
+            {
+                await HandleSetInterestsInfo(session, snac, icqMetaReq);
+            }
+            break;
+
+            case CLI_SET_AFFILIATIONS_INFO:
+            {
+                await HandleSetAffiliationsInfo(session, snac, icqMetaReq);
+            }
+            break;
+
             case CLI_FIND_BY_UIN:
             {
+                var profile = GetProfileForUin(icqMetaReq.SearchUin, null);
+
                 var uinUserFound = new MemoryStream();
 
                 uinUserFound.Write(BitConverter.GetBytes(icqMetaReq.SearchUin));
 
-                var dataArray = new string[]
-                {
-                    FakeUser.Nickname,
-                    FakeUser.Firstname,
-                    FakeUser.Lastname,
-                    FakeUser.Email
-                };
+                uinUserFound.Write(WriteIcqString(profile.Nickname));
+                uinUserFound.Write(WriteIcqString(profile.FirstName));
+                uinUserFound.Write(WriteIcqString(profile.LastName));
+                uinUserFound.Write(WriteIcqString(profile.Email));
 
-                foreach (var data in dataArray)
-                {
-                    uinUserFound.Write(WriteIcqString(data));
-                }
+                uinUserFound.WriteByte(0x01); // Auth required
 
-                uinUserFound.WriteByte(0x01);
+                uinUserFound.Write(BitConverter.GetBytes((ushort)1)); // Status: online
 
-                uinUserFound.Write(BitConverter.GetBytes((ushort)1));
+                uinUserFound.WriteByte(profile.Gender);
 
-                uinUserFound.WriteByte(0x02);
-
-                uinUserFound.Write(BitConverter.GetBytes((ushort)69));
+                uinUserFound.Write(BitConverter.GetBytes(profile.Age));
 
                 var uinUserFoundData = new MemoryStream();
 
@@ -228,46 +249,413 @@ internal class OscarIcqService : IOscarService
             case CLI_UNKNOWN_ONE:
             case CLI_UNKNOWN_TWO:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Ignored ICQ meta request subtype 0x{icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Ignored ICQ meta request subtype 0x{icqMetaReq.RequestSubType:X4}", traceId);
             }
             break;
 
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown ICQ meta request subtype 0x{icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown ICQ meta request subtype 0x{icqMetaReq.RequestSubType:X4}", traceId);
             }
             break;
         }
     }
 
-    private async Task SendBasicUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private OscarUserProfile GetProfileForUin(uint searchUin, string fallbackScreenName)
+    {
+        // In VintageHive, UIN = screenname since usernames are the only identity
+        // Try to find a user by UIN if it matches known users, otherwise use fallback
+        var screenName = fallbackScreenName ?? "unknown";
+
+        // If searchUin != 0, try to look up by iterating known users (UIN is hash-based)
+        // For now, use the requesting user's own profile for self-lookup
+        var profile = Mind.Db.OscarGetProfile(screenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(screenName);
+            profile = Mind.Db.OscarGetProfile(screenName);
+        }
+
+        return profile;
+    }
+
+    private async Task HandleSetBasicInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    {
+        var profile = Mind.Db.OscarGetProfile(session.ScreenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+            profile = Mind.Db.OscarGetProfile(session.ScreenName);
+        }
+
+        var data = icqMetaReq.GetExtraData();
+
+        if (data != null && data.Length > 0)
+        {
+            var readIdx = 0;
+
+            profile.Nickname = ReadIcqString(data, ref readIdx);
+            profile.FirstName = ReadIcqString(data, ref readIdx);
+            profile.LastName = ReadIcqString(data, ref readIdx);
+            profile.Email = ReadIcqString(data, ref readIdx);
+            profile.HomeCity = ReadIcqString(data, ref readIdx);
+            profile.HomeState = ReadIcqString(data, ref readIdx);
+            profile.HomePhone = ReadIcqString(data, ref readIdx);
+            profile.HomeFax = ReadIcqString(data, ref readIdx);
+            profile.HomeAddress = ReadIcqString(data, ref readIdx);
+            profile.CellPhone = ReadIcqString(data, ref readIdx);
+            profile.HomeZip = ReadIcqString(data, ref readIdx);
+
+            if (readIdx + 2 <= data.Length)
+            {
+                profile.HomeCountry = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+            }
+
+            Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarIcqService), $"Updated basic info for {session.ScreenName}", session.Client.TraceId.ToString());
+        }
+
+        var ack = new MemoryStream();
+
+        ack.WriteByte(0x0A);
+
+        await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
+    }
+
+    private async Task HandleSetWorkInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    {
+        var profile = Mind.Db.OscarGetProfile(session.ScreenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+            profile = Mind.Db.OscarGetProfile(session.ScreenName);
+        }
+
+        var data = icqMetaReq.GetExtraData();
+
+        if (data != null && data.Length > 0)
+        {
+            var readIdx = 0;
+
+            profile.WorkCity = ReadIcqString(data, ref readIdx);
+            profile.WorkState = ReadIcqString(data, ref readIdx);
+            profile.WorkPhone = ReadIcqString(data, ref readIdx);
+            profile.WorkFax = ReadIcqString(data, ref readIdx);
+            profile.WorkAddress = ReadIcqString(data, ref readIdx);
+            profile.WorkZip = ReadIcqString(data, ref readIdx);
+
+            if (readIdx + 2 <= data.Length)
+            {
+                profile.WorkCountry = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                readIdx += 2;
+            }
+
+            profile.WorkCompany = ReadIcqString(data, ref readIdx);
+            profile.WorkDepartment = ReadIcqString(data, ref readIdx);
+            profile.WorkPosition = ReadIcqString(data, ref readIdx);
+
+            if (readIdx + 2 <= data.Length)
+            {
+                profile.WorkOccupation = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                readIdx += 2;
+            }
+
+            profile.WorkHomepage = ReadIcqString(data, ref readIdx);
+
+            Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarIcqService), $"Updated work info for {session.ScreenName}", session.Client.TraceId.ToString());
+        }
+
+        var ack = new MemoryStream();
+
+        ack.WriteByte(0x0A);
+
+        await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
+    }
+
+    private async Task HandleSetMoreInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    {
+        var profile = Mind.Db.OscarGetProfile(session.ScreenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+            profile = Mind.Db.OscarGetProfile(session.ScreenName);
+        }
+
+        var data = icqMetaReq.GetExtraData();
+
+        if (data != null && data.Length > 0)
+        {
+            var readIdx = 0;
+
+            if (readIdx + 2 <= data.Length)
+            {
+                profile.Age = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                readIdx += 2;
+            }
+
+            if (readIdx + 1 <= data.Length)
+            {
+                profile.Gender = data[readIdx++];
+            }
+
+            profile.Homepage = ReadIcqString(data, ref readIdx);
+
+            if (readIdx + 2 <= data.Length)
+            {
+                profile.BirthYear = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                readIdx += 2;
+            }
+
+            if (readIdx + 1 <= data.Length)
+            {
+                profile.BirthMonth = data[readIdx++];
+            }
+
+            if (readIdx + 1 <= data.Length)
+            {
+                profile.BirthDay = data[readIdx++];
+            }
+
+            if (readIdx + 1 <= data.Length)
+            {
+                profile.Language1 = data[readIdx++];
+            }
+
+            if (readIdx + 1 <= data.Length)
+            {
+                profile.Language2 = data[readIdx++];
+            }
+
+            if (readIdx + 1 <= data.Length)
+            {
+                profile.Language3 = data[readIdx++];
+            }
+
+            Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarIcqService), $"Updated more info for {session.ScreenName}", session.Client.TraceId.ToString());
+        }
+
+        var ack = new MemoryStream();
+
+        ack.WriteByte(0x0A);
+
+        await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
+    }
+
+    private async Task HandleSetNotesInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    {
+        var profile = Mind.Db.OscarGetProfile(session.ScreenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+            profile = Mind.Db.OscarGetProfile(session.ScreenName);
+        }
+
+        var data = icqMetaReq.GetExtraData();
+
+        if (data != null && data.Length > 0)
+        {
+            var readIdx = 0;
+
+            profile.Notes = ReadIcqString(data, ref readIdx);
+
+            Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarIcqService), $"Updated notes for {session.ScreenName}", session.Client.TraceId.ToString());
+        }
+
+        var ack = new MemoryStream();
+
+        ack.WriteByte(0x0A);
+
+        await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
+    }
+
+    private async Task HandleSetInterestsInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    {
+        var profile = Mind.Db.OscarGetProfile(session.ScreenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+            profile = Mind.Db.OscarGetProfile(session.ScreenName);
+        }
+
+        var data = icqMetaReq.GetExtraData();
+
+        if (data != null && data.Length > 0)
+        {
+            var interests = new List<object>();
+            var readIdx = 0;
+
+            if (readIdx < data.Length)
+            {
+                var count = data[readIdx++];
+
+                for (int i = 0; i < count && readIdx + 2 < data.Length; i++)
+                {
+                    var category = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                    readIdx += 2;
+
+                    var keyword = ReadIcqString(data, ref readIdx);
+
+                    interests.Add(new { category, keyword });
+                }
+            }
+
+            profile.InterestsJson = JsonSerializer.Serialize(interests);
+
+            Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarIcqService), $"Updated interests for {session.ScreenName}", session.Client.TraceId.ToString());
+        }
+
+        var ack = new MemoryStream();
+
+        ack.WriteByte(0x0A);
+
+        await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
+    }
+
+    private async Task HandleSetAffiliationsInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    {
+        var profile = Mind.Db.OscarGetProfile(session.ScreenName);
+
+        if (profile == null)
+        {
+            Mind.Db.OscarEnsureProfileExists(session.ScreenName);
+            profile = Mind.Db.OscarGetProfile(session.ScreenName);
+        }
+
+        var data = icqMetaReq.GetExtraData();
+
+        if (data != null && data.Length > 0)
+        {
+            var readIdx = 0;
+
+            // Current affiliations
+            var affiliations = new List<object>();
+
+            if (readIdx < data.Length)
+            {
+                var count = data[readIdx++];
+
+                for (int i = 0; i < count && readIdx + 2 < data.Length; i++)
+                {
+                    var category = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                    readIdx += 2;
+
+                    var keyword = ReadIcqString(data, ref readIdx);
+
+                    affiliations.Add(new { category, keyword });
+                }
+            }
+
+            // Past affiliations
+            var pastAffiliations = new List<object>();
+
+            if (readIdx < data.Length)
+            {
+                var count = data[readIdx++];
+
+                for (int i = 0; i < count && readIdx + 2 < data.Length; i++)
+                {
+                    var category = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+                    readIdx += 2;
+
+                    var keyword = ReadIcqString(data, ref readIdx);
+
+                    pastAffiliations.Add(new { category, keyword });
+                }
+            }
+
+            profile.AffiliationsJson = JsonSerializer.Serialize(affiliations);
+            profile.PastAffiliationsJson = JsonSerializer.Serialize(pastAffiliations);
+
+            Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarIcqService), $"Updated affiliations for {session.ScreenName}", session.Client.TraceId.ToString());
+        }
+
+        var ack = new MemoryStream();
+
+        ack.WriteByte(0x0A);
+
+        await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
+    }
+
+    private async Task SendIcqOfflineMessage(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarOfflineMessage msg)
+    {
+        var mem = new MemoryStream();
+
+        // Offline message header
+        var senderUin = (uint)msg.FromScreenName.GetHashCode();
+
+        mem.Write(BitConverter.GetBytes(senderUin));
+
+        // Date/time
+        mem.Write(BitConverter.GetBytes((ushort)msg.Timestamp.Year));
+        mem.WriteByte((byte)msg.Timestamp.Month);
+        mem.WriteByte((byte)msg.Timestamp.Day);
+        mem.WriteByte((byte)msg.Timestamp.Hour);
+        mem.WriteByte((byte)msg.Timestamp.Minute);
+
+        // Message type (0x01 = plain text)
+        mem.WriteByte(0x01);
+        mem.WriteByte(0x00);
+
+        // Message text (length-prefixed)
+        var msgText = Encoding.ASCII.GetString(msg.MessageData);
+        mem.Write(BitConverter.GetBytes((ushort)(msgText.Length + 1)));
+        mem.Write(Encoding.ASCII.GetBytes(msgText));
+        mem.WriteByte(0x00);
+
+        var offlineTlvData = new MemoryStream();
+
+        offlineTlvData.Write(BitConverter.GetBytes((ushort)(mem.Length + 8))); // data chunk size
+        offlineTlvData.Write(BitConverter.GetBytes(icqMetaReq.ClientUin));
+        offlineTlvData.Write(BitConverter.GetBytes((ushort)0x0041)); // SRV_OFFLINE_MESSAGE
+        offlineTlvData.Write(BitConverter.GetBytes((ushort)0));      // sequence
+        offlineTlvData.Write(mem.ToArray());
+
+        var offlineTlv = new Tlv(0x01, offlineTlvData.ToArray());
+
+        var offlineSnac = snac.NewReply(FAMILY_ID, SRV_META_REPLY);
+
+        offlineSnac.WriteTlv(offlineTlv);
+
+        await session.SendSnac(offlineSnac);
+    }
+
+    private async Task SendBasicUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
         var basicUserData = new MemoryStream();
 
         basicUserData.WriteByte(0x0A); // Success Byte
 
-        var dataArray = new string[]
-        {
-            FakeUser.Nickname,
-            FakeUser.Firstname,
-            FakeUser.Lastname,
-            FakeUser.Email,
-            FakeUser.HomeCity,
-            FakeUser.HomeState,
-            FakeUser.HomePhone,
-            FakeUser.HomeFax,
-            FakeUser.HomeAddress,
-            FakeUser.CellPhone,
-            FakeUser.HomeZip
-        };
+        basicUserData.Write(WriteIcqString(profile.Nickname));
+        basicUserData.Write(WriteIcqString(profile.FirstName));
+        basicUserData.Write(WriteIcqString(profile.LastName));
+        basicUserData.Write(WriteIcqString(profile.Email));
+        basicUserData.Write(WriteIcqString(profile.HomeCity));
+        basicUserData.Write(WriteIcqString(profile.HomeState));
+        basicUserData.Write(WriteIcqString(profile.HomePhone));
+        basicUserData.Write(WriteIcqString(profile.HomeFax));
+        basicUserData.Write(WriteIcqString(profile.HomeAddress));
+        basicUserData.Write(WriteIcqString(profile.CellPhone));
+        basicUserData.Write(WriteIcqString(profile.HomeZip));
 
-        foreach (var data in dataArray)
-        {
-            basicUserData.Write(WriteIcqString(data));
-        }
-
-        // Country Code (Telephone Style)
-        basicUserData.Write(BitConverter.GetBytes((ushort)1));
+        // Country Code
+        basicUserData.Write(BitConverter.GetBytes(profile.HomeCountry));
 
         basicUserData.WriteByte(0xEC);
         basicUserData.WriteByte(0x01);
@@ -278,55 +666,46 @@ internal class OscarIcqService : IOscarService
         await SendMetaData(session, snac, icqMetaReq, META_BASIC_USERINFO, basicUserData, false);
     }
 
-    private async Task SendMoreUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private async Task SendMoreUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
         var moreUserData = new MemoryStream();
 
         moreUserData.WriteByte(0x0A); // Success Byte
 
-        moreUserData.Write(BitConverter.GetBytes((ushort)69)); // AGE
+        moreUserData.Write(BitConverter.GetBytes(profile.Age));
 
-        moreUserData.WriteByte(2); // GENDER
+        moreUserData.WriteByte(profile.Gender);
 
-        var dataArray = new string[]
-        {
-            FakeUser.Homepage,
-            "FUCK1",
-            "FUCK2",
-        };
+        moreUserData.Write(WriteIcqString(profile.Homepage));
 
-        moreUserData.Write(WriteIcqString(dataArray[0]));
+        moreUserData.Write(BitConverter.GetBytes(profile.BirthYear));
+        moreUserData.WriteByte(profile.BirthMonth);
+        moreUserData.WriteByte(profile.BirthDay);
 
-        moreUserData.Write(BitConverter.GetBytes((ushort)FakeUser.BirthYear));
-        moreUserData.WriteByte(FakeUser.BirthMonth);
-        moreUserData.WriteByte(FakeUser.BirthDay);
-
-        moreUserData.WriteByte(12); // English
-        moreUserData.WriteByte(17); // French
-        moreUserData.WriteByte(27); // Japoneses
+        moreUserData.WriteByte(profile.Language1);
+        moreUserData.WriteByte(profile.Language2);
+        moreUserData.WriteByte(profile.Language3);
 
         moreUserData.Write(BitConverter.GetBytes((ushort)0)); // Unknown
 
-        foreach (var data in dataArray[1..])
-        {
-            moreUserData.Write(WriteIcqString(data));
-        }
+        moreUserData.Write(WriteIcqString(string.Empty)); // Original city
+        moreUserData.Write(WriteIcqString(string.Empty)); // Original state
 
-        // Country Code (Telephone Style)
-        moreUserData.Write(BitConverter.GetBytes((ushort)0x01));
+        // Country Code
+        moreUserData.Write(BitConverter.GetBytes(profile.HomeCountry));
 
-        moreUserData.WriteByte(0x00);
+        moreUserData.WriteByte(0x00); // GMT offset
 
         await SendMetaData(session, snac, icqMetaReq, META_MORE_USERINFO, moreUserData, false);
     }
 
-    private async Task SendEmailUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private async Task SendEmailUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
         var emailUserData = new MemoryStream();
 
         emailUserData.WriteByte(0x0A); // Success Byte
 
-        emailUserData.WriteByte(0x00); // No extra emails, haha, no... TODO: support multiple email addresses
+        emailUserData.WriteByte(0x00); // No extra emails
 
         await SendMetaData(session, snac, icqMetaReq, META_EMAIL_USERINFO, emailUserData, false);
     }
@@ -337,112 +716,102 @@ internal class OscarIcqService : IOscarService
 
         homepageCatUserData.WriteByte(0x0A); // Success Byte
 
-        homepageCatUserData.WriteByte(0x00); // No homepage categories, haha, no... TODO: support whatever the fuck this is?
+        homepageCatUserData.WriteByte(0x00); // No homepage categories
 
         await SendMetaData(session, snac, icqMetaReq, META_HPAGECAT_USERINFO, homepageCatUserData, false);
     }
 
-    private async Task SendWorkUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private async Task SendWorkUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
         var workUserData = new MemoryStream();
 
         workUserData.WriteByte(0x0A); // Success Byte
 
-        var dataArray = new string[]
-        {
-            FakeUser.WorkCity,
-            FakeUser.WorkState,
-            FakeUser.WorkPhone,
-            FakeUser.WorkFax,
-            FakeUser.WorkAddress,
-            FakeUser.WorkZip,
-            FakeUser.WorkCompany,
-            FakeUser.WorkDepartment,
-            FakeUser.WorkPosition,
-            FakeUser.WorkHomepage
-        };
+        workUserData.Write(WriteIcqString(profile.WorkCity));
+        workUserData.Write(WriteIcqString(profile.WorkState));
+        workUserData.Write(WriteIcqString(profile.WorkPhone));
+        workUserData.Write(WriteIcqString(profile.WorkFax));
+        workUserData.Write(WriteIcqString(profile.WorkAddress));
+        workUserData.Write(WriteIcqString(profile.WorkZip));
 
-        foreach (var data in dataArray[..6])
-        {
-            workUserData.Write(WriteIcqString(data));
-        }
+        // Country Code
+        workUserData.Write(BitConverter.GetBytes(profile.WorkCountry));
 
-        // Country Code (Telephone Style)
-        workUserData.Write(BitConverter.GetBytes((ushort)1));
+        workUserData.Write(WriteIcqString(profile.WorkCompany));
+        workUserData.Write(WriteIcqString(profile.WorkDepartment));
+        workUserData.Write(WriteIcqString(profile.WorkPosition));
 
-        foreach (var data in dataArray[6..9])
-        {
-            workUserData.Write(WriteIcqString(data));
-        }
+        workUserData.Write(BitConverter.GetBytes(profile.WorkOccupation));
 
-        workUserData.Write(BitConverter.GetBytes((ushort)0x05)); // Occupation: Computers
-
-        workUserData.Write(WriteIcqString(dataArray[9]));
+        workUserData.Write(WriteIcqString(profile.WorkHomepage));
 
         await SendMetaData(session, snac, icqMetaReq, META_WORK_USERINFO, workUserData, false);
     }
 
-    private async Task SendNotesUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private async Task SendNotesUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
-        var workUserData = new MemoryStream();
+        var notesData = new MemoryStream();
 
-        workUserData.WriteByte(0x0A); // Success Byte
+        notesData.WriteByte(0x0A); // Success Byte
 
-        workUserData.Write(WriteIcqString(FakeUser.Notes));
+        notesData.Write(WriteIcqString(profile.Notes));
 
-        await SendMetaData(session, snac, icqMetaReq, META_NOTES_USERINFO, workUserData, false);
+        await SendMetaData(session, snac, icqMetaReq, META_NOTES_USERINFO, notesData, false);
     }
 
-    private async Task SendInterestsUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private async Task SendInterestsUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
         var interestsUserData = new MemoryStream();
 
         interestsUserData.WriteByte(0x0A); // Success Byte
 
-        interestsUserData.WriteByte(0x04);
+        var interests = JsonSerializer.Deserialize<List<JsonElement>>(profile.InterestsJson);
 
-        interestsUserData.Write(BitConverter.GetBytes((ushort)0x64));
-        interestsUserData.Write(WriteIcqString("interest1_key"));
+        interestsUserData.WriteByte((byte)interests.Count);
 
-        interestsUserData.Write(BitConverter.GetBytes((ushort)0x67));
-        interestsUserData.Write(WriteIcqString("interest2_key"));
+        foreach (var interest in interests)
+        {
+            var category = interest.GetProperty("category").GetUInt16();
+            var keyword = interest.GetProperty("keyword").GetString() ?? string.Empty;
 
-        interestsUserData.Write(BitConverter.GetBytes((ushort)0x68));
-        interestsUserData.Write(WriteIcqString("interest3_key"));
-
-        interestsUserData.Write(BitConverter.GetBytes((ushort)0x6F));
-        interestsUserData.Write(WriteIcqString("interest4_key"));
+            interestsUserData.Write(BitConverter.GetBytes(category));
+            interestsUserData.Write(WriteIcqString(keyword));
+        }
 
         await SendMetaData(session, snac, icqMetaReq, META_INTERESTS_USERINFO, interestsUserData, false);
     }
 
-    private async Task SendAffiliationUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
+    private async Task SendAffiliationUserInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarUserProfile profile)
     {
         var affiliationUserData = new MemoryStream();
 
         affiliationUserData.WriteByte(0x0A); // Success Byte
 
-        affiliationUserData.WriteByte(0x03);
+        var affiliations = JsonSerializer.Deserialize<List<JsonElement>>(profile.AffiliationsJson);
 
-        affiliationUserData.Write(BitConverter.GetBytes((ushort)0x012E));
-        affiliationUserData.Write(WriteIcqString("aff1 keyword"));
+        affiliationUserData.WriteByte((byte)affiliations.Count);
 
-        affiliationUserData.Write(BitConverter.GetBytes((ushort)0x012C));
-        affiliationUserData.Write(WriteIcqString("aff2 keyword"));
+        foreach (var aff in affiliations)
+        {
+            var category = aff.GetProperty("category").GetUInt16();
+            var keyword = aff.GetProperty("keyword").GetString() ?? string.Empty;
 
-        affiliationUserData.Write(BitConverter.GetBytes((ushort)0x012D));
-        affiliationUserData.Write(WriteIcqString("aff3 keyword"));
+            affiliationUserData.Write(BitConverter.GetBytes(category));
+            affiliationUserData.Write(WriteIcqString(keyword));
+        }
 
-        affiliationUserData.WriteByte(0x03);
+        var pastAffiliations = JsonSerializer.Deserialize<List<JsonElement>>(profile.PastAffiliationsJson);
 
-        affiliationUserData.Write(BitConverter.GetBytes((ushort)0xC8));
-        affiliationUserData.Write(WriteIcqString("past1keyword"));
+        affiliationUserData.WriteByte((byte)pastAffiliations.Count);
 
-        affiliationUserData.Write(BitConverter.GetBytes((ushort)0xCA));
-        affiliationUserData.Write(WriteIcqString("past2keyword"));
+        foreach (var aff in pastAffiliations)
+        {
+            var category = aff.GetProperty("category").GetUInt16();
+            var keyword = aff.GetProperty("keyword").GetString() ?? string.Empty;
 
-        affiliationUserData.Write(BitConverter.GetBytes((ushort)0xCB));
-        affiliationUserData.Write(WriteIcqString("past3keyword"));
+            affiliationUserData.Write(BitConverter.GetBytes(category));
+            affiliationUserData.Write(WriteIcqString(keyword));
+        }
 
         await SendMetaData(session, snac, icqMetaReq, META_AFFILATIONS_USERINFO, affiliationUserData, true);
     }
@@ -478,8 +847,31 @@ internal class OscarIcqService : IOscarService
 
         icqString.Write(BitConverter.GetBytes((ushort)(data.Length + 1)));
         icqString.Write(Encoding.ASCII.GetBytes(data));
-        icqString.WriteByte(0x00); // NUL Terminated String!?
+        icqString.WriteByte(0x00); // NUL Terminated String
 
         return icqString.ToArray();
+    }
+
+    private string ReadIcqString(byte[] data, ref int readIdx)
+    {
+        if (readIdx + 2 > data.Length)
+        {
+            return string.Empty;
+        }
+
+        var length = BitConverter.ToUInt16(data[readIdx..(readIdx + 2)]);
+        readIdx += 2;
+
+        if (length <= 1 || readIdx + length > data.Length)
+        {
+            readIdx += length;
+            return string.Empty;
+        }
+
+        // Length includes null terminator
+        var str = Encoding.ASCII.GetString(data[readIdx..(readIdx + length - 1)]);
+        readIdx += length;
+
+        return str;
     }
 }

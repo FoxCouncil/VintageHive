@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Data;
 using VintageHive.Network;
@@ -40,6 +40,20 @@ public class OscarSession
     public List<string> Capabilities { get; set; } = new();
 
     public string UserAgent { get; set; }
+
+    public ushort WarningLevel { get; set; }
+
+    public uint IdleTime { get; set; }
+
+    public DateTimeOffset IdleSince { get; set; } = DateTimeOffset.MinValue;
+
+    public DateTimeOffset SignOnTime { get; set; } = DateTimeOffset.UtcNow;
+
+    public List<string> PermitList { get; set; } = new();
+
+    public List<string> DenyList { get; set; } = new();
+
+    public byte PrivacyMode { get; set; } = 1; // 1=allow all, 2=deny all, 3=permit only, 4=deny list, 5=allow buddy list only
 
     public OscarSession() { }
 
@@ -108,12 +122,55 @@ public class OscarSession
             Cookie = Guid.NewGuid().ToString().ToUpper();
         }
 
+        SignOnTime = DateTimeOffset.UtcNow;
+
         Save();
     }
 
     public void Save()
     {
         Mind.Db.OscarInsertOrUpdateSession(this);
+    }
+
+    public void SetIdle(uint seconds)
+    {
+        IdleTime = seconds;
+
+        if (seconds > 0)
+        {
+            IdleSince = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            IdleSince = DateTimeOffset.MinValue;
+        }
+    }
+
+    public uint GetCurrentIdleSeconds()
+    {
+        if (IdleSince == DateTimeOffset.MinValue)
+        {
+            return 0;
+        }
+
+        return (uint)(DateTimeOffset.UtcNow - IdleSince).TotalSeconds;
+    }
+
+    public void ApplyWarning(bool isAnonymous)
+    {
+        // AIM warning formula: anonymous warnings add less
+        var increment = isAnonymous ? (ushort)33 : (ushort)100;
+
+        WarningLevel = (ushort)Math.Min(WarningLevel + increment, 9990);
+    }
+
+    public void DecayWarning()
+    {
+        // Warning level decays over time — roughly 1 point per minute
+        if (WarningLevel > 0)
+        {
+            WarningLevel = (ushort)Math.Max(0, WarningLevel - 1);
+        }
     }
 
     public async Task SendSnac(Snac snac)
@@ -156,5 +213,57 @@ public class OscarSession
         Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"Total {flaps.Length} flaps", Client.TraceId.ToString());
 
         return flaps;
+    }
+
+    public async Task BroadcastStatusToWatchers()
+    {
+        foreach (var session in OscarServer.Sessions)
+        {
+            if (session == this || session.Client == null || !session.Client.IsConnected)
+            {
+                continue;
+            }
+
+            if (!session.Buddies.Any(b => b.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var statusSnac = new Snac(0x03, 0x0B); // Family 0x03, SRV_USER_ONLINE
+
+            statusSnac.WriteUInt8((byte)ScreenName.Length);
+            statusSnac.WriteString(ScreenName);
+            statusSnac.WriteUInt16(WarningLevel);
+
+            var tlvs = new List<Tlv>
+            {
+                new Tlv(0x01, OscarUtils.GetBytes(0)),
+                new Tlv(0x06, OscarUtils.GetBytes((uint)Status)),
+                new Tlv(0x0F, OscarUtils.GetBytes((uint)SignOnTime.ToUnixTimeSeconds())),
+                new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
+                new Tlv(0x05, OscarUtils.GetBytes((uint)SignOnTime.ToUnixTimeSeconds()))
+            };
+
+            if (GetCurrentIdleSeconds() > 0)
+            {
+                tlvs.Add(new Tlv(0x04, OscarUtils.GetBytes((ushort)GetCurrentIdleSeconds())));
+            }
+
+            statusSnac.WriteUInt16((ushort)tlvs.Count);
+
+            foreach (Tlv tlv in tlvs)
+            {
+                statusSnac.Write(tlv.Encode());
+            }
+
+            try
+            {
+                await session.SendSnac(statusSnac);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteException(nameof(OscarSession), ex, session.Client.TraceId.ToString());
+            }
+        }
     }
 }

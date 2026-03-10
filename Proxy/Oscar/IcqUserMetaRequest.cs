@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Proxy.Oscar.Services;
 
@@ -19,6 +19,8 @@ internal class IcqUserMetaRequest
     public uint SearchUin { get; }
 
     public string XmlKey { get; }
+
+    private byte[] extraData;
 
     Snac icqMetaRequestSanc;
 
@@ -59,13 +61,29 @@ internal class IcqUserMetaRequest
 
                 XmlKey = Encoding.ASCII.GetString(tlv.Value[14..(14 + stringLength - 1)]);
             }
-            else if (RequestType == OscarIcqService.META_SET_PERMS_USERINFO)
+            else if (RequestSubType == OscarIcqService.META_SET_PERMS_USERINFO)
             {
-                var auth = tlv.Value[12];
-                var web = tlv.Value[13];
-                var dcPerm = tlv.Value[14];
-                var huh = tlv.Value[15];
+                if (tlv.Value.Length > 15)
+                {
+                    var auth = tlv.Value[12];
+                    var web = tlv.Value[13];
+                    var dcPerm = tlv.Value[14];
+                    var flags = tlv.Value[15];
+                }
+            }
+            else
+            {
+                // For set-info subtypes, store extra data after the subtype
+                if (tlv.Value.Length > 12)
+                {
+                    extraData = tlv.Value[12..];
+                }
             }
         }
+    }
+
+    public byte[] GetExtraData()
+    {
+        return extraData;
     }
 }

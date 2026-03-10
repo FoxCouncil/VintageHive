@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Microsoft.Data.Sqlite;
+using System.Data;
 using System.Dynamic;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
@@ -33,6 +34,12 @@ public class HiveDbContext : DbContextBase
     private const string TABLE_USENET = "usenet";
 
     private const string TABLE_OSCARSESSION = "oscar_session";
+
+    private const string TABLE_OSCARPROFILE = "oscar_profile";
+
+    private const string TABLE_OSCAROFFLINEMSG = "oscar_offline_msg";
+
+    private const string TABLE_OSCARSSI = "oscar_ssi";
 
     static readonly IReadOnlyDictionary<string, object> kDefaultGlobalSettings = new Dictionary<string, object>()
     {
@@ -137,6 +144,15 @@ public class HiveDbContext : DbContextBase
 
         // ICQ (OSCAR) Server
         CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
+
+        // Oscar User Profiles
+        CreateTable(TABLE_OSCARPROFILE, "screenname TEXT UNIQUE COLLATE NOCASE, nickname TEXT, firstname TEXT, lastname TEXT, email TEXT, homecity TEXT, homestate TEXT, homephone TEXT, homefax TEXT, homeaddress TEXT, cellphone TEXT, homezip TEXT, homecountry INTEGER, age INTEGER, gender INTEGER, homepage TEXT, birthyear INTEGER, birthmonth INTEGER, birthday INTEGER, language1 INTEGER, language2 INTEGER, language3 INTEGER, workcity TEXT, workstate TEXT, workphone TEXT, workfax TEXT, workaddress TEXT, workzip TEXT, workcountry INTEGER, workcompany TEXT, workdepartment TEXT, workposition TEXT, workhomepage TEXT, workoccupation INTEGER, notes TEXT, interests TEXT, affiliations TEXT, pastaffiliations TEXT");
+
+        // Oscar Offline Messages
+        CreateTable(TABLE_OSCAROFFLINEMSG, "id INTEGER PRIMARY KEY AUTOINCREMENT, fromscreenname TEXT, toscreenname TEXT, channel INTEGER, messagedata BLOB, timestamp TEXT");
+
+        // Oscar SSI (Server-Side Information)
+        CreateTable(TABLE_OSCARSSI, "screenname TEXT COLLATE NOCASE, name TEXT, groupid INTEGER, itemid INTEGER, itemtype INTEGER, tlvdata BLOB");
     }
 
     #region Log Methods
@@ -781,6 +797,251 @@ public class HiveDbContext : DbContextBase
             }
 
             transaction.Commit();
+        });
+    }
+    #endregion
+
+    #region Oscar Profile Methods
+    public OscarUserProfile OscarGetProfile(string screenName)
+    {
+        return WithContext<OscarUserProfile>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT * FROM {TABLE_OSCARPROFILE} WHERE screenname = @screenname";
+
+            command.Parameters.Add(new SqliteParameter("@screenname", screenName));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            return new OscarUserProfile(reader);
+        });
+    }
+
+    public void OscarInsertOrUpdateProfile(OscarUserProfile profile)
+    {
+        WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            updateCommand.CommandText = $"UPDATE {TABLE_OSCARPROFILE} SET nickname = @nickname, firstname = @firstname, lastname = @lastname, email = @email, homecity = @homecity, homestate = @homestate, homephone = @homephone, homefax = @homefax, homeaddress = @homeaddress, cellphone = @cellphone, homezip = @homezip, homecountry = @homecountry, age = @age, gender = @gender, homepage = @homepage, birthyear = @birthyear, birthmonth = @birthmonth, birthday = @birthday, language1 = @language1, language2 = @language2, language3 = @language3, workcity = @workcity, workstate = @workstate, workphone = @workphone, workfax = @workfax, workaddress = @workaddress, workzip = @workzip, workcountry = @workcountry, workcompany = @workcompany, workdepartment = @workdepartment, workposition = @workposition, workhomepage = @workhomepage, workoccupation = @workoccupation, notes = @notes, interests = @interests, affiliations = @affiliations, pastaffiliations = @pastaffiliations WHERE screenname = @screenname";
+
+            AddProfileParameters(updateCommand, profile);
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {TABLE_OSCARPROFILE} (screenname, nickname, firstname, lastname, email, homecity, homestate, homephone, homefax, homeaddress, cellphone, homezip, homecountry, age, gender, homepage, birthyear, birthmonth, birthday, language1, language2, language3, workcity, workstate, workphone, workfax, workaddress, workzip, workcountry, workcompany, workdepartment, workposition, workhomepage, workoccupation, notes, interests, affiliations, pastaffiliations) VALUES (@screenname, @nickname, @firstname, @lastname, @email, @homecity, @homestate, @homephone, @homefax, @homeaddress, @cellphone, @homezip, @homecountry, @age, @gender, @homepage, @birthyear, @birthmonth, @birthday, @language1, @language2, @language3, @workcity, @workstate, @workphone, @workfax, @workaddress, @workzip, @workcountry, @workcompany, @workdepartment, @workposition, @workhomepage, @workoccupation, @notes, @interests, @affiliations, @pastaffiliations)";
+
+                AddProfileParameters(insertCommand, profile);
+
+                insertCommand.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        });
+    }
+
+    private static void AddProfileParameters(IDbCommand command, OscarUserProfile profile)
+    {
+        command.Parameters.Add(new SqliteParameter("@screenname", profile.ScreenName));
+        command.Parameters.Add(new SqliteParameter("@nickname", profile.Nickname ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@firstname", profile.FirstName ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@lastname", profile.LastName ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@email", profile.Email ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homecity", profile.HomeCity ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homestate", profile.HomeState ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homephone", profile.HomePhone ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homefax", profile.HomeFax ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homeaddress", profile.HomeAddress ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@cellphone", profile.CellPhone ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homezip", profile.HomeZip ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@homecountry", (int)profile.HomeCountry));
+        command.Parameters.Add(new SqliteParameter("@age", (int)profile.Age));
+        command.Parameters.Add(new SqliteParameter("@gender", (int)profile.Gender));
+        command.Parameters.Add(new SqliteParameter("@homepage", profile.Homepage ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@birthyear", (int)profile.BirthYear));
+        command.Parameters.Add(new SqliteParameter("@birthmonth", (int)profile.BirthMonth));
+        command.Parameters.Add(new SqliteParameter("@birthday", (int)profile.BirthDay));
+        command.Parameters.Add(new SqliteParameter("@language1", (int)profile.Language1));
+        command.Parameters.Add(new SqliteParameter("@language2", (int)profile.Language2));
+        command.Parameters.Add(new SqliteParameter("@language3", (int)profile.Language3));
+        command.Parameters.Add(new SqliteParameter("@workcity", profile.WorkCity ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workstate", profile.WorkState ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workphone", profile.WorkPhone ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workfax", profile.WorkFax ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workaddress", profile.WorkAddress ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workzip", profile.WorkZip ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workcountry", (int)profile.WorkCountry));
+        command.Parameters.Add(new SqliteParameter("@workcompany", profile.WorkCompany ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workdepartment", profile.WorkDepartment ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workposition", profile.WorkPosition ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workhomepage", profile.WorkHomepage ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@workoccupation", (int)profile.WorkOccupation));
+        command.Parameters.Add(new SqliteParameter("@notes", profile.Notes ?? string.Empty));
+        command.Parameters.Add(new SqliteParameter("@interests", profile.InterestsJson ?? "[]"));
+        command.Parameters.Add(new SqliteParameter("@affiliations", profile.AffiliationsJson ?? "[]"));
+        command.Parameters.Add(new SqliteParameter("@pastaffiliations", profile.PastAffiliationsJson ?? "[]"));
+    }
+
+    public void OscarEnsureProfileExists(string screenName)
+    {
+        var existing = OscarGetProfile(screenName);
+
+        if (existing == null)
+        {
+            var profile = new OscarUserProfile
+            {
+                ScreenName = screenName,
+                Nickname = screenName,
+                Email = $"{screenName}@hive.com"
+            };
+
+            OscarInsertOrUpdateProfile(profile);
+        }
+    }
+    #endregion
+
+    #region Oscar Offline Message Methods
+    public void OscarStoreOfflineMessage(string from, string to, ushort channel, byte[] messageData)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"INSERT INTO {TABLE_OSCAROFFLINEMSG} (fromscreenname, toscreenname, channel, messagedata, timestamp) VALUES (@from, @to, @channel, @data, datetime('now'))";
+
+            command.Parameters.Add(new SqliteParameter("@from", from));
+            command.Parameters.Add(new SqliteParameter("@to", to));
+            command.Parameters.Add(new SqliteParameter("@channel", (int)channel));
+            command.Parameters.Add(new SqliteParameter("@data", messageData));
+
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public List<OscarOfflineMessage> OscarGetOfflineMessages(string screenName)
+    {
+        return WithContext<List<OscarOfflineMessage>>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT * FROM {TABLE_OSCAROFFLINEMSG} WHERE toscreenname = @to ORDER BY timestamp ASC";
+
+            command.Parameters.Add(new SqliteParameter("@to", screenName));
+
+            using var reader = command.ExecuteReader();
+
+            var messages = new List<OscarOfflineMessage>();
+
+            while (reader.Read())
+            {
+                messages.Add(new OscarOfflineMessage(reader));
+            }
+
+            return messages;
+        });
+    }
+
+    public void OscarDeleteOfflineMessages(string screenName)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_OSCAROFFLINEMSG} WHERE toscreenname = @to";
+
+            command.Parameters.Add(new SqliteParameter("@to", screenName));
+
+            command.ExecuteNonQuery();
+        });
+    }
+    #endregion
+
+    #region Oscar SSI Methods
+    public List<OscarSsiItem> OscarGetSsiItems(string screenName)
+    {
+        return WithContext<List<OscarSsiItem>>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT * FROM {TABLE_OSCARSSI} WHERE screenname = @screenname ORDER BY groupid, itemid";
+
+            command.Parameters.Add(new SqliteParameter("@screenname", screenName));
+
+            using var reader = command.ExecuteReader();
+
+            var items = new List<OscarSsiItem>();
+
+            while (reader.Read())
+            {
+                items.Add(new OscarSsiItem(reader));
+            }
+
+            return items;
+        });
+    }
+
+    public void OscarSsiAddItem(OscarSsiItem item)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"INSERT INTO {TABLE_OSCARSSI} (screenname, name, groupid, itemid, itemtype, tlvdata) VALUES (@screenname, @name, @groupid, @itemid, @itemtype, @tlvdata)";
+
+            command.Parameters.Add(new SqliteParameter("@screenname", item.ScreenName));
+            command.Parameters.Add(new SqliteParameter("@name", item.Name ?? string.Empty));
+            command.Parameters.Add(new SqliteParameter("@groupid", (int)item.GroupId));
+            command.Parameters.Add(new SqliteParameter("@itemid", (int)item.ItemId));
+            command.Parameters.Add(new SqliteParameter("@itemtype", (int)item.ItemType));
+            command.Parameters.Add(new SqliteParameter("@tlvdata", item.TlvData));
+
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public void OscarSsiUpdateItem(OscarSsiItem item)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"UPDATE {TABLE_OSCARSSI} SET name = @name, tlvdata = @tlvdata WHERE screenname = @screenname AND groupid = @groupid AND itemid = @itemid AND itemtype = @itemtype";
+
+            command.Parameters.Add(new SqliteParameter("@screenname", item.ScreenName));
+            command.Parameters.Add(new SqliteParameter("@name", item.Name ?? string.Empty));
+            command.Parameters.Add(new SqliteParameter("@groupid", (int)item.GroupId));
+            command.Parameters.Add(new SqliteParameter("@itemid", (int)item.ItemId));
+            command.Parameters.Add(new SqliteParameter("@itemtype", (int)item.ItemType));
+            command.Parameters.Add(new SqliteParameter("@tlvdata", item.TlvData));
+
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public void OscarSsiDeleteItem(string screenName, ushort groupId, ushort itemId, ushort itemType)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_OSCARSSI} WHERE screenname = @screenname AND groupid = @groupid AND itemid = @itemid AND itemtype = @itemtype";
+
+            command.Parameters.Add(new SqliteParameter("@screenname", screenName));
+            command.Parameters.Add(new SqliteParameter("@groupid", (int)groupId));
+            command.Parameters.Add(new SqliteParameter("@itemid", (int)itemId));
+            command.Parameters.Add(new SqliteParameter("@itemtype", (int)itemType));
+
+            command.ExecuteNonQuery();
         });
     }
     #endregion

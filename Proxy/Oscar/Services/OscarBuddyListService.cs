@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -9,6 +9,7 @@ public class OscarBuddyListService : IOscarService
     public const ushort CLI_BUDDYLIST_RIGHTS_REQ = 0x02;
     public const ushort SRV_BUDDYLIST_RIGHTS_REPLY = 0x03;
     public const ushort CLI_BUDDYLIST_ADD = 0x04;
+    public const ushort CLI_BUDDYLIST_REMOVE = 0x05;
     public const ushort SRV_USER_ONLINE = 0x0B;
     public const ushort SRV_USER_OFFLINE = 0x0C;
 
@@ -23,6 +24,8 @@ public class OscarBuddyListService : IOscarService
 
     public async Task ProcessSnac(OscarSession session, Snac snac)
     {
+        var traceId = session.Client.TraceId.ToString();
+
         switch (snac.SubType)
         {
             case CLI_BUDDYLIST_RIGHTS_REQ:
@@ -39,20 +42,7 @@ public class OscarBuddyListService : IOscarService
 
             case CLI_BUDDYLIST_ADD:
             {
-                var buddies = new List<string>();
-
-                var readIdx = 0;
-
-                while (readIdx < snac.RawData.Length)
-                {
-                    var buddyLength = (ushort)snac.RawData[readIdx];
-
-                    var buddy = Encoding.ASCII.GetString(snac.RawData[(readIdx + 1)..(readIdx + 1 + buddyLength)]);
-
-                    buddies.Add(buddy);
-
-                    readIdx += 1 + buddyLength;
-                }
+                var buddies = ParseBuddyList(snac.RawData);
 
                 session.Buddies = buddies;
 
@@ -62,9 +52,24 @@ public class OscarBuddyListService : IOscarService
             }
             break;
 
+            case CLI_BUDDYLIST_REMOVE:
+            {
+                var removedBuddies = ParseBuddyList(snac.RawData);
+
+                foreach (var buddy in removedBuddies)
+                {
+                    session.Buddies.RemoveAll(b => b.Equals(buddy, StringComparison.OrdinalIgnoreCase));
+                }
+
+                session.Save();
+
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarBuddyListService), $"Removed {removedBuddies.Count} buddies from list", traceId);
+            }
+            break;
+
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarBuddyListService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarBuddyListService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", traceId);
             }
             break;
         }
@@ -78,25 +83,7 @@ public class OscarBuddyListService : IOscarService
 
             if (buddySession != null)
             {
-                var isOffline = new Snac(Family, SRV_USER_OFFLINE);
-
-                isOffline.WriteUInt8((byte)session.ScreenName.Length);
-                isOffline.WriteString(session.ScreenName);
-                isOffline.WriteUInt16(0); // TODO: Warnings!
-
-                var tlvs = new List<Tlv>
-                {
-                    new Tlv(0x01, OscarUtils.GetBytes(0))
-                };
-
-                isOffline.WriteUInt16((ushort)tlvs.Count);
-
-                foreach (Tlv tlv in tlvs)
-                {
-                    isOffline.Write(tlv.Encode());
-                }
-
-                await buddySession.SendSnac(isOffline);
+                await SendUserOffline(buddySession, session.ScreenName, session.WarningLevel);
             }
         }
     }
@@ -109,63 +96,86 @@ public class OscarBuddyListService : IOscarService
 
             if (buddySession != null)
             {
-                var isOnlineSnac = new Snac(Family, SRV_USER_ONLINE);
+                // Tell session that buddy is online
+                await SendUserOnline(session, buddySession);
 
-                isOnlineSnac.WriteUInt8((byte)buddy.Length);
-                isOnlineSnac.WriteString(buddy);
-                isOnlineSnac.WriteUInt16(0); // TODO: Warnings!
-
-                var tlvs = new List<Tlv>
-                {
-                    new Tlv(0x01, OscarUtils.GetBytes(0)),
-                    new Tlv(0x06, OscarUtils.GetBytes((uint)buddySession.Status)),
-                    new Tlv(0x0F, OscarUtils.GetBytes((uint)0)),
-                    new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
-                    new Tlv(0x05, OscarUtils.GetBytes((uint)420))
-                };
-
-                isOnlineSnac.WriteUInt16((ushort)tlvs.Count);
-
-                foreach (Tlv tlv in tlvs)
-                {
-                    isOnlineSnac.Write(tlv.Encode());
-                }
-
-                await session.SendSnac(isOnlineSnac);
-
-                await SendOnlineNotifications(buddySession, session.ScreenName);
+                // Tell buddy that session is online
+                await SendUserOnline(buddySession, session);
             }
         }
     }
 
-    private async Task SendOnlineNotifications(OscarSession session, string screenName)
+    public static async Task SendUserOnline(OscarSession recipient, OscarSession onlineUser)
     {
-        var buddySession = OscarServer.Sessions.GetByScreenName(screenName);
+        var isOnlineSnac = new Snac(FAMILY_ID, SRV_USER_ONLINE);
 
-        if (buddySession != null)
+        isOnlineSnac.WriteUInt8((byte)onlineUser.ScreenName.Length);
+        isOnlineSnac.WriteString(onlineUser.ScreenName);
+        isOnlineSnac.WriteUInt16(onlineUser.WarningLevel);
+
+        var tlvs = new List<Tlv>
         {
-            var isOnlineSnac = new Snac(Family, SRV_USER_ONLINE);
+            new Tlv(0x01, OscarUtils.GetBytes(0)),
+            new Tlv(0x06, OscarUtils.GetBytes((uint)onlineUser.Status)),
+            new Tlv(0x0F, OscarUtils.GetBytes((uint)onlineUser.SignOnTime.ToUnixTimeSeconds())),
+            new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
+            new Tlv(0x05, OscarUtils.GetBytes((uint)onlineUser.SignOnTime.ToUnixTimeSeconds()))
+        };
 
-            isOnlineSnac.WriteUInt8((byte)screenName.Length);
-            isOnlineSnac.WriteString(screenName);
-            isOnlineSnac.WriteUInt16(0); // TODO: Warnings!
-
-            var tlvs = new List<Tlv> {
-                new Tlv(0x01, OscarUtils.GetBytes(0)),
-                new Tlv(0x06, OscarUtils.GetBytes((uint)buddySession.Status)),
-                new Tlv(0x0F, OscarUtils.GetBytes((uint)0)),
-                new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
-                new Tlv(0x05, OscarUtils.GetBytes((uint)420))
-            };
-
-            isOnlineSnac.WriteUInt16((ushort)tlvs.Count);
-
-            foreach (Tlv tlv in tlvs)
-            {
-                isOnlineSnac.Write(tlv.Encode());
-            }
-
-            await session.SendSnac(isOnlineSnac);
+        if (onlineUser.GetCurrentIdleSeconds() > 0)
+        {
+            tlvs.Add(new Tlv(0x04, OscarUtils.GetBytes((ushort)onlineUser.GetCurrentIdleSeconds())));
         }
+
+        isOnlineSnac.WriteUInt16((ushort)tlvs.Count);
+
+        foreach (Tlv tlv in tlvs)
+        {
+            isOnlineSnac.Write(tlv.Encode());
+        }
+
+        await recipient.SendSnac(isOnlineSnac);
+    }
+
+    private static async Task SendUserOffline(OscarSession recipient, string offlineScreenName, ushort warningLevel)
+    {
+        var isOffline = new Snac(FAMILY_ID, SRV_USER_OFFLINE);
+
+        isOffline.WriteUInt8((byte)offlineScreenName.Length);
+        isOffline.WriteString(offlineScreenName);
+        isOffline.WriteUInt16(warningLevel);
+
+        var tlvs = new List<Tlv>
+        {
+            new Tlv(0x01, OscarUtils.GetBytes(0))
+        };
+
+        isOffline.WriteUInt16((ushort)tlvs.Count);
+
+        foreach (Tlv tlv in tlvs)
+        {
+            isOffline.Write(tlv.Encode());
+        }
+
+        await recipient.SendSnac(isOffline);
+    }
+
+    private static List<string> ParseBuddyList(byte[] data)
+    {
+        var buddies = new List<string>();
+        var readIdx = 0;
+
+        while (readIdx < data.Length)
+        {
+            var buddyLength = (ushort)data[readIdx];
+
+            var buddy = Encoding.ASCII.GetString(data[(readIdx + 1)..(readIdx + 1 + buddyLength)]);
+
+            buddies.Add(buddy);
+
+            readIdx += 1 + buddyLength;
+        }
+
+        return buddies;
     }
 }
