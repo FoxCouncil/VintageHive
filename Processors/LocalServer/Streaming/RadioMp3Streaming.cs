@@ -109,7 +109,7 @@ internal static class RadioMp3Streaming
 
                 await clientStream.CopyToAsync(request.ListenerSocket.Stream);
             }
-            catch (Exception) { }
+            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"ICY stream write failed: {ex.Message}", ""); }
         }
     }
 
@@ -276,7 +276,7 @@ internal static class RadioMp3Streaming
 
                 await clientStream.CopyToAsync(request.ListenerSocket.Stream);
             }
-            catch (Exception) { }
+            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"WMP stream write failed: {ex.Message}", ""); }
         }
     }
 

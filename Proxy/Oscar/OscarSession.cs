@@ -118,7 +118,7 @@ public class OscarSession
 
     public async Task SendSnac(Snac snac)
     {
-        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"<- {snac}", Client.TraceId.ToString());
+        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"<- {snac}", Client.TraceId.ToString());
 
         var snacDataFlap = new Flap(FlapFrameType.Data)
         {
@@ -149,11 +149,11 @@ public class OscarSession
             return null;
         }
 
-        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Recieved {read} bytes...", Client.TraceId.ToString());
+        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"Received {read} bytes...", Client.TraceId.ToString());
 
         var flaps = OscarUtils.DecodeFlaps(buffer[..read]);
 
-        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Total {flaps.Length} flaps", Client.TraceId.ToString());
+        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"Total {flaps.Length} flaps", Client.TraceId.ToString());
 
         return flaps;
     }

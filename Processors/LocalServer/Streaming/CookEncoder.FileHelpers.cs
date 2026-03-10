@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 // Cook encoder — file encoding helpers (FFmpeg-based WAV/audio → .rm conversion)
 
 using VintageHive.Utilities;

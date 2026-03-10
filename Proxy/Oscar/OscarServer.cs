@@ -58,92 +58,114 @@ public class OscarServer : Listener
 
     public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
     {
+        var traceId = connection.TraceId.ToString();
+
         var session = new OscarSession(connection);
 
         Sessions.Add(session);
+
+        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client connected from {connection.RemoteAddress}", traceId);
 
         await session.SendFlap(HelloFlap);
 
         session.SentHello = true;
 
-        while (session.Client.IsConnected)
+        try
         {
-            var flaps = await session.ReceiveFlaps();
-
-            if (flaps == null)
+            while (session.Client.IsConnected)
             {
-                Thread.Sleep(1);
+                var flaps = await session.ReceiveFlaps();
 
-                continue;
-            }
-
-            foreach (Flap flap in flaps)
-            {
-                switch (flap.Type)
+                if (flaps == null)
                 {
-                    case FlapFrameType.SignOn:
+                    Thread.Sleep(1);
+
+                    continue;
+                }
+
+                foreach (Flap flap in flaps)
+                {
+                    switch (flap.Type)
                     {
-                        if (flap.Data.Length == 4)
+                        case FlapFrameType.SignOn:
                         {
-                            // MD5 Style Login
+                            if (flap.Data.Length == 4)
+                            {
+                                // MD5 Style Login
 
-                            continue;
+                                continue;
+                            }
+
+                            var tlvs = OscarUtils.DecodeTlvs(flap.Data[4..]);
+
+                            if (tlvs.Length != 1)
+                            {
+                                await ProcessChannelOneAuth(session, tlvs);
+                            }
+                            else
+                            {
+                                await ProcessCookieAuth(session, tlvs);
+                            }
                         }
+                        break;
 
-                        var tlvs = OscarUtils.DecodeTlvs(flap.Data[4..]);
-
-                        if (tlvs.Length != 1)
+                        case FlapFrameType.Data:
                         {
-                            await ProcessChannelOneAuth(session, tlvs);
+                            var snacPacket = flap.GetSnac();
+
+                            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"-> {snacPacket}", traceId);
+
+                            var familyProcessor = services.FirstOrDefault(x => x.Family == snacPacket.Family);
+
+                            if (familyProcessor != null)
+                            {
+                                try
+                                {
+                                    await familyProcessor.ProcessSnac(session, snacPacket);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.WriteException(nameof(OscarServer), ex, traceId);
+                                }
+                            }
+                            else
+                            {
+                                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarServer), $"No handler for SNAC family 0x{snacPacket.Family:X4}", traceId);
+                            }
                         }
-                        else
+                        break;
+
+                        case FlapFrameType.SignOff:
                         {
-                            await ProcessCookieAuth(session, tlvs);
+                            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client signing off: {session.ScreenName ?? "unknown"}", traceId);
+
+                            var blmService = (OscarBuddyListService)services.FirstOrDefault(x => x.Family == OscarBuddyListService.FAMILY_ID);
+
+                            await blmService.ProcessOfflineNotifications(session);
+
+                            session.Client.RawSocket.Close();
                         }
+                        break;
                     }
-                    break;
-
-                    case FlapFrameType.Data:
-                    {
-                        var snacPacket = flap.GetSnac();
-
-                        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"-> {snacPacket}", connection.TraceId.ToString());
-
-                        var familyProcessor = services.FirstOrDefault(x => x.Family == snacPacket.Family);
-
-                        if (familyProcessor != null)
-                        {
-                            await familyProcessor.ProcessSnac(session, snacPacket);
-                        }
-                        else
-                        {
-                            // REPORT ERROR??
-                            // DISCONNECT CLIENT??
-                            // Debugger.Break();
-                        }
-                    }
-                    break;
-
-                    case FlapFrameType.SignOff:
-                    {
-                        var blmService = (OscarBuddyListService)services.FirstOrDefault(x => x.Family == OscarBuddyListService.FAMILY_ID);
-
-                        await blmService.ProcessOfflineNotifications(session);
-
-                        session.Client.RawSocket.Close();
-                    }
-                    break;
                 }
             }
         }
+        catch (Exception ex)
+        {
+            Log.WriteException(nameof(OscarServer), ex, traceId);
+        }
 
         Sessions.Remove(session);
+
+        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client disconnected: {session.ScreenName ?? "unknown"}", traceId);
 
         return null;
     }
 
     private async Task ProcessCookieAuth(OscarSession session, Tlv[] tlvs)
     {
+        var traceId = session.Client.TraceId.ToString();
+
         var cookie = Encoding.ASCII.GetString(tlvs.GetTlv(0x06).Value);
 
         var storedSession = Mind.Db.OscarGetSessionByCookie(cookie);
@@ -152,6 +174,8 @@ public class OscarServer : Listener
         session.ScreenName = storedSession.ScreenName;
         session.UserAgent = storedSession.UserAgent;
 
+        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Cookie auth successful: {session.ScreenName} ({session.UserAgent})", traceId);
+
         var genericServiceControls = services.FirstOrDefault(x => x.Family == OscarGenericServiceControls.FAMILY_ID);
 
         await genericServiceControls.ProcessSnac(session, new Snac(genericServiceControls.Family, OscarGenericServiceControls.SRV_FAMILIES));
@@ -159,10 +183,14 @@ public class OscarServer : Listener
 
     private static async Task ProcessChannelOneAuth(OscarSession session, Tlv[] tlvs)
     {
+        var traceId = session.Client.TraceId.ToString();
+
         session.ScreenName = Encoding.ASCII.GetString(tlvs.GetTlv(0x01).Value);
 
         if (!Mind.Db.UserExistsByUsername(session.ScreenName))
         {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Auth failed (unknown user): {session.ScreenName}", traceId);
+
             await AuthFailedError(session);
 
             return;
@@ -178,7 +206,6 @@ public class OscarServer : Listener
 
             var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
 
-            // send yes
             var srvCookie = new List<Tlv>
             {
                 new Tlv(Tlv.Type_ScreenName, session.ScreenName),
@@ -193,12 +220,16 @@ public class OscarServer : Listener
 
             await session.SendFlap(authSuccessFlap);
 
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Channel-1 auth successful: {session.ScreenName} ({session.UserAgent})", traceId);
+
             await session.Client.Stream.FlushAsync();
 
             session.Client.RawSocket.Close();
         }
         else
         {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Auth failed (bad password): {session.ScreenName}", traceId);
+
             await AuthFailedError(session);
         }
     }

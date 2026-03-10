@@ -8,6 +8,8 @@ using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Socks.Socks4;
 using VintageHive.Proxy.Socks.Socks5;
 
+#pragma warning disable MSTEST0025 // Enum-to-byte casts are intentional — verifying wire-level constants
+
 namespace Socks;
 
 #region Enum Tests
@@ -623,15 +625,15 @@ public class SocksVersionDispatchTests
 /// </summary>
 internal class SocketPair : IDisposable
 {
-    public Socket ClientSocket { get; private init; }
+    public Socket ClientSocket { get; private init; } = null!;
 
-    public NetworkStream ClientStream { get; private init; }
+    public NetworkStream ClientStream { get; private init; } = null!;
 
-    private Socket ServerSocket { get; init; }
+    private Socket ServerSocket { get; init; } = null!;
 
-    private Task HandlerTask { get; init; }
+    private Task HandlerTask { get; init; } = null!;
 
-    private CancellationTokenSource Cts { get; init; }
+    private CancellationTokenSource Cts { get; init; } = null!;
 
     public static async Task<SocketPair> CreateAsync(int socksVersion = 5)
     {
@@ -668,7 +670,7 @@ internal class SocketPair : IDisposable
 
         var consumed = new byte[1];
 
-        await serverStream.ReadAsync(consumed);
+        await serverStream.ReadExactlyAsync(consumed);
 
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
 
@@ -833,3 +835,5 @@ internal class DuplexStream : Stream
 }
 
 #endregion
+
+#pragma warning restore MSTEST0025

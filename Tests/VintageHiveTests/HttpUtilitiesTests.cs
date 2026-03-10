@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Proxy.Http;
 using static VintageHive.Proxy.Http.HttpUtilities;
@@ -33,9 +33,9 @@ public class HttpUtilitiesTests
     [TestMethod]
     public void AddOrUpdate_NullDict_Throws()
     {
-        Dictionary<string, string> dict = null;
+        Dictionary<string, string> dict = null!;
 
-        Assert.ThrowsExactly<ArgumentNullException>(() => dict.AddOrUpdate("key", "value"));
+        Assert.ThrowsExactly<ArgumentNullException>(() => dict!.AddOrUpdate("key", "value"));
     }
 
     [TestMethod]
@@ -43,7 +43,7 @@ public class HttpUtilitiesTests
     {
         var dict = new Dictionary<string, string>();
 
-        Assert.ThrowsExactly<ArgumentNullException>(() => dict.AddOrUpdate("key", null));
+        Assert.ThrowsExactly<ArgumentNullException>(() => dict.AddOrUpdate("key", null!));
     }
 
     #endregion

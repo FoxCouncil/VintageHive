@@ -284,7 +284,7 @@ public class McsConnectTests
     [TestMethod]
     public void IsConnectInitial_NullOrShort_ReturnsFalse()
     {
-        Assert.IsFalse(McsCodec.IsConnectInitial(null));
+        Assert.IsFalse(McsCodec.IsConnectInitial(null!));
         Assert.IsFalse(McsCodec.IsConnectInitial(new byte[] { 0x7F }));
         Assert.IsFalse(McsCodec.IsConnectInitial(Array.Empty<byte>()));
     }
@@ -878,7 +878,7 @@ public class T120ServerTests
         var payload = await TpktFrame.ReadAsync(stream);
         if (payload == null)
         {
-            return null;
+            return null!;
         }
 
         var x224 = X224Message.Parse(payload);

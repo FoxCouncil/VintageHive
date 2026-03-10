@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Text;
 using VintageHive.Proxy.Printer;
@@ -13,7 +13,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_Null_ReturnsUnknown()
     {
-        Assert.AreEqual(PrintDataFormat.Unknown, PrintFormatDetector.Detect(null));
+        Assert.AreEqual(PrintDataFormat.Unknown, PrintFormatDetector.Detect(null!));
     }
 
     [TestMethod]

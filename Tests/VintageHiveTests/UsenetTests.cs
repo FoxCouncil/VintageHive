@@ -11,8 +11,8 @@ namespace Usenet;
 [TestClass]
 public class UsenetTests
 {
-    private static List<BundledGroup> _groups;
-    private static Dictionary<string, List<UsenetArticle>> _articles;
+    private static List<BundledGroup> _groups = null!;
+    private static Dictionary<string, List<UsenetArticle>> _articles = null!;
 
     [ClassInitialize]
     public static void ClassInit(TestContext context)
@@ -326,7 +326,7 @@ public class UsenetTests
     [TestMethod]
     public void DotStuff_ShouldHandleNull()
     {
-        Assert.AreEqual("", NntpProxy.DotStuff(null));
+        Assert.AreEqual("", NntpProxy.DotStuff(null!));
     }
 
     [TestMethod]
@@ -579,7 +579,7 @@ public class UsenetTests
 
         if (gzResourceName != null)
         {
-            using var gzStream = assembly.GetManifestResourceStream(gzResourceName);
+            using var gzStream = assembly.GetManifestResourceStream(gzResourceName)!;
             using var decompressed = new GZipStream(gzStream, CompressionMode.Decompress);
             using var ms = new MemoryStream();
 
@@ -587,7 +587,7 @@ public class UsenetTests
 
             var json = Encoding.UTF8.GetString(ms.ToArray());
 
-            return JsonSerializer.Deserialize<Dictionary<string, List<UsenetArticle>>>(json, jsonOptions);
+            return JsonSerializer.Deserialize<Dictionary<string, List<UsenetArticle>>>(json, jsonOptions)!;
         }
 
         return LoadEmbeddedJson<Dictionary<string, List<UsenetArticle>>>("TestData.usenet.articles.json");
@@ -599,7 +599,7 @@ public class UsenetTests
         var resourceName = assembly.GetManifestResourceNames()
             .First(n => n.EndsWith(resourceSuffix, StringComparison.OrdinalIgnoreCase));
 
-        using var stream = assembly.GetManifestResourceStream(resourceName);
+        using var stream = assembly.GetManifestResourceStream(resourceName)!;
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
         var json = reader.ReadToEnd();
@@ -607,7 +607,7 @@ public class UsenetTests
         return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
-        });
+        })!;
     }
 
     #endregion
@@ -616,8 +616,8 @@ public class UsenetTests
 
     private class BundledGroup
     {
-        public string Name { get; set; }
-        public string Description { get; set; }
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
     }
 
     #endregion

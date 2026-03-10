@@ -37,6 +37,8 @@ public class OscarAuthorizationService : IOscarService
 
                 if (!Mind.Db.UserExistsByUsername(session.ScreenName))
                 {
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (unknown user): {session.ScreenName}", session.Client.TraceId.ToString());
+
                     await FailAuth(session, snac);
 
                     return;
@@ -82,9 +84,13 @@ public class OscarAuthorizationService : IOscarService
                     authSuccessSnac.WriteTlvs(authSuccessTlvs);
 
                     await session.SendSnac(authSuccessSnac);
+
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth successful: {session.ScreenName} ({session.UserAgent})", session.Client.TraceId.ToString());
                 }
                 else
                 {
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (bad password): {session.ScreenName}", session.Client.TraceId.ToString());
+
                     await FailAuth(session, snac);
                 }
             }
@@ -92,10 +98,7 @@ public class OscarAuthorizationService : IOscarService
 
             case CLI_REGISTRATION_REQUEST:
             {
-                var tlvs = OscarUtils.DecodeTlvs(snac.RawData);
-
-                var registrationData = tlvs.GetTlv(0x01).Value;
-
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Registration request (not implemented)", session.Client.TraceId.ToString());
             }
             break;
 
@@ -116,7 +119,7 @@ public class OscarAuthorizationService : IOscarService
 
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarAuthorizationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

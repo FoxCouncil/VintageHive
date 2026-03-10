@@ -5,6 +5,7 @@ using VintageHive.Proxy.NetMeeting;
 using VintageHive.Proxy.NetMeeting.Chat;
 using VintageHive.Proxy.NetMeeting.T120;
 
+#pragma warning disable MSTEST0025
 namespace VintageHiveTests;
 
 // ──────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ public class ChatMessageTests
     [TestMethod]
     public void Encode_NullText_Throws()
     {
-        Assert.ThrowsExactly<ArgumentNullException>(() => ChatMessage.Encode(null));
+        Assert.ThrowsExactly<ArgumentNullException>(() => ChatMessage.Encode(null!));
     }
 
     [TestMethod]
@@ -117,7 +118,7 @@ public class ChatMessageTests
     [TestMethod]
     public void Decode_EmptyPacket_ReturnsNull()
     {
-        Assert.IsNull(ChatMessage.Decode(null));
+        Assert.IsNull(ChatMessage.Decode(null!));
         Assert.IsNull(ChatMessage.Decode(Array.Empty<byte>()));
         Assert.IsNull(ChatMessage.Decode(new byte[4]));
     }
@@ -226,7 +227,7 @@ public class ChatMessageTests
     [TestMethod]
     public void IsChatPacket_Null_ReturnsFalse()
     {
-        Assert.IsFalse(ChatMessage.IsChatPacket(null));
+        Assert.IsFalse(ChatMessage.IsChatPacket(null!));
     }
 
     [TestMethod]
@@ -280,14 +281,14 @@ public class ChatMessageTests
         {
             var predicted = ChatMessage.GetPacketLength(text);
             var actual = ChatMessage.Encode(text).Length;
-            Assert.AreEqual(actual, predicted, $"Mismatch for text '{text}'");
+            Assert.AreEqual(predicted, actual, $"Mismatch for text '{text}'");
         }
     }
 
     [TestMethod]
     public void GetPacketLength_Null_Throws()
     {
-        Assert.ThrowsExactly<ArgumentNullException>(() => ChatMessage.GetPacketLength(null));
+        Assert.ThrowsExactly<ArgumentNullException>(() => ChatMessage.GetPacketLength(null!));
     }
 
     // ── Wire format verification ─────────────────────────
@@ -436,3 +437,4 @@ public class ChatMcsIntegrationTests
         }
     }
 }
+#pragma warning restore MSTEST0025

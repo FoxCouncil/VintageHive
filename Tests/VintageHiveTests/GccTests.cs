@@ -88,7 +88,7 @@ public class GccConnectDataTests
     [TestMethod]
     public void IsT124ConnectData_NullOrShort_ReturnsFalse()
     {
-        Assert.IsFalse(GccCodec.IsT124ConnectData(null));
+        Assert.IsFalse(GccCodec.IsT124ConnectData(null!));
         Assert.IsFalse(GccCodec.IsT124ConnectData(Array.Empty<byte>()));
         Assert.IsFalse(GccCodec.IsT124ConnectData(new byte[] { 0x00, 0x05 }));
     }
@@ -360,7 +360,7 @@ public class GccConferenceCreateRequestTests
             new GccUserDataBlock
             {
                 H221Key = GccConstants.H221_KEY_MICROSOFT,
-                Value = null
+                Value = null!
             }
         };
 

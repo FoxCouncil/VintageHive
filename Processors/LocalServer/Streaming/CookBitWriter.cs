@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 // Big-endian bitstream writer for cook codec frames
 
 namespace VintageHive.Processors.LocalServer.Streaming;

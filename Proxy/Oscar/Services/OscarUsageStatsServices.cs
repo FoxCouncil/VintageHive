@@ -17,17 +17,23 @@ internal class OscarUsageStatsServices : IOscarService
         Server = server;
     }
 
-    public async Task ProcessSnac(OscarSession session, Snac snac)
+    public Task ProcessSnac(OscarSession session, Snac snac)
     {
-        await Task.Delay(0);
-
         switch (snac.SubType)
         {
             case CLI_STATS_REPORT:
             {
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarUsageStatsServices), "Stats report received", session.Client.TraceId.ToString());
+            }
+            break;
 
+            default:
+            {
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarUsageStatsServices), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }
+
+        return Task.CompletedTask;
     }
 }

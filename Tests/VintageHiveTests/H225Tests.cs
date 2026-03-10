@@ -467,7 +467,7 @@ public class RasCodecMiscTests
     public void GatekeeperConfirm_WithoutGkId()
     {
         var rasAddr = new IPEndPoint(IPAddress.Loopback, 1719);
-        var bytes = RasCodec.EncodeGatekeeperConfirm(1, rasAddr, null);
+        var bytes = RasCodec.EncodeGatekeeperConfirm(1, rasAddr, null!);
         Assert.IsNotNull(bytes);
         Assert.IsTrue(bytes.Length > 0);
     }

@@ -21,8 +21,6 @@ internal class OscarUserLookupService : IOscarService
 
     public async Task ProcessSnac(OscarSession session, Snac snac)
     {
-        await Task.Delay(0);
-
         switch (snac.SubType)
         {
             case CLI_SEARCH_BY_EMAIL:
@@ -47,6 +45,12 @@ internal class OscarUserLookupService : IOscarService
 
                     await session.SendSnac(replySnac);
                 }
+            }
+            break;
+
+            default:
+            {
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarUserLookupService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

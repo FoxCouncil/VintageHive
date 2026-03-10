@@ -117,7 +117,7 @@ internal class OscarIcqService : IOscarService
 
                     default:
                     {
-                        Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown meta request type 0x{icqMetaReq.RequestType:X4}", "");
+                        Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown meta request type 0x{icqMetaReq.RequestType:X4}", session.Client.TraceId.ToString());
                     }
                     break;
                 }
@@ -126,7 +126,7 @@ internal class OscarIcqService : IOscarService
 
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }
@@ -138,7 +138,7 @@ internal class OscarIcqService : IOscarService
         {
             case CLI_FULLINFO_REQUEST2:
             {
-                // TODO: User Retrival.
+                // TODO: User Retrieval.
                 await SendBasicUserInfo(session, snac, icqMetaReq);
                 await SendMoreUserInfo(session, snac, icqMetaReq);
                 await SendEmailUserInfo(session, snac, icqMetaReq);
@@ -167,7 +167,7 @@ internal class OscarIcqService : IOscarService
 
                     default:
                     {
-                        Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown XML request key: {icqMetaReq.XmlKey}", "");
+                        Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown XML request key: {icqMetaReq.XmlKey}", session.Client.TraceId.ToString());
                     }
                     break;
                 }
@@ -228,18 +228,13 @@ internal class OscarIcqService : IOscarService
             case CLI_UNKNOWN_ONE:
             case CLI_UNKNOWN_TWO:
             {
-                // NOOP
-                Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Unknown ICQ Meta Request SubTYPE {icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Ignored ICQ meta request subtype 0x{icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
             }
             break;
 
             default:
             {
-                await Task.Delay(0);
-
-                // Debugger.Break();
-
-                Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Unknown ICQ Meta Request SubTYPE {icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), $"Unknown ICQ meta request subtype 0x{icqMetaReq.RequestSubType:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

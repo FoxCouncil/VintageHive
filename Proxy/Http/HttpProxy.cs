@@ -9,11 +9,24 @@ namespace VintageHive.Proxy.Http;
 
 public class HttpProxy : Listener
 {
-    static readonly Dictionary<HttpStatusCode, string> ErrorPages = new()
+    static readonly Dictionary<HttpStatusCode, string> ErrorPages = LoadErrorPages();
+
+    private static Dictionary<HttpStatusCode, string> LoadErrorPages()
     {
-        { HttpStatusCode.NotFound, new StreamReader(typeof(HttpProxy).Assembly.GetManifestResourceStream("VintageHive.Statics.errors.404.html")).ReadToEnd() },
-        { HttpStatusCode.InternalServerError, new StreamReader(typeof(HttpProxy).Assembly.GetManifestResourceStream("VintageHive.Statics.errors.500.html")).ReadToEnd() }
-    };
+        var pages = new Dictionary<HttpStatusCode, string>();
+
+        using (var notFoundStream = new StreamReader(typeof(HttpProxy).Assembly.GetManifestResourceStream("VintageHive.Statics.errors.404.html")))
+        {
+            pages[HttpStatusCode.NotFound] = notFoundStream.ReadToEnd();
+        }
+
+        using (var serverErrorStream = new StreamReader(typeof(HttpProxy).Assembly.GetManifestResourceStream("VintageHive.Statics.errors.500.html")))
+        {
+            pages[HttpStatusCode.InternalServerError] = serverErrorStream.ReadToEnd();
+        }
+
+        return pages;
+    }
 
     public readonly List<VintageHiveHttpProcessDelegate> Handlers = new();
 
@@ -142,7 +155,6 @@ public class HttpProxy : Listener
                         {
                             await socket.SecureStream.WriteAsync(buffer);
                             await httpResponse.Stream.CopyToSslAsync(socket.SecureStream);
-                            // await socket.SecureStream.WriteAsync(httpResponse.Stream.ReadAllBytes());
                         }
                         else
                         {
@@ -157,7 +169,7 @@ public class HttpProxy : Listener
 
                     return buffer;
                 }
-                catch (Exception) { }
+                catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(HttpProxy), $"Response write failed: {ex.Message}", connection.TraceId.ToString()); }
             }
         }
         else
@@ -171,7 +183,7 @@ public class HttpProxy : Listener
                 // TODO: Store metadata about what made the cached response.
                 return Convert.FromBase64String(cachedResponse);
             }
-            catch (Exception) { }
+            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(HttpProxy), $"Cached response decode failed: {ex.Message}", connection.TraceId.ToString()); }
         }
 
         // Only close the connection if keep-alive is not requested.

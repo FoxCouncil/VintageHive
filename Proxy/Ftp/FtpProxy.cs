@@ -91,7 +91,7 @@ public class FtpProxy : Listener
 
                 return Convert.FromBase64String(cachedResponse);
             }
-            catch (Exception) { }
+            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(FtpProxy), $"Cached response decode failed: {ex.Message}", connection.TraceId.ToString()); }
         }
 
         // TODO: Keep-Alive respect?

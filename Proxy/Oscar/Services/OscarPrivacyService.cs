@@ -37,21 +37,19 @@ internal class OscarPrivacyService : IOscarService
 
             case CLI_VISIBLE_ADD:
             {
-                // Debugger.Break();
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarPrivacyService), "Visible list add (not implemented)", session.Client.TraceId.ToString());
             }
             break;
 
             case CLI_INVISIBLE_ADD:
             {
-
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarPrivacyService), "Invisible list add (not implemented)", session.Client.TraceId.ToString());
             }
             break;
 
             default:
             {
-                // Debugger.Break();
-
-                await Task.Delay(0);
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarPrivacyService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Text;
 using VintageHive.Utilities;
@@ -154,7 +154,7 @@ public class ExtensionsTests
     [TestMethod]
     public void ConfirmValidPath_Null_ReturnsFalse()
     {
-        Assert.IsFalse(((string)null).ConfirmValidPath());
+        Assert.IsFalse(((string)null!).ConfirmValidPath());
     }
 
     #endregion
@@ -479,7 +479,7 @@ public class ExtensionsTests
     [TestMethod]
     public void HostContains_NullUri_ReturnsFalse()
     {
-        Assert.IsFalse(((Uri)null).HostContains("test"));
+        Assert.IsFalse(((Uri)null!).HostContains("test"));
     }
 
     [TestMethod]
@@ -487,7 +487,7 @@ public class ExtensionsTests
     {
         var uri = new Uri("http://example.com");
 
-        Assert.ThrowsExactly<ArgumentNullException>(() => uri.HostContains(null));
+        Assert.ThrowsExactly<ArgumentNullException>(() => uri.HostContains(null!));
     }
 
     #endregion

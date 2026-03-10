@@ -57,6 +57,8 @@ internal class OscarGenericServiceControls : IOscarService
             case CLI_SERVICExREQ:
             {
                 var familyReq = OscarUtils.ToUInt16(snac.RawData);
+
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarGenericServiceControls), $"Service request for family 0x{familyReq:X4} (not implemented)", session.Client.TraceId.ToString());
             }
             break;
 
@@ -143,6 +145,8 @@ internal class OscarGenericServiceControls : IOscarService
             case CLI_SETxIDLExTIME:
             {
                 var idleTime = OscarUtils.ToUInt32(snac.RawData);
+
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarGenericServiceControls), $"Idle time set: {idleTime}s", session.Client.TraceId.ToString());
             }
             break;
 
@@ -173,12 +177,14 @@ internal class OscarGenericServiceControls : IOscarService
             case CLI_SETxSTATUS:
             {
                 var tlvs = OscarUtils.DecodeTlvs(snac.RawData);
+
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarGenericServiceControls), $"Status update ({tlvs.Length} TLVs)", session.Client.TraceId.ToString());
             }
             break;
 
             default:
             {
-                // Debugger.Break();
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarGenericServiceControls), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

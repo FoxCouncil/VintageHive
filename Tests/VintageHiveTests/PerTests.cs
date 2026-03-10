@@ -1112,7 +1112,7 @@ public class PerSequenceChoiceTests
         var enc = new PerEncoder();
         enc.WriteExtensionAdditions(
             inner => { inner.WriteBoolean(true); inner.AlignToOctet(); },
-            null, // absent
+            null!, // absent
             inner => { inner.WriteConstrainedWholeNumber(5, 0, 7); inner.AlignToOctet(); }
         );
 

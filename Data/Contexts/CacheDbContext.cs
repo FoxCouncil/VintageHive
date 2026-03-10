@@ -1,6 +1,5 @@
-﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using AngleSharp.Dom;
 using Microsoft.Data.Sqlite;
 
 namespace VintageHive.Data.Contexts;
@@ -11,203 +10,54 @@ public class CacheDbContext : DbContextBase
 
     public CacheDbContext() : base()
     {
-        CreateTable("proxyhttp", "url TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.ProxyHttp, "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("proxyftp", "url TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.ProxyFtp, "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("wayback", "url TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.Wayback, "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("waybackavailability", "url TEXT, year TEXT, value TEXT, results TEXT");
+        CreateTable(CacheTableNames.WaybackAvailability, "url TEXT, year TEXT, value TEXT, results TEXT");
 
-        CreateTable("protoweb", "url TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.Protoweb, "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("protowebsitelist", "protocol TEXT, url TEXT");
+        CreateTable(CacheTableNames.ProtowebSiteList, "protocol TEXT, url TEXT");
 
-        CreateTable("weather", "url TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.Weather, "url TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("radiobrowser", "key TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.RadioBrowser, "key TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("data", "key TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.Data, "key TEXT UNIQUE, ttl TEXT, value TEXT");
 
-        CreateTable("usenet", "key TEXT UNIQUE, ttl TEXT, value TEXT");
+        CreateTable(CacheTableNames.Usenet, "key TEXT UNIQUE, ttl TEXT, value TEXT");
     }
 
-    internal string GetHttpProxy(string url)
-    {
-        return WithContext<string>(context =>
-        {
-            var command = context.CreateCommand();
+    internal string GetHttpProxy(string url) => GetCachedValue(CacheTableNames.ProxyHttp, "url", url);
 
-            command.CommandText = "SELECT value, ttl FROM proxyhttp WHERE url = @url";
+    internal void SetHttpProxy(string url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.ProxyHttp, "url", url, ttl, value);
 
-            command.Parameters.Add(new SqliteParameter("@url", url));
+    internal string GetFtpProxy(string url) => GetCachedValue(CacheTableNames.ProxyFtp, "url", url);
 
-            using var reader = command.ExecuteReader();
+    internal void SetFtpProxy(string url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.ProxyFtp, "url", url, ttl, value);
 
-            if (!reader.Read())
-            {
-                return default;
-            }
+    internal string GetWayback(Uri url) => GetCachedValue(CacheTableNames.Wayback, "url", url.OriginalString);
 
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
+    internal void SetWayback(Uri url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Wayback, "url", url.OriginalString, ttl, value);
 
-            return reader.GetString(0);
-        });
-    }
+    internal string GetProtoweb(Uri url) => GetCachedValue(CacheTableNames.Protoweb, "url", url.OriginalString);
 
-    internal void SetHttpProxy(string url, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            using var transaction = context.BeginTransaction();
+    internal void SetProtoweb(Uri url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Protoweb, "url", url.OriginalString, ttl, value);
 
-            using var updateCommand = context.CreateCommand();
+    internal string GetWeather(string url) => GetCachedValue(CacheTableNames.Weather, "url", url);
 
-            var futureTimestamp = DateTime.UtcNow + ttl;
+    internal void SetWeather(string url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Weather, "url", url, ttl, value);
 
-            updateCommand.CommandText = "UPDATE proxyhttp SET value = @value, ttl = @ttl WHERE url = @url";
+    internal string GetUsenet(string key) => GetCachedValue(CacheTableNames.Usenet, "key", key.ToLowerInvariant());
 
-            updateCommand.Parameters.Add(new SqliteParameter("@url", url));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
+    internal void SetUsenet(string key, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Usenet, "key", key.ToLowerInvariant(), ttl, value);
 
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
+    internal string GetData(string key) => GetCachedValue(CacheTableNames.Data, "key", key.ToLowerInvariant());
 
-                insertCommand.CommandText = "INSERT INTO proxyhttp (url, ttl, value) VALUES(@url, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@url", url));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
-    internal string GetFtpProxy(string url)
-    {
-        return WithContext<string>(context =>
-        {
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT value, ttl FROM proxyftp WHERE url = @url";
-
-            command.Parameters.Add(new SqliteParameter("@url", url));
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return default;
-            }
-
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
-
-            return reader.GetString(0);
-        });
-    }
-
-    internal void SetFtpProxy(string url, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            using var transaction = context.BeginTransaction();
-
-            using var updateCommand = context.CreateCommand();
-
-            var futureTimestamp = DateTime.UtcNow + ttl;
-
-            updateCommand.CommandText = "UPDATE proxyftp SET value = @value, ttl = @ttl WHERE url = @url";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@url", url));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO proxyftp (url, ttl, value) VALUES(@url, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@url", url));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
-    internal string GetWayback(Uri url)
-    {
-        return WithContext<string>(context =>
-        {
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT value, ttl FROM wayback WHERE url = @url";
-
-            command.Parameters.Add(new SqliteParameter("@url", url.OriginalString));
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return default;
-            }
-
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
-
-            return reader.GetString(0);
-        });
-    }
-
-    internal void SetWayback(Uri url, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            using var transaction = context.BeginTransaction();
-
-            using var updateCommand = context.CreateCommand();
-
-            var futureTimestamp = DateTime.UtcNow + ttl;
-
-            updateCommand.CommandText = "UPDATE wayback SET value = @value, ttl = @ttl WHERE url = @url";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@url", url.OriginalString));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO wayback (url, ttl, value) VALUES(@url, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@url", url.OriginalString));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
+    internal void SetData(string key, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Data, "key", key.ToLowerInvariant(), ttl, value);
 
     internal string GetWaybackAvailability(string url, int year)
     {
@@ -256,250 +106,6 @@ public class CacheDbContext : DbContextBase
                 insertCommand.Parameters.Add(new SqliteParameter("@year", year));
                 insertCommand.Parameters.Add(new SqliteParameter("@value", value));
                 insertCommand.Parameters.Add(new SqliteParameter("@results", results));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
-    internal string GetProtoweb(Uri url)
-    {
-        return WithContext<string>(context =>
-        {
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT value, ttl FROM protoweb WHERE url = @url";
-
-            command.Parameters.Add(new SqliteParameter("@url", url.OriginalString));
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return default;
-            }
-
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
-
-            return reader.GetString(0);
-        });
-    }
-
-    internal void SetProtoweb(Uri url, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            using var transaction = context.BeginTransaction();
-
-            using var updateCommand = context.CreateCommand();
-
-            var futureTimestamp = DateTime.UtcNow + ttl;
-
-            updateCommand.CommandText = "UPDATE protoweb SET value = @value, ttl = @ttl WHERE url = @url";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@url", url.OriginalString));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO protoweb (url, ttl, value) VALUES(@url, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@url", url.OriginalString));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
-    internal string GetWeather(string url)
-    {
-        return WithContext<string>(context =>
-        {
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT value, ttl FROM weather WHERE url = @url";
-
-            command.Parameters.Add(new SqliteParameter("@url", url));
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return default;
-            }
-
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
-
-            return reader.GetString(0);
-        });
-    }
-
-    internal void SetWeather(string url, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            using var transaction = context.BeginTransaction();
-
-            using var updateCommand = context.CreateCommand();
-
-            var futureTimestamp = DateTime.UtcNow + ttl;
-
-            updateCommand.CommandText = "UPDATE weather SET value = @value, ttl = @ttl WHERE url = @url";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@url", url));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO weather (url, ttl, value) VALUES(@url, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@url", url));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
-    internal string GetUsenet(string key)
-    {
-        return WithContext<string>(context =>
-        {
-            key = key.ToLowerInvariant();
-
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT value, ttl FROM usenet WHERE key = @key";
-
-            command.Parameters.Add(new SqliteParameter("@key", key));
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return default;
-            }
-
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
-
-            return reader.GetString(0);
-        });
-    }
-
-    internal void SetUsenet(string key, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            key = key.ToLowerInvariant();
-
-            using var transaction = context.BeginTransaction();
-
-            using var updateCommand = context.CreateCommand();
-
-            var futureTimestamp = DateTime.UtcNow + ttl;
-
-            updateCommand.CommandText = "UPDATE usenet SET value = @value, ttl = @ttl WHERE key = @key";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@key", key));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO usenet (key, ttl, value) VALUES(@key, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@key", key));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-                insertCommand.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        });
-    }
-
-    internal string GetData(string key)
-    {
-        return WithContext<string>(context =>
-        {
-            key = key.ToLowerInvariant();
-
-            var command = context.CreateCommand();
-
-            command.CommandText = "SELECT value, ttl FROM data WHERE key = @key";
-
-            command.Parameters.Add(new SqliteParameter("@key", key));
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return default;
-            }
-
-            if (reader.GetDateTime(1) <= DateTime.UtcNow)
-            {
-                return default;
-            }
-
-            return reader.GetString(0);
-        });
-    }
-
-    internal void SetData(string key, TimeSpan ttl, string value)
-    {
-        WithContext(context =>
-        {
-            key = key.ToLowerInvariant();
-
-            using var transaction = context.BeginTransaction();
-
-            using var updateCommand = context.CreateCommand();
-
-            var futureTimestamp = DateTime.UtcNow + ttl;
-
-            updateCommand.CommandText = "UPDATE data SET value = @value, ttl = @ttl WHERE key = @key";
-
-            updateCommand.Parameters.Add(new SqliteParameter("@key", key));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
-
-            if (updateCommand.ExecuteNonQuery() == 0)
-            {
-                using var insertCommand = context.CreateCommand();
-
-                insertCommand.CommandText = "INSERT INTO data (key, ttl, value) VALUES(@key, @ttl, @value)";
-
-                insertCommand.Parameters.Add(new SqliteParameter("@key", key));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
 
                 insertCommand.ExecuteNonQuery();
             }

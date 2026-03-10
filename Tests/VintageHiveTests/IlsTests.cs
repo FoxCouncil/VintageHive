@@ -295,7 +295,7 @@ public class LdapFilterEvalTests
     public void SubstringFilter_InitialMatch()
     {
         var user = MakeUser("alice@test.com");
-        var filter = new SubstringFilter("cn", "alice", new List<string>(), null);
+        var filter = new SubstringFilter("cn", "alice", new List<string>(), null!);
         Assert.IsTrue(filter.Evaluate(user));
     }
 
@@ -303,7 +303,7 @@ public class LdapFilterEvalTests
     public void SubstringFilter_FinalMatch()
     {
         var user = MakeUser("alice@test.com");
-        var filter = new SubstringFilter("cn", null, new List<string>(), "test.com");
+        var filter = new SubstringFilter("cn", null!, new List<string>(), "test.com");
         Assert.IsTrue(filter.Evaluate(user));
     }
 
@@ -311,7 +311,7 @@ public class LdapFilterEvalTests
     public void SubstringFilter_AnyMatch()
     {
         var user = MakeUser("alice@test.com");
-        var filter = new SubstringFilter("cn", null, new List<string> { "@test" }, null);
+        var filter = new SubstringFilter("cn", null!, new List<string> { "@test" }, null!);
         Assert.IsTrue(filter.Evaluate(user));
     }
 
@@ -319,7 +319,7 @@ public class LdapFilterEvalTests
     public void SubstringFilter_NoMatch()
     {
         var user = MakeUser("alice@test.com");
-        var filter = new SubstringFilter("cn", "bob", new List<string>(), null);
+        var filter = new SubstringFilter("cn", "bob", new List<string>(), null!);
         Assert.IsFalse(filter.Evaluate(user));
     }
 }
@@ -502,7 +502,7 @@ public class IlsDirectoryTests
     public void ExtractCnFromDn_Empty()
     {
         Assert.AreEqual("", IlsDirectory.ExtractCnFromDn(""));
-        Assert.AreEqual("", IlsDirectory.ExtractCnFromDn(null));
+        Assert.AreEqual("", IlsDirectory.ExtractCnFromDn(null!));
     }
 }
 
@@ -515,7 +515,7 @@ public class IlsServerIntegrationTests
 {
     private const int TEST_PORT = 21002;
 
-    private static IlsServer _server;
+    private static IlsServer _server = null!;
 
     [ClassInitialize]
     public static async Task ClassInit(TestContext _)
@@ -669,7 +669,7 @@ public class IlsServerIntegrationTests
             var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
             if (read == 0)
             {
-                return null;
+                return null!;
             }
             var result = new byte[read];
             Array.Copy(buffer, result, read);
@@ -677,7 +677,7 @@ public class IlsServerIntegrationTests
         }
         catch (OperationCanceledException)
         {
-            return null;
+            return null!;
         }
     }
 

@@ -113,7 +113,7 @@ public class OmnetJoinerTests
     [TestMethod]
     public void IsOmnetMessage_Null_ReturnsFalse()
     {
-        Assert.IsFalse(OmnetCodec.IsOmnetMessage(null));
+        Assert.IsFalse(OmnetCodec.IsOmnetMessage(null!));
         Assert.IsFalse(OmnetCodec.IsOmnetMessage(Array.Empty<byte>()));
         Assert.IsFalse(OmnetCodec.IsOmnetMessage(new byte[3]));
     }
@@ -258,7 +258,7 @@ public class OmnetOperationTests
         var objId = new OmnetObjectId { Sequence = 1, Creator = 1001 };
 
         var data = OmnetCodec.EncodeObjectAdd(1001, 0, 0,
-            OmnetConstants.POSITION_FIRST, stamp, objId, null);
+            OmnetConstants.POSITION_FIRST, stamp, objId, null!);
 
         Assert.AreEqual(OmnetConstants.OBJECT_ADD_HEADER_SIZE, data.Length);
 
@@ -379,7 +379,7 @@ public class OmnetOperationTests
     [TestMethod]
     public void MoreData_Empty_RoundTrip()
     {
-        var data = OmnetCodec.EncodeMoreData(1001, null);
+        var data = OmnetCodec.EncodeMoreData(1001, null!);
         Assert.AreEqual(OmnetConstants.MORE_DATA_HEADER_SIZE, data.Length);
 
         var msg = OmnetCodec.Decode(data);

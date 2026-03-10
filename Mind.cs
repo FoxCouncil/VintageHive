@@ -3,22 +3,22 @@
 using System.Diagnostics;
 using VintageHive.Data.Contexts;
 using VintageHive.Processors;
+using VintageHive.Proxy.Dns;
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Imap;
 using VintageHive.Proxy.Irc;
 using VintageHive.Proxy.Mms;
-using VintageHive.Proxy.Pna;
-using VintageHive.Proxy.Oscar;
-using VintageHive.Proxy.Pop3;
-using VintageHive.Proxy.Printer;
-using VintageHive.Proxy.Smtp;
-using VintageHive.Proxy.Telnet;
-using VintageHive.Proxy.Dns;
 using VintageHive.Proxy.NetMeeting.H225;
 using VintageHive.Proxy.NetMeeting.ILS;
 using VintageHive.Proxy.NetMeeting.T120;
+using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Pna;
+using VintageHive.Proxy.Pop3;
+using VintageHive.Proxy.Printer;
+using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Socks;
+using VintageHive.Proxy.Telnet;
 using VintageHive.Proxy.Usenet;
 
 namespace VintageHive;
@@ -26,10 +26,6 @@ namespace VintageHive;
 public static class Mind
 {
     public static readonly string ApplicationVersion = "0.4.0-alpha";
-
-    static readonly DateTime StartTimeUtc = DateTime.UtcNow;
-
-    static readonly ManualResetEvent resetEvent = new(false);
 
     static DnsProxy dnsProxy;
 
@@ -70,6 +66,10 @@ public static class Mind
     static RawPrintProxy rawPrintProxy;
 
     static NntpProxy nntpProxy;
+
+    static readonly DateTime StartTimeUtc = DateTime.UtcNow;
+
+    static readonly ManualResetEvent resetEvent = new(false);
 
     public static TimeSpan TotalRuntime => DateTime.UtcNow - StartTimeUtc;
 

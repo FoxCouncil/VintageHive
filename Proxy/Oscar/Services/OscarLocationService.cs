@@ -167,15 +167,13 @@ public class OscarLocationService : IOscarService
 
             case CLI_GET_DIR_INFO:
             {
-                var huh = Encoding.ASCII.GetString(snac.RawData[1..]);
-
-                // NO-OP FOR NOW
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarLocationService), $"Directory info request (not implemented)", session.Client.TraceId.ToString());
             }
             break;
 
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarLocationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarLocationService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

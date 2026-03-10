@@ -36,7 +36,7 @@ internal class SilentUdpServer : UdpListener
     public override Task<byte[]> ProcessDatagram(IPEndPoint remoteEndPoint, byte[] data, int length)
     {
         Interlocked.Increment(ref DatagramsReceived);
-        return Task.FromResult<byte[]>(null);
+        return Task.FromResult<byte[]>(null!);
     }
 }
 

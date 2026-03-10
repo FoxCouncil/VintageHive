@@ -265,8 +265,8 @@ public class RtpRelayTests
         using var clientA = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var clientB = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
 
-        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint).Port;
-        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint).Port;
+        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint!).Port;
+        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint!).Port;
 
         relay.SetEndpoints(
             new IPEndPoint(IPAddress.Loopback, portA),
@@ -313,8 +313,8 @@ public class RtpRelayTests
         using var clientA = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var clientB = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
 
-        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint).Port;
-        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint).Port;
+        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint!).Port;
+        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint!).Port;
 
         relay.SetEndpoints(
             new IPEndPoint(IPAddress.Loopback, portA),
@@ -361,8 +361,8 @@ public class RtpRelayTests
         using var clientA = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var clientB = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
 
-        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint).Port;
-        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint).Port;
+        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint!).Port;
+        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint!).Port;
 
         relay.SetEndpoints(
             new IPEndPoint(IPAddress.Loopback, portA),
@@ -440,7 +440,7 @@ public class RtpRelayTests
     private static int FindFreeEvenPort()
     {
         using var probe = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-        var port = ((IPEndPoint)probe.Client.LocalEndPoint).Port;
+        var port = ((IPEndPoint)probe.Client.LocalEndPoint!).Port;
         probe.Close();
         return port % 2 == 0 ? port : port + 1;
     }
@@ -588,8 +588,8 @@ public class RtpRelayManagerTests
         using var clientA = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         using var clientB = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
 
-        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint).Port;
-        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint).Port;
+        var portA = ((IPEndPoint)clientA.Client.LocalEndPoint!).Port;
+        var portB = ((IPEndPoint)clientB.Client.LocalEndPoint!).Port;
 
         manager.StartRelay(100,
             new IPEndPoint(IPAddress.Loopback, portA),

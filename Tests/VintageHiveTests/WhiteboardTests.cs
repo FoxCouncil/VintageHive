@@ -683,7 +683,7 @@ public class SipduDetectionTests
     [TestMethod]
     public void PeekSipduType_Null_ReturnsNegative1()
     {
-        Assert.AreEqual(-1, WhiteboardCodec.PeekSipduType(null));
+        Assert.AreEqual(-1, WhiteboardCodec.PeekSipduType(null!));
         Assert.AreEqual(-1, WhiteboardCodec.PeekSipduType(Array.Empty<byte>()));
     }
 

@@ -21,7 +21,6 @@ internal class H323Server : Listener
 
     private readonly RasRegistry _registry;
     private readonly ConcurrentDictionary<int, H323Call> _activeCalls = new();
-    private int _nextCallRef;
 
     public H323Server(IPAddress address, int port, RasRegistry registry)
         : base(address, port, SocketType.Stream, ProtocolType.Tcp)

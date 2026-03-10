@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Moq;
 using System.Net;
@@ -24,11 +24,11 @@ public class ListenerTests
         var listener = new Mock<Listener>(ipAddress, port, socketType, protocolType, secure).Object;
 
         // Assert
-        Assert.AreEqual(listener.Address, ipAddress);
-        Assert.AreEqual(listener.Port, port);
-        Assert.AreEqual(listener.SocketType, socketType);
-        Assert.AreEqual(listener.ProtocolType, protocolType);
-        Assert.AreEqual(listener.IsSecure, true);
+        Assert.AreEqual(ipAddress, listener.Address);
+        Assert.AreEqual(port, listener.Port);
+        Assert.AreEqual(socketType, listener.SocketType);
+        Assert.AreEqual(protocolType, listener.ProtocolType);
+        Assert.AreEqual(true, listener.IsSecure);
     }
 
     [TestMethod]
@@ -41,7 +41,7 @@ public class ListenerTests
         listener.Start();
 
         // Assert
-        Assert.AreEqual(listener.ProcessThread.IsAlive, true);
+        Assert.AreEqual(true, listener.ProcessThread.IsAlive);
     }
 
     [TestMethod]

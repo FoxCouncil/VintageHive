@@ -59,14 +59,12 @@ public class OscarBuddyListService : IOscarService
                 session.Save();
 
                 await ProcessOnlineNotifications(session, buddies);
-
-                // Debugger.Break();
             }
             break;
 
             default:
             {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarBuddyListService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", "");
+                Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarBuddyListService), $"Unknown SNAC subtype 0x{snac.SubType:X4} for family 0x{FAMILY_ID:X4}", session.Client.TraceId.ToString());
             }
             break;
         }

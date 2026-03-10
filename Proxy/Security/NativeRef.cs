@@ -24,6 +24,11 @@ public abstract class NativeRef : IDisposable
 
     public virtual void Dispose()
     {
-        throw new NotImplementedException();
+        if (!IsOwner)
+        {
+            return;
+        }
+
+        throw new NotImplementedException($"Dispose not implemented for {GetType().Name}");
     }
 }

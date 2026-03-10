@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 // Cook codec encoder — ported from NihAV (Kostya Shishkov, March 2023)
 
 using System.Buffers.Binary;
@@ -1271,12 +1271,14 @@ internal partial class CookEncoder
             float invStepGain = (gain > 1e-30f) ? 1.0f / (stepSize * gain) : 0f;
             Num = CookData.NumVqGroups[cat];
 
+            Span<int> cvals = stackalloc int[5];
+            Span<int> sarr = stackalloc int[5];
             for (int groupNo = 0; groupNo < Num; groupNo++)
             {
                 int groupStart = coeffOffset + groupNo * groupSize;
                 int cw = 0;
-                Span<int> cvals = stackalloc int[5];
-                Span<int> sarr = stackalloc int[5];
+                cvals.Clear();
+                sarr.Clear();
 
                 for (int k = 0; k < groupSize; k++)
                 {

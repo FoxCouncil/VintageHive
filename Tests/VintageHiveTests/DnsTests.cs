@@ -88,7 +88,7 @@ internal class DnsResponse
     public ushort AnswerCount { get; init; }
     public ushort AuthorityCount { get; init; }
     public ushort AdditionalCount { get; init; }
-    public IPAddress AnswerAddress { get; init; }
+    public IPAddress AnswerAddress { get; init; } = null!;
     public ushort AnswerType { get; init; }
     public ushort AnswerClass { get; init; }
     public uint AnswerTtl { get; init; }
@@ -103,7 +103,7 @@ internal class DnsResponse
     {
         if (data.Length < 12)
         {
-            return null;
+            return null!;
         }
 
         var txId = (ushort)((data[0] << 8) | data[1]);
@@ -113,7 +113,7 @@ internal class DnsResponse
         var nsCount = (ushort)((data[8] << 8) | data[9]);
         var arCount = (ushort)((data[10] << 8) | data[11]);
 
-        IPAddress answerAddr = null;
+        IPAddress answerAddr = null!;
         ushort answerType = 0;
         ushort answerClass = 0;
         uint answerTtl = 0;
@@ -186,7 +186,7 @@ internal class DnsResponse
             AnswerCount = anCount,
             AuthorityCount = nsCount,
             AdditionalCount = arCount,
-            AnswerAddress = answerAddr,
+            AnswerAddress = answerAddr!,
             AnswerType = answerType,
             AnswerClass = answerClass,
             AnswerTtl = answerTtl,

@@ -142,19 +142,6 @@ internal static class ProtoWebProcessor
 
                 await req.ListenerSocket.Stream.WriteAsync(buffer.Take(readBytes).ToArray());
 
-                //var responseText = Encoding.ASCII.GetString(buffer, 0, readBytes);
-
-                //var location = responseText.Split("Location: ")[1].Split("\n")[0];
-
-                //if (!location.Contains($"ftp://{req.Uri.Host}"))
-                //{
-                //    location = $"ftp://{req.Uri.Host}{location}";
-                //}
-
-                //req.Uri = new Uri(location);
-
-                //await ProcessFtpRequest(req);
-
                 return true;
             }
 

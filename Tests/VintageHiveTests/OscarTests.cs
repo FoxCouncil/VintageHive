@@ -1,7 +1,9 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Text;
 using VintageHive.Proxy.Oscar;
+
+#pragma warning disable MSTEST0025 // Use Assert.Fail instead of always-failing Assert.AreEqual
 
 namespace Oscar;
 
@@ -836,3 +838,5 @@ public class FlapFrameTypeTests
         Assert.AreEqual((byte)0x05, (byte)FlapFrameType.KeepAlive);
     }
 }
+
+#pragma warning restore MSTEST0025

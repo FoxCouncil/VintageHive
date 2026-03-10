@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Proxy.Ftp;
 using VintageHive.Proxy.Irc;
@@ -224,7 +224,7 @@ public class IrcUserTests
     [TestMethod]
     public void Fullname_FormatsCorrectly()
     {
-        var user = new IrcUser(null)
+        var user = new IrcUser(null!)
         {
             Nick = "Fox",
             Username = "fox",
@@ -237,7 +237,7 @@ public class IrcUserTests
     [TestMethod]
     public void DefaultProperties()
     {
-        var user = new IrcUser(null);
+        var user = new IrcUser(null!);
 
         Assert.IsNotNull(user.Channels);
         Assert.AreEqual(0, user.Channels.Count);
@@ -253,7 +253,7 @@ public class IrcUserTests
     [TestMethod]
     public void Channels_CaseInsensitive()
     {
-        var user = new IrcUser(null);
+        var user = new IrcUser(null!);
 
         user.Channels.Add("#Channel");
 
@@ -264,7 +264,7 @@ public class IrcUserTests
     [TestMethod]
     public void Modes_TrackCorrectly()
     {
-        var user = new IrcUser(null);
+        var user = new IrcUser(null!);
 
         user.Modes.Add('o');
         user.Modes.Add('i');

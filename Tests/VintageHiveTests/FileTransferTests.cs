@@ -589,7 +589,7 @@ public class MbftDetectionTests
     [TestMethod]
     public void PeekPduType_Null_ReturnsNegative1()
     {
-        Assert.AreEqual(-1, MbftCodec.PeekPduType(null));
+        Assert.AreEqual(-1, MbftCodec.PeekPduType(null!));
         Assert.AreEqual(-1, MbftCodec.PeekPduType(Array.Empty<byte>()));
     }
 

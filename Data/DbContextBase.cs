@@ -117,4 +117,63 @@ public class DbContextBase
             createTableCommand.ExecuteNonQuery();
         });
     }
+
+    protected string GetCachedValue(string table, string keyColumn, string keyValue)
+    {
+        return WithContext<string>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT value, ttl FROM {table} WHERE {keyColumn} = @key";
+
+            command.Parameters.Add(new SqliteParameter("@key", keyValue));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            if (reader.GetDateTime(1) <= DateTime.UtcNow)
+            {
+                return default;
+            }
+
+            return reader.GetString(0);
+        });
+    }
+
+    protected void SetCachedValue(string table, string keyColumn, string keyValue, TimeSpan ttl, string value)
+    {
+        WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            var futureTimestamp = DateTime.UtcNow + ttl;
+
+            updateCommand.CommandText = $"UPDATE {table} SET value = @value, ttl = @ttl WHERE {keyColumn} = @key";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@key", keyValue));
+            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
+            updateCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {table} ({keyColumn}, ttl, value) VALUES(@key, @ttl, @value)";
+
+                insertCommand.Parameters.Add(new SqliteParameter("@key", keyValue));
+                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
+                insertCommand.Parameters.Add(new SqliteParameter("@ttl", futureTimestamp));
+
+                insertCommand.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        });
+    }
 }

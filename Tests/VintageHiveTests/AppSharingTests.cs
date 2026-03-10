@@ -3,6 +3,8 @@
 using VintageHive.Proxy.NetMeeting.AppSharing;
 using VintageHive.Proxy.NetMeeting.T120;
 
+#pragma warning disable MSTEST0025
+
 namespace VintageHiveTests;
 
 // ──────────────────────────────────────────────────────────
@@ -551,7 +553,7 @@ public class CpCallCapsTests
     [TestMethod]
     public void Decode_Null_Throws()
     {
-        Assert.ThrowsExactly<ArgumentException>(() => CpCallCaps.Decode(null));
+        Assert.ThrowsExactly<ArgumentException>(() => CpCallCaps.Decode(null!));
     }
 
     [TestMethod]
@@ -603,7 +605,7 @@ public class S20DetectionTests
     [TestMethod]
     public void PeekPacketType_Null_ReturnsZero()
     {
-        Assert.AreEqual(0, S20Codec.PeekPacketType(null));
+        Assert.AreEqual(0, S20Codec.PeekPacketType(null!));
         Assert.AreEqual(0, S20Codec.PeekPacketType(new byte[0]));
         Assert.AreEqual(0, S20Codec.PeekPacketType(new byte[2]));
     }
@@ -625,14 +627,14 @@ public class S20DetectionTests
     [TestMethod]
     public void IsS20Packet_Invalid_ReturnsFalse()
     {
-        Assert.IsFalse(S20Codec.IsS20Packet(null));
+        Assert.IsFalse(S20Codec.IsS20Packet(null!));
         Assert.IsFalse(S20Codec.IsS20Packet(new byte[] { 0x00, 0x00, 0x00, 0x00 }));
     }
 
     [TestMethod]
     public void Decode_TooShort_Throws()
     {
-        Assert.ThrowsExactly<ArgumentException>(() => S20Codec.Decode(null));
+        Assert.ThrowsExactly<ArgumentException>(() => S20Codec.Decode(null!));
         Assert.ThrowsExactly<ArgumentException>(() => S20Codec.Decode(new byte[2]));
     }
 }
@@ -850,3 +852,5 @@ public class AppSharingSessionTests
         Assert.AreEqual(7, caps.NumCapabilities);
     }
 }
+
+#pragma warning restore MSTEST0025
