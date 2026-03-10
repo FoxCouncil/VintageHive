@@ -150,10 +150,10 @@ public class HiveDbContext : DbContextBase
             insertCommand.CommandText = $"INSERT INTO {TABLE_LOGS} VALUES(@ts, @level, @sys, @msg, @traceid)";
 
             insertCommand.Parameters.Add(new SqliteParameter("@ts", log.Timestamp));
-            insertCommand.Parameters.Add(new SqliteParameter("@level", log.Level));
-            insertCommand.Parameters.Add(new SqliteParameter("@sys", log.System));
-            insertCommand.Parameters.Add(new SqliteParameter("@msg", log.Message));
-            insertCommand.Parameters.Add(new SqliteParameter("@traceid", log.TraceId));
+            insertCommand.Parameters.Add(new SqliteParameter("@level", log.Level ?? string.Empty));
+            insertCommand.Parameters.Add(new SqliteParameter("@sys", log.System ?? string.Empty));
+            insertCommand.Parameters.Add(new SqliteParameter("@msg", log.Message ?? string.Empty));
+            insertCommand.Parameters.Add(new SqliteParameter("@traceid", log.TraceId ?? string.Empty));
 
             insertCommand.ExecuteNonQuery();
         });

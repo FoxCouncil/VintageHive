@@ -31,8 +31,8 @@ public static class GhostScriptNative
                 return;
             }
 
-            var product = revisionInfo.product.ToManagedString();
-            var copyright = revisionInfo.copyright.ToManagedString();
+            var product = revisionInfo.product != IntPtr.Zero ? revisionInfo.product.ToManagedString() : "GhostScript";
+            var copyright = revisionInfo.copyright != IntPtr.Zero ? revisionInfo.copyright.ToManagedString() : "";
 
 #if _WINDOWS
             if (revisionInfo.revision != 10040 || revisionInfo.revisiondate != 20240918)
@@ -45,7 +45,11 @@ public static class GhostScriptNative
             IsAvailable = true;
 
             Log.WriteLine(Log.LEVEL_INFO, "GhostScript", $"Initialized {product} (rev {revisionInfo.revision})", "");
-            Log.WriteLine(Log.LEVEL_INFO, "GhostScript", copyright, "");
+
+            if (!string.IsNullOrEmpty(copyright))
+            {
+                Log.WriteLine(Log.LEVEL_INFO, "GhostScript", copyright, "");
+            }
         }
         catch (DllNotFoundException)
         {
