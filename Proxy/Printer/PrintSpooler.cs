@@ -23,6 +23,11 @@ internal static class PrintSpooler
         VFS.DirectoryCreate(_spoolerPath);
         VFS.DirectoryCreate(_depotPath);
 
+        if (!GhostScriptNative.IsAvailable)
+        {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), "PostScript/PCL print jobs will be saved as raw files (GhostScript unavailable)", "");
+        }
+
         Task.Run(SpoolerThread);
     }
 
@@ -139,6 +144,29 @@ internal static class PrintSpooler
 
     static async Task ProcessPostScript(PrinterJob job, string jobName)
     {
+        if (!GhostScriptNative.IsAvailable)
+        {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job {job.Id} is PostScript but GhostScript unavailable — saving raw data");
+
+            if (!Mind.PrinterDb.SetJobPrintData(job.Id, job.DocData, "application/postscript"))
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(PrintSpooler), $"Failed to set job print data; {job.Id}", "");
+                return;
+            }
+
+            using var rawOutputFile = VFS.FileWrite($"{_depotPath}{job.Id}_{SanitizeFileName(jobName)}.ps");
+
+            await rawOutputFile.WriteAsync(job.DocData);
+            await rawOutputFile.FlushAsync();
+
+            if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Completed))
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(PrintSpooler), $"Failed to set job state to completed; {job.Id}", "");
+            }
+
+            return;
+        }
+
         Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job {job.Id} is a PostScript file!");
 
         var tempInputPath = $"{_spoolerPath}{job.Id}.ps";

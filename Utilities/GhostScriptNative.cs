@@ -10,40 +10,56 @@ public static class GhostScriptNative
 #if _WINDOWS
     private const string DLL_NAME = "libs\\gsdll64";
 #else
-    private const string DLL_NAME = "libgs";
+    private const string DLL_NAME = "./libs/libgs";
 #endif
+
+    public static bool IsAvailable { get; private set; }
 
     public static void Init()
     {
-        var revisionInfo = new gsapi_revision_t();
-
-        // Get the size of the gsapi_revision_t structure
-        int size = Marshal.SizeOf(typeof(gsapi_revision_t));
-
-        // Call the gsapi_revision function
-        int result = gsapi_revision(ref revisionInfo, size);
-
-        if (result < 0)
+        try
         {
-            throw new Exception("Failed to get Ghostscript revision information");
-        }
+            var revisionInfo = new gsapi_revision_t();
 
-        var product = revisionInfo.product.ToManagedString();
-        var copyright = revisionInfo.copyright.ToManagedString();
+            int size = Marshal.SizeOf(typeof(gsapi_revision_t));
+
+            int result = gsapi_revision(ref revisionInfo, size);
+
+            if (result < 0)
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, "GhostScript", "Failed to get revision information", "");
+                return;
+            }
+
+            var product = revisionInfo.product.ToManagedString();
+            var copyright = revisionInfo.copyright.ToManagedString();
 
 #if _WINDOWS
-        if (revisionInfo.revision != 10040 || revisionInfo.revisiondate != 20240918)
-        {
-            throw new Exception($"Incorrect Ghostscript DLL version! ");
-        }
+            if (revisionInfo.revision != 10040 || revisionInfo.revisiondate != 20240918)
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, "GhostScript", $"Incorrect DLL version (got rev {revisionInfo.revision}, expected 10040)", "");
+                return;
+            }
 #endif
 
-        Log.WriteLine(Log.LEVEL_INFO, "GhostScript", $"Initialized {product} (rev {revisionInfo.revision})", "");
-        Log.WriteLine(Log.LEVEL_INFO, "GhostScript", copyright, "");
+            IsAvailable = true;
+
+            Log.WriteLine(Log.LEVEL_INFO, "GhostScript", $"Initialized {product} (rev {revisionInfo.revision})", "");
+            Log.WriteLine(Log.LEVEL_INFO, "GhostScript", copyright, "");
+        }
+        catch (DllNotFoundException)
+        {
+            Log.WriteLine(Log.LEVEL_INFO, "GhostScript", "GhostScript not available (libgs not found) — PostScript printing disabled", "");
+        }
     }
 
     public static void ConvertPsToPdf(string inputPsFile, string outputPdfFile)
     {
+        if (!IsAvailable)
+        {
+            throw new InvalidOperationException("GhostScript is not available — cannot convert PostScript to PDF");
+        }
+
         var result = gsapi_new_instance(out var instance, IntPtr.Zero);
 
         if (result != 0)
