@@ -10,7 +10,7 @@ public static class GhostScriptNative
 #if _WINDOWS
     private const string DLL_NAME = "libs\\gsdll64";
 #else
-    private const string DLL_NAME = "./libs/libgs";
+    private const string DLL_NAME = "libgs";
 #endif
 
     public static bool IsAvailable { get; private set; }
