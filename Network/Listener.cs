@@ -73,13 +73,26 @@ public abstract class Listener
 
         using var socket = new Socket(SocketType, ProtocolType);
 
-        socket.Bind(new IPEndPoint(Address, Port));
+        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+        var extraData = IsSecure ? "Secure " : "";
+
+        try
+        {
+            socket.Bind(new IPEndPoint(Address, Port));
+        }
+        catch (SocketException ex)
+        {
+            Log.WriteLine(Log.LEVEL_ERROR, GetType().Name, $"Failed to bind {Address}:{Port} — {ex.Message}", "");
+
+            IsListening = false;
+
+            return;
+        }
 
         socket.ReceiveTimeout = 100;
 
         socket.Listen();
-
-        var extraData = IsSecure ? "Secure " : "";
 
         Log.WriteLine(Log.LEVEL_INFO, extraData.TrimEnd() + GetType().Name, $"Starting {extraData}{GetType().Name} Listener...{Address}:{Port}", "");
 
