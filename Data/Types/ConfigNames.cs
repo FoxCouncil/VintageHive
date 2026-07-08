@@ -82,6 +82,8 @@ public static class ConfigNames
 
     public const string ServiceFinger = "servicefinger";
 
+    public const string DownloadRepos = "downloadrepos";
+
     public const string Location = "location";
 
     public const string TemperatureUnits = "tempratureunits";

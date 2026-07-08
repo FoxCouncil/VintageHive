@@ -39,7 +39,7 @@
 - [x] `SCUtils.GetStationById` - removed the stale cache TODO (caching is already implemented directly below it)
 - [x] `.editorconfig` expanded with the Allman / always-braces / no-line-limit style rules
 - [x] Centralize the `hive.com` base domain - done. All subdomains, host checks, and email addresses derive from `HiveDomains.Base`; const concatenation (`"admin." + Base`) keeps it usable in `[Domain(...)]` attributes.
-- [ ] `RepoUtils` custom repositories - deferred. Implementing user-added repos (config store + admin UI) is a feature, not cleanup, and outside the chosen scope
+- [x] `RepoUtils` custom download repos - done. Repos are stored in config and managed from the Local Server admin page (add with validation, delete); the built-in downloads folder is reserved and can't be removed.
 
 ## Test coverage
 

@@ -22,10 +22,10 @@
                 <tbody id="repoTable"></tbody>
                 <thead>
                     <tr>
-                        <td scope="col"><input type="text" class="form-control"></td>
-                        <td scope="col"><input type="text" class="form-control"></td>
-                        <td scope="col"><input type="text" class="form-control"></td>
-                        <td scope="col"><input type="submit" class="btn" value="Add Repo"></td>
+                        <td scope="col"><input type="text" id="repoShort" class="form-control" placeholder="key"></td>
+                        <td scope="col"><input type="text" id="repoName" class="form-control" placeholder="Display Name"></td>
+                        <td scope="col"><input type="text" id="repoPath" class="form-control" placeholder="path to folder"></td>
+                        <td scope="col"><input type="button" id="repoAddBtn" class="btn" value="Add Repo"></td>
                     </tr>
                 </thead>
             </table>
@@ -86,10 +86,11 @@
                 table.appendChild(row);
             });
         }
-        var reposData = await callApi("getdownloadlocations");
-        if (reposData.success) {
+        async function loadRepos() {
             let table = gei("repoTable");
-            console.log(reposData);
+            table.innerHTML = "";
+            var reposData = await callApi("getdownloadlocations");
+            if (!reposData.success) return;
             Object.entries(reposData.data).forEach(entry => {
                 const [key, repo] = entry;
 
@@ -108,12 +109,39 @@
                 row.appendChild(pathCol);
 
                 let optionsCol = ce("td");
-                if (key !== 'local') optionsCol.innerHTML = "<i class=\"fa-solid fa-trash\"></i>";
+                if (key !== 'downloads') {
+                    let del = ce("a");
+                    del.href = "#";
+                    del.innerHTML = "<i class=\"fa-solid fa-trash\"></i>";
+                    del.addEventListener("click", async (e) => {
+                        e.preventDefault();
+                        await callApi("repodelete", formData({ "shortname": key }));
+                        await loadRepos();
+                    });
+                    optionsCol.appendChild(del);
+                }
                 row.appendChild(optionsCol);
 
                 table.appendChild(row);
             });
         }
+        await loadRepos();
+
+        gei("repoAddBtn").addEventListener("click", async () => {
+            const shortname = gei("repoShort").value.trim();
+            const name = gei("repoName").value.trim();
+            const path = gei("repoPath").value.trim();
+            if (!shortname || !name || !path) return;
+            const res = await callApi("repoadd", formData({ "shortname": shortname, "name": name, "path": path }));
+            if (res.success) {
+                gei("repoShort").value = "";
+                gei("repoName").value = "";
+                gei("repoPath").value = "";
+                await loadRepos();
+            } else {
+                alert("Could not add repo - check the key is unique/valid and the folder path exists.");
+            }
+        });
     </script>
 </body>
 </html>

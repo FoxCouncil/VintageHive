@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
-[Domain("admin.hive.com")]
+[Domain(HiveDomains.Admin)]
 internal partial class AdminController : Controller
 {
     private const string LoginSessionKeyName = "login";
@@ -154,6 +154,34 @@ internal partial class AdminController : Controller
         var list = RepoUtils.Get();
 
         Response.SetJsonSuccess(list);
+    }
+
+    [Route("/api/repoadd")]
+    public async Task RepoAdd()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("shortname") || !Request.FormData.ContainsKey("name") || !Request.FormData.ContainsKey("path"))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        Response.SetJsonSuccess(RepoUtils.Add(Request.FormData["shortname"], Request.FormData["name"], Request.FormData["path"]));
+    }
+
+    [Route("/api/repodelete")]
+    public async Task RepoDelete()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("shortname"))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        Response.SetJsonSuccess(RepoUtils.Remove(Request.FormData["shortname"]));
     }
 
     [Route("/api/linksgetall")]
