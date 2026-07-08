@@ -45,7 +45,7 @@
 
 - [x] `InternetArchiveProcessor` - `RewriteToWorker`, `GetArchiveTypeCode`, and `ProcessCDX` made internal and covered by `InternetArchiveTests.cs` (18 tests over the new Edge Worker path)
 - [x] Finger `BuildUserList` covered (see above)
-- [~] Protocol-flow coverage - in progress. IRC done: parser, reply wire-formatting, nick validation, and channel logic (`IrcProtocolTests.cs`, 46 tests). Still to cover: FTP request parsing, mail (SMTP/POP3/IMAP), Telnet BBS, MMS/PNA streaming, printer.
+- [~] Protocol-flow coverage - in progress. IRC: 62 tests. Pure logic in `IrcProtocolTests.cs` (parser, wire-formatting, nick validation, channel logic) plus RFC 1459/2812 command->response conformance driven through the real handlers in `IrcConformanceTests.cs` (registration 001-004, JOIN 331/353/366, error numerics; the nick length is asserted as an intentional era-deviation from RFC's 9-char limit, with citation). Reusable loopback-socket + DB harness (`IrcTestClient` / `IrcTestEnv`) is ready for the other protocols. Still to cover: FTP, mail (SMTP/POP3/IMAP), Telnet BBS, MMS/PNA streaming, printer.
 
 ## Discovered during manual testing (pre-existing, NOT introduced here)
 
