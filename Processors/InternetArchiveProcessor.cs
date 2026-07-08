@@ -124,11 +124,20 @@ internal static class InternetArchiveProcessor
 
         if (cachedResponse == null)
         {
-            var httpClient = HttpClientUtils.GetHttpClient(req);
+            using var httpClient = HttpClientUtils.GetHttpClient(req);
 
-            var workerResponse = await httpClient.GetAsync(workerFetchUrl);
+            System.Net.Http.HttpResponseMessage workerResponse;
 
-            httpClient.Dispose();
+            try
+            {
+                workerResponse = await httpClient.GetAsync(workerFetchUrl);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(Log.LEVEL_WARN, nameof(InternetArchiveProcessor), $"Worker fetch failed [{workerFetchUrl}]: {ex.Message}", req.ListenerSocket.TraceId.ToString());
+
+                return false;
+            }
 
             if (workerResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -215,11 +224,20 @@ internal static class InternetArchiveProcessor
 
         if (cachedResponse == null)
         {
-            var httpClient = HttpClientUtils.GetHttpClient(req);
+            using var httpClient = HttpClientUtils.GetHttpClient(req);
 
-            var iaResponse = await httpClient.GetAsync(iaUrl);
+            System.Net.Http.HttpResponseMessage iaResponse;
 
-            httpClient.Dispose();
+            try
+            {
+                iaResponse = await httpClient.GetAsync(iaUrl);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(Log.LEVEL_WARN, nameof(InternetArchiveProcessor), $"Archive fetch failed [{iaUrl}]: {ex.Message}", req.ListenerSocket.TraceId.ToString());
+
+                return false;
+            }
 
             if (iaResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -353,7 +371,21 @@ internal static class InternetArchiveProcessor
         {
             using var httpClient = HttpClientUtils.GetHttpClient(req);
 
-            var availabilityResponseRaw = await httpClient.GetStringAsync(availabilityUri);
+            string availabilityResponseRaw;
+
+            try
+            {
+                availabilityResponseRaw = await httpClient.GetStringAsync(availabilityUri);
+            }
+            catch (Exception ex)
+            {
+                // Upstream unreachable (e.g. web.archive.org refusing port 80, or the worker down) - degrade, don't 500.
+                Log.WriteLine(Log.LEVEL_WARN, nameof(InternetArchiveProcessor), $"Availability lookup failed [{availabilityUri}]: {ex.Message}", req.ListenerSocket.TraceId.ToString());
+
+                res.ErrorMessage = "The Internet Archive is currently unreachable. Please try again shortly.";
+
+                return null;
+            }
 
             if (!string.IsNullOrWhiteSpace(availabilityResponseRaw))
             {
