@@ -45,7 +45,7 @@ public class InternetArchiveTypeCodeTests
     [TestMethod]
     public void GetArchiveTypeCode_Null_ReturnsIfUnderscore()
     {
-        Assert.AreEqual("if_", InternetArchiveProcessor.GetArchiveTypeCode(null));
+        Assert.AreEqual("if_", InternetArchiveProcessor.GetArchiveTypeCode(null!));
     }
 
     [TestMethod]

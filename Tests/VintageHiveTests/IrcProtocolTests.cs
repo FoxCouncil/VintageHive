@@ -128,8 +128,10 @@ public class IrcParserTests
 [TestClass]
 public class IrcReplyFormatTests
 {
-    private static string Reply(string host, IrcServerReplyType type, string nick, string[] parameters, string trailing)
-        => Encoding.UTF8.GetString(IrcProxy.SendIrcReply(host, type, nick, parameters, trailing));
+    // nick/parameters/trailing are null-tolerant in SendIrcReply (the main project builds under Nullable=annotations,
+    // so it passes null freely); mirror that here and suppress on the forward so the enable-mode test project stays clean.
+    private static string Reply(string host, IrcServerReplyType type, string? nick, string[]? parameters, string? trailing)
+        => Encoding.UTF8.GetString(IrcProxy.SendIrcReply(host, type, nick!, parameters!, trailing!));
 
     [TestMethod]
     public void Format_NumericUnder100_ZeroPadded()
