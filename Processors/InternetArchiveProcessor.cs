@@ -22,6 +22,12 @@ internal static class InternetArchiveProcessor
 
     const string InternetArchiveDataServer = "web.archive.org";
 
+    // Cloudflare Wayback cache: the worker re-homes every archived URL onto this host (keeping the
+    // /web/<ts>/ path), so worker-path HTML and its resource sub-requests arrive here, not on web.archive.org.
+    const string ArchiveWorkerHost = "archive.foxcouncil.com";
+
+    const string ArchiveFullRewritePattern = "https://archive.foxcouncil.com/web/";
+
     const string IncludesPattern = "//archive.org/includes";
 
     const string StaticsPattern = "/_static/";
@@ -90,7 +96,7 @@ internal static class InternetArchiveProcessor
     static async Task<bool> ProcessViaWorker(HttpRequest req, HttpResponse res, string workerUrl)
     {
         // check to see if getting data from archive or looking in the archive for a result
-        var iaUrl = req.Uri.Host.Contains(InternetArchiveDataServer) ? req.Uri : await GetAvailability(req, res, workerUrl);
+        var iaUrl = (req.Uri.Host.Contains(ArchiveWorkerHost) || req.Uri.Host.Contains(InternetArchiveDataServer)) ? req.Uri : await GetAvailability(req, res, workerUrl);
 
         if (iaUrl == null || iaUrl.ToString().Length <= InternetArchiveDataUrlLength)
         {
@@ -404,7 +410,7 @@ internal static class InternetArchiveProcessor
         return response;
     }
 
-    static string ScrubHtml(Uri iaUrl, string html)
+    internal static string ScrubHtml(Uri iaUrl, string html)
     {
         var doc = new HtmlDocument();
 
@@ -505,7 +511,7 @@ internal static class InternetArchiveProcessor
 
         foreach (var baseTag in baseTags)
         {
-            if (baseTag.Attributes["href"] != null && (baseTag.Attributes["href"].Value.StartsWith(RewritePattern) || baseTag.Attributes["href"].Value.StartsWith(FullRewritePattern)))
+            if (baseTag.Attributes["href"] != null && (baseTag.Attributes["href"].Value.StartsWith(RewritePattern) || baseTag.Attributes["href"].Value.StartsWith(FullRewritePattern) || baseTag.Attributes["href"].Value.StartsWith(ArchiveFullRewritePattern)))
             {
                 var linkPoint = baseTag.Attributes["href"].Value.IndexOf("/http://");
 
@@ -575,6 +581,10 @@ internal static class InternetArchiveProcessor
                 {
                     linkPoint = anchorTag.Attributes["href"].Value.IndexOf("/", FullRewritePattern.Length);
                 }
+                else if (anchorTag.Attributes["href"].Value.StartsWith(ArchiveFullRewritePattern))
+                {
+                    linkPoint = anchorTag.Attributes["href"].Value.IndexOf("/", ArchiveFullRewritePattern.Length);
+                }
 
                 if (linkPoint == -1)
                 {
@@ -608,6 +618,10 @@ internal static class InternetArchiveProcessor
                 else if (areaTag.Attributes["href"].Value.StartsWith(FullRewritePattern))
                 {
                     linkPoint = areaTag.Attributes["href"].Value.IndexOf("/", FullRewritePattern.Length);
+                }
+                else if (areaTag.Attributes["href"].Value.StartsWith(ArchiveFullRewritePattern))
+                {
+                    linkPoint = areaTag.Attributes["href"].Value.IndexOf("/", ArchiveFullRewritePattern.Length);
                 }
 
                 if (linkPoint == -1)
