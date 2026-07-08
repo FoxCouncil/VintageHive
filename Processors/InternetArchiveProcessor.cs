@@ -52,6 +52,10 @@ internal static class InternetArchiveProcessor
 
     static readonly TimeSpan CacheTtl = TimeSpan.FromDays(365);
 
+    // Bump to invalidate VintageHive's own Wayback cache after a pipeline change (mirrors the worker's STRIP_VERSION).
+    // Old entries orphan and expire on their TTL; the next request repopulates through the current worker + scrub path.
+    const string CacheKeyVersion = "v2";
+
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
         var isInternetArchiveEnabled = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive);
@@ -95,6 +99,8 @@ internal static class InternetArchiveProcessor
 
     static async Task<bool> ProcessViaWorker(HttpRequest req, HttpResponse res, string workerUrl)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         // check to see if getting data from archive or looking in the archive for a result
         var iaUrl = (req.Uri.Host.Contains(ArchiveWorkerHost) || req.Uri.Host.Contains(InternetArchiveDataServer)) ? req.Uri : await GetAvailability(req, res, workerUrl);
 
@@ -108,8 +114,9 @@ internal static class InternetArchiveProcessor
         // Rewrite the archive.org URL to go through the worker
         var workerFetchUrl = RewriteToWorker(iaUrl, workerUrl);
 
-        // Use the worker URL as cache key so direct/worker caches don't collide
-        var cachedResponse = Mind.Cache.GetWayback(workerFetchUrl);
+        // Versioned worker-URL cache key: distinct from the direct path, and bumping CacheKeyVersion invalidates stale entries.
+        var cacheKey = $"{CacheKeyVersion}|{workerFetchUrl}";
+        var cachedResponse = Mind.Cache.GetWayback(cacheKey);
 
         string contentType;
 
@@ -156,7 +163,7 @@ internal static class InternetArchiveProcessor
 
             var jsonData = JsonSerializer.Serialize<ContentCachedData>(cachedData);
 
-            Mind.Cache.SetWayback(workerFetchUrl, CacheTtl, jsonData);
+            Mind.Cache.SetWayback(cacheKey, CacheTtl, jsonData);
         }
         else
         {
@@ -180,6 +187,8 @@ internal static class InternetArchiveProcessor
             res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
         }
 
+        Log.WriteLine(Log.LEVEL_INFO, nameof(InternetArchiveProcessor), $"{req.Uri} [{(cachedResponse == null ? "worker-fetch" : "cache-hit")}] {contentData.Length}b {sw.ElapsedMilliseconds}ms", req.ListenerSocket.TraceId.ToString());
+
         res.SetBodyData(contentData, contentType);
 
         return true;
@@ -197,7 +206,8 @@ internal static class InternetArchiveProcessor
 
         res.Cache = false;
 
-        var cachedResponse = Mind.Cache.GetWayback(iaUrl);
+        var cacheKey = $"{CacheKeyVersion}|{iaUrl}";
+        var cachedResponse = Mind.Cache.GetWayback(cacheKey);
 
         string contentType;
 
@@ -247,7 +257,7 @@ internal static class InternetArchiveProcessor
 
             var jsonData = JsonSerializer.Serialize<ContentCachedData>(cachedData);
 
-            Mind.Cache.SetWayback(iaUrl, CacheTtl, jsonData);
+            Mind.Cache.SetWayback(cacheKey, CacheTtl, jsonData);
         }
         else
         {

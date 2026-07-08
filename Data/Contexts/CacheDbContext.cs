@@ -39,9 +39,9 @@ public class CacheDbContext : DbContextBase
 
     internal void SetFtpProxy(string url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.ProxyFtp, "url", url, ttl, value);
 
-    internal string GetWayback(Uri url) => GetCachedValue(CacheTableNames.Wayback, "url", url.OriginalString);
+    internal string GetWayback(string key) => GetCachedValue(CacheTableNames.Wayback, "url", key);
 
-    internal void SetWayback(Uri url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Wayback, "url", url.OriginalString, ttl, value);
+    internal void SetWayback(string key, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.Wayback, "url", key, ttl, value);
 
     internal string GetProtoweb(Uri url) => GetCachedValue(CacheTableNames.Protoweb, "url", url.OriginalString);
 

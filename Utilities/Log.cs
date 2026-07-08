@@ -5,6 +5,7 @@ namespace VintageHive.Utilities;
 internal static class Log
 {
     public const string LEVEL_ERROR = "error";
+    public const string LEVEL_WARN = "warn";
     public const string LEVEL_INFO = "info";
     public const string LEVEL_REQUEST = "request";
     public const string LEVEL_DEBUG = "debug";

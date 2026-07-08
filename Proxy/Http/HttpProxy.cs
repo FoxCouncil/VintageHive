@@ -51,7 +51,11 @@ public class HttpProxy : Listener
 
         if (!httpRequest.IsValid)
         {
-            Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of HTTP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket?.TraceId.ToString() ?? "N/A");
+            // Unsupported/unparseable request (e.g. legacy clients like RealPlayer polling with malformed query strings).
+            // Log the request line only - not the whole header dump - at WARN, tagged with the connection trace id.
+            var requestLine = Encoding.GetString(data[..read]).Split('\n')[0].Trim();
+
+            Log.WriteLine(Log.LEVEL_WARN, nameof(HttpProxy), $"Unsupported request: {requestLine}", connection?.TraceId.ToString() ?? "");
 
             return null;
         }
@@ -201,7 +205,10 @@ public class HttpProxy : Listener
 
         Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), $"ERROR {(int)statusCode}{(exception != null ? $": {exception}" : "")}");
 
-        Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"{(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
+        // A 404 is an expected miss (no capture / not proxied), not a system fault - keep it out of the ERROR stream.
+        var level = statusCode == HttpStatusCode.NotFound ? Log.LEVEL_WARN : Log.LEVEL_ERROR;
+
+        Log.WriteLine(level, nameof(HttpProxy), $"{(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
 
         if (!ErrorPages.ContainsKey(statusCode))
         {
