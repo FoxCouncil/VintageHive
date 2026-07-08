@@ -21,10 +21,14 @@ internal static class LocalServerProcessor
     {
         TemplateOptions.Default.MemberAccessStrategy = new UnsafeMemberAccessStrategy();
 
-        if (Mind.IsDebug)
-        {
-            TemplateOptions.Default.TemplateCache = null;
-        }
+        // Keep the Fluid template cache disabled. It is keyed by the include path (e.g.
+        // "partials/header.html"), but hive.com and admin.hive.com ship different files under the
+        // same partial names, so a shared cache serves one domain's partial to another (admin ends
+        // up including hive.com's menu-bearing header and 500s). With the cache off, every include
+        // is re-resolved through the per-request FileProvider set in ControllerManager, which is
+        // scoped to the domain being rendered. (Previously only disabled under an attached debugger,
+        // which hid the bug in development.)
+        TemplateOptions.Default.TemplateCache = null;
 
         TemplateOptions.Default.Filters.AddFilter("bytes", (input, arguments, context) =>
         {
