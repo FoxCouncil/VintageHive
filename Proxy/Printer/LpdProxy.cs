@@ -271,7 +271,7 @@ internal class LpdProxy : Listener
         await stream.WriteAsync(response);
     }
 
-    static void ParseControlFile(byte[] data, ref string userName, ref string jobName, ref string hostName, ref string sourceFile)
+    internal static void ParseControlFile(byte[] data, ref string userName, ref string jobName, ref string hostName, ref string sourceFile)
     {
         var content = Encoding.ASCII.GetString(data);
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
