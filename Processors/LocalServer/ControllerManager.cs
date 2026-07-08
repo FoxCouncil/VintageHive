@@ -89,7 +89,10 @@ internal static class ControllerManager
         controller.RootDirectory = rootControllerDirectory;
         controller.Request = request;
         controller.Response = response;
-        controller.Response.Context.Options.FileProvider = new LocalServerFileProvider(rootControllerDirectory);
+
+        // Scope template-include resolution to this request's domain without mutating the shared
+        // TemplateOptions.Default.FileProvider (which every request's context points at).
+        LocalServerFileProvider.SetCurrentRoot(rootControllerDirectory);
 
         var endpoint = ((IPEndPoint)request.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4();
         var endpointPort = ((IPEndPoint)request.ListenerSocket.RawSocket.LocalEndPoint).Port;

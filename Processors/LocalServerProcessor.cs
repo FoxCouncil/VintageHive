@@ -30,6 +30,11 @@ internal static class LocalServerProcessor
         // which hid the bug in development.)
         TemplateOptions.Default.TemplateCache = null;
 
+        // One shared file provider resolves all template includes; the per-request controller root it
+        // reads is carried in an AsyncLocal (see LocalServerFileProvider), so concurrent renders for
+        // different domains stay isolated instead of racing on a shared FileProvider.
+        TemplateOptions.Default.FileProvider = new LocalServerFileProvider();
+
         TemplateOptions.Default.Filters.AddFilter("bytes", (input, arguments, context) =>
         {
             return StringValue.Create(((long)input.ToNumberValue()).Bytes().Humanize());

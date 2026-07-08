@@ -7,11 +7,15 @@ namespace VintageHive.Processors.LocalServer;
 
 internal class LocalServerFileProvider : IFileProvider
 {
-    readonly string subPath;
+    // The controller directory of the request currently rendering. Held per async flow so the single
+    // provider instance shared on TemplateOptions.Default resolves the correct domain's partials even
+    // when different domains render concurrently. (Assigning a fresh FileProvider to the shared
+    // options object per request instead - as this used to - races across threads.)
+    static readonly AsyncLocal<string> currentRoot = new();
 
-    public LocalServerFileProvider(string subPath)
+    public static void SetCurrentRoot(string rootDirectory)
     {
-        this.subPath = subPath;
+        currentRoot.Value = rootDirectory;
     }
 
     public IDirectoryContents GetDirectoryContents(string subpath)
@@ -24,7 +28,7 @@ internal class LocalServerFileProvider : IFileProvider
     {
         var path = subpath.Replace(".liquid", string.Empty);
 
-        var fullPath = Path.Combine(subPath, path);
+        var fullPath = Path.Combine(currentRoot.Value ?? string.Empty, path);
 
         return new LocalServerFile(fullPath);
     }
