@@ -49,7 +49,8 @@
   - IRC: 62 tests. Pure logic (`IrcProtocolTests.cs`) plus RFC 1459/2812 command->response conformance through the real handlers (`IrcConformanceTests.cs`): registration 001-004, JOIN 331/353/366, error numerics; nick length asserted as an intentional deviation from RFC's 9-char limit, cited.
   - FTP: 28 tests (`FtpProtocolTests.cs`). RFC 959 reply codes, reply/command wire format (extracted pure `FtpRequest.ParseCommandLine`/`FormatResponse`/`FormatFeatureList`), and TYPE handling. The 430 auth-failure code is documented as an extension over RFC 959's 530.
   - Mail: 25 tests (`MailProtocolTests.cs`). SMTP (RFC 5321), POP3 (RFC 1939), IMAP (RFC 3501) command->reply conformance driven one-shot through the real handlers, DB-backed harness.
-  - Still to cover: Telnet BBS, MMS/PNA streaming, printer.
+  - Telnet BBS: 14 tests (`TelnetBbsTests.cs`) - command registry + hidden filtering, window stack, the riddle game, and word wrap. Telnet here is raw ASCII (no RFC 854 negotiation), so these are application-logic tests. A test caught and fixed a real bug: winning the riddle on the first guess erased the "Correct! You win!" message (`UpdateText` re-fired the initial prompt because `attemptsLeft` was still 3).
+  - Still to cover: printer (IPP/LPD), MMS/PNA streaming.
 
 ## Discovered during manual testing (pre-existing, NOT introduced here)
 

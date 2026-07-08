@@ -75,8 +75,9 @@ public class TelnetRiddleCommand : ITelnetWindow
             break;
         }
 
-        // Only use this prompt on first time!
-        if (attemptsLeft == 3)
+        // Only use this prompt on first time - i.e. before any guess has set a result message.
+        // (Checking attemptsLeft == 3 wrongly re-fired after a correct first guess, erasing the win.)
+        if (_answerPrompt == null)
         {
             _answerPrompt = $"What is your answer? Guesses left {attemptsLeft}\r\n";
         }
