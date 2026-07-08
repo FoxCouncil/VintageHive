@@ -41,10 +41,37 @@ internal class RtpRelayManager : IDisposable
     /// <returns>The allocated relay pair with local port information.</returns>
     public RelayPair CreateRelay(int channelNumber, string sessionLabel = "media")
     {
-        var rtpPort = AllocateEvenPort();
+        // Ephemeral port allocation is inherently racy: the probe socket in AllocateEvenPort has to be
+        // released before the relays bind, and the even/odd pair isn't actually confirmed free until
+        // the real bind. On a collision the UdpClient bind throws, so retry with a fresh pair a handful
+        // of times rather than letting a transient clash fail the call.
+        const int maxAttempts = 10;
 
-        var rtpRelay = new RtpRelay(_localAddress, rtpPort, $"RTP:{sessionLabel}");
-        var rtcpRelay = new RtpRelay(_localAddress, rtpPort + 1, $"RTCP:{sessionLabel}");
+        RtpRelay rtpRelay = null;
+        RtpRelay rtcpRelay = null;
+        int rtpPort;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            rtpPort = AllocateEvenPort();
+
+            try
+            {
+                rtpRelay = new RtpRelay(_localAddress, rtpPort, $"RTP:{sessionLabel}");
+                rtcpRelay = new RtpRelay(_localAddress, rtpPort + 1, $"RTCP:{sessionLabel}");
+
+                break;
+            }
+            catch (SocketException) when (attempt < maxAttempts)
+            {
+                // A port in the chosen pair was taken between allocation and bind - drop any partial
+                // relay and try a different pair.
+                rtpRelay?.Dispose();
+
+                rtpRelay = null;
+                rtcpRelay = null;
+            }
+        }
 
         var pair = new RelayPair
         {
@@ -220,45 +247,18 @@ internal class RtpRelayManager : IDisposable
     }
 
     /// <summary>
-    /// Allocate an even-numbered port from the dynamic range.
-    /// Tries to bind a UDP socket to verify availability.
+    /// Allocate a candidate even-numbered port (RTP uses the even port, RTCP the next odd port).
+    /// The OS assigns an ephemeral port which is then rounded to the nearest even value. Availability
+    /// is confirmed by the actual relay bind in <see cref="CreateRelay"/>, which retries on collision -
+    /// test-binding here would only be a TOCTOU race that gives false confidence.
     /// </summary>
     internal static int AllocateEvenPort()
     {
-        // Let the OS assign a port, then find the next even one
-        // Strategy: bind to 0, get the assigned port, release it,
-        // then use the nearest even port
         using var probe = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
         var assigned = ((IPEndPoint)probe.Client.LocalEndPoint).Port;
         probe.Close();
 
-        // Ensure even port (for RTP, RTCP gets the next odd port)
-        var evenPort = assigned % 2 == 0 ? assigned : assigned + 1;
-
-        // Verify both the even port and the next odd port are available
-        try
-        {
-            using var testRtp = new UdpClient(new IPEndPoint(IPAddress.Any, evenPort));
-            testRtp.Close();
-        }
-        catch (SocketException)
-        {
-            // Port taken - try next even port
-            evenPort += 2;
-        }
-
-        try
-        {
-            using var testRtcp = new UdpClient(new IPEndPoint(IPAddress.Any, evenPort + 1));
-            testRtcp.Close();
-        }
-        catch (SocketException)
-        {
-            // RTCP port taken - try next even port
-            evenPort += 2;
-        }
-
-        return evenPort;
+        return assigned % 2 == 0 ? assigned : assigned + 1;
     }
 }
 
