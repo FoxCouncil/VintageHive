@@ -124,8 +124,22 @@ internal static class InternetArchiveProcessor
 
             contentType = workerResponse.Content.Headers.ContentType?.ToString() ?? "text/html";
 
-            // Worker already scrubs HTML - just read the bytes directly
-            contentData = await workerResponse.Content.ReadAsByteArrayAsync();
+            // Worker is a raw cache passthrough now - VintageHive owns the HTML scrubbing (single source of truth).
+            if (contentType.StartsWith("text/html"))
+            {
+                var iaHtmlData = await workerResponse.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(iaHtmlData))
+                {
+                    return false;
+                }
+
+                contentData = Encoding.ASCII.GetBytes(ScrubHtml(iaUrl, iaHtmlData));
+            }
+            else
+            {
+                contentData = await workerResponse.Content.ReadAsByteArrayAsync();
+            }
 
             if (contentData == null || contentData.Length == 0)
             {
