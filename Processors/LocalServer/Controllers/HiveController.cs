@@ -9,7 +9,7 @@ using VintageHive.Proxy.Security;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
-[Domain("*.hive.com")]
+[Domain(HiveDomains.Wildcard)]
 internal class HiveController : Controller
 {
     private const string DEFAULT_LOCATION_PRIVACY = "Your Location";
@@ -18,9 +18,9 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        if (Request.Host.ToLower() != "hive.com")
+        if (Request.Host.ToLower() != HiveDomains.Intranet)
         {
-            Response.SetRedirect("http://hive.com" + rawPath);
+            Response.SetRedirect("http://" + HiveDomains.Intranet + rawPath);
 
             return;
         }
@@ -306,7 +306,7 @@ internal class HiveController : Controller
             if (mimetype.StartsWith("image"))
             {
                 Response.Context.SetValue("type", "image");
-                Response.Context.SetValue("image", $"http://api.hive.com/image/fetch?url={url}");
+                Response.Context.SetValue("image", $"http://{HiveDomains.Api}/image/fetch?url={url}");
             }
             else
             {

@@ -184,7 +184,7 @@ public class TelnetWeatherCommand : ITelnetWindow
     private void GetCurrentConditions()
     {
         var time = DateTime.Parse(_weatherData.CurrentWeather.Time);
-        var imagePath = $"{VFS.StaticsPath}controllers/hive.com/img/weather/{_weatherData.CurrentWeather.Weathercode}.jpg";
+        var imagePath = $"{VFS.StaticsPath}controllers/{HiveDomains.Intranet}/img/weather/{_weatherData.CurrentWeather.Weathercode}.jpg";
         var asciiArt = string.Empty;
 
         if (VFS.FileExists(imagePath))

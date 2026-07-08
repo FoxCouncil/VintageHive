@@ -38,7 +38,7 @@
 - [x] `HttpProxy` request tracking now skips all `*.hive.com` intranet hosts (was a hardcoded `admin.com`/`hive.com` check)
 - [x] `SCUtils.GetStationById` - removed the stale cache TODO (caching is already implemented directly below it)
 - [x] `.editorconfig` expanded with the Allman / always-braces / no-line-limit style rules
-- [ ] Centralize the `hive.com` base domain - deferred. The `[Domain(...)]` attributes need compile-time literals and the domain is spread across ~10 working files; a full refactor is broad and low-value, so left as-is rather than half-centralized
+- [x] Centralize the `hive.com` base domain - done. All subdomains, host checks, and email addresses derive from `HiveDomains.Base`; const concatenation (`"admin." + Base`) keeps it usable in `[Domain(...)]` attributes.
 - [ ] `RepoUtils` custom repositories - deferred. Implementing user-added repos (config store + admin UI) is a feature, not cleanup, and outside the chosen scope
 
 ## Test coverage

@@ -906,7 +906,7 @@ public class HiveDbContext : DbContextBase
             {
                 ScreenName = screenName,
                 Nickname = screenName,
-                Email = $"{screenName}@hive.com"
+                Email = $"{screenName}{HiveDomains.EmailSuffix}"
             };
 
             OscarInsertOrUpdateProfile(profile);

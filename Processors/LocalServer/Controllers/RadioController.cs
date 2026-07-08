@@ -8,7 +8,7 @@ using static VintageHive.Utilities.SCUtils;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
-[Domain("radio.hive.com")]
+[Domain(HiveDomains.Radio)]
 internal class RadioController : Controller
 {
     // ===================================================================
@@ -61,7 +61,7 @@ internal class RadioController : Controller
                 {
                     var pls = new StringBuilder();
                     pls.AppendLine("[playlist]");
-                    pls.AppendLine($"File1=http://radio.hive.com/stream/winamp?id={id}");
+                    pls.AppendLine($"File1=http://{HiveDomains.Radio}/stream/winamp?id={id}");
                     pls.AppendLine($"Title1={info.Name}");
                     pls.AppendLine("Length1=-1");
                     pls.AppendLine("NumberOfEntries=1");
@@ -78,7 +78,7 @@ internal class RadioController : Controller
                         serverIp = ((IPEndPoint)Request.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4().ToString();
                     }
 
-                    var ram = $"http://radio.hive.com/stream/real/{id}.ra\n";
+                    var ram = $"http://{HiveDomains.Radio}/stream/real/{id}.ra\n";
                     SetPlaylistResponseHeaders();
                     Response.SetBodyString(ram, "audio/x-pn-realaudio");
                     break;
@@ -101,15 +101,15 @@ internal class RadioController : Controller
                     asx.AppendLine($"  <title>{esc(info.Name)}</title>");
 
                     // Banner: per-station generated image (194x32 area in WMP)
-                    asx.AppendLine($"  <banner href=\"http://radio.hive.com/banner/{id}.gif\">");
-                    asx.AppendLine($"    <moreinfo href=\"http://radio.hive.com/browser.html?id={id}\" />");
+                    asx.AppendLine($"  <banner href=\"http://{HiveDomains.Radio}/banner/{id}.gif\">");
+                    asx.AppendLine($"    <moreinfo href=\"http://{HiveDomains.Radio}/browser.html?id={id}\" />");
                     asx.AppendLine("  </banner>");
 
                     asx.AppendLine("  <entry clientskip=\"no\">");
                     // MMS first - protocol rollover scheme (RTSP -> MMS/TCP -> HTTP)
                     asx.AppendLine($"    <ref href=\"mms://{serverIp}/stream/wmp/{id}.asf\" />");
                     // HTTP fallback (direct MMSH)
-                    asx.AppendLine($"    <ref href=\"http://radio.hive.com/stream/wmp/{id}.asf\" />");
+                    asx.AppendLine($"    <ref href=\"http://{HiveDomains.Radio}/stream/wmp/{id}.asf\" />");
                     asx.AppendLine("  </entry>");
                     asx.AppendLine("</asx>");
 

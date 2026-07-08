@@ -2,8 +2,8 @@
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
-[Domain("autoconfig.hive.com")]
-[Domain("autodiscover.hive.com")]
+[Domain(HiveDomains.Autoconfig)]
+[Domain(HiveDomains.Autodiscover)]
 internal class AutodiscoverController : Controller
 {
     [Route("/mail/config-v1.1.xml")]
@@ -19,8 +19,8 @@ internal class AutodiscoverController : Controller
 
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <clientConfig version=""1.1"">
-  <emailProvider id=""hive.com"">
-    <domain>hive.com</domain>
+  <emailProvider id=""{HiveDomains.Base}"">
+    <domain>{HiveDomains.Base}</domain>
     <displayName>VintageHive Mail</displayName>
     <displayShortName>VintageHive</displayShortName>
     <incomingServer type=""imap"">

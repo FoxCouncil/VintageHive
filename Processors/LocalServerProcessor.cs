@@ -571,19 +571,19 @@ internal static class LocalServerProcessor
         {
             var newRedirectedUri = new UriBuilder(req.Uri)
             {
-                Host = "admin.hive.com"
+                Host = HiveDomains.Admin
             };
 
             req.Uri = newRedirectedUri.Uri;
         }
-        else if (req.Uri.Host == "admin.hive.com")
+        else if (req.Uri.Host == HiveDomains.Admin)
         {
             return false;
         }
 
         // The intranet portal can be disabled via config. The admin panel is always served so the
         // toggle can be flipped back on; everything else falls through to the remaining processors.
-        if (req.Uri.Host != "admin.hive.com" && !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceIntranet))
+        if (req.Uri.Host != HiveDomains.Admin && !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceIntranet))
         {
             return false;
         }

@@ -8,7 +8,7 @@ namespace VintageHive.Proxy.Oscar;
 
 public class OscarServer : Listener
 {
-    public const string LoginHelpUrl = "http://hive.com/help.html#aim_login";
+    public const string LoginHelpUrl = "http://" + HiveDomains.Intranet + "/help.html#aim_login";
 
     public static readonly List<OscarSession> Sessions = new();
 

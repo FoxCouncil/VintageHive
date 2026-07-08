@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
-[Domain("api.hive.com")]
+[Domain(HiveDomains.Api)]
 internal class ApiController : Controller
 {
     static readonly ConcurrentDictionary<string, string> _brokenUrls = new();

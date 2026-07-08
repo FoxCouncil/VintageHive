@@ -12,7 +12,7 @@ internal class IrcProxy : Listener
 {
     #region Constants & Fields
 
-    private const string IRCD_HOSTNAME = "irc.hive.com";
+    private const string IRCD_HOSTNAME = HiveDomains.Irc;
     private const string IRCD_VERSION = "VintageHiveIRCd";
     private const int FLOOD_MAX_MESSAGES = 5;
     private static readonly TimeSpan FloodWindow = TimeSpan.FromSeconds(2);

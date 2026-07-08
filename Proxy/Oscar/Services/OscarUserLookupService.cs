@@ -27,7 +27,7 @@ internal class OscarUserLookupService : IOscarService
             {
                 var email = Encoding.ASCII.GetString(snac.RawData);
 
-                var username = email.Split("@hive.com").FirstOrDefault();
+                var username = email.Split(HiveDomains.EmailSuffix).FirstOrDefault();
 
                 if (Mind.Db.UserExistsByUsername(username))
                 {

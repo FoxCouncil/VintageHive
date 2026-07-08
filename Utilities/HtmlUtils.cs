@@ -52,7 +52,7 @@ internal static class HtmlUtils
 
                 var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
 
-                var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"http://api.hive.com/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
+                var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"http://{HiveDomains.Api}/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
 
                 if (node.ParentNode.Name == "picture")
                 {

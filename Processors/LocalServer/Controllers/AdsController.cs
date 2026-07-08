@@ -2,5 +2,5 @@
 
 namespace VintageHive.Processors.LocalServer.Controllers;
 
-[Domain("ads.hive.com")]
+[Domain(HiveDomains.Ads)]
 internal class AdsController : Controller { }

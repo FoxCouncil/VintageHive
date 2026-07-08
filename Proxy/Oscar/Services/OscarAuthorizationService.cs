@@ -82,7 +82,7 @@ public class OscarAuthorizationService : IOscarService
                         new Tlv(Tlv.Type_ScreenName, session.ScreenName),
                         new Tlv(0x0005, $"{serverIP}:5190"),
                         new Tlv(0x0006, session.Cookie),
-                        new Tlv(0x0011, $"{session.ScreenName}@hive.com"),
+                        new Tlv(0x0011, $"{session.ScreenName}{HiveDomains.EmailSuffix}"),
                     };
 
                     var authSuccessSnac = snac.NewReply(Family, SRV_LOGIN_REPLY);

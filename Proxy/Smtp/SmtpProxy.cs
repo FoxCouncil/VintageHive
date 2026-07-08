@@ -46,7 +46,7 @@ internal partial class SmtpProxy : Listener
     {
         connection.IsKeepAlive = true;
 
-        return await SendResponse(ServiceReady, "smtp.hive.com ESMTP ready");
+        return await SendResponse(ServiceReady, $"{HiveDomains.Smtp} ESMTP ready");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -135,7 +135,7 @@ internal partial class SmtpProxy : Listener
 
             case SmtpCommands.HELP:
             {
-                return await SendResponse(SmtpResponseCodes.CommandNotImplemented, "VintageHive SMTP server. For help, visit http://hive.com/help/email.html");
+                return await SendResponse(SmtpResponseCodes.CommandNotImplemented, $"VintageHive SMTP server. For help, visit http://{HiveDomains.Intranet}/help/email.html");
             }
 
             case SmtpCommands.VRFY:

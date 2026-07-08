@@ -76,7 +76,7 @@ public class HttpProxy : Listener
                         // hive.com intranet/admin portal and its subdomains (admin/radio/api/ads.hive.com).
                         var host = httpRequest.Uri.Host;
 
-                        if (host != "hive.com" && !host.EndsWith(".hive.com"))
+                        if (host != HiveDomains.Intranet && !host.EndsWith(HiveDomains.DotSuffix))
                         {
                             Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
                         }
