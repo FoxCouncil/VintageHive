@@ -75,7 +75,7 @@ internal class DrawingAttribute
 }
 
 /// <summary>
-/// T.126 DrawingCreatePDU — creates a drawing object on the whiteboard.
+/// T.126 DrawingCreatePDU - creates a drawing object on the whiteboard.
 /// </summary>
 internal class DrawingCreatePdu
 {
@@ -105,7 +105,7 @@ internal class DrawingCreatePdu
 }
 
 /// <summary>
-/// T.126 DrawingDeletePDU — deletes a drawing object.
+/// T.126 DrawingDeletePDU - deletes a drawing object.
 /// </summary>
 internal class DrawingDeletePdu
 {
@@ -113,7 +113,7 @@ internal class DrawingDeletePdu
 }
 
 /// <summary>
-/// T.126 DrawingEditPDU — modifies an existing drawing object.
+/// T.126 DrawingEditPDU - modifies an existing drawing object.
 /// </summary>
 internal class DrawingEditPdu
 {
@@ -125,7 +125,7 @@ internal class DrawingEditPdu
 }
 
 /// <summary>
-/// T.126 WorkspaceCreatePDU — creates a new workspace (whiteboard page).
+/// T.126 WorkspaceCreatePDU - creates a new workspace (whiteboard page).
 /// </summary>
 internal class WorkspaceCreatePdu
 {
@@ -165,16 +165,16 @@ internal class SipduMessage
 }
 
 /// <summary>
-/// T.126 SIPDU PER codec — encodes and decodes whiteboard drawing primitives.
+/// T.126 SIPDU PER codec - encodes and decodes whiteboard drawing primitives.
 ///
 /// Uses ASN.1 ALIGNED PER (ITU-T X.691) encoding via the existing
 /// PerEncoder/PerDecoder infrastructure.
 /// </summary>
 internal static class WhiteboardCodec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Detection
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Peek at the SIPDU CHOICE index from PER-encoded data.
@@ -198,7 +198,7 @@ internal static class WhiteboardCodec
                 return (int)dec.ReadConstrainedWholeNumber(0, WhiteboardConstants.SIPDU_ROOT_COUNT - 1);
             }
 
-            // Extension — we don't handle these yet
+            // Extension - we don't handle these yet
             return -1;
         }
         catch
@@ -207,9 +207,9 @@ internal static class WhiteboardCodec
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Encode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Encode a DrawingCreatePDU as a T.126 SIPDU.</summary>
     public static byte[] EncodeDrawingCreate(DrawingCreatePdu pdu)
@@ -231,7 +231,7 @@ internal static class WhiteboardCodec
         // drawingHandle OPTIONAL
         if (hasHandle)
         {
-            // Handle ::= INTEGER(0..4294967295) — unconstrained in practice, use 32 bits
+            // Handle ::= INTEGER(0..4294967295) - unconstrained in practice, use 32 bits
             enc.WriteConstrainedWholeNumber(pdu.Handle.Value, 0, uint.MaxValue);
         }
 
@@ -249,7 +249,7 @@ internal static class WhiteboardCodec
         // drawingType CHOICE (extensible, 6 root)
         enc.WriteExtensionBit(false);
         enc.WriteChoiceIndex(pdu.DrawingType, WhiteboardConstants.DRAWING_TYPE_ROOT_COUNT, extensible: false, isExtension: false);
-        // Most drawing types are NULL — no additional data needed
+        // Most drawing types are NULL - no additional data needed
 
         // attributes OPTIONAL SET OF DrawingAttribute
         if (hasAttrs)
@@ -346,7 +346,7 @@ internal static class WhiteboardCodec
         enc.WriteOptionalBitmap(false, false, false, false, false);
 
         // workspaceIdentifier: WorkspaceIdentifier CHOICE
-        // activeWorkspace Handle — use workspace handle
+        // activeWorkspace Handle - use workspace handle
         enc.WriteChoiceIndex(0, 2, extensible: false, isExtension: false);
         enc.WriteConstrainedWholeNumber(pdu.WorkspaceHandle, 0, uint.MaxValue);
 
@@ -370,9 +370,9 @@ internal static class WhiteboardCodec
         return enc.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Decode a T.126 SIPDU from PER-encoded bytes.</summary>
     public static SipduMessage DecodeSipdu(byte[] data)
@@ -388,7 +388,7 @@ internal static class WhiteboardCodec
         var hasExtensions = dec.ReadExtensionBit();
         if (hasExtensions)
         {
-            // Extension — return raw
+            // Extension - return raw
             return new SipduMessage { Type = -1, RawData = data };
         }
 
@@ -404,9 +404,9 @@ internal static class WhiteboardCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Internal decode helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static SipduMessage DecodeDrawingCreate(PerDecoder dec, byte[] rawData)
     {
@@ -590,9 +590,9 @@ internal static class WhiteboardCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Shared PER encode/decode for sub-structures
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void EncodeWorkspacePoint(PerEncoder enc, WorkspacePoint point)
     {
@@ -691,7 +691,7 @@ internal static class WhiteboardCodec
 
     private static void EncodeDrawingAttributes(PerEncoder enc, DrawingAttribute[] attrs)
     {
-        // SET OF DrawingAttribute — length-determinant first
+        // SET OF DrawingAttribute - length-determinant first
         enc.WriteConstrainedLengthDeterminant(attrs.Length, 1, 256);
 
         foreach (var attr in attrs)
@@ -876,7 +876,7 @@ internal static class WhiteboardCodec
 
             case WhiteboardConstants.COLOR_TRANSPARENT:
             {
-                // NULL — nothing to encode
+                // NULL - nothing to encode
             }
             break;
         }

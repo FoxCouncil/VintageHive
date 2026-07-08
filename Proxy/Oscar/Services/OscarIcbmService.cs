@@ -79,7 +79,7 @@ internal class OscarIcbmService : IOscarService
 
                 if (userSession == null)
                 {
-                    // User is offline — store for offline delivery (channel 1 only)
+                    // User is offline - store for offline delivery (channel 1 only)
                     if (msgChannel == 1 && Mind.Db.UserExistsByUsername(screenName))
                     {
                         // Store the message TLVs for later delivery

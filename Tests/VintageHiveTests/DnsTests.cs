@@ -54,7 +54,7 @@ internal static class DnsPacketBuilder
     }
 
     /// <summary>
-    /// Encodes a domain name into DNS label format (e.g., "www.yahoo.com" → [3]www[5]yahoo[3]com[0]).
+    /// Encodes a domain name into DNS label format (e.g., "www.yahoo.com" -> [3]www[5]yahoo[3]com[0]).
     /// </summary>
     public static byte[] EncodeDomainName(string name)
     {
@@ -762,7 +762,7 @@ public class DnsPacketBuilderTests
         Assert.AreEqual(0xBE, query[0]);
         Assert.AreEqual(0xEF, query[1]);
 
-        // Flags: RD=1 → 0x0100
+        // Flags: RD=1 -> 0x0100
         Assert.AreEqual(0x01, query[2]);
         Assert.AreEqual(0x00, query[3]);
 

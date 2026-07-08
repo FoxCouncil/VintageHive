@@ -34,7 +34,7 @@ public class ListenerTests
     [TestMethod]
     public void Start_Should_Start_ProcessThread()
     {
-        // Arrange — port 0 lets the OS pick an available ephemeral port
+        // Arrange - port 0 lets the OS pick an available ephemeral port
         var listener = new Mock<Listener>(IPAddress.Loopback, 0, SocketType.Stream, ProtocolType.Tcp, false).Object;
 
         // Act
@@ -47,7 +47,7 @@ public class ListenerTests
     [TestMethod]
     public void Start_Should_Start_With_Correct_State()
     {
-        // Arrange — port 0 lets the OS pick an available ephemeral port
+        // Arrange - port 0 lets the OS pick an available ephemeral port
         var port = 0;
         var secure = false;
         var listener = new Mock<Listener>(IPAddress.Loopback, port, SocketType.Stream, ProtocolType.Tcp, secure).Object;

@@ -6,7 +6,7 @@ using VintageHive.Network;
 namespace VintageHive.Proxy.NetMeeting.H225;
 
 /// <summary>
-/// H.225.0 RAS Gatekeeper — listens on UDP for PER-encoded RAS messages.
+/// H.225.0 RAS Gatekeeper - listens on UDP for PER-encoded RAS messages.
 /// Handles endpoint discovery (GRQ), registration (RRQ), admission (ARQ),
 /// unregistration (URQ), and disengage (DRQ).
 /// </summary>
@@ -61,9 +61,9 @@ internal class RasServer : UdpListener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Message handlers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private byte[] HandleGatekeeperRequest(RasMessage msg, IPEndPoint remoteEndPoint)
     {
@@ -71,7 +71,7 @@ internal class RasServer : UdpListener
 
         Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"GRQ from {remoteEndPoint}: aliases={FormatAliases(grq.Aliases)}", "");
 
-        // Always confirm — we are the gatekeeper for this network
+        // Always confirm - we are the gatekeeper for this network
         var rasAddress = new IPEndPoint(Address, BoundPort);
 
         return RasCodec.EncodeGatekeeperConfirm(grq.RequestSeqNum, rasAddress, GK_ID);
@@ -110,7 +110,7 @@ internal class RasServer : UdpListener
 
         _registry.Register(endpoint);
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"RRQ → RCF: ep={endpointId} aliases={FormatAliases(rrq.Aliases)} ttl={ttl}s (registry has {_registry.Count} endpoints)", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"RRQ -> RCF: ep={endpointId} aliases={FormatAliases(rrq.Aliases)} ttl={ttl}s (registry has {_registry.Count} endpoints)", "");
 
         return RasCodec.EncodeRegistrationConfirm(rrq.RequestSeqNum, rrq.CallSignalAddresses, GK_ID, endpointId, ttl);
     }
@@ -124,7 +124,7 @@ internal class RasServer : UdpListener
             _registry.Unregister(urq.EndpointIdentifier);
         }
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"URQ → UCF: ep={urq.EndpointIdentifier} (registry has {_registry.Count} endpoints)", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"URQ -> UCF: ep={urq.EndpointIdentifier} (registry has {_registry.Count} endpoints)", "");
 
         return RasCodec.EncodeUnregistrationConfirm(urq.RequestSeqNum);
     }
@@ -137,7 +137,7 @@ internal class RasServer : UdpListener
         var callerEp = _registry.FindById(arq.EndpointIdentifier);
         if (callerEp == null)
         {
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ → ARJ: caller ep={arq.EndpointIdentifier} not registered", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ -> ARJ: caller ep={arq.EndpointIdentifier} not registered", "");
             return RasCodec.EncodeAdmissionReject(arq.RequestSeqNum, H225Constants.ARJ_CALLER_NOT_REGISTERED);
         }
 
@@ -157,14 +157,14 @@ internal class RasServer : UdpListener
 
         if (destEp == null)
         {
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ → ARJ: destination {FormatAliases(arq.DestinationAliases)} not found", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ -> ARJ: destination {FormatAliases(arq.DestinationAliases)} not found", "");
             return RasCodec.EncodeAdmissionReject(arq.RequestSeqNum, H225Constants.ARJ_CALLED_PARTY_NOT_REGISTERED);
         }
 
-        // Direct call model — tell caller to connect to destination's call signaling address
+        // Direct call model - tell caller to connect to destination's call signaling address
         var destCallSignal = destEp.CallSignalAddresses[0];
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ → ACF: ep={arq.EndpointIdentifier} → {FormatAliases(arq.DestinationAliases)} at {destCallSignal}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ -> ACF: ep={arq.EndpointIdentifier} -> {FormatAliases(arq.DestinationAliases)} at {destCallSignal}", "");
 
         return RasCodec.EncodeAdmissionConfirm(arq.RequestSeqNum, arq.BandWidth, destCallSignal);
     }
@@ -173,7 +173,7 @@ internal class RasServer : UdpListener
     {
         var drq = msg.Drq;
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"DRQ → DCF: ep={drq.EndpointIdentifier} reason={drq.DisengageReason}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"DRQ -> DCF: ep={drq.EndpointIdentifier} reason={drq.DisengageReason}", "");
 
         return RasCodec.EncodeDisengageConfirm(drq.RequestSeqNum);
     }
@@ -185,9 +185,9 @@ internal class RasServer : UdpListener
         return RasCodec.EncodeUnknownMessageResponse(msg.RequestSeqNum > 0 ? msg.RequestSeqNum : 1);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private void CleanExpired()
     {

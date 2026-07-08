@@ -1,7 +1,8 @@
 #See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
-RUN apt-get update && apt-get install -y --no-install-recommends libgs-dev && rm -rf /var/lib/apt/lists/*
+# libgs-dev: PostScript/PCL print-to-PDF. ffmpeg: radio stream transcoding (MP3/WMA/RealAudio).
+RUN apt-get update && apt-get install -y --no-install-recommends libgs-dev ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # FTP PASSIVE MODE
@@ -87,6 +88,9 @@ RUN dotnet publish "VintageHive.csproj" -c Release -o /app/publish /p:UseAppHost
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+# The container uses the distro's ffmpeg (installed above via PATH); drop the bundled Windows/macOS/amd64
+# binaries so the correct architecture is always used and the image isn't carrying ~240MB of dead weight.
+RUN rm -f libs/ffmpeg.exe libs/ffmpeg.osx.intel libs/ffmpeg.amd64
 # Create a non-root user
 RUN useradd -m vintagehive && \
     chown -R vintagehive:vintagehive /app

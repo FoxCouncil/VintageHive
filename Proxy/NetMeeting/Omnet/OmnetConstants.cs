@@ -9,15 +9,15 @@ namespace VintageHive.Proxy.NetMeeting.Omnet;
 /// Used by whiteboard (T.126), file transfer (T.127), and application sharing.
 ///
 /// All OMNET messages ride inside MCS SendData PDUs on the T.120 stack:
-///   TCP:1503 → TPKT → X.224 → MCS SendData → OMNET message
+///   TCP:1503 -> TPKT -> X.224 -> MCS SendData -> OMNET message
 ///
 /// All multi-byte integer fields are little-endian per MS-MNPR.
 /// </summary>
 internal static class OmnetConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Message types (2-byte LE values)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     // Joiner messages
     public const ushort MSG_HELLO = 0x000A;
@@ -48,9 +48,9 @@ internal static class OmnetConstants
     public const ushort MSG_OBJECT_MOVE = 0x0037;
     public const ushort MSG_MORE_DATA = 0x0046;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Compression capabilities (bitwise OR in HELLO/WELCOME)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const uint CAPS_PKW_COMPRESSION = 0x00000002;
     public const uint CAPS_NO_COMPRESSION = 0x00000004;
@@ -58,16 +58,16 @@ internal static class OmnetConstants
     /// <summary>Standard caps length in HELLO/WELCOME messages.</summary>
     public const uint CAPS_LENGTH = 0x00000004;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Object position constants
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const byte POSITION_LAST = 0x01;
     public const byte POSITION_FIRST = 0x02;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  WSGROUP_INFO magic stamp
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>"OMWI" as a little-endian uint32 (0x4F=O, 0x4D=M, 0x57=W, 0x49=I).</summary>
     public const uint WSGROUP_INFO_STAMP = 0x49574D4F;
@@ -75,9 +75,9 @@ internal static class OmnetConstants
     /// <summary>Fixed size of WSGROUP_INFO (excluding the 4-byte length prefix).</summary>
     public const int WSGROUP_INFO_SIZE = 60;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Fixed message sizes
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Joiner messages (HELLO, WELCOME): 12 bytes.</summary>
     public const int JOINER_SIZE = 12;
@@ -106,9 +106,9 @@ internal static class OmnetConstants
     /// <summary>MORE_DATA header: 8 bytes.</summary>
     public const int MORE_DATA_HEADER_SIZE = 8;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for an OMNET message type.</summary>
     public static string MessageName(ushort type)

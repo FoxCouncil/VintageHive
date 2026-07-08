@@ -4,9 +4,9 @@ using VintageHive.Proxy.NetMeeting.Asn1;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Bit-level operation tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerBitTests
@@ -16,7 +16,7 @@ public class PerBitTests
     {
         var enc = new PerEncoder();
         enc.WriteBit(true);
-        // 1 bit written → partial byte 0x80, padded to 1 byte
+        // 1 bit written -> partial byte 0x80, padded to 1 byte
         var bytes = enc.ToArray();
         Assert.AreEqual(1, bytes.Length);
         Assert.AreEqual(0x80, bytes[0]);
@@ -189,9 +189,9 @@ public class PerBitTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Constrained whole number tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerConstrainedWholeNumberTests
@@ -247,7 +247,7 @@ public class PerConstrainedWholeNumberTests
         var enc = new PerEncoder();
         enc.WriteBit(true); // 1 bit offset
         enc.WriteConstrainedWholeNumber(200, 0, 254); // 8 bits for 200 = 11001000
-        // Total: 1 + 8 = 9 bits → 2 bytes
+        // Total: 1 + 8 = 9 bits -> 2 bytes
         var bytes = enc.ToArray();
         Assert.AreEqual(2, bytes.Length);
         // 1 11001000 0 = 0xE4 0x00
@@ -284,7 +284,7 @@ public class PerConstrainedWholeNumberTests
     [TestMethod]
     public void OffsetFromLowerBound()
     {
-        // INTEGER (100..200), value 150 → offset = 50
+        // INTEGER (100..200), value 150 -> offset = 50
         // Range = 101, BitsNeeded(101) = 7
         var enc = new PerEncoder();
         enc.WriteConstrainedWholeNumber(150, 100, 200);
@@ -344,9 +344,9 @@ public class PerConstrainedWholeNumberTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Length determinant tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerLengthDeterminantTests
@@ -389,7 +389,7 @@ public class PerLengthDeterminantTests
         enc.WriteLengthDeterminant(200);
         var bytes = enc.ToArray();
         Assert.AreEqual(2, bytes.Length);
-        // 200 = 0xC8 → 10 000000 11001000
+        // 200 = 0xC8 -> 10 000000 11001000
         Assert.AreEqual(0x80, bytes[0]);
         Assert.AreEqual(0xC8, bytes[1]);
     }
@@ -401,7 +401,7 @@ public class PerLengthDeterminantTests
         enc.WriteLengthDeterminant(16000);
         var bytes = enc.ToArray();
         Assert.AreEqual(2, bytes.Length);
-        // 16000 = 0x3E80 → 10 111110 10000000
+        // 16000 = 0x3E80 -> 10 111110 10000000
         Assert.AreEqual(0xBE, bytes[0]);
         Assert.AreEqual(0x80, bytes[1]);
     }
@@ -413,7 +413,7 @@ public class PerLengthDeterminantTests
         enc.WriteLengthDeterminant(16383);
         var bytes = enc.ToArray();
         Assert.AreEqual(2, bytes.Length);
-        // 16383 = 0x3FFF → 10 111111 11111111
+        // 16383 = 0x3FFF -> 10 111111 11111111
         Assert.AreEqual(0xBF, bytes[0]);
         Assert.AreEqual(0xFF, bytes[1]);
     }
@@ -469,7 +469,7 @@ public class PerLengthDeterminantTests
     {
         var enc = new PerEncoder();
         enc.WriteNormallySmallNumber(64);
-        // 1 (large flag) → semi-constrained encoding follows
+        // 1 (large flag) -> semi-constrained encoding follows
 
         var dec = new PerDecoder(enc.ToArray());
         Assert.AreEqual(64, dec.ReadNormallySmallNumber());
@@ -491,9 +491,9 @@ public class PerLengthDeterminantTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Semi-constrained and unconstrained whole number tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerWholeNumberTests
@@ -574,9 +574,9 @@ public class PerWholeNumberTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Boolean and Enumerated tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerBoolEnumTests
@@ -666,9 +666,9 @@ public class PerBoolEnumTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  OCTET STRING tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerOctetStringTests
@@ -770,9 +770,9 @@ public class PerOctetStringTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  BIT STRING tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerBitStringTests
@@ -794,7 +794,7 @@ public class PerBitStringTests
     [TestMethod]
     public void FixedSize_3Bits()
     {
-        // 3-bit BIT STRING: value 101 → byte[0] = 0xA0
+        // 3-bit BIT STRING: value 101 -> byte[0] = 0xA0
         var enc = new PerEncoder();
         enc.WriteBitString(new byte[] { 0xA0 }, 3, lb: 3, ub: 3);
         Assert.AreEqual(3, enc.TotalBits);
@@ -836,9 +836,9 @@ public class PerBitStringTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  OBJECT IDENTIFIER tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerObjectIdentifierTests
@@ -885,10 +885,10 @@ public class PerObjectIdentifierTests
     {
         // Verify the BER content bytes for H.225.0 OID: {0 0 8 2250 0 1}
         // First two: 0*40 + 0 = 0x00
-        // 8 → 0x08
-        // 2250 = 17*128 + 74 → 0x91, 0x4A
-        // 0 → 0x00
-        // 1 → 0x01
+        // 8 -> 0x08
+        // 2250 = 17*128 + 74 -> 0x91, 0x4A
+        // 0 -> 0x00
+        // 1 -> 0x01
         var enc = new PerEncoder();
         enc.WriteObjectIdentifier(new int[] { 0, 0, 8, 2250, 0, 1 });
         var bytes = enc.ToArray();
@@ -913,9 +913,9 @@ public class PerObjectIdentifierTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  String tests (IA5String, BMPString)
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerStringTests
@@ -994,9 +994,9 @@ public class PerStringTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  SEQUENCE / CHOICE helper tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerSequenceChoiceTests
@@ -1144,9 +1144,9 @@ public class PerSequenceChoiceTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Comprehensive round-trip tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class PerRoundTripTests
@@ -1245,7 +1245,7 @@ public class PerRoundTripTests
     [TestMethod]
     public void ConstrainedLengthDeterminant_RoundTrip()
     {
-        // Within 65535 → uses constrained whole number
+        // Within 65535 -> uses constrained whole number
         var enc = new PerEncoder();
         enc.WriteConstrainedLengthDeterminant(50, 0, 100);
 

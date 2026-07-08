@@ -75,7 +75,7 @@ internal class IcyMetadataStrippingStream : Stream
         read = await ReadExactFromInnerAsync(metaBuf, 0, metaLength, ct);
         if (read == 0) return;
 
-        // Parse StreamTitle — metadata is ASCII/UTF-8 null-padded
+        // Parse StreamTitle - metadata is ASCII/UTF-8 null-padded
         var metaText = Encoding.UTF8.GetString(metaBuf).TrimEnd('\0');
         var match = StreamTitleRegex.Match(metaText);
         if (match.Success)
@@ -103,7 +103,7 @@ internal class IcyMetadataStrippingStream : Stream
         return totalRead;
     }
 
-    // Required Stream overrides — delegate to inner
+    // Required Stream overrides - delegate to inner
     public override bool CanRead => true;
     public override bool CanSeek => false;
     public override bool CanWrite => false;

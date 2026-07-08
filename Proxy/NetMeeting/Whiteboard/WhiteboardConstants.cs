@@ -12,9 +12,9 @@ namespace VintageHive.Proxy.NetMeeting.Whiteboard;
 /// </summary>
 internal static class WhiteboardConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SIPDU CHOICE indices (root alternatives)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int SIPDU_ROOT_COUNT = 35;
 
@@ -54,9 +54,9 @@ internal static class WhiteboardConstants
     public const int SIPDU_WORKSPACE_READY = 33;
     public const int SIPDU_WORKSPACE_REFRESH_STATUS = 34;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  DrawingType CHOICE (5 root alternatives, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int DRAWING_TYPE_ROOT_COUNT = 6;
 
@@ -67,9 +67,9 @@ internal static class WhiteboardConstants
     public const int DRAWING_ELLIPSE = 4;
     public const int DRAWING_NON_STANDARD = 5;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  DrawingAttribute CHOICE (9 root alternatives, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int ATTR_ROOT_COUNT = 9;
 
@@ -83,18 +83,18 @@ internal static class WhiteboardConstants
     public const int ATTR_Z_ORDER = 7;
     public const int ATTR_NON_STANDARD = 8;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  PenNib CHOICE (3 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int PEN_NIB_ROOT_COUNT = 3;
     public const int PEN_NIB_CIRCULAR = 0;
     public const int PEN_NIB_SQUARE = 1;
     public const int PEN_NIB_NON_STANDARD = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  LineStyle CHOICE (7 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int LINE_STYLE_ROOT_COUNT = 7;
     public const int LINE_STYLE_SOLID = 0;
@@ -105,43 +105,43 @@ internal static class WhiteboardConstants
     public const int LINE_STYLE_TWO_TONE = 5;
     public const int LINE_STYLE_NON_STANDARD = 6;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  PointList CHOICE (3 root alternatives)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int POINT_LIST_ROOT_COUNT = 3;
     public const int POINT_LIST_DIFF4 = 0;  // x,y: -8..7 (4 bits each)
     public const int POINT_LIST_DIFF8 = 1;  // x,y: -128..127 (8 bits each)
     public const int POINT_LIST_DIFF16 = 2; // x,y: -32768..32767 (16 bits each)
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  WorkspacePoint coordinate range
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int COORD_MIN = -21845;
     public const int COORD_MAX = 43690;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ViewState enumeration (3 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int VIEW_STATE_ROOT_COUNT = 3;
     public const int VIEW_STATE_UNSELECTED = 0;
     public const int VIEW_STATE_SELECTED = 1;
     public const int VIEW_STATE_FOCUSED = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  WorkspaceColor CHOICE (3 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int COLOR_ROOT_COUNT = 3;
     public const int COLOR_PALETTE_INDEX = 0;
     public const int COLOR_RGB = 1;
     public const int COLOR_TRANSPARENT = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for a SIPDU CHOICE index.</summary>
     public static string SipduName(int index)

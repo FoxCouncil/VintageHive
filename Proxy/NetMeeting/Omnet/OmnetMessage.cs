@@ -155,12 +155,12 @@ internal class OmnetMessage
     /// <summary>OMNET message type.</summary>
     public ushort MessageType { get; init; }
 
-    // ── Joiner fields (HELLO, WELCOME) ───────────────────
+    // -- Joiner fields (HELLO, WELCOME) -------------------
 
     /// <summary>Compression capabilities bitfield.</summary>
     public uint CompressionCaps { get; init; }
 
-    // ── Lock fields ──────────────────────────────────────
+    // -- Lock fields --------------------------------------
 
     public byte WsGroupId { get; init; }
     public byte WorksetId { get; init; }
@@ -168,25 +168,25 @@ internal class OmnetMessage
     /// <summary>Correlator for LOCK_GRANT/DENY/NOTIFY, reserved for others.</summary>
     public ushort LockCorrelator { get; init; }
 
-    // ── Workset group send fields ────────────────────────
+    // -- Workset group send fields ------------------------
 
     public ushort Correlator { get; init; }
     public OmnetObjectId ObjectId { get; init; }
     public uint MaxObjIdSeqUsed { get; init; }
 
-    // ── Operation fields ─────────────────────────────────
+    // -- Operation fields ---------------------------------
 
     public byte Position { get; init; }
     public byte Flags { get; init; }
     public OmnetSeqStamp SeqStamp { get; init; }
 
-    // ── Object data fields (ADD, REPLACE, UPDATE, CATCHUP) ──
+    // -- Object data fields (ADD, REPLACE, UPDATE, CATCHUP) --
 
     public uint TotalSize { get; init; }
     public uint UpdateSize { get; init; }
     public byte[] Data { get; init; }
 
-    // ── OBJECT_CATCHUP additional stamps ─────────────────
+    // -- OBJECT_CATCHUP additional stamps -----------------
 
     public OmnetSeqStamp PositionStamp { get; init; }
     public OmnetSeqStamp ReplaceStamp { get; init; }
@@ -197,14 +197,14 @@ internal class OmnetMessage
 }
 
 /// <summary>
-/// OMNET message codec — parses and builds all 20 OMNET message types.
+/// OMNET message codec - parses and builds all 20 OMNET message types.
 /// All fields are little-endian per MS-MNPR.
 /// </summary>
 internal static class OmnetCodec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Detection
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Check if data looks like an OMNET message by examining the
@@ -234,9 +234,9 @@ internal static class OmnetCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Decode an OMNET message from raw bytes.</summary>
     public static OmnetMessage Decode(byte[] data)
@@ -282,9 +282,9 @@ internal static class OmnetCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Encode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Encode an OMNET HELLO message.</summary>
     public static byte[] EncodeHello(ushort sender, uint compressionCaps)
@@ -449,9 +449,9 @@ internal static class OmnetCodec
         return packet;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Internal decode helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static OmnetMessage DecodeJoiner(byte[] data, ushort sender, ushort msgType)
     {
@@ -693,9 +693,9 @@ internal static class OmnetCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Internal encode/decode shared helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static byte[] EncodeJoiner(ushort sender, ushort msgType, uint compressionCaps)
     {

@@ -7,7 +7,7 @@
 
 ## What Is VintageHive?
 
-VintageHive is a retro internet proxy and service emulator that lets vintage computers browse the modern web. It intercepts HTTP, FTP, and Telnet traffic and routes it through a chain of processors — including [ProtoWeb](https://protoweb.org/) and the [Internet Archive Wayback Machine](https://web.archive.org/) — so you can browse the web like it's 1999. It also provides a full suite of period-accurate services: an intranet portal with weather and news, internet radio streaming (MP3, WMA, and RealAudio), an AIM/ICQ-compatible chat server, a Telnet BBS, FTP hosting, a Usenet/NNTP server, Microsoft NetMeeting conferencing, and more.
+VintageHive is a retro internet proxy and service emulator that lets vintage computers browse the modern web. It intercepts HTTP, FTP, and Telnet traffic and routes it through a chain of processors - including [ProtoWeb](https://protoweb.org/) and the [Internet Archive Wayback Machine](https://web.archive.org/) - so you can browse the web like it's 1999. It also provides a full suite of period-accurate services: an intranet portal with weather and news, internet radio streaming (MP3, WMA, and RealAudio), an AIM/ICQ-compatible chat server, a Telnet BBS, FTP hosting, a Usenet/NNTP server, Microsoft NetMeeting conferencing, and more.
 
 Point your vintage browser's proxy settings at VintageHive and you're online.
 
@@ -29,30 +29,30 @@ Point your vintage browser's proxy settings at VintageHive and you're online.
 
 # Features
 
-### Web Browsing — HTTP Proxy (port 1990)
+### Web Browsing - HTTP Proxy (port 1990)
 
 VintageHive processes every HTTP request through a multi-stage processor chain:
 
-1. **Direct Passthrough** — A curated set of retro-friendly sites (68k.news, FrogFind, Old AltaVista, Razorback95, etc.) are fetched directly from the live web
-2. **Intranet Portal** — Requests for `hive.com` subdomains are handled locally (see below)
-3. **ProtoWeb** — Archived websites from [ProtoWeb.org](https://protoweb.org/) are served with a 1-year cache
-4. **Internet Archive** — Anything not found on ProtoWeb is looked up in the Wayback Machine (configurable year, default 1999)
-5. **404** — If nothing matches, a not-found page is returned
+1. **Direct Passthrough** - A curated set of retro-friendly sites (68k.news, FrogFind, Old AltaVista, Razorback95, etc.) are fetched directly from the live web
+2. **Intranet Portal** - Requests for `hive.com` subdomains are handled locally (see below)
+3. **ProtoWeb** - Archived websites from [ProtoWeb.org](https://protoweb.org/) are served with a 1-year cache
+4. **Internet Archive** - Anything not found on ProtoWeb is looked up in the Wayback Machine (configurable year, default 1999)
+5. **404** - If nothing matches, a not-found page is returned
 
 The proxy also includes an article reader that strips modern web clutter and renders clean HTML for vintage browsers, and a search engine powered by DuckDuckGo.
 
-### Intranet Portal — hive.com
+### Intranet Portal - hive.com
 
 The built-in intranet at `http://hive.com` provides:
 
-- **Weather** — Current conditions and forecast via Open-Meteo, with configurable location and temperature units
-- **News** — Headlines from Google News across topics (Local, US, World, Tech, Science, Business, Entertainment, Sports, Health)
-- **Directory** — Curated hot links to retro-friendly websites
-- **ProtoWeb Browser** — Browse the ProtoWeb HTTP and FTP site archives
-- **Search** — Web search powered by DuckDuckGo
-- **User Accounts** — Per-user preferences and session management
+- **Weather** - Current conditions and forecast via Open-Meteo, with configurable location and temperature units
+- **News** - Headlines from Google News across topics (Local, US, World, Tech, Science, Business, Entertainment, Sports, Health)
+- **Directory** - Curated hot links to retro-friendly websites
+- **ProtoWeb Browser** - Browse the ProtoWeb HTTP and FTP site archives
+- **Search** - Web search powered by DuckDuckGo
+- **User Accounts** - Per-user preferences and session management
 
-### Radio — radio.hive.com
+### Radio - radio.hive.com
 
 A full internet radio experience for vintage media players:
 
@@ -66,75 +66,84 @@ A full internet radio experience for vintage media players:
 - Generates **PLS**, **ASX**, and **RAM** playlists for one-click playback
 - Live **Now Playing** track metadata from upstream ICY streams
 
-### Admin Panel — admin.hive.com
+### Admin Panel - admin.hive.com
 
 A web-based administration interface:
 
-- **Dashboard** — Real-time service status and request logs
-- **User Management** — Create and delete user accounts
-- **Service Toggles** — Enable/disable ProtoWeb, Internet Archive, and other services
-- **Internet Archive Year** — Set the Wayback Machine target year (1997–2021)
-- **Cache Management** — View cache stats and clear all caches
-- **Download Center** — Manage download repositories
+- **Dashboard** - Real-time service status and request logs
+- **User Management** - Create and delete user accounts
+- **Service Toggles** - Enable/disable ProtoWeb, Internet Archive, and other services
+- **Internet Archive Year** - Set the Wayback Machine target year (1997-2021)
+- **Cache Management** - View cache stats and clear all caches
+- **Download Center** - Manage download repositories
 
-### OSCAR / AIM / ICQ Server — port 5190
+### OSCAR / AIM / ICQ Server - port 5190
 
 A fully functional OSCAR protocol server compatible with vintage AIM and ICQ clients:
 
-- **Authentication** — MD5 login support
-- **Buddy Lists** — Add buddies, online/offline notifications
-- **Messaging** — Send and receive instant messages (ICBM)
-- **Profiles** — User profiles and away messages
-- **Privacy** — Permit/deny lists and visibility controls
-- **ICQ Extensions** — User info queries, offline messages
+- **Authentication** - MD5 login support
+- **Buddy Lists** - Add buddies, online/offline notifications
+- **Messaging** - Send and receive instant messages (ICBM)
+- **Profiles** - User profiles and away messages
+- **Privacy** - Permit/deny lists and visibility controls
+- **ICQ Extensions** - User info queries, offline messages
 
-### Telnet Server — port 1969
+### Telnet Server - port 1969
 
 A text-mode BBS accessible from any Telnet client:
 
-- `news` — Browse news headlines and read articles
-- `weather` — Current weather with configurable location
-- `riddle` — Interactive riddle game (3 attempts per riddle)
-- `gallery` — ASCII art image gallery
-- `help` — List all available commands
+- `news` - Browse news headlines and read articles
+- `weather` - Current weather with configurable location
+- `riddle` - Interactive riddle game (3 attempts per riddle)
+- `gallery` - ASCII art image gallery
+- `help` - List all available commands
 
-### FTP Server — port 1971
+### FTP Server - port 1971
 
 - Serves ProtoWeb FTP archives
 - Local file hosting via the virtual filesystem
 - Full FTP command support (LIST, RETR, STOR, CWD, MKD, DELE, PASV, etc.)
-- Passive mode on ports 1900–1910
+- Passive mode on ports 1900-1910
 
-### DNS Proxy — port 1953
+### DNS Proxy - port 1953
 
 A local DNS proxy that resolves `*.hive.com` domains to the VintageHive host, forwarding all other queries upstream. Allows vintage machines to use VintageHive as their DNS server so intranet domains resolve without hosts file editing.
 
-### Usenet / NNTP Server — port 1986
+### Usenet / NNTP Server - port 1986
 
 A fully functional NNTP server with curated newsgroups:
 
-- **Standard NNTP commands** — GROUP, ARTICLE, HEAD, BODY, STAT, LIST, XOVER, XHDR, POST
-- **Curated content** — Newsgroups populated from configured sources
+- **Standard NNTP commands** - GROUP, ARTICLE, HEAD, BODY, STAT, LIST, XOVER, XHDR, POST
+- **Curated content** - Newsgroups populated from configured sources
 - Compatible with vintage Usenet readers (Outlook Express, Free Agent, tin, etc.)
 
-### NetMeeting — ports 1002, 1503, 1719, 1720
+### Finger - port 79
+
+An RFC 1288 Finger server that exposes presence and profile information for VintageHive's OSCAR/AIM users:
+
+- An empty query returns the list of users currently online, with status and idle time
+- A username returns that user's profile (real name, location, homepage) and their `.plan` (the OSCAR profile text)
+- `/W` verbose prefix for extended output; `user@host` forwarding is rejected per RFC 1288 for security
+- Compatible with any classic `finger` client
+
+### NetMeeting - ports 1002, 1503, 1719, 1720
 
 Full Microsoft NetMeeting conferencing support with a complete H.323/T.120 protocol stack:
 
-- **ILS Directory** (port 1002) — Internet Locator Service for user registration and lookup via LDAP, compatible with NetMeeting 2.x/3.x
-- **H.225 RAS Gatekeeper** (port 1719/UDP) — Endpoint discovery, registration, and admission control
-- **H.323 Call Signaling** (port 1720) — Q.931 call setup with bidirectional message proxying, H.245 control channel relay, and RTP/RTCP media relay
-- **T.120 Data Conferencing** (port 1503) — Full MCS domain management supporting Chat, Whiteboard (T.126 drawing primitives), and File Transfer (MBFT)
+- **ILS Directory** (port 1002) - Internet Locator Service for user registration and lookup via LDAP, compatible with NetMeeting 2.x/3.x
+- **H.225 RAS Gatekeeper** (port 1719/UDP) - Endpoint discovery, registration, and admission control
+- **H.323 Call Signaling** (port 1720) - Q.931 call setup with bidirectional message proxying, H.245 control channel relay, and RTP/RTCP media relay
+- **T.120 Data Conferencing** (port 1503) - Full MCS domain management supporting Chat, Whiteboard (T.126 drawing primitives), and File Transfer (MBFT)
 
 ### Debug / Experimental Services
 
 These services are functional but considered experimental:
 
-- **Printer Proxy** (ports 631, 515, 9100) — IPP, LPD, and Raw printing with PostScript-to-PDF conversion via GhostScript
-- **SMTP Server** (port 1980) — Email sending with authentication and mail spooling
-- **POP3 Server** (port 1984) — Email retrieval with message management
-- **IMAP Server** (port 1985) — Email access with folder support
-- **IRC Server** (port 1988) — Basic IRC with private messaging and channel support (`irc.hive.com`)
+- **Printer Proxy** (ports 631, 515, 9100) - IPP, LPD, and Raw printing with PostScript-to-PDF conversion via GhostScript
+- **SMTP Server** (port 1980) - Email sending with authentication and mail spooling
+- **POP3 Server** (port 1984) - Email retrieval with message management
+- **IMAP Server** (port 1985) - Email access with folder support
+- **IRC Server** (port 1988) - Basic IRC with private messaging and channel support (`irc.hive.com`)
 
 # Installation
 
@@ -181,7 +190,7 @@ These services are functional but considered experimental:
    - HTTP Proxy: `http://127.0.0.1:1990`
    - Admin Interface: `http://admin.hive.com:1990`
 
-Note: On Linux, you might need to run with sudo if you want to use privileged ports (< 1024). Port 631 (IPP Printing) may conflict with CUPS — VintageHive will log an error and skip that listener if the port is in use.
+Note: On Linux, you might need to run with sudo if you want to use privileged ports (< 1024). Port 631 (IPP Printing) may conflict with CUPS - VintageHive will log an error and skip that listener if the port is in use.
 
 ## macOS
 
@@ -226,9 +235,10 @@ Visit `http://admin.hive.com:1990` to:
 | HTTP Proxy | 1990 | TCP | Stable |
 | HTTPS Proxy | 9999 | TCP (SSL) | Experimental |
 | FTP Server | 1971 | TCP | Stable |
-| FTP Passive Range | 1900–1910 | TCP | Stable |
+| FTP Passive Range | 1900-1910 | TCP | Stable |
 | Telnet Server | 1969 | TCP | Stable |
 | OSCAR (AIM/ICQ) | 5190 | TCP | Stable |
+| Finger | 79 | TCP | Experimental |
 | SOCKS5 Proxy | 1996 | TCP | Experimental |
 | DNS Proxy | 1953 | UDP | Experimental |
 | MMS (Windows Media) | 1755 | TCP | Stable |
@@ -344,6 +354,8 @@ docker run -d \
   -p 1971:1971 \
   -p 1969:1969 \
   -p 5190:5190 \
+  -p 79:79 \
+  -p 1996:1996 \
   -p 1900-1910:1900-1910 \
   -p 1953:1953/udp \
   -p 1755:1755 \
@@ -386,7 +398,7 @@ VintageHive is built on .NET 10 and follows a processor chain pattern for reques
 Every incoming HTTP request passes through a chain of processors in order. The first processor that can handle a request returns a response; if none match, a 404 is returned.
 
 ```
-HTTP Request → HelperProcessor → LocalServerProcessor → ProtoWebProcessor → InternetArchiveProcessor → 404
+HTTP Request -> HelperProcessor -> LocalServerProcessor -> ProtoWebProcessor -> InternetArchiveProcessor -> 404
 ```
 
 ### Controller Routing
@@ -395,10 +407,10 @@ The `LocalServerProcessor` uses domain-based routing to dispatch requests to con
 
 | Domain | Controller |
 |--------|-----------|
-| `hive.com` | HiveController — portal, weather, news, search |
-| `admin.hive.com` | AdminController — admin panel |
-| `radio.hive.com` | RadioController — internet radio (MP3, WMA, RealAudio) |
-| `api.hive.com` | ApiController — image proxy and API |
+| `hive.com` | HiveController - portal, weather, news, search |
+| `admin.hive.com` | AdminController - admin panel |
+| `radio.hive.com` | RadioController - internet radio (MP3, WMA, RealAudio) |
+| `api.hive.com` | ApiController - image proxy and API |
 
 ### Template Engine
 
@@ -441,10 +453,11 @@ VintageHive uses SQLite for persistent storage, with separate database contexts 
 Most settings are managed through the **Admin Panel** at `http://admin.hive.com:1990`. Per-IP local settings allow different vintage machines on the same network to have independent preferences (location, temperature units, archive year, etc.).
 
 Key configuration options:
-- **Internet Archive Year** — Which year to fetch archived pages from (1997–2021)
-- **Service Toggles** — Enable or disable ProtoWeb, Internet Archive, Intranet, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, ILS, H.323, RAS, T.120
-- **Temperature Units** — Celsius or Fahrenheit
-- **Distance Units** — Metric or Imperial
+- **Internet Archive Year** - Which year to fetch archived pages from (1997-2021)
+- **Internet Archive Edge Worker** - Optionally route Wayback Machine lookups and fetches through a Cloudflare Worker cache instead of hitting `web.archive.org` directly. Toggle it on and set the worker's base URL (e.g. `https://your-worker.workers.dev`) in the admin panel's Internet Archive card.
+- **Service Toggles** - Enable or disable Intranet, ProtoWeb, Internet Archive, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, Finger, ILS, H.323, RAS, T.120 from the admin dashboard. The intranet portal applies immediately; listener-based services apply the next time VintageHive restarts.
+- **Temperature Units** - Celsius or Fahrenheit
+- **Distance Units** - Metric or Imperial
 
 # FAQ / Troubleshooting
 
@@ -455,7 +468,7 @@ Key configuration options:
 **A:** HTTPS support is experimental. Visit `http://admin.hive.com:1990/ca.crt` to download and install VintageHive's CA certificate in your browser. Note that some very old browsers have limited or no SSL support.
 
 ### Q: How do I change the Internet Archive year?
-**A:** Log in to the admin panel at `http://admin.hive.com:1990` and change the Internet Archive year setting. Valid years are 1997–2021.
+**A:** Log in to the admin panel at `http://admin.hive.com:1990` and change the Internet Archive year setting. Valid years are 1997-2021.
 
 ### Q: Can I use VintageHive with real vintage hardware?
 **A:** Yes! Run VintageHive on a modern machine on the same network as your vintage computer. Configure the vintage browser to use your host machine's IP address as the proxy (e.g., `192.168.1.100:1990`). Make sure your host's firewall allows incoming connections on the service ports.
@@ -488,11 +501,13 @@ dotnet build
 dotnet run
 ```
 
-To build in debug mode with additional logging and experimental services:
+To build in debug mode with additional logging (verbose output and disabled template caching when a debugger is attached):
 ```bash
 dotnet build -c Debug
 dotnet run -c Debug
 ```
+
+All services are controlled at runtime through the admin panel's service toggles rather than by build configuration.
 
 ### Reporting Issues
 

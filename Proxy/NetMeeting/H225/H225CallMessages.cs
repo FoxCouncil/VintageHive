@@ -21,9 +21,9 @@ internal class H225CallMessage
     public FacilityUuie Facility { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  UUIE message data types
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 internal class SetupUuie
 {
@@ -124,9 +124,9 @@ internal static class H225CallCodec
     public const int FAC_UNDEFINED = 3;
     public const int FAC_ROOT_COUNT = 4;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static H225CallMessage Decode(byte[] data)
     {
@@ -181,7 +181,7 @@ internal static class H225CallCodec
 
             default:
             {
-                // Information (4) or unknown — return generic
+                // Information (4) or unknown - return generic
                 result = new H225CallMessage { BodyType = bodyChoice };
             }
             break;
@@ -196,22 +196,15 @@ internal static class H225CallCodec
         // Skip H323-UU-PDU extensions
         if (pduHasExtensions && dec.HasData)
         {
-            try
-            {
-                dec.ReadExtensionAdditions();
-            }
-            catch
-            {
-                // Best-effort: some extensions may have consumed remaining bits
-            }
+            dec.TryReadExtensionAdditions();
         }
 
         return result;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Encode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static byte[] EncodeSetup(SetupUuie setup)
     {
@@ -242,7 +235,7 @@ internal static class H225CallCodec
             H225Types.WriteAliasAddresses(enc, setup.SourceAliases);
         }
 
-        // sourceInfo (EndpointType) — always present, not optional
+        // sourceInfo (EndpointType) - always present, not optional
         H225Types.WriteEndpointType(enc);
 
         if (setup.DestinationAliases != null)
@@ -286,7 +279,7 @@ internal static class H225CallCodec
 
         enc.WriteObjectIdentifier(cp.ProtocolIdentifier ?? H225Constants.ProtocolOid);
 
-        // destinationInfo (EndpointType) — present in v2
+        // destinationInfo (EndpointType) - present in v2
         H225Types.WriteEndpointType(enc);
 
         if (cp.H245Address != null)
@@ -416,9 +409,9 @@ internal static class H225CallCodec
         return enc.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decoders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static SetupUuie DecodeSetupUuie(PerDecoder dec)
     {
@@ -442,7 +435,7 @@ internal static class H225CallCodec
             srcAliases = H225Types.ReadAliasAddresses(dec);
         }
 
-        // sourceInfo (EndpointType) — always present
+        // sourceInfo (EndpointType) - always present
         H225Types.SkipEndpointType(dec);
 
         string[] destAliases = null;
@@ -463,7 +456,7 @@ internal static class H225CallCodec
             H225Types.SkipAliasAddresses(dec);
         }
 
-        // destExtraCRV OPTIONAL — SEQUENCE OF CallReferenceValue (INTEGER 0..65535)
+        // destExtraCRV OPTIONAL - SEQUENCE OF CallReferenceValue (INTEGER 0..65535)
         if (opts[5])
         {
             var count = dec.ReadLengthDeterminant();
@@ -493,7 +486,7 @@ internal static class H225CallCodec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new SetupUuie
@@ -528,7 +521,7 @@ internal static class H225CallCodec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new CallProceedingUuie
@@ -559,7 +552,7 @@ internal static class H225CallCodec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new ConnectUuie
@@ -588,7 +581,7 @@ internal static class H225CallCodec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new AlertingUuie
@@ -613,7 +606,7 @@ internal static class H225CallCodec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new ReleaseCompleteUuie
@@ -653,7 +646,7 @@ internal static class H225CallCodec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new FacilityUuie
@@ -666,14 +659,14 @@ internal static class H225CallCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void SkipQseriesOptions(PerDecoder dec)
     {
         var hasExt = dec.ReadExtensionBit();
         for (var i = 0; i < 6; i++) { dec.ReadBoolean(); }
-        if (hasExt) { try { dec.ReadExtensionAdditions(); } catch { } }
+        if (hasExt) { dec.TryReadExtensionAdditions(); }
     }
 }

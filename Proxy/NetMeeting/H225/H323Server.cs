@@ -10,7 +10,7 @@ using VintageHive.Proxy.NetMeeting.Rtp;
 namespace VintageHive.Proxy.NetMeeting.H225;
 
 /// <summary>
-/// H.225.0 Call Signaling server — TCP listener on port 1720.
+/// H.225.0 Call Signaling server - TCP listener on port 1720.
 /// Gatekeeper-routed: receives Setup from callers, looks up the callee
 /// in the RAS registry, opens an outbound TCP connection to the callee,
 /// then proxies Q.931 messages bidirectionally.
@@ -44,7 +44,7 @@ internal class H323Server : Listener
 
         try
         {
-            // Read first TPKT frame — must be a Q.931 Setup
+            // Read first TPKT frame - must be a Q.931 Setup
             var setupPayload = await TpktFrame.ReadAsync(callerStream);
             if (setupPayload == null)
             {
@@ -190,17 +190,17 @@ internal class H323Server : Listener
         return Task.CompletedTask;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Call signaling proxy
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private async Task ProxyCallSignaling(H323Call call, NetworkStream callerStream, NetworkStream calleeStream)
     {
         using var cts = new CancellationTokenSource();
 
-        // Two parallel tasks: caller→callee and callee→caller
-        var callerToCallee = ProxyDirection(call, callerStream, calleeStream, "caller→callee", false, cts);
-        var calleeToCaller = ProxyDirection(call, calleeStream, callerStream, "callee→caller", true, cts);
+        // Two parallel tasks: caller->callee and callee->caller
+        var callerToCallee = ProxyDirection(call, callerStream, calleeStream, "caller->callee", false, cts);
+        var calleeToCaller = ProxyDirection(call, calleeStream, callerStream, "callee->caller", true, cts);
 
         // Wait for either direction to finish (call ended or disconnect)
         await Task.WhenAny(callerToCallee, calleeToCaller);
@@ -261,7 +261,7 @@ internal class H323Server : Listener
                 }
                 catch
                 {
-                    // Parse failure — still forward the raw bytes
+                    // Parse failure - still forward the raw bytes
                 }
 
                 // Forward to other side
@@ -349,9 +349,9 @@ internal class H323Server : Listener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  H.245 / RTP relay wiring
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private void StartH245Relay(H323Call call)
     {
@@ -411,9 +411,9 @@ internal class H323Server : Listener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private RasEndpoint FindCallee(string[] aliases, IPEndPoint destCallSignal)
     {

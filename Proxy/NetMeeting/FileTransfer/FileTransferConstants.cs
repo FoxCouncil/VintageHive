@@ -6,7 +6,7 @@ namespace VintageHive.Proxy.NetMeeting.FileTransfer;
 /// T.127 Multipoint Binary File Transfer (MBFT) constants.
 ///
 /// MBFT PDUs ride directly on MCS SendData (T.125), PER-encoded.
-/// Transport: TCP:1503 → TPKT → X.224 → MCS SendData → MBFTPDU
+/// Transport: TCP:1503 -> TPKT -> X.224 -> MCS SendData -> MBFTPDU
 ///
 /// The protocol uses separate control and data MCS channels:
 ///   - Control channel: signaling (offer, accept, reject, error, abort)
@@ -16,16 +16,16 @@ namespace VintageHive.Proxy.NetMeeting.FileTransfer;
 /// </summary>
 internal static class FileTransferConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  T.127 Application Protocol OID
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>T.127 MBFT application protocol key: {0 0 20 127}.</summary>
     public static readonly int[] T127_OID = { 0, 0, 20, 127 };
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  MBFTPDU CHOICE indices (16 root alternatives, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int MBFT_ROOT_COUNT = 16;
 
@@ -46,9 +46,9 @@ internal static class FileTransferConstants
     public const int PDU_PRIVATE_CHANNEL_JOIN_INVITE = 14;
     public const int PDU_PRIVATE_CHANNEL_JOIN_RESPONSE = 15;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  File-RejectPDU reason (8 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int REJECT_ROOT_COUNT = 8;
     public const int REJECT_UNSPECIFIED = 0;
@@ -60,9 +60,9 @@ internal static class FileTransferConstants
     public const int REJECT_UNABLE_TO_JOIN_CHANNEL = 6;
     public const int REJECT_PARAMETER_NOT_SUPPORTED = 7;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  File-AbortPDU reason (5 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int ABORT_ROOT_COUNT = 5;
     public const int ABORT_UNSPECIFIED = 0;
@@ -71,18 +71,18 @@ internal static class FileTransferConstants
     public const int ABORT_CHANNELS_REQUIRED = 3;
     public const int ABORT_PRIORITY_REQUIRED = 4;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  File-ErrorPDU error type (3 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int ERROR_TYPE_ROOT_COUNT = 3;
     public const int ERROR_TYPE_INFORMATIVE = 0;
     public const int ERROR_TYPE_TRANSIENT = 1;
     public const int ERROR_TYPE_PERMANENT = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  FileHeader context tags
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int FH_TAG_FILENAME = 0;
     public const int FH_TAG_PERMITTED_ACTIONS = 1;
@@ -101,9 +101,9 @@ internal static class FileTransferConstants
     /// <summary>Total optional fields in FileHeader for the bitmap.</summary>
     public const int FH_OPTIONAL_COUNT = 24;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Microsoft NetMeeting NonStandard extension keys
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Default MBFT non-standard key.</summary>
     public const string NS_KEY_MBFT = "NetMeeting 1 MBFT";
@@ -114,9 +114,9 @@ internal static class FileTransferConstants
     /// <summary>Sent when leaving a channel.</summary>
     public const string NS_KEY_CHANNEL_LEAVE = "NetMeeting 1 ChannelLeave";
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Constraints
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Maximum file data chunk per PDU (OCTET STRING SIZE 0..65535).</summary>
     public const int MAX_CHUNK_SIZE = 65535;
@@ -127,9 +127,9 @@ internal static class FileTransferConstants
     /// <summary>Channel ID range: INTEGER(0..65535).</summary>
     public const int MAX_CHANNEL_ID = 65535;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for an MBFTPDU CHOICE index.</summary>
     public static string PduName(int index)

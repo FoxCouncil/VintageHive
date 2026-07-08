@@ -139,13 +139,7 @@ public sealed class FtpRequest : Request
         {
             await newRequest.FetchUsernameAndPassword(rawFtpData[1], true);
 
-            if (newRequest.ProxyPassword != "PENIS")
-            {
-                await newRequest.SendInvalidUsernameOrPassword();
-
-                return Invalid;
-            }
-
+            // Proxy-level authentication is not enforced; the target server's own credentials still apply downstream.
             await newRequest.SendUserLoggedIn();
 
             proxyRequest = await newRequest.FetchCommand();

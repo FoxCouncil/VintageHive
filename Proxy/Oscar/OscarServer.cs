@@ -196,7 +196,7 @@ public class OscarServer : Listener
 
                         case FlapFrameType.KeepAlive:
                         {
-                            // Client is alive — nothing to do
+                            // Client is alive - nothing to do
                             Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarServer), "KeepAlive received", traceId);
                         }
                         break;

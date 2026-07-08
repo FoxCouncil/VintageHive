@@ -338,3 +338,6 @@ ASALocalRun/
 
 # UsenetCurator cache
 /tools/UsenetCurator/cache
+
+# Cloudflare Wrangler local state (contains account id; the worker lives in a separate repo)
+.wrangler/

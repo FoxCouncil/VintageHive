@@ -79,7 +79,7 @@ internal class DnsProxy
                 continue;
             }
 
-            // ── Parse header ───────────────────────────────────────────────
+            // -- Parse header -----------------------------------------------
             var transactionId = (ushort)((query[0] << 8) | query[1]);
             var questionCount = (ushort)((query[4] << 8) | query[5]);
 
@@ -88,7 +88,7 @@ internal class DnsProxy
                 continue;
             }
 
-            // ── Parse first question ───────────────────────────────────────
+            // -- Parse first question ---------------------------------------
             var offset = DNS_HEADER_SIZE;
             var domainName = ParseDomainName(query, ref offset);
 
@@ -104,7 +104,7 @@ internal class DnsProxy
 
             Log.WriteLine(Log.LEVEL_DEBUG, nameof(DnsProxy), $"Query: {domainName} type={qtype} class={qclass} from {remote}", "");
 
-            // ── Build response ─────────────────────────────────────────────
+            // -- Build response ---------------------------------------------
             // Copy original question section (header through end of question)
             var questionSection = query[..offset];
 
@@ -142,7 +142,7 @@ internal class DnsProxy
         // Copy question section (includes the 12-byte header)
         Buffer.BlockCopy(questionSection, 0, response, 0, questionEnd);
 
-        // Patch header flags: QR=1, AA=1, RD=1, RA=1 → 0x8580
+        // Patch header flags: QR=1, AA=1, RD=1, RA=1 -> 0x8580
         response[2] = 0x85;
         response[3] = 0x80;
 
@@ -153,7 +153,7 @@ internal class DnsProxy
 
         // NSCOUNT = 0, ARCOUNT = 0 (already zeroed)
 
-        // ── Answer RR ──────────────────────────────────────────────────
+        // -- Answer RR --------------------------------------------------
         var pos = questionEnd;
 
         // Name: pointer to offset 12 (start of question name)
@@ -193,7 +193,7 @@ internal class DnsProxy
 
         Buffer.BlockCopy(questionSection, 0, response, 0, questionEnd);
 
-        // Patch header flags: QR=1, RD=1, RA=1 → 0x8180
+        // Patch header flags: QR=1, RD=1, RA=1 -> 0x8180
         response[2] = 0x81;
         response[3] = 0x80;
 
@@ -217,7 +217,7 @@ internal class DnsProxy
                 break;
             }
 
-            // Compression pointer (top two bits set) — shouldn't appear in queries, but handle it
+            // Compression pointer (top two bits set) - shouldn't appear in queries, but handle it
             if ((labelLen & 0xC0) == 0xC0)
             {
                 if (offset + 1 >= data.Length)

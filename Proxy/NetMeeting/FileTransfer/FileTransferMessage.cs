@@ -6,7 +6,7 @@ using VintageHive.Proxy.NetMeeting.Asn1;
 namespace VintageHive.Proxy.NetMeeting.FileTransfer;
 
 /// <summary>
-/// T.127 FileHeader — file metadata carried in File-OfferPDU and File-StartPDU.
+/// T.127 FileHeader - file metadata carried in File-OfferPDU and File-StartPDU.
 ///
 /// Uses IMPLICIT TAGS with context-specific tag numbers.
 /// For our codec we encode the commonly used subset:
@@ -31,7 +31,7 @@ internal class FileHeader
 }
 
 /// <summary>
-/// File-OfferPDU (MBFTPDU CHOICE index 0) — offers a file to recipient(s).
+/// File-OfferPDU (MBFTPDU CHOICE index 0) - offers a file to recipient(s).
 /// </summary>
 internal class FileOfferPdu
 {
@@ -43,7 +43,7 @@ internal class FileOfferPdu
 }
 
 /// <summary>
-/// File-AcceptPDU (MBFTPDU CHOICE index 1) — accepts a file offer.
+/// File-AcceptPDU (MBFTPDU CHOICE index 1) - accepts a file offer.
 /// </summary>
 internal class FileAcceptPdu
 {
@@ -51,7 +51,7 @@ internal class FileAcceptPdu
 }
 
 /// <summary>
-/// File-RejectPDU (MBFTPDU CHOICE index 2) — rejects a file offer.
+/// File-RejectPDU (MBFTPDU CHOICE index 2) - rejects a file offer.
 /// </summary>
 internal class FileRejectPdu
 {
@@ -62,7 +62,7 @@ internal class FileRejectPdu
 }
 
 /// <summary>
-/// File-StartPDU (MBFTPDU CHOICE index 7) — begins data transfer with first chunk.
+/// File-StartPDU (MBFTPDU CHOICE index 7) - begins data transfer with first chunk.
 /// </summary>
 internal class FileStartPdu
 {
@@ -76,7 +76,7 @@ internal class FileStartPdu
 }
 
 /// <summary>
-/// File-DataPDU (MBFTPDU CHOICE index 8) — file data chunk.
+/// File-DataPDU (MBFTPDU CHOICE index 8) - file data chunk.
 /// </summary>
 internal class FileDataPdu
 {
@@ -88,7 +88,7 @@ internal class FileDataPdu
 }
 
 /// <summary>
-/// File-AbortPDU (MBFTPDU CHOICE index 6) — aborts a transfer.
+/// File-AbortPDU (MBFTPDU CHOICE index 6) - aborts a transfer.
 /// </summary>
 internal class FileAbortPdu
 {
@@ -98,7 +98,7 @@ internal class FileAbortPdu
 }
 
 /// <summary>
-/// File-ErrorPDU (MBFTPDU CHOICE index 5) — reports an error.
+/// File-ErrorPDU (MBFTPDU CHOICE index 5) - reports an error.
 /// </summary>
 internal class FileErrorPdu
 {
@@ -137,15 +137,15 @@ internal class MbftMessage
 }
 
 /// <summary>
-/// T.127 MBFT PER codec — encodes and decodes file transfer PDUs.
+/// T.127 MBFT PER codec - encodes and decodes file transfer PDUs.
 ///
 /// Uses ASN.1 BASIC ALIGNED PER (ITU-T X.691) via PerEncoder/PerDecoder.
 /// </summary>
 internal static class MbftCodec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Detection
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Peek at the MBFTPDU CHOICE index from PER-encoded data.
@@ -177,9 +177,9 @@ internal static class MbftCodec
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Encode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Encode a File-OfferPDU.</summary>
     public static byte[] EncodeFileOffer(FileOfferPdu pdu)
@@ -443,9 +443,9 @@ internal static class MbftCodec
         return enc.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Decode an MBFTPDU from PER-encoded bytes.</summary>
     public static MbftMessage Decode(byte[] data)
@@ -481,9 +481,9 @@ internal static class MbftCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Internal decode helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static MbftMessage DecodeFileOffer(PerDecoder dec, byte[] rawData)
     {
@@ -729,9 +729,9 @@ internal static class MbftCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  FileHeader encode/decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void EncodeFileHeader(PerEncoder enc, FileHeader header)
     {
@@ -764,7 +764,7 @@ internal static class MbftCodec
 
         enc.WriteOptionalBitmap(optBits);
 
-        // protocol-version DEFAULT — present bit = false means default
+        // protocol-version DEFAULT - present bit = false means default
         // We don't write it (the decoder will use the default)
 
         // filename [0] OPTIONAL: Filename-Attribute = SEQUENCE OF GraphicString
@@ -772,7 +772,7 @@ internal static class MbftCodec
         {
             // SEQUENCE OF with 1 element
             enc.WriteLengthDeterminant(1);
-            // GraphicString — encode as IA5String (subset of GraphicString)
+            // GraphicString - encode as IA5String (subset of GraphicString)
             enc.WriteIA5String(header.Filename, null, null);
         }
 

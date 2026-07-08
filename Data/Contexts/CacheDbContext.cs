@@ -118,7 +118,7 @@ public class CacheDbContext : DbContextBase
     {
         key = key.ToLowerInvariant();
 
-        // Phase 1: Quick read — check cache with a short-lived connection
+        // Phase 1: Quick read - check cache with a short-lived connection
         var cached = GetData(key);
 
         if (cached != null)
@@ -133,7 +133,7 @@ public class CacheDbContext : DbContextBase
             }
         }
 
-        // Phase 2: Cache miss — run the async work with NO connection held
+        // Phase 2: Cache miss - run the async work with NO connection held
         var data = await func();
 
         string stringData;
@@ -147,7 +147,7 @@ public class CacheDbContext : DbContextBase
             stringData = JsonSerializer.Serialize(data);
         }
 
-        // Phase 3: Quick write — store result with a short-lived connection
+        // Phase 3: Quick write - store result with a short-lived connection
         SetData(key, ttl, stringData);
 
         return data;

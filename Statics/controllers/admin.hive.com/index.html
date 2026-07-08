@@ -33,6 +33,16 @@
                             {% endfor %}
                         </select>
                     </li>
+                    <li class="list-group-item">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="h5 mb-0">Edge Worker:</span>
+                            <button type="button" id="ia_worker_toggle" class="btn btn-sm btn-outline-danger">OFFLINE</button>
+                        </div>
+                        <div class="input-group mt-2">
+                            <input type="text" id="ia_worker_url" class="form-control form-control-sm" placeholder="https://worker.example.workers.dev" value="{{ ia_worker_url }}">
+                            <button type="button" id="ia_worker_url_save" class="btn btn-sm btn-outline-primary">Save</button>
+                        </div>
+                    </li>
                 </ul>
                 <div class="card-body d-grid gap-2">
                     <button type="button" id="ia_toggle" class="btn btn-outline-success btn-lg">ONLINE</button>
@@ -77,33 +87,90 @@
         </div>
     </div>
 
+    <h1 class="mt-4">Services</h1>
+    <p class="text-muted mb-2">Enable or disable protocol servers. Listener services apply the next time VintageHive restarts; the intranet portal applies immediately.</p>
+    <div id="services_grid" class="row row-cols-2 row-cols-md-4 g-2 mb-3"></div>
+
     {% include 'partials/footer.html' %}
     <script type="module">
         const iaToggle = gei("ia_toggle");
         const iaYearSelect = gei("ia_year");
+        const iaWorkerToggle = gei("ia_worker_toggle");
+        const iaWorkerUrl = gei("ia_worker_url");
+        const iaWorkerUrlSave = gei("ia_worker_url_save");
         const protowebToggle = gei("protoweb_toggle");
+        const servicesGrid = gei("services_grid");
+        const serviceLabels = {
+            intranet: "Intranet Portal",
+            smtp: "SMTP",
+            pop3: "POP3",
+            imap: "IMAP",
+            irc: "IRC",
+            usenet: "Usenet (NNTP)",
+            dns: "DNS",
+            printer: "Printer",
+            ils: "ILS",
+            ras: "H.225 RAS",
+            h323: "H.323",
+            t120: "T.120",
+            finger: "Finger",
+        };
+        function applyToggle(btn, isOn) {
+            btn.innerText = onOrOff(isOn);
+            btn.classList.toggle("btn-outline-success", isOn);
+            btn.classList.toggle("btn-outline-danger", !isOn);
+        }
+        function applyServiceToggle(btn, isOn) {
+            btn.classList.toggle("btn-outline-success", isOn);
+            btn.classList.toggle("btn-outline-danger", !isOn);
+            const badge = btn.querySelector(".badge");
+            badge.innerText = onOrOff(isOn);
+            badge.classList.toggle("bg-success", isOn);
+            badge.classList.toggle("bg-danger", !isOn);
+        }
+        function renderServices(services) {
+            if (!services) {
+                return;
+            }
+            servicesGrid.innerHTML = "";
+            for (const key of Object.keys(serviceLabels)) {
+                if (!(key in services)) {
+                    continue;
+                }
+                const col = ce("div");
+                col.className = "col";
+                const btn = ce("button");
+                btn.type = "button";
+                btn.className = "btn w-100 d-flex justify-content-between align-items-center";
+                const label = ce("span");
+                label.innerText = serviceLabels[key];
+                const badge = ce("span");
+                badge.className = "badge ms-2";
+                btn.appendChild(label);
+                btn.appendChild(badge);
+                applyServiceToggle(btn, services[key]);
+                btn.addEventListener("click", async () => {
+                    await callApi("servicetoggle", formData({ "service": key }));
+                    await updateDashboard();
+                });
+                col.appendChild(btn);
+                servicesGrid.appendChild(col);
+            }
+        }
         async function updateDashboard() {
             try {
                 const status = await callApi('status');
-                iaToggle.innerText = onOrOff(status.ia);
+                applyToggle(iaToggle, status.ia);
                 if (status.ia) {
-                    iaToggle.classList.remove("btn-outline-danger");
-                    iaToggle.classList.add("btn-outline-success");
                     iaYearSelect.removeAttribute("disabled");
                 } else {
-                    iaToggle.classList.add("btn-outline-danger");
-                    iaToggle.classList.remove("btn-outline-success");
                     iaYearSelect.setAttribute("disabled", "true");
                 }
                 iaYearSelect.value = status.iayear;
-                protowebToggle.innerText = onOrOff(status.protoweb);
-                if (status.protoweb) {
-                    protowebToggle.classList.remove("btn-outline-danger");
-                    protowebToggle.classList.add("btn-outline-success");
-                } else {
-                    protowebToggle.classList.add("btn-outline-danger");
-                    protowebToggle.classList.remove("btn-outline-success");
-                }
+                applyToggle(iaWorkerToggle, status.iaworker);
+                iaWorkerUrl.value = status.iaworkerurl || "";
+                applyToggle(protowebToggle, status.protoweb);
+                renderServices(status.services);
             } catch (e) {
                 console.log(e)
             }
@@ -116,6 +183,14 @@
         });
         iaYearSelect.addEventListener("change", async (e) => {
             await callApi("iasetyear", formData({ "year": e.target.value }));
+            await updateDashboard();
+        });
+        iaWorkerToggle.addEventListener("click", async () => {
+            await callApi("iaworkertoggle");
+            await updateDashboard();
+        });
+        iaWorkerUrlSave.addEventListener("click", async () => {
+            await callApi("iasetworkerurl", formData({ "url": iaWorkerUrl.value }));
             await updateDashboard();
         });
         protowebToggle.addEventListener("click", async () => {

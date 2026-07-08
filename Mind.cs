@@ -13,6 +13,7 @@ using VintageHive.Proxy.NetMeeting.H225;
 using VintageHive.Proxy.NetMeeting.ILS;
 using VintageHive.Proxy.NetMeeting.T120;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Finger;
 using VintageHive.Proxy.Pna;
 using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
@@ -66,6 +67,8 @@ public static class Mind
     static RawPrintProxy rawPrintProxy;
 
     static NntpProxy nntpProxy;
+
+    static FingerServer fingerServer;
 
     static readonly DateTime StartTimeUtc = DateTime.UtcNow;
 
@@ -210,7 +213,7 @@ public static class Mind
 
         socksProxy = new(ipAddress, socksPort);
 
-        // DNS proxy (UDP, intercepts all lookups → VintageHive IP)
+        // DNS proxy (UDP, intercepts all lookups -> VintageHive IP)
         var dnsPort = Db.ConfigGet<int>(ConfigNames.PortDns);
 
         dnsProxy = new(ipAddress, dnsPort, ipAddress);
@@ -234,10 +237,16 @@ public static class Mind
         var t120Port = Db.ConfigGet<int>(ConfigNames.PortT120);
 
         t120Server = new(ipAddress, t120Port);
+
+        // Finger protocol (RFC 1288, user info lookup)
+        var fingerPort = Db.ConfigGet<int>(ConfigNames.PortFinger);
+
+        fingerServer = new(ipAddress, fingerPort);
     }
 
     public static void Start()
     {
+        // Core services - the web proxy and always-on protocol servers.
         httpProxy.Start();
 
         httpsProxy.Start();
@@ -246,31 +255,7 @@ public static class Mind
 
         telnetServer.Start();
 
-        IrcServer.Start();
-
-        printerProxy.Start();
-        lpdProxy.Start();
-        rawPrintProxy.Start();
-
-        smtpProxy.Start();
-
-        pop3Proxy.Start();
-
-        imapProxy.Start();
-
-        nntpProxy.Start();
-
         socksProxy.Start();
-
-        dnsProxy.Start();
-
-        ilsServer.Start();
-
-        rasServer.Start();
-
-        h323Server.Start();
-
-        t120Server.Start();
 
         oscarServer.Start();
 
@@ -278,8 +263,50 @@ public static class Mind
 
         pnaServer.Start();
 
+        // Toggleable services - gated on their config flag. Changes apply on next restart.
+        StartService(ConfigNames.ServiceIrc, "IRC", () => IrcServer.Start());
+
+        StartService(ConfigNames.ServicePrinter, "Printer (IPP/LPD/Raw)", () =>
+        {
+            printerProxy.Start();
+            lpdProxy.Start();
+            rawPrintProxy.Start();
+        });
+
+        StartService(ConfigNames.ServiceSmtp, "SMTP", () => smtpProxy.Start());
+
+        StartService(ConfigNames.ServicePop3, "POP3", () => pop3Proxy.Start());
+
+        StartService(ConfigNames.ServiceImap, "IMAP", () => imapProxy.Start());
+
+        StartService(ConfigNames.ServiceUsenet, "Usenet (NNTP)", () => nntpProxy.Start());
+
+        StartService(ConfigNames.ServiceDns, "DNS", () => dnsProxy.Start());
+
+        StartService(ConfigNames.ServiceIls, "ILS", () => ilsServer.Start());
+
+        StartService(ConfigNames.ServiceRas, "H.225 RAS", () => rasServer.Start());
+
+        StartService(ConfigNames.ServiceH323, "H.323", () => h323Server.Start());
+
+        StartService(ConfigNames.ServiceT120, "T.120", () => t120Server.Start());
+
+        StartService(ConfigNames.ServiceFinger, "Finger", () => fingerServer.Start());
+
         resetEvent.WaitOne();
 
         IsRunning = false;
+    }
+
+    static void StartService(string serviceConfigName, string displayName, Action start)
+    {
+        if (Db.ConfigGet<bool>(serviceConfigName))
+        {
+            start();
+        }
+        else
+        {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), $"Service '{displayName}' is disabled via config; not starting.", string.Empty);
+        }
     }
 }

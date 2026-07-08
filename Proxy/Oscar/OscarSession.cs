@@ -166,7 +166,7 @@ public class OscarSession
 
     public void DecayWarning()
     {
-        // Warning level decays over time — roughly 1 point per minute
+        // Warning level decays over time - roughly 1 point per minute
         if (WarningLevel > 0)
         {
             WarningLevel = (ushort)Math.Max(0, WarningLevel - 1);

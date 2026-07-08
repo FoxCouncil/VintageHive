@@ -9,9 +9,9 @@ using VintageHive.Proxy.NetMeeting.T120;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  GCC Constants tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class GccConstantsTests
@@ -60,9 +60,9 @@ public class GccConstantsTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ConnectData wrapper tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class GccConnectDataTests
@@ -122,9 +122,9 @@ public class GccConnectDataTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  SimpleNumericString tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class GccNumericStringTests
@@ -183,9 +183,9 @@ public class GccNumericStringTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ConferenceCreateRequest encode/decode tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class GccConferenceCreateRequestTests
@@ -382,9 +382,9 @@ public class GccConferenceCreateRequestTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ConferenceCreateResponse encode/decode tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class GccConferenceCreateResponseTests
@@ -489,9 +489,9 @@ public class GccConferenceCreateResponseTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Full GCC pipeline integration tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class GccPipelineTests
@@ -587,7 +587,7 @@ public class GccPipelineTests
     [TestMethod]
     public void FullPipeline_OverX224AndTpkt()
     {
-        // GCC → MCS → X.224 DT → TPKT — the complete stack
+        // GCC -> MCS -> X.224 DT -> TPKT - the complete stack
         var request = new ConferenceCreateRequest
         {
             ConferenceNameNumeric = "1",
@@ -625,9 +625,9 @@ public class GccPipelineTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  T120Server GCC integration tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class T120ServerGccTests
@@ -755,9 +755,9 @@ public class T120ServerGccTests
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static int GetAvailablePort()
     {

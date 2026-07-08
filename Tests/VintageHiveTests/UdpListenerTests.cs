@@ -6,9 +6,9 @@ using VintageHive.Network;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Test helpers: concrete UdpListener subclasses
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>Simple echo server: returns the received datagram unchanged.</summary>
 internal class EchoUdpServer : UdpListener
@@ -76,9 +76,9 @@ internal class EndpointTrackingServer : UdpListener
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  UdpListener base class tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class UdpListenerTests
@@ -201,7 +201,7 @@ public class UdpListenerTests
             var winner = await Task.WhenAny(receiveTask, Task.Delay(500));
 
             Assert.AreNotEqual(receiveTask, winner,
-                "Server should not have responded — ReceiveAsync should not complete");
+                "Server should not have responded - ReceiveAsync should not complete");
         }
         finally
         {
@@ -223,7 +223,7 @@ public class UdpListenerTests
             client.Client.ReceiveTimeout = 3000;
             var serverEndpoint = new IPEndPoint(Loopback, server.BoundPort);
 
-            // 8KB datagram — well within UDP limit but larger than typical
+            // 8KB datagram - well within UDP limit but larger than typical
             var payload = new byte[8192];
 
             for (var i = 0; i < payload.Length; i++)
@@ -374,7 +374,7 @@ public class UdpListenerTests
     [TestMethod]
     public async Task EphemeralPort_ResolvesAfterStart()
     {
-        // Bind to port 0 → OS assigns an ephemeral port
+        // Bind to port 0 -> OS assigns an ephemeral port
         var server = new EchoUdpServer(Loopback, 0);
 
         try

@@ -28,9 +28,9 @@ internal class PerEncoder
     /// <summary>Total bits written.</summary>
     public int TotalBits => ByteCount * 8 + _bitsInCurrentByte;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Bit-level operations
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Write a single bit (MSB-first within each byte).</summary>
     public void WriteBit(bool value)
@@ -105,9 +105,9 @@ internal class PerEncoder
         _stream.Write(data, offset, count);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  PER encoding primitives (ITU-T X.691)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Constrained whole number (X.691 Section 12.2).
@@ -131,7 +131,7 @@ internal class PerEncoder
 
         if (range == 1)
         {
-            // Nothing to encode — value is predetermined
+            // Nothing to encode - value is predetermined
             return;
         }
 
@@ -264,9 +264,9 @@ internal class PerEncoder
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Common ASN.1 type encodings
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>PER BOOLEAN: single bit (X.691 Section 12.1).</summary>
     public void WriteBoolean(bool value)
@@ -517,9 +517,9 @@ internal class PerEncoder
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SEQUENCE / CHOICE helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Write extension marker bit (first bit of an extensible type).</summary>
     public void WriteExtensionBit(bool hasExtensions)
@@ -602,9 +602,9 @@ internal class PerEncoder
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Output
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Return the encoded byte array. Partial trailing byte (if any) is included
@@ -624,9 +624,9 @@ internal class PerEncoder
         return result;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private void FlushByte()
     {

@@ -72,9 +72,9 @@ internal class IlsServer : Listener
         await Task.CompletedTask;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  LDAP message framing (BER over TCP)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static async Task<byte[]> ReadLdapMessageAsync(NetworkStream stream)
     {
@@ -172,9 +172,9 @@ internal class IlsServer : Listener
         return buffer;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  LDAP message dispatch
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private byte[] ProcessLdapMessage(byte[] messageBytes, ListenerSocket connection)
     {
@@ -226,9 +226,9 @@ internal class IlsServer : Listener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Operation handlers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private byte[] HandleBind(int messageId, BerDecoder body)
     {
@@ -237,7 +237,7 @@ internal class IlsServer : Listener
         // Read name (LDAPDN as OCTET STRING)
         var name = body.ReadString();
 
-        // Accept any authentication — ILS uses anonymous simple bind
+        // Accept any authentication - ILS uses anonymous simple bind
         Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"Bind: version={version} dn=\"{name}\"", "");
 
         return BuildLdapResult(messageId, LdapConstants.OP_BIND_RESPONSE, LdapConstants.RESULT_SUCCESS, "", "");
@@ -386,7 +386,7 @@ internal class IlsServer : Listener
 
     private byte[] HandleDelete(int messageId, BerDecoder body)
     {
-        // DeleteRequest is APPLICATION PRIMITIVE — the value IS the LDAPDN
+        // DeleteRequest is APPLICATION PRIMITIVE - the value IS the LDAPDN
         var dn = Encoding.UTF8.GetString(body.ReadRemainingBytes());
         var removed = _directory.RemoveByDn(dn);
         var resultCode = removed
@@ -399,9 +399,9 @@ internal class IlsServer : Listener
         return BuildLdapResult(messageId, LdapConstants.OP_DELETE_RESPONSE, resultCode, "", "");
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ILS-specific: TTL refresh via sttl in search filter
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private void HandleTtlRefresh(LdapFilter filter)
     {
@@ -442,9 +442,9 @@ internal class IlsServer : Listener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Response builders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static byte[] BuildLdapResult(int messageId, int responseTagNumber, int resultCode, string matchedDn, string diagnosticMessage)
     {

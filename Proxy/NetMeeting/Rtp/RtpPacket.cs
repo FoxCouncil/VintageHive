@@ -6,7 +6,7 @@ namespace VintageHive.Proxy.NetMeeting.Rtp;
 
 /// <summary>
 /// Lightweight RTP header parser for statistics and logging.
-/// Does NOT modify packet data — the relay forwards raw bytes.
+/// Does NOT modify packet data - the relay forwards raw bytes.
 ///
 /// RTP header (RFC 3550):
 ///  0                   1                   2                   3

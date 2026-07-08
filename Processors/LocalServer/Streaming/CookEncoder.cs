@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
-// Cook codec encoder — ported from NihAV (Kostya Shishkov, March 2023)
+// Cook codec encoder - ported from NihAV (Kostya Shishkov, March 2023)
 
 using System.Buffers.Binary;
 
@@ -32,7 +32,7 @@ internal partial class CookEncoder
     // DSP state
     // ===================================================================
 
-    private readonly float[] _window;        // [N] sine window — matches cook_init_mdct_tables
+    private readonly float[] _window;        // [N] sine window - matches cook_init_mdct_tables
     private readonly float[] _mdctTmp;       // [2*N] workspace for prewindow folding + FFT scratch
     private readonly float[] _coeffs;        // [MaxFrameSize] MDCT output coefficients
     private readonly float[] _preRotCos;     // [N/2] cos((i+0.25)*π/N)
@@ -46,7 +46,7 @@ internal partial class CookEncoder
     // 3-frame overlap buffer per channel: [frame_k-2, frame_k-1, frame_k]
     // After shift+fill, MDCT processes [0..2N-1] = [frame_k-2, frame_k-1]
     private readonly float[][] _overlapBuf;  // [channel][3*frameSize]
-    private readonly float[][] _lpcOutput;   // [channel][2*frameSize] — work buffer after LPC
+    private readonly float[][] _lpcOutput;   // [channel][2*frameSize] - work buffer after LPC
 
     // DC removal state per channel (1st-order IIR highpass)
     private readonly float[] _dcState;
@@ -58,9 +58,9 @@ internal partial class CookEncoder
     // Subband gain state per channel
     private readonly int _subbandSize; // = frameSize / 8
     private readonly float[][] _gainHistory;        // [channel][4]
-    private readonly int[][] _prevGainInfo;         // [channel][17] — [0]=count, [1..8]=subband, [9..16]=gain
+    private readonly int[][] _prevGainInfo;         // [channel][17] - [0]=count, [1..8]=subband, [9..16]=gain
     private readonly int[][] _currGainInfo;         // [channel][17]
-    private readonly float[][] _windowFilterState;  // [channel][8] — 2 biquad sections × 4 state vars
+    private readonly float[][] _windowFilterState;  // [channel][8] - 2 biquad sections × 4 state vars
     private readonly float[] _gainStepRatios;       // [11] per-sample gain interpolation step ratios
 
     // Power/half-power lookup tables
@@ -151,7 +151,7 @@ internal partial class CookEncoder
         _framesPerPacket = _codedFrameSize / _subPacketSize;
         _framesPerGroup = _subPacketH * _framesPerPacket;
 
-        // Initialize DSP — MDCT tables matching cook_init_mdct_tables
+        // Initialize DSP - MDCT tables matching cook_init_mdct_tables
         int N = _frameSize;
         int halfN = N / 2;
         _window = new float[N];
@@ -248,7 +248,7 @@ internal partial class CookEncoder
             }
         }
 
-        // FFT twiddle factors — cook_init_fft_tables:
+        // FFT twiddle factors - cook_init_fft_tables:
         // twiddle[i] = (cos, sin)(bit_rev[2*i] * 2π / fft_size)
         // Bit-reversed order with positive angles, used by DIF FFT.
         for (int i = 0; i < _fftSize / 2; i++)
@@ -299,7 +299,7 @@ internal partial class CookEncoder
 
             if (_pcmBufferPos >= _pcmBytesPerFrame)
             {
-                // We have one full frame of PCM — encode it
+                // We have one full frame of PCM - encode it
                 var cookFrame = EncodeOneFrame();
                 if (cookFrame.Length != _subPacketSize)
                 {
@@ -368,7 +368,7 @@ internal partial class CookEncoder
         int ch = channelIndex;
 
         // ---------------------------------------------------------------
-        // Step 1: Shift overlap buffer — move [N..3N-1] to [0..2N-1]
+        // Step 1: Shift overlap buffer - move [N..3N-1] to [0..2N-1]
         // ---------------------------------------------------------------
         Array.Copy(_overlapBuf[ch], N, _overlapBuf[ch], 0, N * 2);
 
@@ -390,7 +390,7 @@ internal partial class CookEncoder
         }
 
         // ---------------------------------------------------------------
-        // Step 4: Save current gain info → previous (must happen BEFORE computing new gains)
+        // Step 4: Save current gain info -> previous (must happen BEFORE computing new gains)
         // ---------------------------------------------------------------
         Array.Copy(_currGainInfo[ch], 0, _prevGainInfo[ch], 0, 17);
 
@@ -459,7 +459,7 @@ internal partial class CookEncoder
         // Step 8: Encode temporal gain events
         EncodeTemporalGain(bw, _currGainInfo[ch]);
 
-        // Step 9: Spectral envelope — first qindex as 6 bits, rest as Huffman-coded deltas
+        // Step 9: Spectral envelope - first qindex as 6 bits, rest as Huffman-coded deltas
         sbyte lastQ = qindex[0];
         bw.Write((uint)(qindex[0] + 6), 6);
         for (int i = 1; i < totalBands; i++)
@@ -546,7 +546,7 @@ internal partial class CookEncoder
 
     /// <summary>
     /// Forward MDCT matching cook_mdct_forward pipeline:
-    /// prewindow → fft_prerotate → fft_compute → fft_postrotate.
+    /// prewindow -> fft_prerotate -> fft_compute -> fft_postrotate.
     /// </summary>
     private void ApplyMdct(float[] input2N)
     {
@@ -554,12 +554,12 @@ internal partial class CookEncoder
         int halfN = N / 2;
 
         // =============================================================
-        // Step 1: Prewindow — fold 2N input into N using window table.
+        // Step 1: Prewindow - fold 2N input into N using window table.
         // Matches cook_mdct_prewindow exactly.
         // Q1=[0..N/2-1], Q2=[N/2..N-1], Q3=[N..3N/2-1], Q4=[3N/2..2N-1]
         // =============================================================
         // All MDCT stages use double intermediates to match x87 FPU behavior
-        // (32-bit x86 code loads float → 80-bit register, computes in
+        // (32-bit x86 code loads float -> 80-bit register, computes in
         // double precision per MSVC default, stores back to float).
         for (int j = 0; j < halfN; j++)
         {
@@ -573,7 +573,7 @@ internal partial class CookEncoder
         }
 
         // =============================================================
-        // Step 2: FFT prerotate — N real → N/2 interleaved complex.
+        // Step 2: FFT prerotate - N real -> N/2 interleaved complex.
         // Pairs samples from opposite ends with twiddle factors.
         // Matches cook_fft_prerotate.
         // =============================================================
@@ -606,7 +606,7 @@ internal partial class CookEncoder
             int ip3 = fftOff + (fftN >> 1) + fftN;
 
             // All butterfly arithmetic uses double intermediates to match
-            // x87 FPU behavior (32-bit x86 code loads float → 80-bit register, computes
+            // x87 FPU behavior (32-bit x86 code loads float -> 80-bit register, computes
             // in double precision per MSVC default, stores back to float).
             for (int i = 0; i < (fftN >> 2); i++)
             {
@@ -709,7 +709,7 @@ internal partial class CookEncoder
         }
 
         // =============================================================
-        // Step 4: FFT postrotate — extract N real MDCT coefficients.
+        // Step 4: FFT postrotate - extract N real MDCT coefficients.
         // DIF FFT outputs in bit-reversed order, so we unscramble via
         // _bitRevTable, matching cook_fft_postrotate exactly.
         // =============================================================
@@ -727,7 +727,7 @@ internal partial class CookEncoder
     }
 
     // ===================================================================
-    // Bit allocation (categorize) — from NihAV bitalloc()
+    // Bit allocation (categorize) - from NihAV bitalloc()
     // ===================================================================
 
     private static void BitAlloc(int samples, int bits, byte vectorBits, int totalSubbands,
@@ -836,7 +836,7 @@ internal partial class CookEncoder
             category[i] = (byte)expIndex2[i];
         }
 
-        // Output adjustment sequence — exactly numvector_size-1 entries, matching FFmpeg's categorize.
+        // Output adjustment sequence - exactly numvector_size-1 entries, matching FFmpeg's categorize.
         // FFmpeg reads from tmp_categorize_array starting at tmp_categorize_array2_idx,
         // outputting numvector_size-1 entries. Entries beyond the valid range default to 0 (band 0).
         int numEntries = (1 << vectorBits) - 1;
@@ -864,7 +864,7 @@ internal partial class CookEncoder
     /// Compute power index (qindex) for a subband's energy.
     /// Matches cook_compute_power_index exactly (verified at VA 0x633f5040-0x633f5050):
     ///   633f5040 = 0.0  (initial sum, no epsilon)
-    ///   633f5044 = 0.05 (scale factor — multiply, not add!)
+    ///   633f5044 = 0.05 (scale factor - multiply, not add!)
     ///   633f5048 = 1.0  (threshold for conditional)
     ///   633f504c = sqrt(2) (multiplier when scaled > 1.0)
     ///   633f5050 = sqrt(0.5) (default multiplier when scaled &lt;= 1.0)
@@ -879,24 +879,24 @@ internal partial class CookEncoder
         float val;
         if (scaled > 1.0f)
         {
-            val = scaled * 1.4142135f; // sqrt(2) — boost large values
+            val = scaled * 1.4142135f; // sqrt(2) - boost large values
         }
         else
         {
-            val = scaled * 0.70710678f; // sqrt(0.5) — shrink small values
+            val = scaled * 0.70710678f; // sqrt(0.5) - shrink small values
         }
 
-        // Handle zero/denorm: for silence, nrg=0 → val=0 → exponent is -127, clamp to -31
+        // Handle zero/denorm: for silence, nrg=0 -> val=0 -> exponent is -127, clamp to -31
         if (val <= 0f)
         {
             return -31;
         }
 
-        // Reference: extract IEEE 754 exponent — fast floor(log2)
+        // Reference: extract IEEE 754 exponent - fast floor(log2)
         int bits = BitConverter.SingleToInt32Bits(val);
         int exponent = (bits >> 23) - 127;
 
-        // Reference: power_value - (power_value >> 31) — ceiling for negative values
+        // Reference: power_value - (power_value >> 31) - ceiling for negative values
         exponent -= (exponent >> 31);
 
         return (sbyte)Math.Clamp(exponent, -31, 63);
@@ -992,7 +992,7 @@ internal partial class CookEncoder
             }
         }
 
-        // Update gain history — stores peaks from subbands 6 & 7
+        // Update gain history - stores peaks from subbands 6 & 7
         _gainHistory[ch][0] = currPeaks[6];
         _gainHistory[ch][1] = currPeaks[7];
         _gainHistory[ch][2] = prevPeaks[6];
@@ -1236,7 +1236,7 @@ internal partial class CookEncoder
     }
 
     // ===================================================================
-    // Packed VQ coefficients — uses real encoder's linear step-size quantization
+    // Packed VQ coefficients - uses real encoder's linear step-size quantization
     // index = clamp(round(|coeff| / (stepSize * gain) + offset), 0, maxIndex)
     // ===================================================================
 

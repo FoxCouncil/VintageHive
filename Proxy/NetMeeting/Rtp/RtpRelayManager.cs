@@ -79,7 +79,7 @@ internal class RtpRelayManager : IDisposable
         pair.RtpTask = pair.RtpRelay.RunAsync(_cts.Token);
         pair.RtcpTask = pair.RtcpRelay.RunAsync(_cts.Token);
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Started relay for channel {channelNumber}: A[{callerRtp}] ↔ B[{calleeRtp}]", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"Started relay for channel {channelNumber}: A[{callerRtp}] <-> B[{calleeRtp}]", "");
     }
 
     /// <summary>
@@ -243,7 +243,7 @@ internal class RtpRelayManager : IDisposable
         }
         catch (SocketException)
         {
-            // Port taken — try next even port
+            // Port taken - try next even port
             evenPort += 2;
         }
 
@@ -254,7 +254,7 @@ internal class RtpRelayManager : IDisposable
         }
         catch (SocketException)
         {
-            // RTCP port taken — try next even port
+            // RTCP port taken - try next even port
             evenPort += 2;
         }
 

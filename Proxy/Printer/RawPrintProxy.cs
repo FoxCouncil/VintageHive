@@ -5,7 +5,7 @@ using VintageHive.Network;
 namespace VintageHive.Proxy.Printer;
 
 /// <summary>
-/// Raw TCP / JetDirect / AppSocket print server — default port 9100.
+/// Raw TCP / JetDirect / AppSocket print server - default port 9100.
 /// The simplest possible protocol: client connects, sends raw print data, closes.
 /// No handshake, no metadata, just bytes.
 /// </summary>
@@ -45,7 +45,7 @@ internal class RawPrintProxy : Listener
 
                 if (read == 0)
                 {
-                    break; // Client closed connection — data transfer complete
+                    break; // Client closed connection - data transfer complete
                 }
 
                 memoryStream.Write(buffer, 0, read);

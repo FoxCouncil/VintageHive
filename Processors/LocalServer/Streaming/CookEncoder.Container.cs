@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
-// Cook encoder — RealMedia container construction and GENR interleaving
+// Cook encoder - RealMedia container construction and GENR interleaving
 
 using System.Buffers.Binary;
 using System.Text;
@@ -87,7 +87,7 @@ internal partial class CookEncoder
         bw.WriteU16((ushort)_flavourIndex); // flavor
         bw.WriteU32((uint)_codedFrameSize); // coded_frame_size
 
-        // Three u32 fields from jazz1.rm — appear to be related to codec byte sizes
+        // Three u32 fields from jazz1.rm - appear to be related to codec byte sizes
         // These match the jazz1.rm reference file for flavor 9; may need adjustment for other flavors
         const uint Ra5DataField1 = 0x00012688; // jazz1.rm offset 0x1E
         const uint Ra5DataField2 = 0x00024970; // jazz1.rm offset 0x22
@@ -122,7 +122,7 @@ internal partial class CookEncoder
         bw.WriteU32((uint)extradata.Length); // codecdata_length
         bw.WriteBytes(extradata);
 
-        // Patch header_size — per jazz1.rm, this counts from the version2 field
+        // Patch header_size - per jazz1.rm, this counts from the version2 field
         // (includes version2(2) + header_size_field(4) + content)
         int headerEnd = (int)ms.Position;
         int headerSize = headerEnd - headerStart + 6;
@@ -232,7 +232,7 @@ internal partial class CookEncoder
         // MDPR chunk
         WriteMdprChunk(ms, ra5Header, stationName);
 
-        // DATA header (18 bytes) — for files, includes actual packet count and data size
+        // DATA header (18 bytes) - for files, includes actual packet count and data size
         WriteDataHeader(ms, numPackets, totalDataSize);
 
         return ms.ToArray();
@@ -253,7 +253,7 @@ internal partial class CookEncoder
         BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(2), (ushort)packetLen);
         // stream_number = 0
         BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(4), 0);
-        // timestamp (ms) — all packets in a group share the same timestamp (per jazz1.rm)
+        // timestamp (ms) - all packets in a group share the same timestamp (per jazz1.rm)
         BinaryPrimitives.WriteUInt32BigEndian(packet.AsSpan(6), _timestamp);
         // reserved = 0
         packet[10] = 0;

@@ -76,12 +76,8 @@ public class FtpProxy : Listener
                 return null;
             }
 
-            /* DO NOT FUCKING CACHE FTP YET */
-            /* YOU ARE NOT GOOD ENOUGH YET */
-            //if (responseData != null)
-            //{
-            //    CacheDb?.Set<string>(key, CacheTtl, Convert.ToBase64String(responseData));
-            //}
+            // FTP responses are intentionally not cached yet - the proxy streams data connections
+            // directly, so there is no single response buffer to store at this point.
         }
         else
         {

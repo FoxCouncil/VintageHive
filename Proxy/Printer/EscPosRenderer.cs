@@ -157,7 +157,7 @@ internal class EscPosRenderer
                 }
                 break;
 
-                case 0x09: // HT (horizontal tab — advance to next 8-char stop)
+                case 0x09: // HT (horizontal tab - advance to next 8-char stop)
                 {
                     int tabStops = (int)(_headX / _charWidth / 8) + 1;
                     _headX = tabStops * 8 * _charWidth;
@@ -201,41 +201,41 @@ internal class EscPosRenderer
 
         switch (cmd)
         {
-            case 0x40: // ESC @ — Initialize printer
+            case 0x40: // ESC @ - Initialize printer
             {
                 Reset();
                 return pos + 2;
             }
 
             // ---- Bit image commands (ESC/P) ----
-            case (byte)'*': // ESC * m nL nH d... — Select bit image
+            case (byte)'*': // ESC * m nL nH d... - Select bit image
             {
                 return ProcessBitImageEscP(data, pos);
             }
 
             // ---- Bit image commands (IBM ProPrinter) ----
-            case (byte)'K': // ESC K nL nH d... — Single density 60 DPI
+            case (byte)'K': // ESC K nL nH d... - Single density 60 DPI
             {
                 return ProcessBitImageIbm(data, pos, 60);
             }
 
-            case (byte)'L': // ESC L nL nH d... — Double density 120 DPI
+            case (byte)'L': // ESC L nL nH d... - Double density 120 DPI
             {
                 return ProcessBitImageIbm(data, pos, 120);
             }
 
-            case (byte)'Y': // ESC Y nL nH d... — High-speed double 120 DPI
+            case (byte)'Y': // ESC Y nL nH d... - High-speed double 120 DPI
             {
                 return ProcessBitImageIbm(data, pos, 120);
             }
 
-            case (byte)'Z': // ESC Z nL nH d... — Quadruple density 240 DPI
+            case (byte)'Z': // ESC Z nL nH d... - Quadruple density 240 DPI
             {
                 return ProcessBitImageIbm(data, pos, 240);
             }
 
             // ---- Vertical motion ----
-            case (byte)'J': // ESC J n — Advance print position vertically
+            case (byte)'J': // ESC J n - Advance print position vertically
             {
                 if (pos + 2 < data.Length)
                 {
@@ -249,7 +249,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'j': // ESC j n — Reverse feed n/180 inch (ESC/P only)
+            case (byte)'j': // ESC j n - Reverse feed n/180 inch (ESC/P only)
             {
                 if (pos + 2 < data.Length)
                 {
@@ -262,7 +262,7 @@ internal class EscPosRenderer
             }
 
             // ---- Horizontal motion ----
-            case (byte)'$': // ESC $ nL nH — Set absolute horizontal position (1/60 inch units)
+            case (byte)'$': // ESC $ nL nH - Set absolute horizontal position (1/60 inch units)
             {
                 if (pos + 3 < data.Length)
                 {
@@ -274,7 +274,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'\\': // ESC \ nL nH — Set relative horizontal position (1/120 inch units)
+            case (byte)'\\': // ESC \ nL nH - Set relative horizontal position (1/120 inch units)
             {
                 if (pos + 3 < data.Length)
                 {
@@ -294,7 +294,7 @@ internal class EscPosRenderer
             }
 
             // ---- Margins ----
-            case (byte)'l': // ESC l n — Set left margin (character columns)
+            case (byte)'l': // ESC l n - Set left margin (character columns)
             {
                 if (pos + 2 < data.Length)
                 {
@@ -305,7 +305,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'Q': // ESC Q n — Set right margin (character columns)
+            case (byte)'Q': // ESC Q n - Set right margin (character columns)
             {
                 if (pos + 2 < data.Length)
                 {
@@ -323,25 +323,25 @@ internal class EscPosRenderer
             }
 
             // ---- Line spacing ----
-            case (byte)'0': // ESC 0 — Set line spacing to 1/8 inch
+            case (byte)'0': // ESC 0 - Set line spacing to 1/8 inch
             {
                 _lineSpacing = RENDER_DPI / 8f;
                 return pos + 2;
             }
 
-            case (byte)'1': // ESC 1 — Set line spacing to 7/72 inch
+            case (byte)'1': // ESC 1 - Set line spacing to 7/72 inch
             {
                 _lineSpacing = RENDER_DPI * 7f / 72f;
                 return pos + 2;
             }
 
-            case (byte)'2': // ESC 2 — Set line spacing to 1/6 inch (default)
+            case (byte)'2': // ESC 2 - Set line spacing to 1/6 inch (default)
             {
                 _lineSpacing = RENDER_DPI / 6f;
                 return pos + 2;
             }
 
-            case (byte)'A': // ESC A n — Set line spacing to n/72 inch (IBM) or n/60 inch (ESC/P)
+            case (byte)'A': // ESC A n - Set line spacing to n/72 inch (IBM) or n/60 inch (ESC/P)
             {
                 if (pos + 2 < data.Length)
                 {
@@ -353,7 +353,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'3': // ESC 3 n — Set line spacing to n/180 inch (ESC/P) or n/216 inch (IBM)
+            case (byte)'3': // ESC 3 n - Set line spacing to n/180 inch (ESC/P) or n/216 inch (IBM)
             {
                 if (pos + 2 < data.Length)
                 {
@@ -366,31 +366,31 @@ internal class EscPosRenderer
             }
 
             // ---- Text attributes ----
-            case (byte)'E': // ESC E — Select bold
+            case (byte)'E': // ESC E - Select bold
             {
                 _bold = true;
                 return pos + 2;
             }
 
-            case (byte)'F': // ESC F — Cancel bold
+            case (byte)'F': // ESC F - Cancel bold
             {
                 _bold = false;
                 return pos + 2;
             }
 
-            case (byte)'4': // ESC 4 — Select italic
+            case (byte)'4': // ESC 4 - Select italic
             {
                 _italic = true;
                 return pos + 2;
             }
 
-            case (byte)'5': // ESC 5 — Cancel italic
+            case (byte)'5': // ESC 5 - Cancel italic
             {
                 _italic = false;
                 return pos + 2;
             }
 
-            case (byte)'-': // ESC - n — Underline on/off
+            case (byte)'-': // ESC - n - Underline on/off
             {
                 if (pos + 2 < data.Length)
                 {
@@ -401,20 +401,20 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'G': // ESC G — Select double-strike (treat as bold)
+            case (byte)'G': // ESC G - Select double-strike (treat as bold)
             {
                 _bold = true;
                 return pos + 2;
             }
 
-            case (byte)'H': // ESC H — Cancel double-strike
+            case (byte)'H': // ESC H - Cancel double-strike
             {
                 _bold = false;
                 return pos + 2;
             }
 
             // ---- Master select ----
-            case (byte)'!': // ESC ! n — Master select
+            case (byte)'!': // ESC ! n - Master select
             {
                 if (pos + 2 < data.Length)
                 {
@@ -449,25 +449,25 @@ internal class EscPosRenderer
             }
 
             // ---- Character pitch ----
-            case (byte)'P': // ESC P — Select 10 CPI
+            case (byte)'P': // ESC P - Select 10 CPI
             {
                 _charWidth = RENDER_DPI / 10;
                 return pos + 2;
             }
 
-            case (byte)'M': // ESC M — Select 12 CPI (Elite)
+            case (byte)'M': // ESC M - Select 12 CPI (Elite)
             {
                 _charWidth = RENDER_DPI / 12;
                 return pos + 2;
             }
 
-            case (byte)'g': // ESC g — Select 15 CPI
+            case (byte)'g': // ESC g - Select 15 CPI
             {
                 _charWidth = RENDER_DPI / 15;
                 return pos + 2;
             }
 
-            case (byte)'W': // ESC W n — Double-wide on/off
+            case (byte)'W': // ESC W n - Double-wide on/off
             {
                 if (pos + 2 < data.Length)
                 {
@@ -482,8 +482,8 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            // ---- Typeface (consume but ignore — we only have one font) ----
-            case (byte)'k': // ESC k n — Select typeface
+            // ---- Typeface (consume but ignore - we only have one font) ----
+            case (byte)'k': // ESC k n - Select typeface
             {
                 if (pos + 2 < data.Length)
                 {
@@ -493,7 +493,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'x': // ESC x n — Select NLQ/Draft mode
+            case (byte)'x': // ESC x n - Select NLQ/Draft mode
             {
                 if (pos + 2 < data.Length)
                 {
@@ -503,7 +503,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'p': // ESC p n — Proportional mode on/off
+            case (byte)'p': // ESC p n - Proportional mode on/off
             {
                 if (pos + 2 < data.Length)
                 {
@@ -513,7 +513,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'t': // ESC t n — Select character table
+            case (byte)'t': // ESC t n - Select character table
             {
                 if (pos + 2 < data.Length)
                 {
@@ -523,7 +523,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'R': // ESC R n — Select international character set
+            case (byte)'R': // ESC R n - Select international character set
             {
                 if (pos + 2 < data.Length)
                 {
@@ -533,11 +533,11 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'C': // ESC C n — Set page length in lines
+            case (byte)'C': // ESC C n - Set page length in lines
             {
                 if (pos + 2 < data.Length)
                 {
-                    // ESC C 0 n — set page length in inches
+                    // ESC C 0 n - set page length in inches
                     if (data[pos + 2] == 0 && pos + 3 < data.Length)
                     {
                         return pos + 4;
@@ -549,7 +549,7 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'N': // ESC N n — Set bottom margin
+            case (byte)'N': // ESC N n - Set bottom margin
             {
                 if (pos + 2 < data.Length)
                 {
@@ -559,14 +559,14 @@ internal class EscPosRenderer
                 return pos + 2;
             }
 
-            case (byte)'O': // ESC O — Cancel bottom margin
+            case (byte)'O': // ESC O - Cancel bottom margin
             {
                 return pos + 2;
             }
 
             default:
             {
-                // Unknown escape sequence — skip 2 bytes and hope for the best
+                // Unknown escape sequence - skip 2 bytes and hope for the best
                 Log.WriteLine(Log.LEVEL_DEBUG, nameof(EscPosRenderer), $"Unknown ESC sequence: ESC 0x{cmd:X2} at position {pos}");
                 return pos + 2;
             }
@@ -648,7 +648,7 @@ internal class EscPosRenderer
             }
             break;
 
-            default: // Unknown mode — treat as single density 8-pin
+            default: // Unknown mode - treat as single density 8-pin
             {
                 horizontalDpi = 60; verticalDpi = 60; bytesPerColumn = 1;
             }
@@ -666,7 +666,7 @@ internal class EscPosRenderer
 
     int ProcessBitImageIbm(byte[] data, int pos, int horizontalDpi)
     {
-        // ESC K/L/Y/Z nL nH d1 d2 ... — always 8-pin (1 byte per column)
+        // ESC K/L/Y/Z nL nH d1 d2 ... - always 8-pin (1 byte per column)
         if (pos + 3 >= data.Length)
         {
             return data.Length;

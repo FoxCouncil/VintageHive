@@ -12,6 +12,26 @@ internal partial class AdminController : Controller
 
     private readonly string[] AllowListedEndpoints = new string[] { "/login.html", "/css/", "/js/", "/img/", "/api/login" };
 
+    // Services the admin dashboard is allowed to toggle, mapped to their config keys.
+    // Listener-backed services (everything except intranet) apply on the next restart;
+    // intranet is checked per-request and applies immediately.
+    private static readonly IReadOnlyDictionary<string, string> ToggleableServices = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "intranet", ConfigNames.ServiceIntranet },
+        { "smtp", ConfigNames.ServiceSmtp },
+        { "pop3", ConfigNames.ServicePop3 },
+        { "imap", ConfigNames.ServiceImap },
+        { "irc", ConfigNames.ServiceIrc },
+        { "usenet", ConfigNames.ServiceUsenet },
+        { "dns", ConfigNames.ServiceDns },
+        { "printer", ConfigNames.ServicePrinter },
+        { "ils", ConfigNames.ServiceIls },
+        { "ras", ConfigNames.ServiceRas },
+        { "h323", ConfigNames.ServiceH323 },
+        { "t120", ConfigNames.ServiceT120 },
+        { "finger", ConfigNames.ServiceFinger },
+    };
+
     public override async Task CallInitial(string rawPath)
     {
         await base.CallInitial(rawPath);
@@ -35,6 +55,7 @@ internal partial class AdminController : Controller
         await Task.Delay(0);
 
         Response.Context.SetValue("ia_years", InternetArchiveProcessor.ValidYears);
+        Response.Context.SetValue("ia_worker_url", Mind.Db.ConfigGet<string>(ConfigNames.ServiceInternetArchiveWorkerUrl));
     }
 
     [Route("/users.html")]
@@ -169,8 +190,34 @@ internal partial class AdminController : Controller
         {
             Response.SetJsonSuccess(false);
         }
-        
+
         Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchiveYear, Request.FormData["year"]);
+
+        Response.SetJsonSuccess();
+    }
+
+    [Route("/api/iaworkertoggle")]
+    public async Task InternetArchiveWorkerToggle()
+    {
+        await Task.Delay(0);
+
+        Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchiveWorker, !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker));
+
+        Response.SetJsonSuccess();
+    }
+
+    [Route("/api/iasetworkerurl")]
+    public async Task InternetArchiveSetWorkerUrl()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("url"))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchiveWorkerUrl, Request.FormData["url"]);
 
         Response.SetJsonSuccess();
     }
@@ -181,6 +228,30 @@ internal partial class AdminController : Controller
         await Task.Delay(0);
 
         Mind.Db.ConfigSet(ConfigNames.ServiceProtoWeb, !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb));
+
+        Response.SetJsonSuccess();
+    }
+
+    [Route("/api/servicetoggle")]
+    public async Task ServiceToggle()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("service"))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        var key = Request.FormData["service"]?.Trim().ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(key) || !ToggleableServices.TryGetValue(key, out var configName))
+        {
+            Response.SetJsonSuccess(false);
+            return;
+        }
+
+        Mind.Db.ConfigSet(configName, !Mind.Db.ConfigGet<bool>(configName));
 
         Response.SetJsonSuccess();
     }
@@ -219,7 +290,10 @@ internal partial class AdminController : Controller
         var data = new {
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
+            iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),
+            iaworkerurl = Mind.Db.ConfigGet<string>(ConfigNames.ServiceInternetArchiveWorkerUrl),
             protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb),
+            services = ToggleableServices.ToDictionary(kv => kv.Key, kv => Mind.Db.ConfigGet<bool>(kv.Value)),
             irc = new {
                 users = Mind.IrcServer?.UserCount ?? 0,
                 channels = Mind.IrcServer?.ChannelCount ?? 0,

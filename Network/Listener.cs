@@ -83,7 +83,7 @@ public abstract class Listener
         }
         catch (SocketException ex)
         {
-            Log.WriteLine(Log.LEVEL_ERROR, GetType().Name, $"Failed to bind {Address}:{Port} — {ex.Message}", "");
+            Log.WriteLine(Log.LEVEL_ERROR, GetType().Name, $"Failed to bind {Address}:{Port} - {ex.Message}", "");
 
             IsListening = false;
 

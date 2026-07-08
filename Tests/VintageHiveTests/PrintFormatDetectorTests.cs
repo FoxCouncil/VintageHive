@@ -69,7 +69,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_Pcl_ParameterizedEscAmpersand()
     {
-        // ESC & — PCL parameterized command
+        // ESC & - PCL parameterized command
         var data = new byte[64];
         data[0] = (byte)'@'; // some leading byte
         data[10] = 0x1B;
@@ -81,7 +81,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_Pcl_ParameterizedEscOpenParen()
     {
-        // ESC ( — PCL parameterized command
+        // ESC ( - PCL parameterized command
         var data = new byte[64];
         data[10] = 0x1B;
         data[11] = (byte)'(';
@@ -92,7 +92,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_Pcl_ParameterizedEscCloseParen()
     {
-        // ESC ) — PCL parameterized command
+        // ESC ) - PCL parameterized command
         var data = new byte[64];
         data[10] = 0x1B;
         data[11] = (byte)')';
@@ -103,7 +103,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_Pcl_ResetAtStart_FallsToEscP()
     {
-        // ESC E at position 0 — the scan loop detects it as an ESC sequence first,
+        // ESC E at position 0 - the scan loop detects it as an ESC sequence first,
         // so it falls through to the EscP default for unknown ESC sequences.
         // The PCL reset check requires !hasEscSequences which is already true.
         var data = new byte[] { 0x1B, (byte)'E', (byte)'H', (byte)'e', (byte)'l', (byte)'l', (byte)'o' };
@@ -118,7 +118,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_EscP_InitializeCommand()
     {
-        // ESC @ — ESC/P initialize printer
+        // ESC @ - ESC/P initialize printer
         var data = new byte[64];
         data[0] = 0x1B;
         data[1] = 0x40; // @
@@ -129,7 +129,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_EscP_BitImageCommand()
     {
-        // ESC * — ESC/P bit image mode
+        // ESC * - ESC/P bit image mode
         var data = new byte[64];
         data[0] = 0x1B;
         data[1] = (byte)'*';
@@ -140,7 +140,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_EscP_MasterSelectCommand()
     {
-        // ESC ! — ESC/P master select
+        // ESC ! - ESC/P master select
         var data = new byte[64];
         data[0] = 0x1B;
         data[1] = (byte)'!';
@@ -166,7 +166,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_IbmProPrinter_SingleDensityGraphics()
     {
-        // ESC K nL nH — IBM single density graphics
+        // ESC K nL nH - IBM single density graphics
         var data = new byte[64];
         data[10] = 0x1B;
         data[11] = (byte)'K';
@@ -179,7 +179,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_IbmProPrinter_DoubleDensityGraphics()
     {
-        // ESC L nL nH — IBM double density graphics
+        // ESC L nL nH - IBM double density graphics
         var data = new byte[64];
         data[10] = 0x1B;
         data[11] = (byte)'L';
@@ -192,7 +192,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_IbmProPrinter_HighSpeedDoubleDensity()
     {
-        // ESC Y nL nH — IBM high-speed double density
+        // ESC Y nL nH - IBM high-speed double density
         var data = new byte[64];
         data[10] = 0x1B;
         data[11] = (byte)'Y';
@@ -205,7 +205,7 @@ public class PrintFormatDetectorTests
     [TestMethod]
     public void Detect_IbmProPrinter_QuadrupleDensity()
     {
-        // ESC Z nL nH — IBM quadruple density
+        // ESC Z nL nH - IBM quadruple density
         var data = new byte[64];
         data[10] = 0x1B;
         data[11] = (byte)'Z';
@@ -277,9 +277,9 @@ public class PrintFormatDetectorTests
         // ESC/P should win since ESC @ is checked first
         var data = new byte[64];
         data[0] = 0x1B;
-        data[1] = 0x40; // ESC @ — ESC/P init
+        data[1] = 0x40; // ESC @ - ESC/P init
         data[10] = 0x1B;
-        data[11] = (byte)'K'; // ESC K — IBM graphics
+        data[11] = (byte)'K'; // ESC K - IBM graphics
         data[12] = 0x10;
         data[13] = 0x00;
 

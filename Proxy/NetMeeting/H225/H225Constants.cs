@@ -9,9 +9,9 @@ namespace VintageHive.Proxy.NetMeeting.H225;
 /// </summary>
 internal static class H225Constants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Protocol identifiers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>H.225.0 v2 protocol identifier: {0 0 8 2250 0 2}</summary>
     public static readonly int[] ProtocolOid = { 0, 0, 8, 2250, 0, 2 };
@@ -19,9 +19,9 @@ internal static class H225Constants
     /// <summary>Default RAS UDP port (ITU-T H.225.0 Section 7.2).</summary>
     public const int DefaultRasPort = 1719;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  RasMessage CHOICE indices (25 root alternatives, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int RAS_GATEKEEPER_REQUEST = 0;
     public const int RAS_GATEKEEPER_CONFIRM = 1;
@@ -52,9 +52,9 @@ internal static class H225Constants
     /// <summary>Number of root alternatives in the RasMessage CHOICE.</summary>
     public const int RAS_ROOT_ALTERNATIVES = 25;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  TransportAddress CHOICE indices (7 root alternatives)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int TRANSPORT_IP_ADDRESS = 0;
     public const int TRANSPORT_IP_SOURCE_ROUTE = 1;
@@ -66,9 +66,9 @@ internal static class H225Constants
 
     public const int TRANSPORT_ROOT_ALTERNATIVES = 7;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  AliasAddress CHOICE indices (6 root alternatives, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int ALIAS_E164 = 0;
     public const int ALIAS_H323_ID = 1;
@@ -76,9 +76,9 @@ internal static class H225Constants
     /// <summary>Number of root alternatives in AliasAddress CHOICE (v2).</summary>
     public const int ALIAS_ROOT_ALTERNATIVES = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Reject reasons
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int GRJ_RESOURCE_UNAVAILABLE = 0;
     public const int GRJ_TERMINAL_EXCLUDED = 1;
@@ -103,9 +103,9 @@ internal static class H225Constants
     public const int ARJ_INVALID_ENDPOINT_IDENTIFIER = 6;
     public const int ARJ_RESOURCE_UNAVAILABLE = 7;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Field size constraints
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>GatekeeperIdentifier: BMPString (SIZE 1..128)</summary>
     public const int GK_ID_MIN = 1;

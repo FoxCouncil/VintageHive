@@ -13,22 +13,22 @@ namespace VintageHive.Proxy.NetMeeting.T120;
 /// </summary>
 internal static class McsConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  BER APPLICATION tags for Connect PDUs
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
-    /// <summary>Connect-Initial: APPLICATION [101] — 0x7F 0x65</summary>
+    /// <summary>Connect-Initial: APPLICATION [101] - 0x7F 0x65</summary>
     public const byte CONNECT_INITIAL_TAG_1 = 0x7F;
     public const byte CONNECT_INITIAL_TAG_2 = 0x65;
 
-    /// <summary>Connect-Response: APPLICATION [102] — 0x7F 0x66</summary>
+    /// <summary>Connect-Response: APPLICATION [102] - 0x7F 0x66</summary>
     public const byte CONNECT_RESPONSE_TAG_1 = 0x7F;
     public const byte CONNECT_RESPONSE_TAG_2 = 0x66;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Domain PDU types (PER CHOICE indices)
     //  DomainMCSPDU ::= CHOICE { ... }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int DOMAIN_ERECT_DOMAIN_REQUEST = 1;
     public const int DOMAIN_ATTACH_USER_REQUEST = 10;
@@ -42,9 +42,9 @@ internal static class McsConstants
     /// <summary>Number of root alternatives in DomainMCSPDU CHOICE.</summary>
     public const int DOMAIN_ROOT_COUNT = 28;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Result enum (used in AttachUserConfirm, ChannelJoinConfirm)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int RESULT_SUCCESSFUL = 0;
     public const int RESULT_DOMAIN_MERGED = 1;
@@ -64,9 +64,9 @@ internal static class McsConstants
     public const int RESULT_USER_REJECTED = 15;
     public const int RESULT_ROOT_COUNT = 16;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Data priority
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int PRIORITY_TOP = 0;
     public const int PRIORITY_HIGH = 1;
@@ -74,16 +74,16 @@ internal static class McsConstants
     public const int PRIORITY_LOW = 3;
     public const int PRIORITY_ROOT_COUNT = 4;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Segmentation flags (2-bit field)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int SEGMENTATION_BEGIN = 0x80;
     public const int SEGMENTATION_END = 0x40;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Default domain parameters
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int DEFAULT_MAX_CHANNEL_IDS = 34;
     public const int DEFAULT_MAX_USER_IDS = 2;
@@ -112,9 +112,9 @@ internal static class McsConstants
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  MCS Connect-Initial / Connect-Response (BER-encoded)
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>
 /// Domain parameters carried in Connect-Initial/Response.
@@ -162,9 +162,9 @@ internal class McsConnectResponse
     public byte[] UserData { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  MCS Domain PDU envelope
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>Parsed MCS domain PDU.</summary>
 internal class McsDomainPdu
@@ -196,9 +196,9 @@ internal class McsDomainPdu
 /// </summary>
 internal static class McsCodec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Connect-Initial (BER decode)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Detect if data starts with MCS Connect-Initial tag (0x7F 0x65).
@@ -302,9 +302,9 @@ internal static class McsCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Connect-Initial (BER encode)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Build an MCS Connect-Initial message.
@@ -375,9 +375,9 @@ internal static class McsCodec
         return result.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Domain PDUs (PER decode)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Parse a PER-encoded MCS domain PDU.
@@ -499,9 +499,9 @@ internal static class McsCodec
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Domain PDUs (PER encode)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static byte[] EncodeErectDomainRequest(int subHeight = 0, int subInterval = 0)
     {
@@ -588,9 +588,9 @@ internal static class McsCodec
         return enc.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  BER helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     internal static int ReadBerLength(byte[] data, ref int offset)
     {

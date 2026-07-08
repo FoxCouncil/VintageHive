@@ -37,7 +37,7 @@ internal class PnaSession
 
             if (read == 0)
             {
-                Log.WriteLine(Log.LEVEL_INFO, LogSys, "Client sent 0 bytes — closing", _traceId);
+                Log.WriteLine(Log.LEVEL_INFO, LogSys, "Client sent 0 bytes - closing", _traceId);
                 return;
             }
 
@@ -59,7 +59,7 @@ internal class PnaSession
 
             if (string.IsNullOrEmpty(stationId))
             {
-                Log.WriteLine(Log.LEVEL_ERROR, LogSys, "No station ID in request — closing", _traceId);
+                Log.WriteLine(Log.LEVEL_ERROR, LogSys, "No station ID in request - closing", _traceId);
                 return;
             }
 
@@ -123,7 +123,7 @@ internal class PnaSession
     }
 
     // ===================================================================
-    // Streaming loop — send 0x5a-framed PNA audio packets
+    // Streaming loop - send 0x5a-framed PNA audio packets
     // ===================================================================
 
     private async Task StreamingLoop()

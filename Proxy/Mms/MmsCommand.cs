@@ -17,7 +17,7 @@ internal static class MmsCommand
     public const int TCP_HEADER_SIZE = 32;
 
     // ===================================================================
-    // MID Constants — Server → Client (0x0004xxxx)
+    // MID Constants - Server -> Client (0x0004xxxx)
     // ===================================================================
 
     public const uint MID_ConnectedEX = 0x00040001;
@@ -32,7 +32,7 @@ internal static class MmsCommand
     public const uint MID_ReportStreamSwitch = 0x00040021;
 
     // ===================================================================
-    // MID Constants — Client → Server (0x0003xxxx)
+    // MID Constants - Client -> Server (0x0003xxxx)
     // ===================================================================
 
     public const uint MID_Connect = 0x00030001;
@@ -144,7 +144,7 @@ internal static class MmsCommand
     /// </summary>
     public static async Task<(bool isCommand, byte[] data)> ReadMessageAsync(NetworkStream stream, CancellationToken ct)
     {
-        // Read first 8 bytes — enough to check sessionId at offset 4
+        // Read first 8 bytes - enough to check sessionId at offset 4
         // TcpMessageHeader: [rep(1) version(1) versionMinor(1) padding(1)] [sessionId(4) = 0xB00BFACE]
         // Data packet:      [LocationId(4)] [incarnation(1) AFFlags(1) PacketSize(2)]
         var peek = new byte[8];
@@ -157,7 +157,7 @@ internal static class MmsCommand
 
         if (sessionId == SESSION_ID)
         {
-            // TcpMessageHeader — read remaining 32 bytes to complete the 40-byte header
+            // TcpMessageHeader - read remaining 32 bytes to complete the 40-byte header
             var header = new byte[TCP_HEADER_SIZE];
             Buffer.BlockCopy(peek, 0, header, 0, 8);
             if (!await ReadExactAsync(stream, header, 8, TCP_HEADER_SIZE - 8, ct))
@@ -184,7 +184,7 @@ internal static class MmsCommand
         }
         else
         {
-            // Data packet — first 8 bytes already contain full data header
+            // Data packet - first 8 bytes already contain full data header
             // LocationId(4) + incarnation(1) + AFFlags(1) + PacketSize(2)
             ushort packetSize = BitConverter.ToUInt16(peek, 6);
             var payload = new byte[packetSize];
@@ -332,19 +332,19 @@ internal static class MmsCommand
         BitConverter.GetBytes((uint)0).CopyTo(fields, pos); pos += 4;                 // hr = S_OK
         BitConverter.GetBytes(playIncarnation).CopyTo(fields, pos); pos += 4;          // playIncarnation (echo client)
         BitConverter.GetBytes(openFileId).CopyTo(fields, pos); pos += 4;               // openFileId
-        // padding(4) = 0, fileName(4) = 0 — already zero
+        // padding(4) = 0, fileName(4) = 0 - already zero
         pos += 8;
         // fileAttributes: BROADCAST (0x02000000) | PLAYLIST (0x40000000)
         BitConverter.GetBytes(0x42000000u).CopyTo(fields, pos); pos += 4;              // fileAttributes
         BitConverter.GetBytes(0.0).CopyTo(fields, pos); pos += 8;                     // fileDuration = 0 (live)
         BitConverter.GetBytes((uint)0).CopyTo(fields, pos); pos += 4;                 // fileBlocks = 0 (live)
-        // unused1(16) — already zero
+        // unused1(16) - already zero
         pos += 16;
         BitConverter.GetBytes((uint)packetSize).CopyTo(fields, pos); pos += 4;         // filePacketSize
         BitConverter.GetBytes(0UL).CopyTo(fields, pos); pos += 8;                     // filePacketCount = 0 (unknown/live)
         BitConverter.GetBytes((uint)bitRate).CopyTo(fields, pos); pos += 4;            // fileBitRate
         BitConverter.GetBytes((uint)fileHeaderSize).CopyTo(fields, pos); pos += 4;     // fileHeaderSize
-        // unused2(36) — already zero
+        // unused2(36) - already zero
 
         return fields;
     }
@@ -388,7 +388,7 @@ internal static class MmsCommand
         BitConverter.GetBytes(playIncarnation).CopyTo(fields, pos); pos += 4;      // playIncarnation (echo client)
         BitConverter.GetBytes(tigerFileId).CopyTo(fields, pos); pos += 4;          // tigerFileId (openFileId)
         BitConverter.GetBytes((uint)0).CopyTo(fields, pos);                        // unused1 = 0
-        // unused2(12) — already zero
+        // unused2(12) - already zero
         return fields;
     }
 

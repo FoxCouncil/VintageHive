@@ -150,7 +150,7 @@ internal class OscarIcqService : IOscarService
                         var mem = new MemoryStream();
 
                         mem.WriteByte(0x0A);
-                        mem.Write(WriteIcqString("<value>http://192.168.69.1/api/icq2000a/%d/%s.cb</value>"));
+                        mem.Write(WriteIcqString("<value>http://api.hive.com/api/icq2000a/%d/%s.cb</value>"));
 
                         await SendMetaData(session, snac, icqMetaReq, META_XML_INFO, mem);
                     }

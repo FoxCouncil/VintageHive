@@ -79,7 +79,7 @@ internal static class Socks4Handler
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), $"CONNECT {displayHost}:{destPort}", traceId);
 
-        // ── Connect to target ───────────────────────────────────────────
+        // -- Connect to target -------------------------------------------
         Socket targetSocket;
 
         try
@@ -107,7 +107,7 @@ internal static class Socks4Handler
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), $"Tunnel established to {displayHost}:{destPort}", traceId);
 
-        // ── Bidirectional tunnel ────────────────────────────────────────
+        // -- Bidirectional tunnel ----------------------------------------
         using var targetStream = new NetworkStream(targetSocket, ownsSocket: true);
 
         await SocksProxy.TunnelAsync(stream, targetStream);

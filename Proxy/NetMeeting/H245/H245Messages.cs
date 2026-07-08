@@ -17,14 +17,14 @@ internal class H245Message
     /// <summary>Sub-CHOICE index within request/response/command/indication.</summary>
     public int SubIndex { get; init; }
 
-    // ── Request types ──
+    // -- Request types --
     public MasterSlaveDetermination MasterSlaveDetermination { get; init; }
     public TerminalCapabilitySet TerminalCapabilitySet { get; init; }
     public OpenLogicalChannel OpenLogicalChannel { get; init; }
     public CloseLogicalChannel CloseLogicalChannel { get; init; }
     public RoundTripDelayRequest RoundTripDelayRequest { get; init; }
 
-    // ── Response types ──
+    // -- Response types --
     public MasterSlaveDeterminationAck MasterSlaveDeterminationAck { get; init; }
     public MasterSlaveDeterminationReject MasterSlaveDeterminationReject { get; init; }
     public TerminalCapabilitySetAck TerminalCapabilitySetAck { get; init; }
@@ -45,9 +45,9 @@ internal class H245Message
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Request data types
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 internal class MasterSlaveDetermination
 {
@@ -106,9 +106,9 @@ internal class RoundTripDelayRequest
     public int SequenceNumber { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Response data types
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 internal class MasterSlaveDeterminationAck
 {
@@ -180,9 +180,9 @@ internal class CloseLogicalChannelAck
 /// </summary>
 internal static class H245Codec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static H245Message Decode(byte[] data)
     {
@@ -355,9 +355,9 @@ internal static class H245Codec
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Request decoders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static MasterSlaveDetermination DecodeMasterSlaveDetermination(PerDecoder dec)
     {
@@ -371,7 +371,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new MasterSlaveDetermination
@@ -398,7 +398,7 @@ internal static class H245Codec
             H245Constants.TCS_SEQ_MIN, H245Constants.TCS_SEQ_MAX);
         var protocolId = dec.ReadObjectIdentifier();
 
-        // MultiplexCapability OPTIONAL — skip if present
+        // MultiplexCapability OPTIONAL - skip if present
         if (opts[0])
         {
             SkipMultiplexCapability(dec);
@@ -422,7 +422,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new TerminalCapabilitySet
@@ -460,14 +460,14 @@ internal static class H245Codec
 
         if (fwdOpts[0])
         {
-            dec.ReadConstrainedWholeNumber(0, 65535); // portNumber — skip
+            dec.ReadConstrainedWholeNumber(0, 65535); // portNumber - skip
         }
 
         // DataType CHOICE (6 root, extensible)
         var dataType = dec.ReadChoiceIndex(H245Constants.DATA_TYPE_ROOT_COUNT, extensible: true);
 
         // Skip the actual data type contents (AudioCapability, VideoCapability, etc.)
-        // These are deeply nested extensible types — we just need the CHOICE index
+        // These are deeply nested extensible types - we just need the CHOICE index
         SkipDataTypeContents(dec, dataType);
 
         // multiplexParameters CHOICE
@@ -539,17 +539,17 @@ internal static class H245Codec
 
             if (h2250HasExt)
             {
-                try { dec.ReadExtensionAdditions(); } catch { }
+                dec.TryReadExtensionAdditions();
             }
         }
 
         // Skip forward extensions
         if (fwdHasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
-        // reverseLogicalChannelParameters OPTIONAL — skip
+        // reverseLogicalChannelParameters OPTIONAL - skip
         if (opts[0])
         {
             SkipReverseLogicalChannelParameters(dec);
@@ -557,7 +557,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new OpenLogicalChannel
@@ -586,7 +586,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new CloseLogicalChannel
@@ -609,15 +609,15 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new RoundTripDelayRequest { SequenceNumber = seqNum };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Response decoders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static MasterSlaveDeterminationAck DecodeMasterSlaveDeterminationAck(PerDecoder dec)
     {
@@ -631,7 +631,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new MasterSlaveDeterminationAck { Decision = decision };
@@ -649,7 +649,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new MasterSlaveDeterminationReject { Cause = cause };
@@ -668,7 +668,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new TerminalCapabilitySetAck { SequenceNumber = seqNum };
@@ -691,7 +691,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new TerminalCapabilitySetReject { SequenceNumber = seqNum, Cause = cause };
@@ -711,7 +711,7 @@ internal static class H245Codec
         var lcn = (int)dec.ReadConstrainedWholeNumber(
             H245Constants.LCN_MIN, H245Constants.LCN_MAX);
 
-        // reverseLogicalChannelParameters OPTIONAL — skip
+        // reverseLogicalChannelParameters OPTIONAL - skip
         if (opts[0])
         {
             SkipReverseLogicalChannelParameters(dec);
@@ -721,7 +721,7 @@ internal static class H245Codec
         IPEndPoint mediaControlChannel = null;
         int? sessionId = null;
 
-        // Extension additions — look for forwardMultiplexAckParameters
+        // Extension additions - look for forwardMultiplexAckParameters
         if (hasExt && dec.HasData)
         {
             try
@@ -808,7 +808,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new OpenLogicalChannelReject
@@ -831,15 +831,15 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
 
         return new CloseLogicalChannelAck { ForwardLogicalChannelNumber = lcn };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Encode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static byte[] EncodeMasterSlaveDetermination(MasterSlaveDetermination msd)
     {
@@ -982,13 +982,13 @@ internal static class H245Codec
         return enc.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Skip helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Skip DataType contents after CHOICE index has been read.
-    /// These are deeply nested capability types — we skip them wholesale.
+    /// These are deeply nested capability types - we skip them wholesale.
     /// </summary>
     private static void SkipDataTypeContents(PerDecoder dec, int dataTypeChoice)
     {
@@ -1002,7 +1002,7 @@ internal static class H245Codec
 
             case H245Constants.DATA_TYPE_NULL_DATA:
             {
-                // NULL — nothing to read
+                // NULL - nothing to read
             }
             break;
 
@@ -1013,7 +1013,7 @@ internal static class H245Codec
             {
                 // These are deeply nested extensible CHOICEs (AudioCapability,
                 // VideoCapability, etc.) with many alternatives.
-                // For proxy purposes we don't need to decode them — we forward raw.
+                // For proxy purposes we don't need to decode them - we forward raw.
                 // Best-effort: skip the extensible CHOICE contents.
                 SkipCapabilityChoice(dec);
             }
@@ -1021,7 +1021,7 @@ internal static class H245Codec
 
             default:
             {
-                // Extension — was read as open type, nothing more to skip
+                // Extension - was read as open type, nothing more to skip
             }
             break;
         }
@@ -1056,7 +1056,7 @@ internal static class H245Codec
         // Skip by reading extension bit and handling the SEQUENCE
         if (choice == 3)
         {
-            // H2250Capability — complex extensible SEQUENCE
+            // H2250Capability - complex extensible SEQUENCE
             // Best-effort: read extension bit + optionals + known fields
             var hasExt = dec.ReadExtensionBit();
             var opts = dec.ReadOptionalBitmap(1); // nonStandard
@@ -1065,7 +1065,7 @@ internal static class H245Codec
 
             // ReceiveAndTransmitMultiplexCapability
             // receiveMultipointCapability, transmitMultipointCapability, etc.
-            // These are complex — skip remaining as best-effort
+            // These are complex - skip remaining as best-effort
             SkipMultipointCapability(dec); // receiveMultipointCapability
             SkipMultipointCapability(dec); // transmitMultipointCapability
             SkipMultipointCapability(dec); // receiveAndTransmitMultipointCapability
@@ -1085,7 +1085,7 @@ internal static class H245Codec
 
             if (hasExt)
             {
-                try { dec.ReadExtensionAdditions(); } catch { }
+                dec.TryReadExtensionAdditions();
             }
         }
         // For other mux types, let parsing continue (they're rare in H.323)
@@ -1113,7 +1113,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
     }
 
@@ -1139,7 +1139,7 @@ internal static class H245Codec
         }
 
         // Skip data capability sequences if present
-        // These are deeply nested — best-effort
+        // These are deeply nested - best-effort
         if (opts[0])
         {
             SkipAndCaptureSetOf(dec);
@@ -1152,7 +1152,7 @@ internal static class H245Codec
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
     }
 
@@ -1171,11 +1171,11 @@ internal static class H245Codec
 
         if (opts[0])
         {
-            // multiplexParameters CHOICE — skip
+            // multiplexParameters CHOICE - skip
             var muxChoice = dec.ReadChoiceIndex(2, extensible: true);
             if (muxChoice == 0)
             {
-                // h2250LogicalChannelParameters — extensible SEQUENCE
+                // h2250LogicalChannelParameters - extensible SEQUENCE
                 var h2250HasExt = dec.ReadExtensionBit();
                 var h2250Opts = dec.ReadOptionalBitmap(6);
 
@@ -1198,14 +1198,14 @@ internal static class H245Codec
 
                 if (h2250HasExt)
                 {
-                    try { dec.ReadExtensionAdditions(); } catch { }
+                    dec.TryReadExtensionAdditions();
                 }
             }
         }
 
         if (hasExt)
         {
-            try { dec.ReadExtensionAdditions(); } catch { }
+            dec.TryReadExtensionAdditions();
         }
     }
 
@@ -1218,7 +1218,7 @@ internal static class H245Codec
         // The length determinant gives the count of elements.
         // We can't reliably skip complex nested elements without full type knowledge.
         // For pass-through proxy purposes, we rely on the entire message being forwarded
-        // as raw bytes — this method is a best-effort placeholder.
+        // as raw bytes - this method is a best-effort placeholder.
         //
         // In practice, TCS capability tables aren't needed for call proxying.
         // The H245Handler forwards complete TPKT frames without re-encoding.

@@ -5,9 +5,9 @@ using VintageHive.Processors.LocalServer.Streaming;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  CookBitWriter tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class CookBitWriterTests
@@ -66,7 +66,7 @@ public class CookBitWriterTests
     {
         var bw = new CookBitWriter(1);
         bw.Write(0xFF, 8);
-        bw.Write(0xFF, 1); // overflow — should be ignored
+        bw.Write(0xFF, 1); // overflow - should be ignored
 
         Assert.AreEqual(8, bw.BitsWritten);
     }
@@ -119,9 +119,9 @@ public class CookBitWriterTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  BigEndianWriter tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class BigEndianWriterTests
@@ -189,9 +189,9 @@ public class BigEndianWriterTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  CookData table tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class CookDataTests
@@ -322,9 +322,9 @@ public class CookDataTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  CookEncoder construction tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class CookEncoderConstructionTests
@@ -357,9 +357,9 @@ public class CookEncoderConstructionTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  CookEncoder encoding tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class CookEncoderEncodingTests
@@ -398,7 +398,7 @@ public class CookEncoderEncodingTests
     {
         var encoder = new CookEncoder(11025, 2, 19000);
 
-        // Only 100 bytes — not enough for even one frame
+        // Only 100 bytes - not enough for even one frame
         var pcm = new byte[100];
         var packets = encoder.EncodePcm(pcm);
 
@@ -503,7 +503,7 @@ public class CookEncoderEncodingTests
     {
         var encoder = new CookEncoder(11025, 2, 19000);
 
-        // Encode silence — all-zero coefficients should still produce non-zero frames
+        // Encode silence - all-zero coefficients should still produce non-zero frames
         // because of XOR scrambling and Huffman-coded spectral envelope
         int pcmBytes = 256 * 2 * 2 * 100;
         var silence = new byte[pcmBytes];
@@ -530,9 +530,9 @@ public class CookEncoderEncodingTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  CookEncoder container tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class CookEncoderContainerTests
@@ -689,9 +689,9 @@ public class CookEncoderContainerTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RealCodecProfile tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RealCodecProfileTests
@@ -720,7 +720,7 @@ public class RealCodecProfileTests
     [TestMethod]
     public void SelectForBandwidth_288Modem_SelectsCookStereo11k()
     {
-        // 28.8k modem = ~3600 bytes/sec → ~24 kbps usable
+        // 28.8k modem = ~3600 bytes/sec -> ~24 kbps usable
         var profile = RealCodecProfile.SelectForBandwidth(3600);
 
         Assert.AreEqual(RealCodecType.Cook, profile.CodecType);
@@ -731,7 +731,7 @@ public class RealCodecProfileTests
     [TestMethod]
     public void SelectForBandwidth_56kModem_SelectsCookStereo22k()
     {
-        // 56k modem = ~7000 bytes/sec → ~48 kbps usable
+        // 56k modem = ~7000 bytes/sec -> ~48 kbps usable
         var profile = RealCodecProfile.SelectForBandwidth(7000);
 
         Assert.AreEqual(RealCodecType.Cook, profile.CodecType);
@@ -741,7 +741,7 @@ public class RealCodecProfileTests
     [TestMethod]
     public void SelectForBandwidth_Broadband_SelectsCookStereo44k()
     {
-        // Broadband = 50000 bytes/sec → ~340 kbps usable
+        // Broadband = 50000 bytes/sec -> ~340 kbps usable
         var profile = RealCodecProfile.SelectForBandwidth(50000);
 
         Assert.AreEqual(RealCodecType.Cook, profile.CodecType);
@@ -787,7 +787,7 @@ public class RealCodecProfileTests
     [TestMethod]
     public void CookEncoder_DifferentFlavors_ProduceDifferentFrameSizes()
     {
-        // 11025Hz → frameSize=256, 22050Hz → frameSize=512
+        // 11025Hz -> frameSize=256, 22050Hz -> frameSize=512
         var enc11k = new CookEncoder(11025, 2, 19000);
         var enc22k = new CookEncoder(22050, 2, 32000);
 

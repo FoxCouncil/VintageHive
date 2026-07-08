@@ -13,9 +13,9 @@ namespace VintageHive.Proxy.NetMeeting.H225;
 /// </summary>
 internal class Q931Message
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Q.931 constants
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const byte ProtocolDiscriminator = 0x08;
 
@@ -36,9 +36,9 @@ internal class Q931Message
     /// <summary>H.225.0 User-User IE protocol discriminator.</summary>
     public const byte UUIE_PROTOCOL_DISCRIMINATOR = 0x05;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Message properties
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Call reference value (15-bit, 0-32767).</summary>
     public int CallReference { get; set; }
@@ -52,9 +52,9 @@ internal class Q931Message
     /// <summary>Information elements, keyed by IE tag.</summary>
     public Dictionary<byte, byte[]> InformationElements { get; } = new();
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Convenience accessors
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Get the User-User IE payload (H.225.0 PER data after protocol discriminator).</summary>
     public byte[] GetUuieData()
@@ -101,9 +101,9 @@ internal class Q931Message
         InformationElements[IE_DISPLAY] = System.Text.Encoding.ASCII.GetBytes(text);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Parse from raw Q.931 bytes (inside TPKT payload)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static Q931Message Parse(byte[] data)
     {
@@ -162,7 +162,7 @@ internal class Q931Message
             // we only handle variable-length IEs.
             if ((ieTag & 0x80) != 0 && ieTag != IE_USER_USER)
             {
-                // Single-octet IE — skip (value is embedded in the tag byte)
+                // Single-octet IE - skip (value is embedded in the tag byte)
                 continue;
             }
 
@@ -192,7 +192,7 @@ internal class Q931Message
 
             if (offset + ieLength > data.Length)
             {
-                break; // Truncated IE — best effort
+                break; // Truncated IE - best effort
             }
 
             var ieData = new byte[ieLength];
@@ -204,9 +204,9 @@ internal class Q931Message
         return msg;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Build raw Q.931 bytes (for TPKT payload)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public byte[] Build()
     {
@@ -230,7 +230,7 @@ internal class Q931Message
         // Message type
         ms.WriteByte(MessageType);
 
-        // Information elements — must be in ascending tag order
+        // Information elements - must be in ascending tag order
         var sortedIes = InformationElements.OrderBy(kv => kv.Key);
 
         foreach (var (tag, data) in sortedIes)
@@ -255,9 +255,9 @@ internal class Q931Message
         return ms.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Factory methods
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static Q931Message CreateSetup(int callReference, byte[] uuiePerData)
     {

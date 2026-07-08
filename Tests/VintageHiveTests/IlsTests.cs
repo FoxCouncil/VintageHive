@@ -8,9 +8,9 @@ using VintageHive.Proxy.NetMeeting.ILS;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  LDAP Filter Parser Tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class LdapFilterParserTests
@@ -25,7 +25,7 @@ public class LdapFilterParserTests
     [TestMethod]
     public void ParsePresentFilter()
     {
-        // (objectClass=*) → present filter: tag 0x87
+        // (objectClass=*) -> present filter: tag 0x87
         var decoder = BuildFilterBytes(enc =>
         {
             enc.WriteTag(BerTag.Context(7, constructed: false)); // 0x87
@@ -42,7 +42,7 @@ public class LdapFilterParserTests
     [TestMethod]
     public void ParseEqualityFilter()
     {
-        // (cn=john) → equality filter: tag 0xA3
+        // (cn=john) -> equality filter: tag 0xA3
         var decoder = BuildFilterBytes(enc =>
         {
             enc.WriteContextConstructed(3, eq =>
@@ -62,7 +62,7 @@ public class LdapFilterParserTests
     [TestMethod]
     public void ParseAndFilter_WithChildren()
     {
-        // (&(objectClass=rtPerson)(cn=%)) → AND with equality + equality
+        // (&(objectClass=rtPerson)(cn=%)) -> AND with equality + equality
         var decoder = BuildFilterBytes(enc =>
         {
             enc.WriteContextConstructed(0, and =>
@@ -139,7 +139,7 @@ public class LdapFilterParserTests
     [TestMethod]
     public void ParseSubstringFilter_InitialOnly()
     {
-        // (cn=abc*) → substrings with initial "abc"
+        // (cn=abc*) -> substrings with initial "abc"
         var decoder = BuildFilterBytes(enc =>
         {
             enc.WriteContextConstructed(4, sub =>
@@ -161,9 +161,9 @@ public class LdapFilterParserTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  LDAP Filter Evaluation Tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class LdapFilterEvalTests
@@ -324,9 +324,9 @@ public class LdapFilterEvalTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  IlsDirectory Tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class IlsDirectoryTests
@@ -506,9 +506,9 @@ public class IlsDirectoryTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ILS Server Integration Tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class IlsServerIntegrationTests
@@ -876,7 +876,7 @@ public class IlsServerIntegrationTests
         await stream.WriteAsync(BuildUnbindRequest(2));
         await stream.FlushAsync();
 
-        // Server should close the connection — read should return 0
+        // Server should close the connection - read should return 0
         await Task.Delay(200);
         var buf = new byte[16];
         var read = await stream.ReadAsync(buf, 0, buf.Length);

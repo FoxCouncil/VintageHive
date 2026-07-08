@@ -5,9 +5,9 @@ using VintageHive.Proxy.NetMeeting.Whiteboard;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Whiteboard Constants tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class WhiteboardConstantsTests
@@ -53,9 +53,9 @@ public class WhiteboardConstantsTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  DrawingCreatePDU encode/decode tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class DrawingCreateTests
@@ -381,9 +381,9 @@ public class DrawingCreateTests
     private static DrawingCreatePdu dc(SipduMessage msg) => msg.DrawingCreate;
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  DrawingDeletePDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class DrawingDeleteTests
@@ -420,9 +420,9 @@ public class DrawingDeleteTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  DrawingEditPDU encode/decode tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class DrawingEditTests
@@ -565,9 +565,9 @@ public class DrawingEditTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  WorkspaceCreatePDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class WorkspaceCreateTests
@@ -635,9 +635,9 @@ public class WorkspaceCreateTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  SIPDU type detection tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class SipduDetectionTests
@@ -690,7 +690,7 @@ public class SipduDetectionTests
     [TestMethod]
     public void DecodeSipdu_UnknownType_ReturnsRawData()
     {
-        // Encode a bitmap abort (index 4) — not fully decoded
+        // Encode a bitmap abort (index 4) - not fully decoded
         var enc = new VintageHive.Proxy.NetMeeting.Asn1.PerEncoder();
         enc.WriteExtensionBit(false);
         enc.WriteChoiceIndex(WhiteboardConstants.SIPDU_BITMAP_ABORT, WhiteboardConstants.SIPDU_ROOT_COUNT, extensible: false, isExtension: false);
@@ -704,9 +704,9 @@ public class SipduDetectionTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
-//  Full stack integration: T.126 → OMNET → MCS
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
+//  Full stack integration: T.126 -> OMNET -> MCS
+// ----------------------------------------------------------
 
 [TestClass]
 public class WhiteboardStackTests
@@ -760,7 +760,7 @@ public class WhiteboardStackTests
         var mcsPacket = VintageHive.Proxy.NetMeeting.T120.McsCodec.EncodeSendDataRequest(
             1001, 7, VintageHive.Proxy.NetMeeting.T120.McsConstants.PRIORITY_HIGH, omnetPacket);
 
-        // 5. Unwrap: MCS → OMNET → T.126
+        // 5. Unwrap: MCS -> OMNET -> T.126
         var mcsPdu = VintageHive.Proxy.NetMeeting.T120.McsCodec.DecodeDomainPdu(mcsPacket);
         Assert.IsTrue(OmnetCodec.IsOmnetMessage(mcsPdu.UserData));
 

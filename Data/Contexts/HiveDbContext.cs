@@ -63,6 +63,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.PortRas, 1719 },
         { ConfigNames.PortH323, 1720 },
         { ConfigNames.PortT120, 1503 },
+        { ConfigNames.PortFinger, 79 },
 
         // System Display Settings
         { ConfigNames.TemperatureUnits, WeatherUtils.TemperatureUnits.Celsius },
@@ -74,12 +75,15 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServiceProtoWeb, true },
         { ConfigNames.ServiceInternetArchive, true },
         { ConfigNames.ServiceInternetArchiveYear, 1999 },
+        { ConfigNames.ServiceInternetArchiveWorker, false },
+        { ConfigNames.ServiceInternetArchiveWorkerUrl, "" },
         { ConfigNames.ServiceSmtp, true },
         { ConfigNames.ServicePop3, true },
         { ConfigNames.ServiceUsenet, true },
         { ConfigNames.ServiceIrc, true },
         { ConfigNames.ServiceImap, true },
         { ConfigNames.ServicePrinter, true },
+        { ConfigNames.ServiceFinger, true },
         { ConfigNames.ServiceDns, true },
         { ConfigNames.ServiceIls, true },
         { ConfigNames.ServiceRas, true },

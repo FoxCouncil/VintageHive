@@ -8,7 +8,7 @@ using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Socks.Socks4;
 using VintageHive.Proxy.Socks.Socks5;
 
-#pragma warning disable MSTEST0025 // Enum-to-byte casts are intentional — verifying wire-level constants
+#pragma warning disable MSTEST0025 // Enum-to-byte casts are intentional - verifying wire-level constants
 
 namespace Socks;
 
@@ -17,7 +17,7 @@ namespace Socks;
 [TestClass]
 public class SocksEnumTests
 {
-    // RFC 1928 Section 4 — Command codes
+    // RFC 1928 Section 4 - Command codes
     [TestMethod]
     public void Socks5CommandType_Connect_Is0x01()
     {
@@ -36,7 +36,7 @@ public class SocksEnumTests
         Assert.AreEqual((byte)0x03, (byte)Socks5CommandType.UdpAssociate);
     }
 
-    // RFC 1928 Section 4 — Address types
+    // RFC 1928 Section 4 - Address types
     [TestMethod]
     public void Socks5AddressType_IPv4_Is0x01()
     {
@@ -55,7 +55,7 @@ public class SocksEnumTests
         Assert.AreEqual((byte)0x04, (byte)Socks5AddressType.IPv6);
     }
 
-    // RFC 1928 Section 6 — Reply codes
+    // RFC 1928 Section 6 - Reply codes
     [TestMethod]
     public void Socks5ReplyType_Succeeded_Is0x00()
     {
@@ -110,7 +110,7 @@ public class SocksEnumTests
         Assert.AreEqual((byte)0x08, (byte)Socks5ReplyType.AddressTypeNotSupported);
     }
 
-    // RFC 1928 Section 3 — Auth methods
+    // RFC 1928 Section 3 - Auth methods
     [TestMethod]
     public void Socks5AuthType_None_Is0x00()
     {
@@ -235,7 +235,7 @@ public class Socks5ProtocolTests
     {
         using var pair = await SocketPair.CreateAsync();
 
-        // Send greeting: 1 method, method=0x02 (username/password only — no NO_AUTH)
+        // Send greeting: 1 method, method=0x02 (username/password only - no NO_AUTH)
         await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x02 });
 
         var reply = await pair.ReadClientAsync(2);
@@ -336,7 +336,7 @@ public class Socks5ProtocolTests
             0x00, 0x50
         });
 
-        // Handler returns without sending a reply — server socket closes.
+        // Handler returns without sending a reply - server socket closes.
         // On Windows, the read may throw IOException ("connection forcibly closed")
         // instead of returning 0. Both behaviors indicate the connection was closed.
         await pair.WaitForHandlerAsync();
@@ -350,7 +350,7 @@ public class Socks5ProtocolTests
         }
         catch (IOException)
         {
-            // Expected on Windows — connection was closed by server
+            // Expected on Windows - connection was closed by server
         }
     }
 
@@ -454,7 +454,7 @@ public class Socks4ProtocolTests
         // Verify reply structure: [0x00, status, port(2), ip(4)]
         Assert.AreEqual((byte)0x00, reply[0], "SOCKS4 reply byte 0 must be 0x00");
 
-        // Port is bytes 2-3 (big-endian), IP is bytes 4-7 — both parseable
+        // Port is bytes 2-3 (big-endian), IP is bytes 4-7 - both parseable
         var replyPort = BinaryPrimitives.ReadUInt16BigEndian(reply.AsSpan(2));
         var replyIp = new IPAddress(reply[4..8]);
 

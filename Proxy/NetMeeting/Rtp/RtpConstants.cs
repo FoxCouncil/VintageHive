@@ -7,9 +7,9 @@ namespace VintageHive.Proxy.NetMeeting.Rtp;
 /// </summary>
 internal static class RtpConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  RTP header
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>RTP version 2 (RFC 3550).</summary>
     public const int RTP_VERSION = 2;
@@ -17,9 +17,9 @@ internal static class RtpConstants
     /// <summary>Minimum RTP header size in bytes (no CSRC, no extension).</summary>
     public const int RTP_HEADER_MIN = 12;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  RTCP packet types
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Sender Report.</summary>
     public const int RTCP_SR = 200;
@@ -36,9 +36,9 @@ internal static class RtpConstants
     /// <summary>Application-Defined.</summary>
     public const int RTCP_APP = 204;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Audio payload types (RFC 3551)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>G.711 µ-law (PCMU), 64 kbps, 8 kHz.</summary>
     public const int PT_PCMU = 0;
@@ -52,9 +52,9 @@ internal static class RtpConstants
     /// <summary>G.729, 8 kbps, 8 kHz.</summary>
     public const int PT_G729 = 18;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Video payload types (RFC 3551)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>H.261 video, 90 kHz clock.</summary>
     public const int PT_H261 = 31;
@@ -62,9 +62,9 @@ internal static class RtpConstants
     /// <summary>H.263 video, 90 kHz clock.</summary>
     public const int PT_H263 = 34;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Port allocation
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Start of the dynamic/ephemeral port range for RTP relay.</summary>
     public const int RELAY_PORT_RANGE_START = 49152;
@@ -75,9 +75,9 @@ internal static class RtpConstants
     /// <summary>Maximum UDP datagram size for RTP (typical MTU minus IP+UDP headers).</summary>
     public const int MAX_RTP_PACKET_SIZE = 1500;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for an RTP payload type.</summary>
     public static string PayloadTypeName(int pt)

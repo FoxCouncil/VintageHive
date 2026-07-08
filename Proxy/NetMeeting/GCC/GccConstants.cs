@@ -6,31 +6,31 @@ namespace VintageHive.Proxy.NetMeeting.GCC;
 /// GCC (Generic Conference Control) T.124 constants.
 ///
 /// GCC sits above MCS (T.125) in the T.120 stack:
-///   MCS Connect-Initial userData → PER(ConnectData) → ConnectGCCPDU
-///   MCS SendData                 → GCC runtime PDUs
+///   MCS Connect-Initial userData -> PER(ConnectData) -> ConnectGCCPDU
+///   MCS SendData                 -> GCC runtime PDUs
 ///
 /// Conference creation uses ConnectGCCPDU (ConferenceCreateRequest/Response).
 /// </summary>
 internal static class GccConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  T.124 Object Identifier: {0 0 20 124 0 1}
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>T.124 protocol version 1 OID.</summary>
     public static readonly int[] T124_OID = { 0, 0, 20, 124, 0, 1 };
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Key CHOICE (2 root alternatives, NOT extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int KEY_ROOT_COUNT = 2;
     public const int KEY_OBJECT = 0;
     public const int KEY_H221_NON_STANDARD = 1;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ConnectGCCPDU CHOICE (8 root alternatives, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int CONNECT_ROOT_COUNT = 8;
     public const int CONNECT_CONFERENCE_CREATE_REQUEST = 0;
@@ -42,9 +42,9 @@ internal static class GccConstants
     public const int CONNECT_CONFERENCE_INVITE_REQUEST = 6;
     public const int CONNECT_CONFERENCE_INVITE_RESPONSE = 7;
 
-    // ──────────────────────────────────────────────────────────
-    //  ConferenceCreateRequest — 8 OPTIONAL fields in root
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
+    //  ConferenceCreateRequest - 8 OPTIONAL fields in root
+    // ----------------------------------------------------------
 
     public const int CCR_OPTIONAL_COUNT = 8;
 
@@ -58,16 +58,16 @@ internal static class GccConstants
     public const int CCR_OPT_CALLER_IDENTIFIER = 6;
     public const int CCR_OPT_USER_DATA = 7;
 
-    // ──────────────────────────────────────────────────────────
-    //  ConferenceCreateResponse — 1 OPTIONAL field in root
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
+    //  ConferenceCreateResponse - 1 OPTIONAL field in root
+    // ----------------------------------------------------------
 
     public const int CCRESP_OPTIONAL_COUNT = 1;
     public const int CCRESP_OPT_USER_DATA = 0;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Result enumeration (5 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int RESULT_SUCCESS = 0;
     public const int RESULT_USER_REJECTED = 1;
@@ -76,24 +76,24 @@ internal static class GccConstants
     public const int RESULT_LOCKED_CONFERENCE_NOT_SUPPORTED = 4;
     public const int RESULT_ROOT_COUNT = 5;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  TerminationMethod enumeration (2 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int TERMINATION_AUTOMATIC = 0;
     public const int TERMINATION_MANUAL = 1;
     public const int TERMINATION_ROOT_COUNT = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  H.221 non-standard key constants
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Microsoft "Duca" H.221 key (0x44 0x75 0x63 0x61).</summary>
     public static readonly byte[] H221_KEY_MICROSOFT = { 0x44, 0x75, 0x63, 0x61 };
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helper methods
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for a ConnectGCCPDU CHOICE index.</summary>
     public static string ConnectPduName(int index)

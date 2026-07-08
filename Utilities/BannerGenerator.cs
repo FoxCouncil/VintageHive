@@ -74,7 +74,7 @@ internal static class BannerGenerator
             }
             catch
             {
-                // Bad favicon data — skip it
+                // Bad favicon data - skip it
             }
         }
 

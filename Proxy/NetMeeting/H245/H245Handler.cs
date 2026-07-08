@@ -6,7 +6,7 @@ using System.Net.Sockets;
 namespace VintageHive.Proxy.NetMeeting.H245;
 
 /// <summary>
-/// H.245 control channel handler — accepts a TCP connection from one side
+/// H.245 control channel handler - accepts a TCP connection from one side
 /// of an H.323 call, opens an outbound TCP to the other side, then proxies
 /// TPKT-framed H.245 messages bidirectionally.
 ///
@@ -78,8 +78,8 @@ internal class H245Handler : IDisposable
             // Proxy bidirectionally
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            var inToOut = ProxyDirection(inboundStream, outboundStream, "in→out", cts);
-            var outToIn = ProxyDirection(outboundStream, inboundStream, "out→in", cts);
+            var inToOut = ProxyDirection(inboundStream, outboundStream, "in->out", cts);
+            var outToIn = ProxyDirection(outboundStream, inboundStream, "out->in", cts);
 
             await Task.WhenAny(inToOut, outToIn);
 
@@ -112,7 +112,7 @@ internal class H245Handler : IDisposable
                     break;
                 }
 
-                // Inspect the message (best-effort — parse failures don't block forwarding)
+                // Inspect the message (best-effort - parse failures don't block forwarding)
                 try
                 {
                     var msg = H245Codec.Decode(payload);
@@ -139,7 +139,7 @@ internal class H245Handler : IDisposable
         if (msg.MasterSlaveDeterminationAck != null)
         {
             MasterSlaveResolved = true;
-            // The ack tells us the receiver's role — if we received "master"
+            // The ack tells us the receiver's role - if we received "master"
             // decision, it means the remote thinks WE are master
             IsMaster = msg.MasterSlaveDeterminationAck.Decision == H245Constants.MSD_DECISION_MASTER;
         }
@@ -203,7 +203,7 @@ internal class H245Handler : IDisposable
             {
                 ch.State = LogicalChannelState.Closed;
             }
-            // OnChannelClosed already fired on the CLC — CLC-Ack is just confirmation
+            // OnChannelClosed already fired on the CLC - CLC-Ack is just confirmation
         }
     }
 

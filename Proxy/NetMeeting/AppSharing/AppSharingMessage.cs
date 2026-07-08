@@ -5,7 +5,7 @@ using System.Buffers.Binary;
 namespace VintageHive.Proxy.NetMeeting.AppSharing;
 
 /// <summary>
-/// S20_CREATE packet — initiates an application sharing session.
+/// S20_CREATE packet - initiates an application sharing session.
 ///
 /// Wire format (all LE):
 ///   Length(2) + Version/Type(2) + User(2) + Correlator(4) + CPCALLCAPS(204)
@@ -18,7 +18,7 @@ internal class S20CreatePacket
 }
 
 /// <summary>
-/// S20_JOIN packet — requests to join an existing sharing session.
+/// S20_JOIN packet - requests to join an existing sharing session.
 ///
 /// Wire format: Length(2) + Version/Type(2) + User(2) + Correlator(4) + CPCALLCAPS(204)
 /// </summary>
@@ -30,7 +30,7 @@ internal class S20JoinPacket
 }
 
 /// <summary>
-/// S20_RESPOND packet — response to a JOIN request.
+/// S20_RESPOND packet - response to a JOIN request.
 ///
 /// Wire format: Length(2) + Version/Type(2) + User(2) + Correlator(4) + Result(4)
 /// </summary>
@@ -42,7 +42,7 @@ internal class S20RespondPacket
 }
 
 /// <summary>
-/// S20_DELETE packet — host removes a user from the session.
+/// S20_DELETE packet - host removes a user from the session.
 ///
 /// Wire format: Length(2) + Version/Type(2) + User(2) + Correlator(4)
 /// </summary>
@@ -53,7 +53,7 @@ internal class S20DeletePacket
 }
 
 /// <summary>
-/// S20_LEAVE packet — a user voluntarily leaves the session.
+/// S20_LEAVE packet - a user voluntarily leaves the session.
 ///
 /// Wire format: Length(2) + Version/Type(2) + User(2) + Correlator(4)
 /// </summary>
@@ -64,7 +64,7 @@ internal class S20LeavePacket
 }
 
 /// <summary>
-/// S20_END packet — host terminates the entire sharing session.
+/// S20_END packet - host terminates the entire sharing session.
 ///
 /// Wire format: Length(2) + Version/Type(2) + User(2) + Correlator(4)
 /// </summary>
@@ -75,7 +75,7 @@ internal class S20EndPacket
 }
 
 /// <summary>
-/// S20_COLLISION packet — signals a session collision (two simultaneous CREATEs).
+/// S20_COLLISION packet - signals a session collision (two simultaneous CREATEs).
 ///
 /// Wire format: Length(2) + Version/Type(2) + User(2) + Correlator(4)
 /// </summary>
@@ -86,7 +86,7 @@ internal class S20CollisionPacket
 }
 
 /// <summary>
-/// S20_DATA packet — wraps application sharing data payloads.
+/// S20_DATA packet - wraps application sharing data payloads.
 ///
 /// Wire format (all LE, NO leading length field):
 ///   Version/Type(2) + User(2) + Correlator(4) + AckID(1) + Stream(1) +
@@ -127,7 +127,7 @@ internal class S20Message
 }
 
 /// <summary>
-/// CPCALLCAPS — combined capabilities structure exchanged during
+/// CPCALLCAPS - combined capabilities structure exchanged during
 /// S20_CREATE and S20_JOIN, always exactly 204 bytes.
 ///
 /// Contains 7 capability sets concatenated in order:
@@ -217,7 +217,7 @@ internal class CpCallCaps
         BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(pos + 2), 12);
         pos += 12;
 
-        // Activation caps (4 bytes — header only)
+        // Activation caps (4 bytes - header only)
         BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(pos), AppSharingConstants.CAPS_ACTIVATION);
         BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(pos + 2), 4);
         pos += 4;
@@ -272,7 +272,7 @@ internal class CpCallCaps
 }
 
 /// <summary>
-/// S20 Application Sharing binary codec — encode and decode all S20 packet types.
+/// S20 Application Sharing binary codec - encode and decode all S20 packet types.
 ///
 /// All multi-byte integer fields are little-endian per MS-MNPR.
 /// Control packets (CREATE, JOIN, RESPOND, DELETE, LEAVE, END, COLLISION) have
@@ -280,9 +280,9 @@ internal class CpCallCaps
 /// </summary>
 internal static class S20Codec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Detection
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Peek at the S20 Version/Type field from raw packet data.
@@ -297,14 +297,14 @@ internal static class S20Codec
             return 0;
         }
 
-        // Try offset 0 first — could be S20_DATA (no length prefix)
+        // Try offset 0 first - could be S20_DATA (no length prefix)
         var typeAt0 = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0));
         if (typeAt0 == AppSharingConstants.S20_DATA)
         {
             return typeAt0;
         }
 
-        // Try offset 2 — control packet with length prefix
+        // Try offset 2 - control packet with length prefix
         var typeAt2 = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(2));
         if (AppSharingConstants.IsS20Packet(typeAt2))
         {
@@ -322,9 +322,9 @@ internal static class S20Codec
         return PeekPacketType(data) != 0;
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Encode — Control packets
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
+    //  Encode - Control packets
+    // ----------------------------------------------------------
 
     /// <summary>Encode an S20_CREATE packet.</summary>
     public static byte[] EncodeCreate(S20CreatePacket pdu)
@@ -406,9 +406,9 @@ internal static class S20Codec
         return EncodeSimpleControl(AppSharingConstants.S20_COLLISION, pdu.User, pdu.Correlator);
     }
 
-    // ──────────────────────────────────────────────────────────
-    //  Encode — S20_DATA
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
+    //  Encode - S20_DATA
+    // ----------------------------------------------------------
 
     /// <summary>Encode an S20_DATA packet (no leading length field).</summary>
     public static byte[] EncodeData(S20DataPacket pdu)
@@ -453,9 +453,9 @@ internal static class S20Codec
         return data;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Decode an S20 packet from raw bytes.</summary>
     public static S20Message Decode(byte[] data)
@@ -493,9 +493,9 @@ internal static class S20Codec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Internal helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static byte[] EncodeSimpleControl(ushort type, ushort user, uint correlator)
     {

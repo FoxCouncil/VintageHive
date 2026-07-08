@@ -8,14 +8,14 @@ using VintageHive.Proxy.NetMeeting.T120;
 #pragma warning disable MSTEST0025
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ChatMessage codec tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class ChatMessageTests
 {
-    // ── Header constants ─────────────────────────────────
+    // -- Header constants ---------------------------------
 
     [TestMethod]
     public void HeaderLength_Is0x08()
@@ -29,7 +29,7 @@ public class ChatMessageTests
         Assert.AreEqual(8, ChatMessage.HEADER_SIZE);
     }
 
-    // ── Encode basic ─────────────────────────────────────
+    // -- Encode basic -------------------------------------
 
     [TestMethod]
     public void Encode_SimpleText_ProducesCorrectPacket()
@@ -99,12 +99,12 @@ public class ChatMessageTests
         // 8 header + 5×2 UTF-16LE + 2 null terminator
         Assert.AreEqual(8 + 10 + 2, packet.Length);
 
-        // First char こ = U+3053 → LE: 0x53, 0x30
+        // First char こ = U+3053 -> LE: 0x53, 0x30
         Assert.AreEqual(0x53, packet[8]);
         Assert.AreEqual(0x30, packet[9]);
     }
 
-    // ── Decode basic ─────────────────────────────────────
+    // -- Decode basic -------------------------------------
 
     [TestMethod]
     public void Decode_ValidPacket_ReturnsText()
@@ -171,7 +171,7 @@ public class ChatMessageTests
         Assert.AreEqual(original, decoded);
     }
 
-    // ── Round-trip ───────────────────────────────────────
+    // -- Round-trip ---------------------------------------
 
     [TestMethod]
     public void RoundTrip_SimpleAscii()
@@ -208,7 +208,7 @@ public class ChatMessageTests
         Assert.AreEqual(text, ChatMessage.Decode(ChatMessage.Encode(text)));
     }
 
-    // ── IsChatPacket ─────────────────────────────────────
+    // -- IsChatPacket -------------------------------------
 
     [TestMethod]
     public void IsChatPacket_ValidPacket_ReturnsTrue()
@@ -258,7 +258,7 @@ public class ChatMessageTests
         Assert.IsFalse(ChatMessage.IsChatPacket(payload));
     }
 
-    // ── GetPacketLength ──────────────────────────────────
+    // -- GetPacketLength ----------------------------------
 
     [TestMethod]
     public void GetPacketLength_EmptyString()
@@ -291,7 +291,7 @@ public class ChatMessageTests
         Assert.ThrowsExactly<ArgumentNullException>(() => ChatMessage.GetPacketLength(null!));
     }
 
-    // ── Wire format verification ─────────────────────────
+    // -- Wire format verification -------------------------
 
     [TestMethod]
     public void WireFormat_MatchesMsMnprSpec()
@@ -328,9 +328,9 @@ public class ChatMessageTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Chat over MCS integration tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class ChatMcsIntegrationTests
@@ -338,7 +338,7 @@ public class ChatMcsIntegrationTests
     [TestMethod]
     public void ChatPacket_WrappedInMcsSendData_RoundTrips()
     {
-        // Simulate the full wrap: ChatMessage → MCS SendDataRequest → unwrap → ChatMessage
+        // Simulate the full wrap: ChatMessage -> MCS SendDataRequest -> unwrap -> ChatMessage
         var chatText = "Hello from NetMeeting!";
         var chatPacket = ChatMessage.Encode(chatText);
 

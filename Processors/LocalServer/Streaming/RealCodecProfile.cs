@@ -8,10 +8,10 @@ namespace VintageHive.Processors.LocalServer.Streaming;
 /// </summary>
 internal enum RealCodecType
 {
-    /// <summary>Cook codec — our CookEncoder produces raw cook frames, we build RM container.</summary>
+    /// <summary>Cook codec - our CookEncoder produces raw cook frames, we build RM container.</summary>
     Cook,
 
-    /// <summary>RealAudio 14.4 (lpcJ) — FFmpeg encodes and produces complete RM output.</summary>
+    /// <summary>RealAudio 14.4 (lpcJ) - FFmpeg encodes and produces complete RM output.</summary>
     Ra144,
 }
 
@@ -48,7 +48,7 @@ internal class RealCodecProfile
     /// </summary>
     public static RealCodecProfile SelectForBandwidth(uint bandwidthBytesPerSec)
     {
-        // 0 = unknown/not reported — default to our proven 11025/2/19kbps
+        // 0 = unknown/not reported - default to our proven 11025/2/19kbps
         if (bandwidthBytesPerSec == 0)
         {
             return CookStereo11k;
@@ -57,19 +57,19 @@ internal class RealCodecProfile
         // Usable audio kbps (with protocol overhead margin)
         double usableKbps = bandwidthBytesPerSec * 8.0 * 0.85 / 1000.0;
 
-        // 14.4k modem: ~1800 bytes/sec → ~12 kbps usable
+        // 14.4k modem: ~1800 bytes/sec -> ~12 kbps usable
         if (usableKbps < 15)
         {
             return Ra144;
         }
 
-        // 28.8k modem: ~3600 bytes/sec → ~24 kbps usable
+        // 28.8k modem: ~3600 bytes/sec -> ~24 kbps usable
         if (usableKbps < 25)
         {
             return CookStereo11k;
         }
 
-        // 56k modem / ISDN: ~7000 bytes/sec → ~48 kbps usable
+        // 56k modem / ISDN: ~7000 bytes/sec -> ~48 kbps usable
         if (usableKbps < 50)
         {
             return CookStereo22k;

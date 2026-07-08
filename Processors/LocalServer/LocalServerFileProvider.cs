@@ -16,7 +16,8 @@ internal class LocalServerFileProvider : IFileProvider
 
     public IDirectoryContents GetDirectoryContents(string subpath)
     {
-        throw new NotImplementedException();
+        // Templates are resolved by path via GetFileInfo; directory enumeration isn't used.
+        return NotFoundDirectoryContents.Singleton;
     }
 
     public IFileInfo GetFileInfo(string subpath)

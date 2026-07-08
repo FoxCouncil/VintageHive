@@ -110,8 +110,6 @@ public static class SCUtils
 
     public static async Task<Tuple<ShoutcastStation, Uri>> GetStationById(string id)
     {
-        // TODO: check the cache and load if appropriate
-
         var key = string.Format(StationApi, id).ToLowerInvariant();
 
         var stationString = Mind.Cache.GetData(key);

@@ -210,7 +210,7 @@ internal class MmsSession
         _incarnation = 1;
 
         // Get raw ASF header and patch File Properties for MMS live broadcast.
-        // Keep Script Stream Properties — WMP9 uses script commands on stream 2 for Now Playing display.
+        // Keep Script Stream Properties - WMP9 uses script commands on stream 2 for Now Playing display.
         _mmsAsfHeader = PatchAsfHeaderForMms((byte[])_liveSession.RawAsfHeader.Clone());
         int headerSize = _mmsAsfHeader.Length;
         int packetSize = _liveSession.AsfPacketSize;
@@ -237,7 +237,7 @@ internal class MmsSession
         _incarnation = (byte)_readBlockIncarnation;
 
         _state = SessionState.Ready;
-        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "State → READY", _traceId);
+        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "State -> READY", _traceId);
     }
 
     private async Task HandleStreamSwitch(byte[] fields)
@@ -260,7 +260,7 @@ internal class MmsSession
         _incarnation = (byte)_playIncarnation;
 
         _state = SessionState.Streaming;
-        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "State → STREAMING", _traceId);
+        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "State -> STREAMING", _traceId);
 
         // Send initial script command with current track title for WMP9 Now Playing display
         if (_liveSession != null)
@@ -282,7 +282,7 @@ internal class MmsSession
         await SendCommand(MmsCommand.MID_EndOfStream, endFields);
 
         _state = SessionState.Ready;
-        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "State → READY (stopped)", _traceId);
+        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "State -> READY (stopped)", _traceId);
     }
 
     private void HandleCloseFile()
@@ -314,7 +314,7 @@ internal class MmsSession
         var lastPingTime = _stopwatch.ElapsedMilliseconds;
         uint packetsSinceLastText = 0;
         const uint TextResendInterval = 50; // re-send TEXT every N audio packets
-        byte scriptObjectNumber = 0; // media object number for TEXT stream — must increment per script command
+        byte scriptObjectNumber = 0; // media object number for TEXT stream - must increment per script command
 
         Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Streaming start seq={readPos} live={_liveSession.LivePosition}", _traceId);
 
@@ -447,7 +447,7 @@ internal class MmsSession
                         lastKnownTrack = newTrack;
                         Log.WriteLine(Log.LEVEL_INFO, LogSys, $"MMS: track changed to \"{newTrack}\"", _traceId);
 
-                        // TEXT only — StreamChange causes WMP9 to disconnect and FFmpeg to error.
+                        // TEXT only - StreamChange causes WMP9 to disconnect and FFmpeg to error.
                         // Same approach as MMSH: compact TEXT inline between audio packets.
                         _pendingScriptCommand = newTrack;
                     }

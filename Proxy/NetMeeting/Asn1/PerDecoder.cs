@@ -34,9 +34,9 @@ internal class PerDecoder
     /// <summary>Whether more data is available.</summary>
     public bool HasData => _bitPosition < _totalBits;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Bit-level operations
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Read a single bit (MSB-first within each byte).</summary>
     public bool ReadBit()
@@ -120,7 +120,7 @@ internal class PerDecoder
                 $"Cannot read {count} octets, only {BitsRemaining} bits remaining");
         }
 
-        // Fast path: already aligned → direct copy
+        // Fast path: already aligned -> direct copy
         if (_bitPosition % 8 == 0)
         {
             var byteOffset = (_startBit + _bitPosition) / 8;
@@ -141,9 +141,9 @@ internal class PerDecoder
         return data;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  PER decoding primitives (ITU-T X.691)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Constrained whole number (X.691 Section 12.2).
@@ -294,9 +294,9 @@ internal class PerDecoder
         return (int)ReadSemiConstrainedWholeNumber(0);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Common ASN.1 type decodings
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>PER BOOLEAN: single bit.</summary>
     public bool ReadBoolean()
@@ -511,9 +511,9 @@ internal class PerDecoder
         return new string(chars);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SEQUENCE / CHOICE helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Read extension marker bit (first bit of extensible type).</summary>
     public bool ReadExtensionBit()
@@ -582,9 +582,29 @@ internal class PerDecoder
         return additions;
     }
 
-    // ──────────────────────────────────────────────────────────
+    /// <summary>
+    /// Best-effort variant of <see cref="ReadExtensionAdditions"/>. Optional and unknown extension
+    /// additions are common in H.323/T.120 PDUs, and a malformed or truncated trailing extension block
+    /// must not fail the whole decode - the mandatory fields have already been read by this point.
+    /// Returns <c>true</c> if the extensions were read, <c>false</c> if the attempt was abandoned.
+    /// </summary>
+    public bool TryReadExtensionAdditions()
+    {
+        try
+        {
+            ReadExtensionAdditions();
+
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IndexOutOfRangeException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static int[] DecodeOidBytes(byte[] bytes)
     {

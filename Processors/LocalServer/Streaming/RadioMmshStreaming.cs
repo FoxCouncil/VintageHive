@@ -98,7 +98,7 @@ internal static class RadioMmshStreaming
         int mmsPacketSize = payload.Length + 8; // MMS header (8) + payload
         var chunk = new byte[4 + mmsPacketSize];
 
-        // Framing Header (4 bytes) — B=1 means no Reason field (matches real WMS)
+        // Framing Header (4 bytes) - B=1 means no Reason field (matches real WMS)
         chunk[0] = 0xA4;       // B-bit(1) | FrameHeader(0x24) = 0xA4
         chunk[1] = chunkType;  // 'H'=0x48, 'D'=0x44, 'M'=0x4D
         BitConverter.GetBytes((ushort)mmsPacketSize).CopyTo(chunk, 2); // PacketLength
@@ -129,7 +129,7 @@ internal static class RadioMmshStreaming
         // Each entry: name_len,name,type,value_len,value
         // type 31 = string, type 3 = DWORD
         // Order and entries match real WMS Cougar/9.00.00.3372 capture exactly:
-        //   language → branding → description → copyright → author → title → offset → duration → copied → url
+        //   language -> branding -> description -> copyright -> author -> title -> offset -> duration -> copied -> url
         var entryList = new List<(string name, int type, string value)>
         {
             ("language", 31, ""),
@@ -138,7 +138,7 @@ internal static class RadioMmshStreaming
             ("copyright", 31, ""),
         };
 
-        // clientData attributes use short names per WMS spec — NOT WMS_CONTENT_DESCRIPTION_* prefix
+        // clientData attributes use short names per WMS spec - NOT WMS_CONTENT_DESCRIPTION_* prefix
         // Real WMS sends: 6,author,31,13,Static_Author then 5,title,31,12,Static_Title
         entryList.Add(("author", 31, author ?? ""));
         entryList.Add(("title", 31, title ?? ""));
@@ -253,7 +253,7 @@ internal static class RadioMmshStreaming
             BitConverter.GetBytes((long)(hChunk.Length - 12)).CopyTo(patched, i + 40);
 
             // Data Packets Count: 0xFFFFFFFF = unlimited/unknown (NOT zero!)
-            // This is the critical value — zero tells WMP9 there's nothing to play.
+            // This is the critical value - zero tells WMP9 there's nothing to play.
             BitConverter.GetBytes((long)0xFFFFFFFF).CopyTo(patched, i + 56);
 
             // Play Duration: 0 (live broadcast)
@@ -411,7 +411,7 @@ internal static class RadioMmshStreaming
         packet[pos++] = 0x5D;
         // Packet Length (WORD)
         BitConverter.GetBytes((ushort)totalPacketSize).CopyTo(packet, pos); pos += 2;
-        // Padding Length (WORD) — only present when padded
+        // Padding Length (WORD) - only present when padded
         if (padded)
         {
             BitConverter.GetBytes((ushort)paddingLen).CopyTo(packet, pos); pos += 2;
@@ -427,7 +427,7 @@ internal static class RadioMmshStreaming
         // Offset field = Presentation Time (reinterpreted in compressed payload mode)
         // Real WMS: PresentationTime = SendTime + Preroll(3000)
         BitConverter.GetBytes(sendTime + 3000u).CopyTo(packet, pos); pos += 4;
-        packet[pos++] = 0x01; // replicated data length = 1 → compressed payload
+        packet[pos++] = 0x01; // replicated data length = 1 -> compressed payload
         packet[pos++] = 0x00; // presentation time delta = 0
 
         // Sub-payload: length(1) + body
@@ -1123,12 +1123,12 @@ internal static class RadioMmshStreaming
             PatchAsfHeaderForBroadcast(headerObj, packetSize);
 
             // Strip any Content Description and Extended Content Description that ffmpeg wrote.
-            // We'll add our own clean versions below — having two of either corrupts the header.
+            // We'll add our own clean versions below - having two of either corrupts the header.
             var preStripSize = headerObj.Length;
             headerObj = StripAsfObjectByGuid(headerObj, AsfContentDescriptionGuid);
             headerObj = StripAsfObjectByGuid(headerObj, AsfExtendedContentDescriptionGuid);
             asfHeaderSize = BitConverter.ToInt64(headerObj, 16);
-            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: stripped ffmpeg header {preStripSize}B → {headerObj.Length}B (removed {preStripSize - headerObj.Length}B)");
+            Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: stripped ffmpeg header {preStripSize}B -> {headerObj.Length}B (removed {preStripSize - headerObj.Length}B)");
 
             // Dump all sub-object GUIDs remaining in the ASF header for debugging
             {
@@ -1144,7 +1144,7 @@ internal static class RadioMmshStreaming
                 }
             }
 
-            // Content descriptors get the station name only — now-playing metadata
+            // Content descriptors get the station name only - now-playing metadata
             // is delivered via TEXT script commands so WMP doesn't show stale track
             // info before the first ICY update arrives.
             Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session: station=\"{info.Name}\" (icy track available={icyStream?.CurrentTrack != null})");
@@ -1197,9 +1197,9 @@ internal static class RadioMmshStreaming
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // WMP 6.4 (NSPlayer/4.x) — MMSH handler
-    // ═══════════════════════════════════════════════════════════════════
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // WMP 6.4 (NSPlayer/4.x) - MMSH handler
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     public static async Task HandleWmp6Stream(HttpRequest request, HttpResponse response, string stationId)
     {
@@ -1340,11 +1340,11 @@ internal static class RadioMmshStreaming
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // WMP 9+ (NSPlayer/9.x+) — MMSH handler
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // WMP 9+ (NSPlayer/9.x+) - MMSH handler
     // Replicates Cougar/9.00.00.3372 (Windows Media Services 9.0)
     // Protocol flow captured via Wireshark from real WMS server.
-    // ═══════════════════════════════════════════════════════════════════
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     private static Dictionary<string, string> ParseMmshPragmas(HttpRequest request)
     {
@@ -1400,7 +1400,7 @@ internal static class RadioMmshStreaming
         var clientId = pragmas.TryGetValue("client-id", out var cidStr) ? cidStr
             : ((uint)(Math.Abs(stationId.GetHashCode()) % 100000000)).ToString();
 
-        // ═══ POST handling (matches Cougar/9.00.00.3372) ═══
+        // +++ POST handling (matches Cougar/9.00.00.3372) +++
         if (request.Method == "POST")
         {
             bool isStop = pragmas.ContainsKey("xStopStrm") && pragmas["xStopStrm"] == "1";
@@ -1409,7 +1409,7 @@ internal static class RadioMmshStreaming
 
             if (isLogStats && !isStop)
             {
-                // LogStats POST → 204 No Content (real Cougar sends this during active stream)
+                // LogStats POST -> 204 No Content (real Cougar sends this during active stream)
                 Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "WMP9: POST LogStats -> 204 No Content", traceId);
                 var resp = BuildCougarSimpleResponse(204, "No Content", clientId, dateStr);
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
@@ -1417,7 +1417,7 @@ internal static class RadioMmshStreaming
             }
             else
             {
-                // xStopStrm or other POST → 200 OK Content-Length: 0
+                // xStopStrm or other POST -> 200 OK Content-Length: 0
                 Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: POST {(isStop ? "xStopStrm" : "other")} -> 200 OK", traceId);
                 var resp = BuildCougarSimpleResponse(200, "OK", clientId, dateStr);
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
@@ -1428,14 +1428,14 @@ internal static class RadioMmshStreaming
             return;
         }
 
-        // ═══ GET handling ═══
+        // +++ GET handling +++
         try
         {
             bool isPipelineRequest = pragmas.ContainsKey("pipeline-request") && pragmas["pipeline-request"] == "1";
             bool isPlay = pragmas.ContainsKey("xPlayStrm") && pragmas["xPlayStrm"] == "1";
             bool isPlayNext = pragmas.ContainsKey("xPlayNextEntry") && pragmas["xPlayNextEntry"] == "1";
 
-            // ═══ Pipeline Request — WMP9 sends this before PLAY for predstrm stream selection ═══
+            // +++ Pipeline Request - WMP9 sends this before PLAY for predstrm stream selection +++
             // Real Cougar responds with a $T token in a chunked response.
             // Without this, WMP9's pipeline-request falls into DESCRIBE and gets
             // a full ASF header, which confuses the negotiation.
@@ -1444,8 +1444,8 @@ internal static class RadioMmshStreaming
                 var httpVer = request.Version ?? "HTTP/1.0";
                 bool useChunked = httpVer.Contains("1.1");
 
-                // Check if this is a predstrm request (has stream-switch-entry) → $T response
-                // or a follow-up → pipeline-result response
+                // Check if this is a predstrm request (has stream-switch-entry) -> $T response
+                // or a follow-up -> pipeline-result response
                 bool hasSwitchEntry = pragmas.ContainsKey("stream-switch-entry");
 
                 if (hasSwitchEntry)
@@ -1477,11 +1477,11 @@ internal static class RadioMmshStreaming
                     }
                     await socket.FlushAsync();
 
-                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: pipeline-request (predstrm) → $T", traceId);
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: pipeline-request (predstrm) -> $T", traceId);
                 }
                 else
                 {
-                    // Follow-up pipeline request → pipeline-result response
+                    // Follow-up pipeline request -> pipeline-result response
                     var resp =
                         $"{httpVer} 200 OK\r\n" +
                         "Server: Cougar/9.00.00.3372\r\n" +
@@ -1496,7 +1496,7 @@ internal static class RadioMmshStreaming
                     await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
                     await socket.FlushAsync();
 
-                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: pipeline-request → pipeline-result=1", traceId);
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"WMP9: pipeline-request -> pipeline-result=1", traceId);
                 }
 
                 response.Handled = true;
@@ -1507,11 +1507,11 @@ internal static class RadioMmshStreaming
 
             if (isPlay || isPlayNext)
             {
-                // ═══════════════════════════════════════════════════════════
+                // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 // PLAY (xPlayStrm=1 or xPlayNextEntry=1)
                 // Matches Cougar/9.00.00.3372 chunked streaming response.
-                // Chunk sequence: $M → $H → $C → $M → $H → $D $D $D ...
-                // ═══════════════════════════════════════════════════════════
+                // Chunk sequence: $M -> $H -> $C -> $M -> $H -> $D $D $D ...
+                // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 request.ListenerSocket.IsKeepAlive = false;
 
                 const int InitialBufferPackets = 25;
@@ -1527,12 +1527,12 @@ internal static class RadioMmshStreaming
 
                 var lastModified = DateTime.UtcNow.AddSeconds(-17).ToString("R");
 
-                // HTTP/1.0 (through proxy) can't use chunked encoding — write MMSH
+                // HTTP/1.0 (through proxy) can't use chunked encoding - write MMSH
                 // frames directly. HTTP/1.1 (direct) can use chunked encoding.
                 var httpVer = request.Version ?? "HTTP/1.0";
                 bool useChunked = httpVer.Contains("1.1");
 
-                // Response headers — match Cougar/9.00.00.3372 capture
+                // Response headers - match Cougar/9.00.00.3372 capture
                 var resp =
                     $"{httpVer} 200 OK\r\n" +
                     "Content-Type: application/x-mms-framed\r\n" +
@@ -1549,7 +1549,7 @@ internal static class RadioMmshStreaming
 
                 await socket.WriteAsync(Encoding.ASCII.GetBytes(resp));
 
-                // Real WMS sends just ONE $M → ONE $H, then data.
+                // Real WMS sends just ONE $M -> ONE $H, then data.
                 // No $C stream change on initial connection.
                 var currentTrack = session.CurrentTrack ?? "";
                 var mChunk = BuildMmshMetadataChunk(playlistGenId, currentTrack);
@@ -1562,9 +1562,9 @@ internal static class RadioMmshStreaming
 
                 await socket.FlushAsync();
 
-                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: sent $M({mChunk.Length}B) $H({wmp9HChunk.Length}B) — streaming from seq={readPos} live={session.LivePosition}", traceId);
+                Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP9: sent $M({mChunk.Length}B) $H({wmp9HChunk.Length}B) - streaming from seq={readPos} live={session.LivePosition}", traceId);
 
-                // Stream $D data packets — pass through producer's LocationId/AFFlags/SendTime
+                // Stream $D data packets - pass through producer's LocationId/AFFlags/SendTime
                 // unchanged so the MMS packet timeline stays continuous across reconnects.
                 uint sent = 0;
                 uint lastLocationIdSent = 0;
@@ -1574,7 +1574,7 @@ internal static class RadioMmshStreaming
                 string pendingScriptTitle = null;
                 uint packetsSinceLastText = 0;
                 const uint TextResendInterval = 50; // re-send TEXT every N audio packets
-                byte scriptObjectNumber = 0; // media object number for TEXT stream — must increment per script command
+                byte scriptObjectNumber = 0; // media object number for TEXT stream - must increment per script command
 
                 session.AddClient(stationId);
                 try
@@ -1584,7 +1584,7 @@ internal static class RadioMmshStreaming
                         var (chunk, seq) = session.TryRead(readPos);
                         if (chunk != null)
                         {
-                            // Pass through producer's $D chunk unchanged — LocationId,
+                            // Pass through producer's $D chunk unchanged - LocationId,
                             // AFFlags, and SendTime all stay as the producer wrote them.
                             if (useChunked) await WriteHttpChunkAsync(socket, chunk);
                             else await socket.WriteAsync(chunk);
@@ -1645,7 +1645,7 @@ internal static class RadioMmshStreaming
                                 lastKnownTrack = newTrack;
                                 Log.WriteLine(Log.LEVEL_INFO, LogSys, $"MMSH: track changed to \"{newTrack}\"", traceId);
 
-                                // TEXT only — no $M/$C/$H, those cause decoder reinit and audio glitches
+                                // TEXT only - no $M/$C/$H, those cause decoder reinit and audio glitches
                                 pendingScriptTitle = newTrack;
                             }
                         }
@@ -1665,11 +1665,11 @@ internal static class RadioMmshStreaming
             }
             else
             {
-                // ═══════════════════════════════════════════════════════════
-                // DESCRIBE (no xPlayStrm/xPlayNextEntry — ASF header probe)
+                // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                // DESCRIBE (no xPlayStrm/xPlayNextEntry - ASF header probe)
                 // Must echo version11-enabled and experiment pragmas back
                 // so WMP9 proceeds to the PLAY request.
-                // ═══════════════════════════════════════════════════════════
+                // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 var wmp9HChunk = PatchHChunkForWmp9(session.HChunk);
 
                 bool isVersion11 = pragmas.ContainsKey("version11-enabled");

@@ -180,7 +180,7 @@ public class OscarLocationService : IOscarService
 
             case CLI_GET_DIR_INFO:
             {
-                // Directory info — return profile data from DB
+                // Directory info - return profile data from DB
                 var data = snac.RawData;
                 var screenNameLength = (ushort)data[0];
                 var screenName = Encoding.ASCII.GetString(data[1..(1 + screenNameLength)]);

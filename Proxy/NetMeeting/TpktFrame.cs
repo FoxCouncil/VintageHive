@@ -3,7 +3,7 @@
 namespace VintageHive.Proxy.NetMeeting;
 
 /// <summary>
-/// TPKT framing (RFC 1006) — 4-byte header over TCP.
+/// TPKT framing (RFC 1006) - 4-byte header over TCP.
 /// Used by H.225.0 call signaling (port 1720) and T.120 (port 1503).
 ///
 /// Format: | Version=0x03 | Reserved=0x00 | Length (2 bytes, big-endian) |

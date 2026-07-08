@@ -103,7 +103,7 @@ internal class SocksProxy : Listener
         }
         catch (Exception ex) when (ex is IOException || ex is SocketException)
         {
-            // One side closed — expected during tunnel teardown
+            // One side closed - expected during tunnel teardown
         }
     }
 }

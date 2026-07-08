@@ -47,16 +47,10 @@ public class HttpProxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
-        Console.Error.WriteLine($"[PROXY-DEBUG] ProcessRequest: {read} bytes from {connection.RemoteAddress}");
-        Console.Error.WriteLine($"[PROXY-DEBUG] Raw: {Encoding.GetString(data[..Math.Min(read, 500)])}");
-        Console.Error.Flush();
-
         var httpRequest = await HttpRequest.Build(connection, Encoding, data[..read]);
 
         if (!httpRequest.IsValid)
         {
-            Console.Error.WriteLine($"[PROXY-DEBUG] INVALID REQUEST from {connection.RemoteAddress}: {Encoding.GetString(data[..Math.Min(read, 200)])}");
-            Console.Error.Flush();
             Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of HTTP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket?.TraceId.ToString() ?? "N/A");
 
             return null;
@@ -78,13 +72,14 @@ public class HttpProxy : Listener
                 {
                     if (handled = await handler(httpRequest, httpResponse))
                     {
-                        // TODO: Make Better
-                        if (httpRequest.Uri.Host == "admin.com" || httpRequest.Uri.Host == "hive.com")
-                        {
-                            break;
-                        }
+                        // Only log genuinely proxied traffic - skip requests served locally by the
+                        // hive.com intranet/admin portal and its subdomains (admin/radio/api/ads.hive.com).
+                        var host = httpRequest.Uri.Host;
 
-                        Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
+                        if (host != "hive.com" && !host.EndsWith(".hive.com"))
+                        {
+                            Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
+                        }
 
                         break;
                     }
@@ -117,7 +112,7 @@ public class HttpProxy : Listener
                 {
                     // If the handler wrote directly to the socket (Handled=true but
                     // no Body or Stream set on the response), don't generate a
-                    // duplicate HTTP response — just handle sessions and return null.
+                    // duplicate HTTP response - just handle sessions and return null.
                     if (httpResponse.Handled && httpResponse.Body == null && httpResponse.Stream == null)
                     {
                         if (httpResponse.SessionId != Guid.Empty)

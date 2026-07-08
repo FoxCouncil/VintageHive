@@ -6,9 +6,9 @@ namespace VintageHive.Proxy.NetMeeting.AppSharing;
 /// Microsoft NetMeeting Application Sharing (S20) protocol constants.
 ///
 /// S20 packets ride directly on MCS SendData (T.125), little-endian binary.
-/// Transport: TCP:1503 → TPKT → X.224 → MCS SendData → S20 packet
+/// Transport: TCP:1503 -> TPKT -> X.224 -> MCS SendData -> S20 packet
 ///
-/// S20 is separate from OMNET — it uses its own MCS channels for
+/// S20 is separate from OMNET - it uses its own MCS channels for
 /// screen sharing, remote control, and application sharing.
 ///
 /// The protocol has 8 packet types (Version/Type field in each header):
@@ -17,9 +17,9 @@ namespace VintageHive.Proxy.NetMeeting.AppSharing;
 /// </summary>
 internal static class AppSharingConstants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  S20 packet Version/Type values (uint16 LE)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const ushort S20_CREATE = 0x0031;
     public const ushort S20_JOIN = 0x0032;
@@ -33,62 +33,62 @@ internal static class AppSharingConstants
     /// <summary>Number of defined S20 packet types.</summary>
     public const int S20_TYPE_COUNT = 8;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  S20_DATA stream types
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
-    /// <summary>Updates stream — screen updates, bitmap data.</summary>
+    /// <summary>Updates stream - screen updates, bitmap data.</summary>
     public const byte STREAM_UPDATES = 0x01;
 
-    /// <summary>Miscellaneous stream — control, sync, etc.</summary>
+    /// <summary>Miscellaneous stream - control, sync, etc.</summary>
     public const byte STREAM_MISC = 0x02;
 
-    /// <summary>Input stream — mouse/keyboard events.</summary>
+    /// <summary>Input stream - mouse/keyboard events.</summary>
     public const byte STREAM_INPUT = 0x03;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  S20_DATA datatype values
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
-    /// <summary>Update PDU — screen/bitmap updates.</summary>
+    /// <summary>Update PDU - screen/bitmap updates.</summary>
     public const byte DT_UP = 0x02;
 
-    /// <summary>Font Handler PDU — font list exchange.</summary>
+    /// <summary>Font Handler PDU - font list exchange.</summary>
     public const byte DT_FH = 0x03;
 
-    /// <summary>Confirm Active PDU — capabilities acknowledgement.</summary>
+    /// <summary>Confirm Active PDU - capabilities acknowledgement.</summary>
     public const byte DT_CA = 0x07;
 
-    /// <summary>Hosting Entity Tracker — host session management.</summary>
+    /// <summary>Hosting Entity Tracker - host session management.</summary>
     public const byte DT_HET = 0x0A;
 
-    /// <summary>Shared Window List — window/app sharing list.</summary>
+    /// <summary>Shared Window List - window/app sharing list.</summary>
     public const byte DT_SWL = 0x0B;
 
-    /// <summary>Application Viewer — remote viewer control.</summary>
+    /// <summary>Application Viewer - remote viewer control.</summary>
     public const byte DT_AV = 0x0C;
 
-    /// <summary>Cursor Manager — shared cursor updates.</summary>
+    /// <summary>Cursor Manager - shared cursor updates.</summary>
     public const byte DT_CM = 0x14;
 
-    /// <summary>Bitmap Cache — persistent cache management.</summary>
+    /// <summary>Bitmap Cache - persistent cache management.</summary>
     public const byte DT_BC = 0x15;
 
     /// <summary>Synchronize PDU.</summary>
     public const byte DT_SYNC = 0x1F;
 
-    /// <summary>Control PDU — cooperation, detach, grant.</summary>
+    /// <summary>Control PDU - cooperation, detach, grant.</summary>
     public const byte DT_CTRL = 0x20;
 
-    /// <summary>Input PDU — mouse and keyboard events.</summary>
+    /// <summary>Input PDU - mouse and keyboard events.</summary>
     public const byte DT_INPUT = 0x2C;
 
-    /// <summary>Demand Active PDU — capabilities exchange.</summary>
+    /// <summary>Demand Active PDU - capabilities exchange.</summary>
     public const byte DT_DA = 0x31;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  S20_DATA compression types
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>No compression.</summary>
     public const byte COMPRESS_NONE = 0x00;
@@ -99,9 +99,9 @@ internal static class AppSharingConstants
     /// <summary>Persistent dictionary compression.</summary>
     public const byte COMPRESS_PERSIST = 0x02;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  CPCALLCAPS capability set identifiers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const ushort CAPS_GENERAL = 0x0001;
     public const ushort CAPS_BITMAP = 0x0002;
@@ -117,11 +117,11 @@ internal static class AppSharingConstants
     /// <summary>Total size of a CPCALLCAPS structure in bytes.</summary>
     public const int CPCALLCAPS_SIZE = 204;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  S20 session states
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
-    /// <summary>Initial state — no sharing session exists.</summary>
+    /// <summary>Initial state - no sharing session exists.</summary>
     public const int STATE_IDLE = 0;
 
     /// <summary>CREATE sent, awaiting RESPOND from peers.</summary>
@@ -133,9 +133,9 @@ internal static class AppSharingConstants
     /// <summary>Session is being torn down.</summary>
     public const int STATE_ENDING = 3;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  S20_RESPOND result codes
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Join request accepted.</summary>
     public const uint RESPOND_POSITIVE = 0x00000001;
@@ -143,9 +143,9 @@ internal static class AppSharingConstants
     /// <summary>Join request denied.</summary>
     public const uint RESPOND_NEGATIVE = 0x00000000;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Constraints
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Minimum S20 control packet size (length + version/type).</summary>
     public const int MIN_CONTROL_PACKET = 4;
@@ -153,9 +153,9 @@ internal static class AppSharingConstants
     /// <summary>Minimum S20_DATA header size (no payload).</summary>
     public const int S20_DATA_HEADER_SIZE = 16;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for an S20 packet type.</summary>
     public static string PacketTypeName(ushort type)

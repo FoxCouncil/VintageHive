@@ -12,12 +12,12 @@ namespace VintageHive.Proxy.NetMeeting.H225;
 /// </summary>
 internal static class H225Types
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  TransportAddress (CHOICE, 7 root alternatives, NOT extensible in v2)
     //
     //  We only implement ipAddress (index 0):
     //    ipAddress SEQUENCE { ip OCTET STRING (SIZE 4), port INTEGER (0..65535) }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static void WriteTransportAddress(PerEncoder enc, IPEndPoint ep)
     {
@@ -63,9 +63,9 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SEQUENCE OF TransportAddress
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static void WriteTransportAddresses(PerEncoder enc, IPEndPoint[] endpoints)
     {
@@ -100,13 +100,13 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  AliasAddress (CHOICE, extensible)
     //
     //  v2 root: e164 (0), h323-ID (1)
     //  Extensions (v3+): url-ID, transport-ID, email-ID, partyNumber
     //  NetMeeting typically uses h323-ID for display name.
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static void WriteAliasAddress(PerEncoder enc, string alias, bool isE164 = false)
     {
@@ -150,9 +150,9 @@ internal static class H225Types
         ReadAliasAddress(dec); // Just discard result
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SEQUENCE OF AliasAddress
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static void WriteAliasAddresses(PerEncoder enc, string[] aliases)
     {
@@ -188,7 +188,7 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  EndpointType (SEQUENCE, extensible)
     //
     //  SEQUENCE {
@@ -204,7 +204,7 @@ internal static class H225Types
     //  }
     //
     //  NetMeeting sends: vendor present, terminal present, mc=FALSE, undefinedNode=FALSE
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static void WriteEndpointType(PerEncoder enc, bool isTerminal = true)
     {
@@ -285,14 +285,14 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  NonStandardParameter
     //
     //  SEQUENCE {
     //    nonStandardIdentifier  NonStandardIdentifier,  -- CHOICE
     //    data                   OCTET STRING
     //  }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static void SkipNonStandardParameter(PerDecoder dec)
     {
@@ -300,7 +300,7 @@ internal static class H225Types
         dec.ReadOctetString(); // unconstrained data
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  NonStandardIdentifier (CHOICE, 3 root alternatives, NOT extensible)
     //
     //  object     OBJECT IDENTIFIER,
@@ -308,13 +308,13 @@ internal static class H225Types
     //  nonStandardAddress  OCTET STRING (SIZE 1..20)
     //  -- v2 only has object (0) and h221NonStandard (1), v4+ adds index 2
     //  -- For NetMeeting v2 compatibility, we handle 2 root alternatives
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void SkipNonStandardIdentifier(PerDecoder dec)
     {
         // NonStandardIdentifier CHOICE (3 root alternatives in full H.225.0)
         // v2 has only 2: object (0), h221NonStandard (1)
-        // We read as 3 to be safe — reading fewer would break on newer messages
+        // We read as 3 to be safe - reading fewer would break on newer messages
         var choice = dec.ReadChoiceIndex(3);
 
         switch (choice)
@@ -339,7 +339,7 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  H221NonStandard
     //
     //  SEQUENCE {
@@ -347,7 +347,7 @@ internal static class H225Types
     //    t35Extension      INTEGER (0..255),
     //    manufacturerCode  INTEGER (0..65535)
     //  }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void SkipH221NonStandard(PerDecoder dec)
     {
@@ -356,7 +356,7 @@ internal static class H225Types
         dec.ReadConstrainedWholeNumber(0, 65535); // manufacturerCode
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  VendorIdentifier
     //
     //  SEQUENCE {
@@ -365,7 +365,7 @@ internal static class H225Types
     //    versionId      OCTET STRING (SIZE 1..256) OPTIONAL,
     //    ...
     //  }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     internal static void SkipVendorIdentifier(PerDecoder dec)
     {
@@ -390,7 +390,7 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  GatewayInfo
     //
     //  SEQUENCE {
@@ -398,7 +398,7 @@ internal static class H225Types
     //    nonStandardData  NonStandardParameter OPTIONAL,
     //    ...
     //  }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void SkipGatewayInfo(PerDecoder dec)
     {
@@ -407,7 +407,7 @@ internal static class H225Types
 
         if (optionals[0])
         {
-            // SEQUENCE OF SupportedProtocols — skip as open types
+            // SEQUENCE OF SupportedProtocols - skip as open types
             var count = dec.ReadLengthDeterminant();
 
             for (var i = 0; i < count; i++)
@@ -427,10 +427,10 @@ internal static class H225Types
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SupportedProtocols (CHOICE, extensible, 9 root alternatives in v2)
     //  We only need to skip past it, not decode the contents.
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void SkipSupportedProtocols(PerDecoder dec)
     {
@@ -438,13 +438,13 @@ internal static class H225Types
         // with nonStandardData OPTIONAL and dataRatesSupported OPTIONAL.
         // For skip purposes, we'd need full type knowledge.
         // NetMeeting never sends gateway type, so this shouldn't be reached.
-        throw new NotSupportedException("SupportedProtocols skip not implemented — NetMeeting does not use Gateway type");
+        throw new NotSupportedException("SupportedProtocols skip not implemented - NetMeeting does not use Gateway type");
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Extensible SEQUENCE with no root components
     //  (GatekeeperInfo, McuInfo, TerminalInfo)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static void SkipEmptyExtensibleSequence(PerDecoder dec)
     {

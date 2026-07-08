@@ -51,21 +51,21 @@ internal static class PnaCommand
     ///   Bytes 5-7: Capability/padding fields
     ///   Bytes 8+:  Body opcodes parsed by pnm_get_chunk's PNA_TAG handler
     ///
-    /// For xine-lib: bytes 0-3 → chunk_type = PNA_TAG, bytes 4-7 → chunk_size
+    /// For xine-lib: bytes 0-3 -> chunk_type = PNA_TAG, bytes 4-7 -> chunk_size
     ///   (ignored for PNA_TAG; body is parsed dynamically via opcodes).
     /// For commercial clients (RA 3.0, RP Plus): byte 4 is the server version.
     ///   If byte 4 = 0x00, RA 3.0 reports "server too old" (Error 36).
     ///
     /// Body (4 bytes): initial(1) + opcode_pair(2) + trailing(1).
-    ///   All zeros → no opcodes, no 'i' (challenge response not requested).
+    ///   All zeros -> no opcodes, no 'i' (challenge response not requested).
     /// </summary>
     /// <summary>
-    /// Build the PNA_TAG server response (12 bytes, minimal — no 'i' opcode).
+    /// Build the PNA_TAG server response (12 bytes, minimal - no 'i' opcode).
     ///
     /// Response: PNA\0(4) + echoed_fields(4) + body(4) = 12 bytes.
     ///
     /// For xine-lib: bytes 0-3 = chunk_type (PNA_TAG), bytes 4-7 = chunk_size (ignored).
-    ///   Body: initial(0x00) + opcode_pair(0x00,0x00) → break + trailing(0x00).
+    ///   Body: initial(0x00) + opcode_pair(0x00,0x00) -> break + trailing(0x00).
     /// For commercial clients: bytes 0-3 = PNA\0, byte 4 = server version (must match client).
     /// </summary>
     public static byte[] BuildPnaTagResponse(byte[] clientHeaderFields)
@@ -83,7 +83,7 @@ internal static class PnaCommand
     }
 
     // ===================================================================
-    // PNA stream packet builder (RM data → 0x5a-framed PNA)
+    // PNA stream packet builder (RM data -> 0x5a-framed PNA)
     // ===================================================================
 
     /// <summary>
@@ -146,16 +146,16 @@ internal static class PnaCommand
     /// bytes of challenge data. The "chunk_type == 0" happens when pnm_get_chunk
     /// reads 8 bytes (3+5) that don't match any known tag.
     ///
-    /// Total: 8 bytes (fake preamble → unknown type → breaks loop) + 64 bytes.
+    /// Total: 8 bytes (fake preamble -> unknown type -> breaks loop) + 64 bytes.
     /// First byte must NOT be 0x72 (would trigger checksum framing path).
     /// </summary>
     public static byte[] BuildChallengeBlock()
     {
         // 72 bytes total: all zeros works fine.
         // Byte 0 = 0x00 (not 0x72, so client takes the 3+5 path).
-        // pnm_get_chunk assembles 8-byte preamble → chunk_type = 0x00000000 (unknown) → returns.
-        // pnm_get_headers sees chunk_type=0 → breaks header loop.
-        // Then reads 64 more bytes → our remaining zeros.
+        // pnm_get_chunk assembles 8-byte preamble -> chunk_type = 0x00000000 (unknown) -> returns.
+        // pnm_get_headers sees chunk_type=0 -> breaks header loop.
+        // Then reads 64 more bytes -> our remaining zeros.
         return new byte[72];
     }
 
@@ -177,7 +177,7 @@ internal static class PnaCommand
         public byte PnaVersion { get; set; }
 
         /// <summary>Raw bytes 4-7 from the client hello header (version + protocol fields).
-        /// Echoed back in the server PNA_TAG response — commercial clients validate these.</summary>
+        /// Echoed back in the server PNA_TAG response - commercial clients validate these.</summary>
         public byte[] PnaHeaderFields { get; set; }
     }
 
@@ -210,14 +210,14 @@ internal static class PnaCommand
         // Byte 4: PNA protocol version (0x08 = RA 3.0, 0x0A = RP Plus 6.x / xine-lib)
         result.PnaVersion = data[4];
 
-        // Bytes 4-7: version + protocol fields — echoed in server PNA_TAG response.
+        // Bytes 4-7: version + protocol fields - echoed in server PNA_TAG response.
         // Commercial clients validate these; values are version-specific.
         result.PnaHeaderFields = new byte[4];
         Buffer.BlockCopy(data, 4, result.PnaHeaderFields, 0, 4);
 
-        // Scan for CLIENT_STRING tag (0x63) — 1-byte tag format.
+        // Scan for CLIENT_STRING tag (0x63) - 1-byte tag format.
         // Must be careful: 0x63 ('c') can appear in codec names and sub-chunk data.
-        // Require strLen >= 10 to avoid false positives — all known client strings
+        // Require strLen >= 10 to avoid false positives - all known client strings
         // are 30+ chars (e.g. "WinNT_5.1_6.0.6.99_plus32_SP60_en-US_686").
         for (int i = 11; i < length - 3; i++)
         {

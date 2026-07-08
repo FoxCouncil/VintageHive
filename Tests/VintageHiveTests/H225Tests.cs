@@ -6,9 +6,9 @@ using VintageHive.Proxy.NetMeeting.H225;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  H225Types tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class H225TransportAddressTests
@@ -181,9 +181,9 @@ public class H225EndpointTypeTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RasMessage codec tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RasCodecGatekeeperTests
@@ -286,7 +286,7 @@ public class RasCodecRegistrationTests
         var enc = new PerEncoder();
         enc.WriteChoiceIndex(H225Constants.RAS_REGISTRATION_REQUEST, H225Constants.RAS_ROOT_ALTERNATIVES, extensible: true);
 
-        // RRQ SEQUENCE (extensible) — we need extensions for timeToLive
+        // RRQ SEQUENCE (extensible) - we need extensions for timeToLive
         enc.WriteExtensionBit(false);
         enc.WriteOptionalBitmap(false, true, false); // nonStandard=no, aliases=yes, gkId=no
 
@@ -308,7 +308,7 @@ public class RasCodecRegistrationTests
         // aliases
         H225Types.WriteAliasAddresses(enc, new[] { "Alice" });
 
-        // endpointVendor (VendorIdentifier) — minimal
+        // endpointVendor (VendorIdentifier) - minimal
         enc.WriteExtensionBit(false); // no extensions
         enc.WriteOptionalBitmap(false, false); // no productId, no versionId
         // H221NonStandard
@@ -473,9 +473,9 @@ public class RasCodecMiscTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RasRegistry tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RasRegistryTests
@@ -585,9 +585,9 @@ public class RasRegistryTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RasServer integration tests (UDP round-trip)
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RasServerTests
@@ -671,7 +671,7 @@ public class RasServerTests
             client.Client.ReceiveTimeout = 3000;
             var serverEp = new IPEndPoint(Loopback, server.BoundPort);
 
-            // 1. Discovery (GRQ → GCF)
+            // 1. Discovery (GRQ -> GCF)
             var grq = BuildGrq(1, new IPEndPoint(Loopback, 5001));
             await client.SendAsync(grq, grq.Length, serverEp);
             var gcfResult = await client.ReceiveAsync();
@@ -680,7 +680,7 @@ public class RasServerTests
             Assert.AreEqual(H225Constants.RAS_GATEKEEPER_CONFIRM,
                 gcfDec.ReadChoiceIndex(H225Constants.RAS_ROOT_ALTERNATIVES, extensible: true));
 
-            // 2. Registration (RRQ → RCF)
+            // 2. Registration (RRQ -> RCF)
             var rrq = BuildRrq(2, "NetMeetingUser");
             await client.SendAsync(rrq, rrq.Length, serverEp);
             var rcfResult = await client.ReceiveAsync();
@@ -696,7 +696,7 @@ public class RasServerTests
             // For now, just get it from the registry directly
             var registeredEp = server.Registry.GetAll()[0];
 
-            // 3. Unregistration (URQ → UCF)
+            // 3. Unregistration (URQ -> UCF)
             var urq = BuildUrq(3, registeredEp.EndpointId);
             await client.SendAsync(urq, urq.Length, serverEp);
             var ucfResult = await client.ReceiveAsync();
@@ -713,9 +713,9 @@ public class RasServerTests
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Test message builders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static byte[] BuildGrq(int seqNum, IPEndPoint rasAddress)
     {
@@ -754,7 +754,7 @@ public class RasServerTests
 
         H225Types.WriteAliasAddresses(enc, new[] { alias });
 
-        // endpointVendor (VendorIdentifier) — minimal
+        // endpointVendor (VendorIdentifier) - minimal
         enc.WriteExtensionBit(false);
         enc.WriteOptionalBitmap(false, false);
         enc.WriteConstrainedWholeNumber(181, 0, 255);

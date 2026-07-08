@@ -5,7 +5,7 @@ using VintageHive.Network;
 namespace VintageHive.Proxy.Printer;
 
 /// <summary>
-/// LPD (Line Printer Daemon) protocol server — RFC 1179, default port 515.
+/// LPD (Line Printer Daemon) protocol server - RFC 1179, default port 515.
 /// Accepts print jobs from LPR clients (DOS, Windows 3.x/95, Unix/Mac).
 /// </summary>
 internal class LpdProxy : Listener
@@ -68,14 +68,14 @@ internal class LpdProxy : Listener
 
                 case LPD_CMD_REMOVE_JOBS:
                 {
-                    // Not implemented — just ACK
+                    // Not implemented - just ACK
                     await stream.WriteAsync(new byte[] { ACK });
                 }
                 break;
 
                 case LPD_CMD_PRINT_WAITING:
                 {
-                    // Not implemented — just ACK
+                    // Not implemented - just ACK
                     await stream.WriteAsync(new byte[] { ACK });
                 }
                 break;
@@ -89,14 +89,14 @@ internal class LpdProxy : Listener
         }
         catch (Exception ex) when (ex is IOException || ex is SocketException)
         {
-            // Connection closed by client — normal for LPD
+            // Connection closed by client - normal for LPD
         }
         catch (Exception ex)
         {
             Log.WriteLine(Log.LEVEL_ERROR, nameof(LpdProxy), $"Error: {ex}", connection.TraceId.ToString());
         }
 
-        // Close connection — LPD is one-shot per connection
+        // Close connection - LPD is one-shot per connection
         try
         {
             connection.RawSocket.Close();
@@ -221,7 +221,7 @@ internal class LpdProxy : Listener
 
                 default:
                 {
-                    // Unknown sub-command — might be end of job, try to finalize
+                    // Unknown sub-command - might be end of job, try to finalize
                     Log.WriteLine(Log.LEVEL_DEBUG, nameof(LpdProxy), $"Unknown LPD sub-command: 0x{subCommand:X2}", connection.TraceId.ToString());
                 }
                 break;
@@ -347,7 +347,7 @@ internal class LpdProxy : Listener
 
         if (totalRead < count)
         {
-            // Truncated — return what we got
+            // Truncated - return what we got
             return result[..totalRead];
         }
 

@@ -50,7 +50,7 @@ public static class Native
 
         // Patch out SHA-NI capability BEFORE any SHA operations occur.
         // OPENSSL_ia32cap_loc() returns uint* to the 4-element cap array.
-        // cap[2] = CPUID(7,0).EBX — bit 29 is SHA-NI.
+        // cap[2] = CPUID(7,0).EBX - bit 29 is SHA-NI.
         var capPtr = OPENSSL_ia32cap_loc();
         if (capPtr != IntPtr.Zero)
         {

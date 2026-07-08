@@ -21,7 +21,7 @@ public class OscarUtilsTests
         // Act
         var roasted = OscarUtils.RoastPassword(password);
 
-        // Assert — each byte should be password[i] XOR ROAST_KEY[i]
+        // Assert - each byte should be password[i] XOR ROAST_KEY[i]
         Assert.AreEqual(password.Length, roasted.Length);
 
         // The ROAST_KEY starts with 0xF3, 0x26, 0x81, 0xC4, 0x39, 0x86, 0xDB, 0x92
@@ -167,7 +167,7 @@ public class OscarUtilsTests
         // Build a FLAP: * (0x2A), type, seq (2 bytes), length (2 bytes), data
         var data = new byte[]
         {
-            0x2A,       // '*' — FLAP header marker
+            0x2A,       // '*' - FLAP header marker
             0x02,       // Type: Data
             0x00, 0x01, // Sequence: 1
             0x00, 0x03, // Length: 3
@@ -1107,7 +1107,7 @@ public class OscarChatRoomTests
     {
         var room = new OscarChatRoom { Name = "Test" };
 
-        // Empty room — 0 members
+        // Empty room - 0 members
         var encoded = room.EncodeRoomInfoTlvs();
         var tlvs = OscarUtils.DecodeTlvs(encoded);
 

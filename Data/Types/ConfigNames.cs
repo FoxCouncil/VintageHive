@@ -42,6 +42,8 @@ public static class ConfigNames
 
     public const string PortT120 = "portt120";
 
+    public const string PortFinger = "portfinger";
+
     public const string ServiceDns = "servicedns";
 
     public const string ServiceIls = "serviceils";
@@ -55,6 +57,10 @@ public static class ConfigNames
     public const string ServiceInternetArchive = "serviceinternetarchive";
 
     public const string ServiceInternetArchiveYear = "serviceinternetarchiveyear";
+
+    public const string ServiceInternetArchiveWorker = "serviceinternetarchiveworker";
+
+    public const string ServiceInternetArchiveWorkerUrl = "serviceinternetarchiveworkerurl";
 
     public const string ServiceIntranet = "serviceintranet";
 
@@ -73,6 +79,8 @@ public static class ConfigNames
     public const string ServiceImap = "serviceimap";
 
     public const string ServicePrinter = "serviceprinter";
+
+    public const string ServiceFinger = "servicefinger";
 
     public const string Location = "location";
 

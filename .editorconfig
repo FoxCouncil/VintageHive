@@ -1,5 +1,46 @@
+root = true
+
 [*]
 encoding = utf-8
 tab_width = 4
 indent_size = 4
+indent_style = space
 end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{yml,yaml,json,csproj,props,targets}]
+indent_size = 2
+
+[*.cs]
+# Allman braces - open brace always on its own new line.
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+# Always use braces, even for single-line blocks.
+csharp_prefer_braces = true:warning
+
+# Never collapse statements/blocks onto a single line (case blocks stay braced).
+csharp_preserve_single_line_statements = false
+csharp_preserve_single_line_blocks = true
+
+# Indentation.
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+
+# usings sorted, System first, outside the namespace.
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace:suggestion
+
+# File-scoped namespaces, matching the codebase.
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+# No line-length limit - lines can be as long as they need to be.
+max_line_length = off

@@ -23,10 +23,10 @@ internal enum H323CallState
     /// <summary>Alerting received (callee ringing).</summary>
     Alerting,
 
-    /// <summary>Connect received — call is active.</summary>
+    /// <summary>Connect received - call is active.</summary>
     Connected,
 
-    /// <summary>ReleaseComplete sent/received — call ended.</summary>
+    /// <summary>ReleaseComplete sent/received - call ended.</summary>
     Released
 }
 
@@ -66,7 +66,7 @@ internal class H323Call
             if (!IsValidTransition(_state, value))
             {
                 Log.WriteLine(Log.LEVEL_DEBUG, nameof(H323Call),
-                    $"Call#{CallId}: invalid state transition {_state}→{value}, ignoring", "");
+                    $"Call#{CallId}: invalid state transition {_state}->{value}, ignoring", "");
                 return;
             }
 
@@ -120,7 +120,7 @@ internal class H323Call
     {
         var caller = CallerAliases != null ? string.Join(",", CallerAliases) : "?";
         var callee = CalleeAliases != null ? string.Join(",", CalleeAliases) : "?";
-        return $"Call#{CallId}[{State} {caller}→{callee} CRV={CallReference}]";
+        return $"Call#{CallId}[{State} {caller}->{callee} CRV={CallReference}]";
     }
 
     /// <summary>

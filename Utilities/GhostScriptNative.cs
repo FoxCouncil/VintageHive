@@ -53,7 +53,7 @@ public static class GhostScriptNative
         }
         catch (DllNotFoundException)
         {
-            Log.WriteLine(Log.LEVEL_INFO, "GhostScript", "GhostScript not available (libgs not found) — PostScript printing disabled", "");
+            Log.WriteLine(Log.LEVEL_INFO, "GhostScript", "GhostScript not available (libgs not found) - PostScript printing disabled", "");
         }
     }
 
@@ -61,7 +61,7 @@ public static class GhostScriptNative
     {
         if (!IsAvailable)
         {
-            throw new InvalidOperationException("GhostScript is not available — cannot convert PostScript to PDF");
+            throw new InvalidOperationException("GhostScript is not available - cannot convert PostScript to PDF");
         }
 
         var result = gsapi_new_instance(out var instance, IntPtr.Zero);

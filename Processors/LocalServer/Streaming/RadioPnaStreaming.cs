@@ -41,7 +41,7 @@ internal static class RadioPnaStreaming
 
     /// <summary>
     /// Create FFmpeg process that encodes upstream audio directly to RM container
-    /// with the ra_144 (14.4kbps lpcJ) codec. FFmpeg handles everything —
+    /// with the ra_144 (14.4kbps lpcJ) codec. FFmpeg handles everything -
     /// we just read RM chunks from stdout.
     /// </summary>
     private static Process CreateRa144FfmpegProcess()
@@ -62,7 +62,7 @@ internal static class RadioPnaStreaming
     }
 
     // ===================================================================
-    // PNA Live Session — ring buffer with RM data packets
+    // PNA Live Session - ring buffer with RM data packets
     // ===================================================================
 
     internal class PnaLiveSession : IDisposable
@@ -217,7 +217,7 @@ internal static class RadioPnaStreaming
                         Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Producer: read#{readCount} {bytesRead}B (total PCM={totalPcmBytes}, pkts={packetCount})");
                     }
 
-                    // Feed raw PCM to cook encoder — it returns RM data packets
+                    // Feed raw PCM to cook encoder - it returns RM data packets
                     var packets = Encoder.EncodePcm(readBuf.AsSpan(0, bytesRead));
 
                     foreach (var packet in packets)
@@ -265,7 +265,7 @@ internal static class RadioPnaStreaming
 
                     if (tag == PnaCommand.RM_DATA_TAG)
                     {
-                        break; // DATA chunk found — data packets follow
+                        break; // DATA chunk found - data packets follow
                     }
                 }
 
@@ -571,7 +571,7 @@ internal static class RadioPnaStreaming
     }
 
     // ===================================================================
-    // HTTP streaming — /stream/real/{id}.ra
+    // HTTP streaming - /stream/real/{id}.ra
     // Serves RealAudio over HTTP for RealPlayer G2+
     // ===================================================================
 
@@ -591,12 +591,12 @@ internal static class RadioPnaStreaming
             sessionKey = $"{stationId}:{profile.Key}";
             session.AddClient(sessionKey);
 
-            // Mark handled immediately — we're writing directly to the socket.
+            // Mark handled immediately - we're writing directly to the socket.
             response.Handled = true;
 
             var socket = request.ListenerSocket.Stream;
 
-            // Send HTTP response headers — serve as RM container
+            // Send HTTP response headers - serve as RM container
             var httpHeaders =
                 $"{request.Version} 200 OK\r\n" +
                 "Content-Type: application/vnd.rn-realmedia\r\n" +

@@ -9,10 +9,10 @@ using VintageHive.Proxy.NetMeeting.GCC;
 namespace VintageHive.Proxy.NetMeeting.T120;
 
 /// <summary>
-/// T.120 data conferencing server — TCP listener on port 1503.
+/// T.120 data conferencing server - TCP listener on port 1503.
 ///
 /// Handles the full T.120 stack:
-///   TPKT framing → X.224 Class 0 transport → MCS (T.125)
+///   TPKT framing -> X.224 Class 0 transport -> MCS (T.125)
 ///
 /// Acts as the MCS top provider: manages user IDs, channel joins,
 /// and bridges SendData between connected participants.
@@ -47,7 +47,7 @@ internal class T120Server : Listener
 
         try
         {
-            // ── Phase 1: X.224 Connection ──────────────────────────
+            // -- Phase 1: X.224 Connection --------------------------
             var x224Payload = await TpktFrame.ReadAsync(stream);
             if (x224Payload == null)
             {
@@ -70,7 +70,7 @@ internal class T120Server : Listener
 
             Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"X.224 CC sent to {remote}", "");
 
-            // ── Phase 2: MCS Connect ───────────────────────────────
+            // -- Phase 2: MCS Connect -------------------------------
             var mcsPayload = await ReadX224Data(stream);
             if (mcsPayload == null)
             {
@@ -117,7 +117,7 @@ internal class T120Server : Listener
             }
             else
             {
-                // No GCC data — echo raw userData
+                // No GCC data - echo raw userData
                 gccResponseData = connectInitial.UserData;
             }
 
@@ -135,7 +135,7 @@ internal class T120Server : Listener
 
             Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"MCS Connect-Response sent to {remote}", "");
 
-            // ── Phase 3: MCS Domain ────────────────────────────────
+            // -- Phase 3: MCS Domain --------------------------------
             session = new T120Session
             {
                 Remote = remote,
@@ -186,9 +186,9 @@ internal class T120Server : Listener
         return Task.CompletedTask;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  MCS Domain phase
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private async Task HandleDomainPhase(NetworkStream stream, T120Session session)
     {
@@ -219,7 +219,7 @@ internal class T120Server : Listener
             {
                 case McsConstants.DOMAIN_ERECT_DOMAIN_REQUEST:
                 {
-                    // Nothing to respond to — just acknowledge internally
+                    // Nothing to respond to - just acknowledge internally
                     session.DomainErected = true;
                 }
                 break;
@@ -278,9 +278,9 @@ internal class T120Server : Listener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  X.224 Data Transfer helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Read an X.224 DT PDU via TPKT and return the user data.
@@ -317,9 +317,9 @@ internal class T120Server : Listener
         await TpktFrame.WriteAsync(stream, dt);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Session management
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private void RemoveSession(T120Session session)
     {
@@ -365,9 +365,9 @@ internal class T120Server : Listener
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Domain parameter negotiation
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static McsDomainParameters NegotiateDomainParameters(McsDomainParameters target, McsDomainParameters minimum, McsDomainParameters maximum)
     {
@@ -388,7 +388,7 @@ internal class T120Server : Listener
     {
         if (min > max)
         {
-            return value; // Invalid range — use target
+            return value; // Invalid range - use target
         }
 
         return Math.Clamp(value, min, max);

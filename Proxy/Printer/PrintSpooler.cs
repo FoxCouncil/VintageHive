@@ -80,7 +80,7 @@ internal static class PrintSpooler
                     }
                     catch
                     {
-                        // Malformed JSON — use default name
+                        // Malformed JSON - use default name
                     }
                 }
 
@@ -146,7 +146,7 @@ internal static class PrintSpooler
     {
         if (!GhostScriptNative.IsAvailable)
         {
-            Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job {job.Id} is PostScript but GhostScript unavailable — saving raw data");
+            Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job {job.Id} is PostScript but GhostScript unavailable - saving raw data");
 
             if (!Mind.PrinterDb.SetJobPrintData(job.Id, job.DocData, "application/postscript"))
             {

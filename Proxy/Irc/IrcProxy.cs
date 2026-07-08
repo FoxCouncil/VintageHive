@@ -435,7 +435,7 @@ internal class IrcProxy : Listener
         }
         else
         {
-            // No PASS: check if nick is registered — if so, reject
+            // No PASS: check if nick is registered - if so, reject
             if (Mind.Db.UserExistsByUsername(nick))
             {
                 return SendIrcReply(IRCD_HOSTNAME, ERR_NICKNAMEINUSE, "*", new[] { nick }, "Nickname is registered. Use PASS to authenticate.");
@@ -1004,7 +1004,7 @@ internal class IrcProxy : Listener
             return SendIrcReply(IRCD_HOSTNAME, ERR_NOSUCHCHANNEL, user.Nick, new[] { channelName }, "No such channel");
         }
 
-        // No mode string — show current modes
+        // No mode string - show current modes
         if (client.Params.Count == 1)
         {
             var modeStr = "+" + string.Concat(channel.Modes.OrderBy(c => c));
@@ -1266,7 +1266,7 @@ internal class IrcProxy : Listener
             return SendIrcReply(IRCD_HOSTNAME, ERR_USERSDISABLED, user.Nick, null, "Cannot change mode for other users");
         }
 
-        // No mode string — show current modes
+        // No mode string - show current modes
         if (client.Params.Count == 1)
         {
             var modeStr = "+" + string.Concat(user.Modes.OrderBy(c => c));

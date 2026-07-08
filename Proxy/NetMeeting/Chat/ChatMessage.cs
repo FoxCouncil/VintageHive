@@ -8,13 +8,13 @@ namespace VintageHive.Proxy.NetMeeting.Chat;
 /// NetMeeting Chat Protocol message codec.
 ///
 /// Per MS-MNPR section 2.2.3, a chat packet is:
-///   Offset 0x00 (1 byte)  — header length, MUST be 0x08
-///   Offset 0x01 (7 bytes) — reserved, MUST be all zeros
-///   Offset 0x08 (var)     — UTF-16LE null-terminated chat text
+///   Offset 0x00 (1 byte)  - header length, MUST be 0x08
+///   Offset 0x01 (7 bytes) - reserved, MUST be all zeros
+///   Offset 0x08 (var)     - UTF-16LE null-terminated chat text
 ///
 /// Chat does NOT use T.134 or the OMNET Object Manager workset model.
 /// Messages ride directly on MCS SendDataRequest/SendDataIndication (T.125)
-/// within the T.120 stack: TCP:1503 → TPKT → X.224 → MCS → ChatPacket.
+/// within the T.120 stack: TCP:1503 -> TPKT -> X.224 -> MCS -> ChatPacket.
 ///
 /// All multi-byte values are little-endian per MS-MNPR.
 /// </summary>
@@ -49,7 +49,7 @@ internal static class ChatMessage
         // Chat text (UTF-16LE)
         Array.Copy(textBytes, 0, packet, HEADER_SIZE, textBytes.Length);
 
-        // Null terminator (2 zero bytes for UTF-16LE) — already zero from array init
+        // Null terminator (2 zero bytes for UTF-16LE) - already zero from array init
 
         return packet;
     }

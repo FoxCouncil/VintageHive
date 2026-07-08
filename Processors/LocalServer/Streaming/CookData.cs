@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
-// Cook codec data tables — ported from FFmpeg cookdata.h and NihAV cookdata.rs
+// Cook codec data tables - ported from FFmpeg cookdata.h and NihAV cookdata.rs
 
 namespace VintageHive.Processors.LocalServer.Streaming;
 
@@ -98,7 +98,7 @@ internal static class CookData
     };
 
     // ===================================================================
-    // VQ (SQVH) Huffman tables — canonical Huffman from FFmpeg
+    // VQ (SQVH) Huffman tables - canonical Huffman from FFmpeg
     // ===================================================================
 
     private static readonly byte[][] VqHuffCounts =
@@ -304,19 +304,19 @@ internal static class CookData
     };
 
     // ===================================================================
-    // Built tables: symbol → (code, bits) for encoding
+    // Built tables: symbol -> (code, bits) for encoding
     // Populated by static constructor from canonical Huffman data
     // ===================================================================
 
-    /// <summary>Envelope Huffman: QuantCodes[cbIndex][symbol] → code, QuantBits[cbIndex][symbol] → bits.</summary>
+    /// <summary>Envelope Huffman: QuantCodes[cbIndex][symbol] -> code, QuantBits[cbIndex][symbol] -> bits.</summary>
     public static readonly ushort[][] QuantCodes;
     public static readonly byte[][] QuantBits;
 
-    /// <summary>VQ Huffman: VqCodes[cat][codeword] → code, VqBits[cat][codeword] → bits.</summary>
+    /// <summary>VQ Huffman: VqCodes[cat][codeword] -> code, VqBits[cat][codeword] -> bits.</summary>
     public static readonly ushort[][] VqCodes;
     public static readonly byte[][] VqBits;
 
-    /// <summary>Coupling Huffman: CplCodes[jsIdx][symbol] → code, CplBits[jsIdx][symbol] → bits.</summary>
+    /// <summary>Coupling Huffman: CplCodes[jsIdx][symbol] -> code, CplBits[jsIdx][symbol] -> bits.</summary>
     public static readonly ushort[][] CplCodes;
     public static readonly byte[][] CplBits;
 
@@ -411,7 +411,7 @@ internal static class CookData
         new(44100, 1,  64,  4, 20, new[] { 6, 0, 0, 0 }),  // 6
         new(22050, 1,  32,  6, 16, new[] { 7, 0, 0, 0 }),  // 7
         new( 8000, 1,   6, 12,  6, new[] { 8, 0, 0, 0 }),  // 8
-        new(11025, 2,  19, 10, 10, new[] { 9, 0, 0, 0 }),  // 9 — jazz1.rm
+        new(11025, 2,  19, 10, 10, new[] { 9, 0, 0, 0 }),  // 9 - jazz1.rm
         new(22050, 2,  32,  6, 14, new[] {10, 0, 0, 0 }),  // 10
         new(22050, 2,  44,  5, 16, new[] {11, 0, 0, 0 }),  // 11
         new(44100, 2,  64,  4, 20, new[] {12, 0, 0, 0 }),  // 12
@@ -698,7 +698,7 @@ internal static class CookData
         1.0 / 8,    // 2^(-3)
         1.0 / 4,    // 2^(-2)
         1.0 / 2,    // 2^(-1)
-        1.0,        // 2^(0) — center (delta=0)
+        1.0,        // 2^(0) - center (delta=0)
         2.0,        // 2^(+1)
         4.0,        // 2^(+2)
         8.0,        // 2^(+3)

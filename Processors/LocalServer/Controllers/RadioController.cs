@@ -12,14 +12,14 @@ namespace VintageHive.Processors.LocalServer.Controllers;
 internal class RadioController : Controller
 {
     // ===================================================================
-    // Play path routing — /play/{id}/{player}.{ext}
+    // Play path routing - /play/{id}/{player}.{ext}
     // Serves playlist/metafiles that point to /stream/{player}?id={id}
     //
     // Supported players:
-    //   winamp  → .pls  → /stream/winamp
-    //   wmp     → .asx  → /stream/wmp
-    //   real    → .ram  → pnm://{ip}:7070/stream/real
-    //   (future: itunes → .m3u, etc.)
+    //   winamp  -> .pls  -> /stream/winamp
+    //   wmp     -> .asx  -> /stream/wmp
+    //   real    -> .ram  -> pnm://{ip}:7070/stream/real
+    //   (future: itunes -> .m3u, etc.)
     // ===================================================================
 
     private static bool TryParsePlayPath(string rawPath, out string id, out string player, out string ext)
@@ -93,9 +93,9 @@ internal class RadioController : Controller
                         serverIp = ((IPEndPoint)Request.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4().ToString();
                     }
 
-                    // Minimal ASX — only station name as title (shown in WMP playlist pane).
+                    // Minimal ASX - only station name as title (shown in WMP playlist pane).
                     // No author/copyright/abstract so WMP doesn't pre-populate Now Playing
-                    // metadata fields — those come from the stream's $M and ASF header.
+                    // metadata fields - those come from the stream's $M and ASF header.
                     var asx = new StringBuilder();
                     asx.AppendLine("<asx version=\"3.0\">");
                     asx.AppendLine($"  <title>{esc(info.Name)}</title>");
@@ -106,7 +106,7 @@ internal class RadioController : Controller
                     asx.AppendLine("  </banner>");
 
                     asx.AppendLine("  <entry clientskip=\"no\">");
-                    // MMS first — protocol rollover scheme (RTSP → MMS/TCP → HTTP)
+                    // MMS first - protocol rollover scheme (RTSP -> MMS/TCP -> HTTP)
                     asx.AppendLine($"    <ref href=\"mms://{serverIp}/stream/wmp/{id}.asf\" />");
                     // HTTP fallback (direct MMSH)
                     asx.AppendLine($"    <ref href=\"http://radio.hive.com/stream/wmp/{id}.asf\" />");
@@ -120,7 +120,7 @@ internal class RadioController : Controller
             }
         }
 
-        // Banner image: /banner/{id}.gif — per-station generated 194x32 banner for WMP
+        // Banner image: /banner/{id}.gif - per-station generated 194x32 banner for WMP
         if (!Response.Handled && rawPath.StartsWith("/banner/") && rawPath.EndsWith(".gif"))
         {
             var bannerStationId = rawPath["/banner/".Length..^4];
@@ -130,7 +130,7 @@ internal class RadioController : Controller
             }
         }
 
-        // Favicon proxy: /favicon/{id}.jpg — proxies HTTPS favicons over HTTP for WMP9/XP
+        // Favicon proxy: /favicon/{id}.jpg - proxies HTTPS favicons over HTTP for WMP9/XP
         if (!Response.Handled && rawPath.StartsWith("/favicon/") && rawPath.EndsWith(".jpg"))
         {
             var faviconStationId = rawPath["/favicon/".Length..^4];
@@ -138,7 +138,7 @@ internal class RadioController : Controller
                 await ServeFaviconProxy(faviconStationId);
         }
 
-        // MMSH stream: /stream/wmp/{id}.asf — WMSP/MMSH protocol for WMP
+        // MMSH stream: /stream/wmp/{id}.asf - WMSP/MMSH protocol for WMP
         if (!Response.Handled && rawPath.StartsWith("/stream/wmp/") && rawPath.EndsWith(".asf"))
         {
             var stationId = rawPath["/stream/wmp/".Length..^4]; // strip ".asf"
@@ -157,13 +157,13 @@ internal class RadioController : Controller
             }
         }
 
-        // SAMI captions: 404 — TEXT script commands handle Now Playing display instead
+        // SAMI captions: 404 - TEXT script commands handle Now Playing display instead
         if (!Response.Handled && rawPath.EndsWith(".smi"))
         {
             Response.SetNotFound();
         }
 
-        // RealAudio stream: /stream/real/{id}.ra — raw RM container over HTTP
+        // RealAudio stream: /stream/real/{id}.ra - raw RM container over HTTP
         if (!Response.Handled && rawPath.StartsWith("/stream/real/") && rawPath.EndsWith(".ra"))
         {
             var stationId = rawPath["/stream/real/".Length..^3]; // strip ".ra"
@@ -173,7 +173,7 @@ internal class RadioController : Controller
             }
         }
 
-        // Plain HTTP MP3 stream: /stream/wmp/{id}.mp3 — fallback for non-WMSP clients
+        // Plain HTTP MP3 stream: /stream/wmp/{id}.mp3 - fallback for non-WMSP clients
         if (!Response.Handled && rawPath.StartsWith("/stream/wmp/") && rawPath.EndsWith(".mp3"))
         {
             var stationId = rawPath["/stream/wmp/".Length..^4]; // strip ".mp3"
@@ -313,7 +313,7 @@ internal class RadioController : Controller
     }
 
     // ===================================================================
-    // Stream endpoints — thin wrappers into streaming classes
+    // Stream endpoints - thin wrappers into streaming classes
     // ===================================================================
 
     [Route("/stream/winamp")]
@@ -375,7 +375,7 @@ internal class RadioController : Controller
             }
             catch
             {
-                // Favicon fetch failed — generate without it
+                // Favicon fetch failed - generate without it
             }
 
             var gifBytes = BannerGenerator.Generate(info.Name, faviconBytes);

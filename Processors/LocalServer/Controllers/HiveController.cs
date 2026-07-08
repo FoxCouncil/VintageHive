@@ -187,7 +187,7 @@ internal class HiveController : Controller
         {
             var path = Request.QueryParams.ContainsKey("path") ? Request.QueryParams["path"] : "/";
 
-            // TODO: LOL Security ^.^;;
+            // Reject anything that isn't a well-formed, non-escaping directory path.
             if (!Path.EndsInDirectorySeparator(path) || !path.ConfirmValidPath() || path.Contains(".."))
             {
                 path = "/";
@@ -223,19 +223,24 @@ internal class HiveController : Controller
             {
                 var file = Request.QueryParams["file"];
 
-                var filePath = Path.Combine(directoryInfo.FullName, file);
+                var repoRoot = Path.GetFullPath(directoryInfo.FullName);
+                var filePath = Path.GetFullPath(Path.Combine(repoRoot, file));
 
-                var fileInfo = new FileInfo(filePath);
-
-                if (fileInfo.Exists)
+                // Only serve files that resolve inside the browsed directory - blocks "../" and absolute-path traversal.
+                if (filePath.StartsWith(repoRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal))
                 {
-                    var mimetype = MimeTypesMap.GetMimeType(file);
+                    var fileInfo = new FileInfo(filePath);
 
-                    var fileHandle = fileInfo.OpenRead();
+                    if (fileInfo.Exists)
+                    {
+                        var mimetype = MimeTypesMap.GetMimeType(file);
 
-                    Response.SetStreamForDownload(fileHandle, mimetype);
+                        var fileHandle = fileInfo.OpenRead();
 
-                    Response.Handled = true;
+                        Response.SetStreamForDownload(fileHandle, mimetype);
+
+                        Response.Handled = true;
+                    }
                 }
             }
 

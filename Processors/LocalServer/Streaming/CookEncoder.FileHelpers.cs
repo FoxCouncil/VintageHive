@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
-// Cook encoder — file encoding helpers (FFmpeg-based WAV/audio → .rm conversion)
+// Cook encoder - file encoding helpers (FFmpeg-based WAV/audio -> .rm conversion)
 
 using VintageHive.Utilities;
 
@@ -32,7 +32,7 @@ internal partial class CookEncoder
             }
         }
 
-        // Encode all PCM — returns RM data packets (12-byte header + payload each)
+        // Encode all PCM - returns RM data packets (12-byte header + payload each)
         var allPackets = encoder.EncodePcm(pcm);
 
         // Compute file metadata for DATA chunk and PROP chunk

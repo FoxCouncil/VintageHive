@@ -6,9 +6,9 @@ using VintageHive.Proxy.NetMeeting.Rtp;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RTP Constants tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RtpConstantsTests
@@ -56,9 +56,9 @@ public class RtpConstantsTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RTP header parser tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RtpHeaderTests
@@ -141,7 +141,7 @@ public class RtpHeaderTests
     public void TryParse_WithCsrc_TooShort_ReturnsFalse()
     {
         var data = new byte[12];
-        data[0] = 0x81; // V=2, CC=1 — needs 16 bytes but only 12 provided
+        data[0] = 0x81; // V=2, CC=1 - needs 16 bytes but only 12 provided
         Assert.IsFalse(RtpHeader.TryParse(data, data.Length, out _));
     }
 
@@ -155,9 +155,9 @@ public class RtpHeaderTests
             ssrc: 0x0708090A,
             payload: new byte[] { 0xFF });
 
-        // V=2, P=0, X=0, CC=0 → 0x80
+        // V=2, P=0, X=0, CC=0 -> 0x80
         Assert.AreEqual(0x80, packet[0]);
-        // M=0, PT=4 → 0x04
+        // M=0, PT=4 -> 0x04
         Assert.AreEqual(0x04, packet[1]);
         // Seq = 0x0102
         Assert.AreEqual(0x01, packet[2]);
@@ -178,9 +178,9 @@ public class RtpHeaderTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RTCP header parser tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RtcpHeaderTests
@@ -247,9 +247,9 @@ public class RtcpHeaderTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RTP Relay tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RtpRelayTests
@@ -375,7 +375,7 @@ public class RtpRelayTests
 
         try
         {
-            // Send 5 packets A→B, 3 packets B→A
+            // Send 5 packets A->B, 3 packets B->A
             for (var i = 0; i < 5; i++)
             {
                 var data = new byte[] { (byte)i };
@@ -446,9 +446,9 @@ public class RtpRelayTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  RTP Relay Manager tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class RtpRelayManagerTests
@@ -597,7 +597,7 @@ public class RtpRelayManagerTests
             new IPEndPoint(IPAddress.Loopback, portB),
             new IPEndPoint(IPAddress.Loopback, portB + 1));
 
-        // Send a packet A → relay → B
+        // Send a packet A -> relay -> B
         var testData = RtpHeader.Build(RtpConstants.PT_G723, 1, 0, 0x5678, new byte[20]);
         await clientA.SendAsync(testData, testData.Length,
             new IPEndPoint(IPAddress.Loopback, pair.LocalRtpPort));

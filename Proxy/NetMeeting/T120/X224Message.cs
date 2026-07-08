@@ -13,15 +13,15 @@ namespace VintageHive.Proxy.NetMeeting.T120;
 ///   Disconnect Request (DR)  = 0x80
 ///
 /// Class 0 header format:
-///   Byte 0: Length Indicator (LI) — length of header excluding LI byte
+///   Byte 0: Length Indicator (LI) - length of header excluding LI byte
 ///   Byte 1: PDU type (upper nibble)
 ///   Bytes 2+: type-specific fields
 /// </summary>
 internal class X224Message
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  PDU type constants (upper nibble of byte 1)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const byte TYPE_CR = 0xE0;
     public const byte TYPE_CC = 0xD0;
@@ -46,9 +46,9 @@ internal class X224Message
     /// <summary>Variable parameters (CR/CC) or user data (DT).</summary>
     public byte[] Data { get; init; }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Parse
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Parse an X.224 PDU from a TPKT payload.
@@ -153,9 +153,9 @@ internal class X224Message
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Build
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Build a Connection Request PDU.

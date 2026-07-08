@@ -115,7 +115,7 @@ internal abstract class LdapFilter
 
             default:
             {
-                // Unknown filter type — skip and match everything
+                // Unknown filter type - skip and match everything
                 decoder.Skip();
                 return new PresentFilter("objectClass");
             }

@@ -5,9 +5,9 @@ using VintageHive.Proxy.NetMeeting.T120;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  FileTransfer Constants tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileTransferConstantsTests
@@ -67,9 +67,9 @@ public class FileTransferConstantsTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-OfferPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileOfferTests
@@ -168,9 +168,9 @@ public class FileOfferTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-AcceptPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileAcceptTests
@@ -207,9 +207,9 @@ public class FileAcceptTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-RejectPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileRejectTests
@@ -244,9 +244,9 @@ public class FileRejectTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-StartPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileStartTests
@@ -327,9 +327,9 @@ public class FileStartTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-DataPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileDataTests
@@ -415,9 +415,9 @@ public class FileDataTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-AbortPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileAbortTests
@@ -466,9 +466,9 @@ public class FileAbortTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  File-ErrorPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileErrorTests
@@ -511,9 +511,9 @@ public class FileErrorTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  MBFT-NonStandardPDU tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class MbftNonStandardTests
@@ -549,9 +549,9 @@ public class MbftNonStandardTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  PDU type detection tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class MbftDetectionTests
@@ -596,7 +596,7 @@ public class MbftDetectionTests
     [TestMethod]
     public void Decode_UnknownType_ReturnsRawData()
     {
-        // Encode a DirectoryRequest (index 9) — not fully decoded
+        // Encode a DirectoryRequest (index 9) - not fully decoded
         var enc = new VintageHive.Proxy.NetMeeting.Asn1.PerEncoder();
         enc.WriteExtensionBit(false);
         enc.WriteChoiceIndex(FileTransferConstants.PDU_DIRECTORY_REQUEST, FileTransferConstants.MBFT_ROOT_COUNT, extensible: false, isExtension: false);
@@ -609,9 +609,9 @@ public class MbftDetectionTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Full file transfer sequence simulation
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class FileTransferSequenceTests
@@ -749,7 +749,7 @@ public class FileTransferSequenceTests
     [TestMethod]
     public void RejectedTransfer_Simulation()
     {
-        // Offer → Reject → no data sent
+        // Offer -> Reject -> no data sent
         var offer = MbftCodec.EncodeFileOffer(new FileOfferPdu
         {
             FileHeader = new FileHeader { Filename = "unwanted.exe", Filesize = 1000000 },

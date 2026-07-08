@@ -8,9 +8,9 @@ using VintageHive.Proxy.NetMeeting.H225;
 
 namespace VintageHiveTests;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  TPKT framing tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class TpktFrameTests
@@ -73,9 +73,9 @@ public class TpktFrameTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Q.931 message tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class Q931MessageTests
@@ -191,7 +191,7 @@ public class Q931MessageTests
 
         var bytes = msg.Build();
 
-        // Find IE positions — they must be in ascending order
+        // Find IE positions - they must be in ascending order
         // Skip: 0x08 (PD) + 0x02 (CR len) + 2 (CR) + 1 (msg type) = 6 bytes header
         var offset = 6;
         var ieTags = new List<byte>();
@@ -247,9 +247,9 @@ public class Q931MessageTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  H.225.0 UUIE codec tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class H225CallCodecSetupTests
@@ -443,9 +443,9 @@ public class H225CallCodecOtherTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Q.931 + UUIE integration (full message round-trip)
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class Q931UuieIntegrationTests
@@ -510,9 +510,9 @@ public class Q931UuieIntegrationTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  H323Call model tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class H323CallTests
@@ -555,9 +555,9 @@ public class H323CallTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  H323Call state enforcement tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class H323CallStateTests
@@ -633,9 +633,9 @@ public class H323CallStateTests
     }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  H323Server integration tests
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 [TestClass]
 public class H323ServerTests
@@ -675,7 +675,7 @@ public class H323ServerTests
 
             // Should get CallProceeding first, then ReleaseComplete
             // Actually, callee lookup happens before CallProceeding in our impl
-            // No wait — we send CallProceeding, THEN fail on connect.
+            // No wait - we send CallProceeding, THEN fail on connect.
             // But if callee not found at all, we skip CallProceeding.
             // Let me read the response:
 

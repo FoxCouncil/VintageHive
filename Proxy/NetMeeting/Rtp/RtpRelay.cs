@@ -10,7 +10,7 @@ namespace VintageHive.Proxy.NetMeeting.Rtp;
 /// Binds a single local UDP socket, learns remote endpoint addresses from
 /// the first received packet from each side, and forwards packets between them.
 ///
-/// Pure pass-through — no header modification.
+/// Pure pass-through - no header modification.
 /// </summary>
 internal class RtpRelay : IDisposable
 {
@@ -85,7 +85,7 @@ internal class RtpRelay : IDisposable
         _running = true;
         StartedAt = DateTime.UtcNow;
 
-        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{_label} relay started on port {LocalPort}: {EndpointA} ↔ {EndpointB}", "");
+        Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{_label} relay started on port {LocalPort}: {EndpointA} <-> {EndpointB}", "");
 
         try
         {
@@ -116,7 +116,7 @@ internal class RtpRelay : IDisposable
                 // Determine direction and forward
                 if (IsFromEndpoint(sender, EndpointA))
                 {
-                    // A → B
+                    // A -> B
                     if (EndpointB != null)
                     {
                         try
@@ -133,7 +133,7 @@ internal class RtpRelay : IDisposable
                 }
                 else if (IsFromEndpoint(sender, EndpointB))
                 {
-                    // B → A
+                    // B -> A
                     if (EndpointA != null)
                     {
                         try
@@ -177,7 +177,7 @@ internal class RtpRelay : IDisposable
             _running = false;
             StoppedAt = DateTime.UtcNow;
 
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{_label} relay stopped. A→B: {PacketsAtoB} pkts/{BytesAtoB} bytes, B→A: {PacketsBtoA} pkts/{BytesBtoA} bytes", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{_label} relay stopped. A->B: {PacketsAtoB} pkts/{BytesAtoB} bytes, B->A: {PacketsBtoA} pkts/{BytesBtoA} bytes", "");
         }
     }
 

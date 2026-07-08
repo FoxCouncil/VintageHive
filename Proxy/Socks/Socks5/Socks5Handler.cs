@@ -12,7 +12,7 @@ internal static class Socks5Handler
         var stream = connection.Stream;
         var traceId = connection.TraceId.ToString();
 
-        // ── Greeting phase ──────────────────────────────────────────────
+        // -- Greeting phase ----------------------------------------------
         // First byte (0x05) already consumed by the dispatcher.
         // Next byte: number of auth methods, then that many method bytes.
 
@@ -52,7 +52,7 @@ internal static class Socks5Handler
             return;
         }
 
-        // ── Request phase ───────────────────────────────────────────────
+        // -- Request phase -----------------------------------------------
         // [VER(1), CMD(1), RSV(1), ATYP(1), ...ADDR, PORT(2)]
 
         var header = new byte[4];
@@ -173,7 +173,7 @@ internal static class Socks5Handler
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), $"CONNECT {displayHost}:{destPort}", traceId);
 
-        // ── Connect to target ───────────────────────────────────────────
+        // -- Connect to target -------------------------------------------
         Socket targetSocket;
 
         try
@@ -215,7 +215,7 @@ internal static class Socks5Handler
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), $"Tunnel established to {displayHost}:{destPort}", traceId);
 
-        // ── Bidirectional tunnel ────────────────────────────────────────
+        // -- Bidirectional tunnel ----------------------------------------
         using var targetStream = new NetworkStream(targetSocket, ownsSocket: true);
 
         await SocksProxy.TunnelAsync(stream, targetStream);

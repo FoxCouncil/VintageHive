@@ -9,14 +9,14 @@ Encoding.GetEncoding("ISO-8859-1");
 
 if (args.Contains("--cook-test"))
 {
-    // Optional: --cook-test inputfile.wav → encode WAV to cook .rm
+    // Optional: --cook-test inputfile.wav -> encode WAV to cook .rm
     var inputIdx = Array.IndexOf(args, "--cook-test") + 1;
     var inputFile = inputIdx < args.Length ? args[inputIdx] : null;
 
     if (inputFile != null && File.Exists(inputFile))
     {
         var outputPath = Path.ChangeExtension(inputFile, ".cook.rm");
-        Console.WriteLine($"Encoding {inputFile} → {outputPath}");
+        Console.WriteLine($"Encoding {inputFile} -> {outputPath}");
         var (rmData, encoder) = CookEncoder.EncodeWavFileWithEncoder(inputFile);
         File.WriteAllBytes(outputPath, rmData);
         Console.WriteLine($"Written {rmData.Length} bytes ({rmData.Length / 1024}KB)");
@@ -30,7 +30,7 @@ if (args.Contains("--cook-test"))
                 rawFs.Write(frame, 0, frame.Length);
             }
         }
-        Console.WriteLine($"Raw frames: {encoder.RawFrames.Count} × {encoder.RawFrames[0].Length} bytes → {rawPath}");
+        Console.WriteLine($"Raw frames: {encoder.RawFrames.Count} × {encoder.RawFrames[0].Length} bytes -> {rawPath}");
     }
     else
     {

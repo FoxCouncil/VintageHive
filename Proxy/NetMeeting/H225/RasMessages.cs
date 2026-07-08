@@ -22,9 +22,9 @@ internal class RasMessage
     public DisengageRequest Drq { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  Request data types (decoded from NetMeeting client)
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 internal class GatekeeperRequest
 {
@@ -81,9 +81,9 @@ internal class DisengageRequest
 /// </summary>
 internal static class RasCodec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Top-level RasMessage dispatch
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static RasMessage Decode(byte[] data)
     {
@@ -126,15 +126,15 @@ internal static class RasCodec
 
             default:
             {
-                // Return a generic message for unknown types — server can send UnknownMessageResponse
+                // Return a generic message for unknown types - server can send UnknownMessageResponse
                 return new RasMessage { Type = choice, RequestSeqNum = 0 };
             }
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Response encoders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public static byte[] EncodeGatekeeperConfirm(int seqNum, IPEndPoint rasAddress, string gatekeeperId)
     {
@@ -336,9 +336,9 @@ internal static class RasCodec
         return enc.ToArray();
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Request decoders
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static GatekeeperRequest DecodeGatekeeperRequest(PerDecoder dec)
     {
@@ -434,7 +434,7 @@ internal static class RasCodec
             gkId = dec.ReadBMPString(lb: H225Constants.GK_ID_MIN, ub: H225Constants.GK_ID_MAX);
         }
 
-        // endpointVendor (VendorIdentifier) — skip it
+        // endpointVendor (VendorIdentifier) - skip it
         H225Types.SkipVendorIdentifier(dec);
 
         // Read extension additions for timeToLive etc.
@@ -654,9 +654,9 @@ internal static class RasCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Skip helpers for complex types used in ARQ
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// QseriesOptions: SEQUENCE of 6 BOOLEANs (extensible).

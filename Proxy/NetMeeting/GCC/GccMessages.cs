@@ -4,12 +4,12 @@ using VintageHive.Proxy.NetMeeting.Asn1;
 
 namespace VintageHive.Proxy.NetMeeting.GCC;
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ConnectData wrapper (outermost GCC envelope)
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>
-/// T.124 ConnectData — wraps a ConnectGCCPDU inside MCS Connect-Initial/Response userData.
+/// T.124 ConnectData - wraps a ConnectGCCPDU inside MCS Connect-Initial/Response userData.
 ///
 /// ConnectData ::= SEQUENCE {
 ///     t124Identifier  Key,           -- OBJECT IDENTIFIER {0 0 20 124 0 1}
@@ -25,9 +25,9 @@ internal class GccConnectData
     public byte[] ConnectPdu { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  User data blocks
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>
 /// One entry from UserData ::= SET OF SEQUENCE { key Key, value OCTET STRING OPTIONAL }.
@@ -47,9 +47,9 @@ internal class GccUserDataBlock
     public bool IsH221 => H221Key != null;
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ConferenceCreateRequest
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>
 /// Parsed GCC ConferenceCreateRequest from MCS Connect-Initial userData.
@@ -65,9 +65,9 @@ internal class ConferenceCreateRequest
     public GccUserDataBlock[] UserData { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  ConferenceCreateResponse
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>
 /// GCC ConferenceCreateResponse for MCS Connect-Response userData.
@@ -87,9 +87,9 @@ internal class ConferenceCreateResponse
     public GccUserDataBlock[] UserData { get; init; }
 }
 
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 //  GCC Codec
-// ──────────────────────────────────────────────────────────
+// ----------------------------------------------------------
 
 /// <summary>
 /// PER codec for GCC T.124 messages.
@@ -97,9 +97,9 @@ internal class ConferenceCreateResponse
 /// </summary>
 internal static class GccCodec
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ConnectData encode/decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Encode a ConnectData wrapper: Key(OID) + connectPDU.
@@ -174,12 +174,12 @@ internal static class GccCodec
                data[5] == 0x00 && data[6] == 0x01;
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ConferenceCreateRequest decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
-    /// Decode the full GCC pipeline: ConnectData → ConnectGCCPDU → ConferenceCreateRequest.
+    /// Decode the full GCC pipeline: ConnectData -> ConnectGCCPDU -> ConferenceCreateRequest.
     /// Input is the raw MCS Connect-Initial userData.
     /// </summary>
     public static ConferenceCreateRequest DecodeConferenceCreateRequest(byte[] mcsUserData)
@@ -312,12 +312,12 @@ internal static class GccCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ConferenceCreateResponse encode/decode
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
-    /// Encode the full GCC pipeline: ConferenceCreateResponse → ConnectGCCPDU → ConnectData.
+    /// Encode the full GCC pipeline: ConferenceCreateResponse -> ConnectGCCPDU -> ConnectData.
     /// Returns bytes suitable for MCS Connect-Response userData.
     /// </summary>
     public static byte[] EncodeConferenceCreateResponse(ConferenceCreateResponse response)
@@ -413,12 +413,12 @@ internal static class GccCodec
         };
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ConferenceCreateRequest encode (for testing/client simulation)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
-    /// Encode the full GCC pipeline: ConferenceCreateRequest → ConnectGCCPDU → ConnectData.
+    /// Encode the full GCC pipeline: ConferenceCreateRequest -> ConnectGCCPDU -> ConnectData.
     /// Returns bytes suitable for MCS Connect-Initial userData.
     /// </summary>
     public static byte[] EncodeConferenceCreateRequest(ConferenceCreateRequest request)
@@ -482,9 +482,9 @@ internal static class GccCodec
         return EncodeConnectData(GccConstants.T124_OID, connectPdu);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  UserData SET OF SEQUENCE { key Key, value OCTET STRING OPTIONAL }
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     private static GccUserDataBlock[] DecodeUserDataSet(PerDecoder dec)
     {
@@ -570,12 +570,12 @@ internal static class GccCodec
         }
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  SimpleNumericString (NumericString FROM("0123456789"))
     //
     //  PER encoding: constrained length + 4 bits per character.
-    //  Alphabet: '0'→0, '1'→1, ..., '9'→9.
-    // ──────────────────────────────────────────────────────────
+    //  Alphabet: '0'->0, '1'->1, ..., '9'->9.
+    // ----------------------------------------------------------
 
     internal static void WriteSimpleNumericString(PerEncoder enc, string value, int lb, int ub)
     {
@@ -612,9 +612,9 @@ internal static class GccCodec
         return new string(chars);
     }
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Skip helpers (for OPTIONAL fields we don't need to parse)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>
     /// Skip a Password field.

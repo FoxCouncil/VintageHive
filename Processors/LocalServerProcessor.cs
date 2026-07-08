@@ -572,6 +572,13 @@ internal static class LocalServerProcessor
             return false;
         }
 
+        // The intranet portal can be disabled via config. The admin panel is always served so the
+        // toggle can be flipped back on; everything else falls through to the remaining processors.
+        if (req.Uri.Host != "admin.hive.com" && !Mind.Db.ConfigGet<bool>(ConfigNames.ServiceIntranet))
+        {
+            return false;
+        }
+
         var site = ControllerManager.Fetch(req, res);
 
         if (site != null)

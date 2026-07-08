@@ -30,7 +30,7 @@ internal class OscarBartService : IOscarService
         {
             case CLI_BART_UPLOAD:
             {
-                // Client wants to upload an icon — acknowledge but we don't store it yet
+                // Client wants to upload an icon - acknowledge but we don't store it yet
                 var reply = snac.NewReply(FAMILY_ID, SRV_BART_UPLOAD_REPLY);
 
                 reply.WriteUInt16(0x0004); // Status: success
@@ -46,7 +46,7 @@ internal class OscarBartService : IOscarService
             case CLI_BART_QUERY:
             case CLI_BART_QUERY2:
             {
-                // Client wants a buddy icon — we don't have any, send empty response
+                // Client wants a buddy icon - we don't have any, send empty response
                 var replySubtype = snac.SubType == CLI_BART_QUERY ? SRV_BART_RESPONSE : SRV_BART_RESPONSE2;
                 var reply = snac.NewReply(FAMILY_ID, replySubtype);
 

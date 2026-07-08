@@ -68,7 +68,7 @@ internal static class Setup
 
         if (options.ContainsKey("groups"))
         {
-            // Specific groups requested — use manifest entries if they exist, otherwise create from name
+            // Specific groups requested - use manifest entries if they exist, otherwise create from name
             var requestedNames = options["groups"]
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);

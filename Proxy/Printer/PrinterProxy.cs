@@ -98,8 +98,33 @@ internal class PrinterProxy : Listener
                         SendDocumentRequest x => GetSendDocumentResponse(x),
                         SendUriRequest x => SendUriResponse(x),
                         ValidateJobRequest x => GetValidateJobResponse(x),
-                        _ => throw new NotImplementedException()
+                        _ => null
                     };
+
+                    if (ippResponse == null)
+                    {
+                        // Unknown/unsupported IPP operation - reply with a well-formed status instead of
+                        // tearing down the connection.
+                        var unsupported = new IppResponseMessage
+                        {
+                            RequestId = ippRequest.RequestId,
+                            Version = ippRequest.Version,
+                            StatusCode = IppStatusCode.ServerErrorOperationNotSupported
+                        };
+
+                        var operation = new IppSection { Tag = SectionTag.OperationAttributesTag };
+
+                        operation.Attributes.Add(new IppAttribute(Tag.Charset, JobAttribute.AttributesCharset, "utf-8"));
+                        operation.Attributes.Add(new IppAttribute(Tag.NaturalLanguage, JobAttribute.AttributesNaturalLanguage, "en"));
+
+                        unsupported.Sections.Add(operation);
+
+                        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"Unsupported IPP operation: {ippRequest.GetType().Name}", connection.TraceId.ToString());
+
+                        await _ippServer.SendRawResponseAsync(unsupported, responseStream);
+
+                        return responseStream.ToArray();
+                    }
 
                     await _ippServer.SendResponseAsync(ippResponse, responseStream);
 

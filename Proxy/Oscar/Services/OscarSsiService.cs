@@ -60,7 +60,7 @@ internal class OscarSsiService : IOscarService
 
             case CLI_SSI_ACTIVATE:
             {
-                // Client is telling us SSI is active — load permit/deny from SSI
+                // Client is telling us SSI is active - load permit/deny from SSI
                 LoadPrivacyFromSsi(session);
 
                 Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarSsiService), "SSI activated", traceId);

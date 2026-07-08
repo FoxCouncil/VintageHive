@@ -33,7 +33,7 @@ public static class PrintFormatDetector
             return PrintDataFormat.PostScript;
         }
 
-        // PCL: Universal Exit Language (ESC %-12345X) — always PCL
+        // PCL: Universal Exit Language (ESC %-12345X) - always PCL
         if (data.Length >= 9 && data[0] == 0x1B && data[1] == (byte)'%' && data[2] == (byte)'-')
         {
             return PrintDataFormat.Pcl;
@@ -61,28 +61,28 @@ public static class PrintFormatDetector
 
             switch (next)
             {
-                case 0x40: // ESC @ — ESC/P initialize (unambiguous)
+                case 0x40: // ESC @ - ESC/P initialize (unambiguous)
                 {
                     hasEscAt = true;
                 }
                 break;
 
-                case (byte)'*': // ESC * — ESC/P bit image
+                case (byte)'*': // ESC * - ESC/P bit image
                 {
                     hasEscStar = true;
                 }
                 break;
 
-                case (byte)'!': // ESC ! — ESC/P master select
+                case (byte)'!': // ESC ! - ESC/P master select
                 {
                     hasEscBang = true;
                 }
                 break;
 
-                case (byte)'K': // ESC K — IBM single density graphics
-                case (byte)'L': // ESC L — IBM double density graphics
-                case (byte)'Y': // ESC Y — IBM high-speed double density
-                case (byte)'Z': // ESC Z — IBM quadruple density
+                case (byte)'K': // ESC K - IBM single density graphics
+                case (byte)'L': // ESC L - IBM double density graphics
+                case (byte)'Y': // ESC Y - IBM high-speed double density
+                case (byte)'Z': // ESC Z - IBM quadruple density
                 {
                     // Verify: next 2 bytes should be nL nH (column count)
                     if (i + 3 < scanLimit)
@@ -92,9 +92,9 @@ public static class PrintFormatDetector
                 }
                 break;
 
-                case (byte)'&': // ESC & — PCL parameterized command
-                case (byte)'(': // ESC ( — PCL parameterized command
-                case (byte)')': // ESC ) — PCL parameterized command
+                case (byte)'&': // ESC & - PCL parameterized command
+                case (byte)'(': // ESC ( - PCL parameterized command
+                case (byte)')': // ESC ) - PCL parameterized command
                 {
                     hasPclCommands = true;
                 }
@@ -120,7 +120,7 @@ public static class PrintFormatDetector
             return PrintDataFormat.Pcl;
         }
 
-        // PCL reset (ESC E) at the very start — ambiguous with ESC/P bold,
+        // PCL reset (ESC E) at the very start - ambiguous with ESC/P bold,
         // but at position 0 it's almost certainly PCL reset
         if (data.Length >= 2 && data[0] == 0x1B && data[1] == (byte)'E' && !hasEscSequences)
         {

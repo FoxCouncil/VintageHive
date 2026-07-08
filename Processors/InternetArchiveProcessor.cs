@@ -14,6 +14,8 @@ internal static class InternetArchiveProcessor
 
     const string WaybackCDXUrl = "http://web.archive.org/cdx/search/cdx?url={0}&from={1}&to={1}&fl=original,timestamp,mimetype,length";
 
+    const string WorkerCDXUrl = "{0}/cdx/search/cdx?url={1}&from={2}&to={2}&fl=original,timestamp,mimetype,length";
+
     const string FullRewritePattern = "http://web.archive.org/web/";
 
     const string InternetArchivePublicUrl = "http://web.archive.org";
@@ -74,6 +76,97 @@ internal static class InternetArchiveProcessor
             return true;
         }
 
+        var useWorker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker);
+        var workerUrl = Mind.Db.ConfigGet<string>(ConfigNames.ServiceInternetArchiveWorkerUrl);
+
+        if (useWorker && !string.IsNullOrWhiteSpace(workerUrl))
+        {
+            return await ProcessViaWorker(req, res, workerUrl.TrimEnd('/'));
+        }
+
+        return await ProcessDirect(req, res);
+    }
+
+    static async Task<bool> ProcessViaWorker(HttpRequest req, HttpResponse res, string workerUrl)
+    {
+        // check to see if getting data from archive or looking in the archive for a result
+        var iaUrl = req.Uri.Host.Contains(InternetArchiveDataServer) ? req.Uri : await GetAvailability(req, res, workerUrl);
+
+        if (iaUrl == null || iaUrl.ToString().Length <= InternetArchiveDataUrlLength)
+        {
+            return false;
+        }
+
+        res.Cache = false;
+
+        // Rewrite the archive.org URL to go through the worker
+        var workerFetchUrl = RewriteToWorker(iaUrl, workerUrl);
+
+        // Use the worker URL as cache key so direct/worker caches don't collide
+        var cachedResponse = Mind.Cache.GetWayback(workerFetchUrl);
+
+        string contentType;
+
+        byte[] contentData;
+
+        if (cachedResponse == null)
+        {
+            var httpClient = HttpClientUtils.GetHttpClient(req);
+
+            var workerResponse = await httpClient.GetAsync(workerFetchUrl);
+
+            httpClient.Dispose();
+
+            if (workerResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+
+            contentType = workerResponse.Content.Headers.ContentType?.ToString() ?? "text/html";
+
+            // Worker already scrubs HTML - just read the bytes directly
+            contentData = await workerResponse.Content.ReadAsByteArrayAsync();
+
+            if (contentData == null || contentData.Length == 0)
+            {
+                return false;
+            }
+
+            var cachedData = new ContentCachedData { ContentType = contentType, ContentDataBase64 = Convert.ToBase64String(contentData) };
+
+            var jsonData = JsonSerializer.Serialize<ContentCachedData>(cachedData);
+
+            Mind.Cache.SetWayback(workerFetchUrl, CacheTtl, jsonData);
+        }
+        else
+        {
+            var cachedData = JsonSerializer.Deserialize<ContentCachedData>(cachedResponse);
+
+            contentType = cachedData.ContentType;
+            contentData = Convert.FromBase64String(cachedData.ContentDataBase64);
+        }
+
+        if (contentData == null)
+        {
+            return false;
+        }
+
+        if (contentType.Contains("utf8"))
+        {
+            res.SetEncoding(Encoding.UTF8);
+        }
+        else
+        {
+            res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
+        }
+
+        res.SetBodyData(contentData, contentType);
+
+        return true;
+    }
+
+    static async Task<bool> ProcessDirect(HttpRequest req, HttpResponse res)
+    {
         // check to see if getting data from archive or looking in the archive for a result
         var iaUrl = req.Uri.Host.Contains(InternetArchiveDataServer) ? req.Uri : await GetAvailability(req, res);
 
@@ -163,7 +256,43 @@ internal static class InternetArchiveProcessor
         return true;
     }
 
-    static async Task<Uri> GetAvailability(HttpRequest req, HttpResponse res)
+    internal static Uri RewriteToWorker(Uri iaUrl, string workerUrl)
+    {
+        // iaUrl is like: http://web.archive.org/web/19990125if_/http://www.example.com/
+        // We need:        https://worker.example.com/web/19990125if_/http://www.example.com/
+        var path = iaUrl.PathAndQuery;
+
+        return new Uri(workerUrl + path);
+    }
+
+    // Maps a capture's MIME type to the Wayback Machine rewrite-suffix that requests the raw,
+    // un-rewritten original: "if_" for HTML/other, "im_" for images, "oe_" for media/archives.
+    internal static string GetArchiveTypeCode(string mimeType)
+    {
+        if (string.IsNullOrEmpty(mimeType))
+        {
+            return "if_";
+        }
+
+        if (mimeType.StartsWith("image"))
+        {
+            return "im_";
+        }
+
+        if (mimeType.StartsWith("audio") || mimeType.StartsWith("video"))
+        {
+            return "oe_";
+        }
+
+        if (mimeType.Contains("application/x-stuffit") || mimeType.Contains("application/zip"))
+        {
+            return "oe_";
+        }
+
+        return "if_";
+    }
+
+    static Task<Uri> GetAvailability(HttpRequest req, HttpResponse res, string workerUrl = null)
     {
         var internetArchiveYear = Mind.Db.ConfigLocalGet<int>(req.ListenerSocket.RemoteIP, ConfigNames.ServiceInternetArchiveYear);
 
@@ -171,7 +300,22 @@ internal static class InternetArchiveProcessor
 
         var incomingUrlEncoded = Uri.EscapeDataString(incomingUrl);
 
-        var availabilityUri = string.Format(WaybackCDXUrl, incomingUrlEncoded, internetArchiveYear);
+        string availabilityUri;
+
+        if (!string.IsNullOrWhiteSpace(workerUrl))
+        {
+            availabilityUri = string.Format(WorkerCDXUrl, workerUrl, incomingUrlEncoded, internetArchiveYear);
+        }
+        else
+        {
+            availabilityUri = string.Format(WaybackCDXUrl, incomingUrlEncoded, internetArchiveYear);
+        }
+
+        return GetAvailabilityInternal(req, res, incomingUrl, internetArchiveYear, availabilityUri);
+    }
+
+    static async Task<Uri> GetAvailabilityInternal(HttpRequest req, HttpResponse res, string incomingUrl, int internetArchiveYear, string availabilityUri)
+    {
 
         var result = Mind.Cache.GetWaybackAvailability(incomingUrl, internetArchiveYear);
 
@@ -197,20 +341,7 @@ internal static class InternetArchiveProcessor
                     var timestamp = largestCapture.Timestamp;
                     var mimeType = largestCapture.MimeType;
 
-                    var iaType = "if_";
-
-                    if (mimeType.StartsWith("image"))
-                    {
-                        iaType = "im_";
-                    }
-                    else if (mimeType.StartsWith("audio") || mimeType.StartsWith("video"))
-                    {
-                        iaType = "oe_";
-                    }
-                    else if (mimeType.Contains("application/x-stuffit") || mimeType.Contains("application/zip"))
-                    {
-                        iaType = "oe_";
-                    }
+                    var iaType = GetArchiveTypeCode(mimeType);
 
                     result = $"{FullRewritePattern}{timestamp}{iaType}/{iaUrl}";
                 }
@@ -232,7 +363,7 @@ internal static class InternetArchiveProcessor
         return new Uri(result);
     }
 
-    private static List<WaybackCDXResult> ProcessCDX(string availabilityResponseRaw)
+    internal static List<WaybackCDXResult> ProcessCDX(string availabilityResponseRaw)
     {
         var response = new List<WaybackCDXResult>();
 

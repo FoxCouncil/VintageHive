@@ -77,7 +77,7 @@ internal static class CollectionDiscovery
                         continue;
                     }
 
-                    // Extract group name: "comp.lang.c.mbox.zip" → "comp.lang.c"
+                    // Extract group name: "comp.lang.c.mbox.zip" -> "comp.lang.c"
                     var groupName = fileName[..^".mbox.zip".Length];
 
                     long sizeBytes = 0;

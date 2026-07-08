@@ -11,9 +11,9 @@ namespace VintageHive.Proxy.NetMeeting.H245;
 /// </summary>
 internal static class H245Constants
 {
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  MultimediaSystemControlMessage CHOICE (4 root, NOT extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int MSG_REQUEST = 0;
     public const int MSG_RESPONSE = 1;
@@ -21,9 +21,9 @@ internal static class H245Constants
     public const int MSG_INDICATION = 3;
     public const int MSG_ROOT_COUNT = 4;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  RequestMessage CHOICE (11 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int REQ_NON_STANDARD = 0;
     public const int REQ_MASTER_SLAVE_DETERMINATION = 1;
@@ -38,9 +38,9 @@ internal static class H245Constants
     public const int REQ_MAINTENANCE_LOOP_REQUEST = 10;
     public const int REQ_ROOT_COUNT = 11;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  ResponseMessage CHOICE (15 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int RSP_NON_STANDARD = 0;
     public const int RSP_MASTER_SLAVE_DETERMINATION_ACK = 1;
@@ -59,18 +59,18 @@ internal static class H245Constants
     public const int RSP_REQUEST_MODE_ACK = 14;
     public const int RSP_ROOT_COUNT = 15;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  CommandMessage CHOICE (3 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int CMD_NON_STANDARD = 0;
     public const int CMD_MAINTENANCE_LOOP_OFF = 1;
     public const int CMD_SEND_TERMINAL_CAPABILITY_SET = 2;
     public const int CMD_ROOT_COUNT = 3;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  IndicationMessage CHOICE (8 root, extensible)
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int IND_NON_STANDARD = 0;
     public const int IND_FUNCTION_NOT_UNDERSTOOD = 1;
@@ -82,15 +82,15 @@ internal static class H245Constants
     public const int IND_REQUEST_MULTIPLEX_ENTRY_RELEASE = 7;
     public const int IND_ROOT_COUNT = 8;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  MasterSlaveDetermination
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>terminalType INTEGER (0..255)</summary>
     public const int TERMINAL_TYPE_MIN = 0;
     public const int TERMINAL_TYPE_MAX = 255;
 
-    /// <summary>statusDeterminationNumber INTEGER (0..16777215) — 24-bit random</summary>
+    /// <summary>statusDeterminationNumber INTEGER (0..16777215) - 24-bit random</summary>
     public const int STATUS_DETERMINATION_MIN = 0;
     public const int STATUS_DETERMINATION_MAX = 16777215;
 
@@ -103,25 +103,25 @@ internal static class H245Constants
     /// <summary>MasterSlaveDetermination decision CHOICE root count.</summary>
     public const int MSD_DECISION_ROOT_COUNT = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  MasterSlaveDeterminationReject cause
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>identicalNumbers: both sides picked the same random number.</summary>
     public const int MSD_REJECT_IDENTICAL = 0;
     public const int MSD_REJECT_ROOT_COUNT = 1;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  TerminalCapabilitySet
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>sequenceNumber INTEGER (0..255)</summary>
     public const int TCS_SEQ_MIN = 0;
     public const int TCS_SEQ_MAX = 255;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  TerminalCapabilitySetReject cause
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int TCS_REJ_UNSPECIFIED = 0;
     public const int TCS_REJ_UNDEFINED_TABLE_ENTRY_USED = 1;
@@ -129,9 +129,9 @@ internal static class H245Constants
     public const int TCS_REJ_TABLE_ENTRY_CAPACITY_EXCEEDED = 3;
     public const int TCS_REJ_ROOT_COUNT = 4;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  OpenLogicalChannel / DataType
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>forwardLogicalChannelNumber INTEGER (1..65535)</summary>
     public const int LCN_MIN = 1;
@@ -151,9 +151,9 @@ internal static class H245Constants
     public const int SESSION_VIDEO = 2;
     public const int SESSION_DATA = 3;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  OpenLogicalChannelReject cause
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     public const int OLC_REJ_UNSPECIFIED = 0;
     public const int OLC_REJ_UNSUPPORTED_TYPE = 1;
@@ -163,9 +163,9 @@ internal static class H245Constants
     public const int OLC_REJ_DATA_TYPE_AL_COMBINATION_NOT_SUPPORTED = 5;
     public const int OLC_REJ_ROOT_COUNT = 6;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  CloseLogicalChannel source
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>CloseLogicalChannel source CHOICE: user initiated.</summary>
     public const int CLC_SOURCE_USER = 0;
@@ -175,17 +175,17 @@ internal static class H245Constants
 
     public const int CLC_SOURCE_ROOT_COUNT = 2;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  RoundTripDelay
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>sequenceNumber INTEGER (0..255)</summary>
     public const int RTD_SEQ_MIN = 0;
     public const int RTD_SEQ_MAX = 255;
 
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
     //  Helpers
-    // ──────────────────────────────────────────────────────────
+    // ----------------------------------------------------------
 
     /// <summary>Return a friendly name for a top-level message type + sub-CHOICE.</summary>
     public static string MessageName(int topLevel, int subIndex)
