@@ -56,6 +56,13 @@ public sealed class FtpRequest : Request
             return null;
         }
 
+        return ParseCommandLine(rawResponse);
+    }
+
+    // Split a raw FTP control line into (command, arguments). The verb is upper-cased (RFC 959 4.1
+    // commands are case-insensitive); everything after it is rejoined as the argument.
+    internal static Tuple<string, string> ParseCommandLine(string rawResponse)
+    {
         var parsedResponse = rawResponse.SplitSpaces();
 
         if (parsedResponse == null || parsedResponse.Length == 0)
@@ -69,14 +76,15 @@ public sealed class FtpRequest : Request
         return new Tuple<string, string>(command, arguments);
     }
 
-    internal async Task SendResponse(FtpResponseCode command, string args)
+    // RFC 959 4.2: a single-line reply is the 3-digit code, a space, then text, terminated by CRLF.
+    internal static string FormatResponse(FtpResponseCode command, string args)
     {
-        var cmd = $"{(int)command} {args}\r\n";
-
-        await SendRawResponse(cmd);
+        return $"{(int)command} {args}\r\n";
     }
 
-    internal async Task SendFeatureListResponse(FtpResponseCode command, string[] args)
+    // RFC 2389 FEAT: a multi-line reply - "<code>-Features", each feature indented by a space, then
+    // "<code> End".
+    internal static string FormatFeatureList(FtpResponseCode command, string[] args)
     {
         var cmd = $"{(int)command}-Features\r\n";
 
@@ -87,7 +95,17 @@ public sealed class FtpRequest : Request
 
         cmd += $"{(int)command} End\r\n";
 
-        await SendRawResponse(cmd);
+        return cmd;
+    }
+
+    internal async Task SendResponse(FtpResponseCode command, string args)
+    {
+        await SendRawResponse(FormatResponse(command, args));
+    }
+
+    internal async Task SendFeatureListResponse(FtpResponseCode command, string[] args)
+    {
+        await SendRawResponse(FormatFeatureList(command, args));
     }
 
     internal static async Task<FtpRequest> Parse(ListenerSocket socket, Encoding encoding, byte[] rawBytes, int read)
