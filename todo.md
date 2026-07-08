@@ -45,7 +45,7 @@
 
 - [x] `InternetArchiveProcessor` - `RewriteToWorker`, `GetArchiveTypeCode`, and `ProcessCDX` made internal and covered by `InternetArchiveTests.cs` (18 tests over the new Edge Worker path)
 - [x] Finger `BuildUserList` covered (see above)
-- [ ] FTP request parsing, mail/IRC/telnet/streaming/printer protocol flow - still uncovered; needs socket-level harnesses. Left for a dedicated testing pass
+- [~] Protocol-flow coverage - in progress. IRC done: parser, reply wire-formatting, nick validation, and channel logic (`IrcProtocolTests.cs`, 46 tests). Still to cover: FTP request parsing, mail (SMTP/POP3/IMAP), Telnet BBS, MMS/PNA streaming, printer.
 
 ## Discovered during manual testing (pre-existing, NOT introduced here)
 

@@ -1621,7 +1621,7 @@ internal class IrcProxy : Listener
 
     #region IRC Protocol Helpers
 
-    private static bool IsValidNick(string nick)
+    internal static bool IsValidNick(string nick)
     {
         if (string.IsNullOrEmpty(nick) || nick.Length > 30)
         {
@@ -1631,7 +1631,7 @@ internal class IrcProxy : Listener
         return Regex.IsMatch(nick, @"^[A-Za-z\[\]\\`_\^{|}][A-Za-z0-9\[\]\\`_\^{|}\-]*$");
     }
 
-    private static IrcCommand ParseIrcCommand(string input)
+    internal static IrcCommand ParseIrcCommand(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
@@ -1663,7 +1663,7 @@ internal class IrcProxy : Listener
         return result;
     }
 
-    private static byte[] SendIrcReply(string host, IrcServerReplyType replyType, string nickname, string[] parameters, string trailing)
+    internal static byte[] SendIrcReply(string host, IrcServerReplyType replyType, string nickname, string[] parameters, string trailing)
     {
         return SendIrcReply(new List<(string, IrcServerReplyType, string, string[], string)>
         {
