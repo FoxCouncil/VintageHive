@@ -59,14 +59,14 @@ internal partial class SmtpProxy : Listener
         {
             case SmtpCommands.HELO:
             {
-                bag.Add(Command.ToString(), Message);
+                bag[Command.ToString()] = Message;
 
                 return await SendResponse(RequestedMailActionCompleted, $"Hello {Message}, pleased to meet you.");
             }
 
             case SmtpCommands.EHLO:
             {
-                bag.Add(Command.ToString(), Message);
+                bag[Command.ToString()] = Message;
 
                 var helloResponse = $"Hello {Message}, pleased to meet you. ESMTP features supported.";
 
@@ -89,7 +89,7 @@ internal partial class SmtpProxy : Listener
                     return await SendResponse(MailboxUnavailable, "Cannot relay email for another user!");
                 }
 
-                bag.Add(MailFrom, email);
+                bag[MailFrom] = email;
 
                 return await SendResponse(RequestedMailActionCompleted, $"<{email.Full}> sender accepted");
             }
@@ -152,25 +152,28 @@ internal partial class SmtpProxy : Listener
 
             case SmtpCommands.DATA:
             {
-                bag.Add(RequestingData, true);
-                bag.Add(MailData, string.Empty);
+                bag[RequestingData] = true;
+                bag[MailData] = string.Empty;
 
                 return await SendResponse(StartMailInput, "Enter mail, end with a single \".\" on a line by itself");
             }
 
             case SmtpCommands.RSET:
             {
-                var initialHello = bag.First();
-
                 bag.TryGetValue(Authenticated, out var username);
 
-                bag.Clear();
+                if (bag.Count > 0)
+                {
+                    var initialHello = bag.First();
 
-                bag.Add(initialHello.Key, initialHello.Value);
+                    bag.Clear();
+
+                    bag.Add(initialHello.Key, initialHello.Value);
+                }
 
                 if (username != null)
                 {
-                    bag.Add(Authenticated, username);
+                    bag[Authenticated] = username;
                 }
 
                 return await SendResponse(RequestedMailActionCompleted, "OK");
@@ -193,12 +196,16 @@ internal partial class SmtpProxy : Listener
 
                     Mind.PostOfficeDb.ProcessAndInsertEmail(bag[MailFrom] as EmailAddress, bag[MailTo] as HashSet<EmailAddress>, bag[MailData] as string);
 
+                    bag.Remove(MailFrom);
+                    bag.Remove(MailTo);
+                    bag.Remove(MailData);
+
                     return await SendResponse(RequestedMailActionCompleted, "Ok, message accepted for delivery");
                 }
                 else if (bag.ContainsKey(RequestingUsername) && !bag.ContainsKey(RequestingPassword))
                 {
                     // got username
-                    bag.Add(Username, Convert.FromBase64String(Message).ToASCII());
+                    bag[Username] = Convert.FromBase64String(Message).ToASCII();
 
                     bag.Remove(RequestingUsername);
                     bag.Add(RequestingPassword, true);
@@ -209,7 +216,7 @@ internal partial class SmtpProxy : Listener
                 else if (!bag.ContainsKey(RequestingUsername) && bag.ContainsKey(RequestingPassword))
                 {
                     // Got password
-                    bag.Add(Password, Convert.FromBase64String(Message).ToASCII());
+                    bag[Password] = Convert.FromBase64String(Message).ToASCII();
 
                     bag.Remove(RequestingPassword);
 
@@ -220,7 +227,7 @@ internal partial class SmtpProxy : Listener
 
                     if (user != null)
                     {
-                        bag.Add(Authenticated, username);
+                        bag[Authenticated] = username;
 
                         return await SendResponse(AuthenticationSuccessful, "Authentication successful");
                     }

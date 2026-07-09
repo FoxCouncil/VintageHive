@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Microsoft.Data.Sqlite;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace VintageHive.Data.Contexts;
@@ -22,10 +23,14 @@ public class PostOfficeDbContext : DbContextBase
 
     public void ProcessAndInsertEmail(EmailAddress from, HashSet<EmailAddress> toAddresses, string data)
     {
-        var subject = Regex.Match(data, @"Subject: (.*?)\r\n").Groups[1].Value;
-        var rawDate = Regex.Match(data, @"Date: (.*?)\r\n").Groups[1].Value;
+        var subject = Regex.Match(data, @"Subject: (.*?)\r\n", RegexOptions.IgnoreCase).Groups[1].Value;
+        var rawDate = Regex.Match(data, @"Date: (.*?)\r\n", RegexOptions.IgnoreCase).Groups[1].Value;
 
-        var date = DateTime.Parse(rawDate);
+        // Era clients send RFC 822 dates .NET can't always parse (named zones like EST); never let a bad header lose the mail
+        if (!DateTime.TryParse(rawDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            date = DateTime.UtcNow;
+        }
 
         WithContext(context =>
         {

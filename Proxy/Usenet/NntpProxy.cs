@@ -530,6 +530,12 @@ internal class NntpProxy : Listener
             return "";
         }
 
+        // The Replace only catches dots after a CRLF; the first body line has no preceding CRLF
+        if (body.StartsWith('.'))
+        {
+            body = "." + body;
+        }
+
         return body.Replace("\r\n.", "\r\n..");
     }
 

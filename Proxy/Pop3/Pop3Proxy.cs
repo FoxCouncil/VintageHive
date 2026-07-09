@@ -96,9 +96,7 @@ internal class Pop3Proxy : Listener
 
                 if (!string.IsNullOrEmpty(Message))
                 {
-                    var idx = int.Parse(Message);
-
-                    if (idx < 1 || idx > messages.Count)
+                    if (!int.TryParse(Message, out var idx) || idx < 1 || idx > messages.Count)
                     {
                         return await SendResponse(false, "No such message");
                     }
@@ -128,9 +126,7 @@ internal class Pop3Proxy : Listener
             {
                 var messages = bag[Messages] as List<EmailMessage>;
 
-                var selectedIndex = int.Parse(Message);
-
-                if (selectedIndex < 1 || selectedIndex > messages.Count)
+                if (!int.TryParse(Message, out var selectedIndex) || selectedIndex < 1 || selectedIndex > messages.Count)
                 {
                     return await SendResponse(false, "No such message");
                 }
@@ -146,9 +142,7 @@ internal class Pop3Proxy : Listener
             {
                 var messages = bag[Messages] as List<EmailMessage>;
 
-                var selectedIndex = int.Parse(Message);
-
-                if (selectedIndex < 1 || selectedIndex > messages.Count)
+                if (!int.TryParse(Message, out var selectedIndex) || selectedIndex < 1 || selectedIndex > messages.Count)
                 {
                     return await SendResponse(false, "No such message");
                 }
@@ -166,9 +160,7 @@ internal class Pop3Proxy : Listener
 
                 if (!string.IsNullOrEmpty(Message))
                 {
-                    var idx = int.Parse(Message);
-
-                    if (idx < 1 || idx > messages.Count)
+                    if (!int.TryParse(Message, out var idx) || idx < 1 || idx > messages.Count)
                     {
                         return await SendResponse(false, "No such message");
                     }
