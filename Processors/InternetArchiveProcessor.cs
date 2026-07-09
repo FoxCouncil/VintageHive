@@ -130,7 +130,7 @@ internal static class InternetArchiveProcessor
 
             try
             {
-                workerResponse = await httpClient.GetAsync(workerFetchUrl);
+                workerResponse = await httpClient.GetAsync(workerFetchUrl, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
             }
             catch (Exception ex)
             {
@@ -146,22 +146,25 @@ internal static class InternetArchiveProcessor
 
             contentType = workerResponse.Content.Headers.ContentType?.ToString() ?? "text/html";
 
-            // Worker is a raw cache passthrough now - VintageHive owns the HTML scrubbing (single source of truth).
-            if (contentType.StartsWith("text/html"))
+            // HTML must be buffered so C# can rewrite the whole document. Everything else - images, media, css -
+            // is streamed straight to the browser so it paints progressively in period browsers (no all-at-once pop).
+            if (!contentType.StartsWith("text/html"))
             {
-                var iaHtmlData = await workerResponse.Content.ReadAsStringAsync();
+                Log.WriteLine(Log.LEVEL_INFO, nameof(InternetArchiveProcessor), $"{req.Uri} [worker-stream] {sw.ElapsedMilliseconds}ms", req.ListenerSocket.TraceId.ToString());
 
-                if (string.IsNullOrWhiteSpace(iaHtmlData))
-                {
-                    return false;
-                }
+                res.SetBodyStream(workerResponse.Content.ReadAsStream(), contentType);
 
-                contentData = Encoding.ASCII.GetBytes(ScrubHtml(iaUrl, iaHtmlData));
+                return true;
             }
-            else
+
+            var iaHtmlData = await workerResponse.Content.ReadAsStringAsync();
+
+            if (string.IsNullOrWhiteSpace(iaHtmlData))
             {
-                contentData = await workerResponse.Content.ReadAsByteArrayAsync();
+                return false;
             }
+
+            contentData = Encoding.ASCII.GetBytes(ScrubHtml(iaUrl, iaHtmlData));
 
             if (contentData == null || contentData.Length == 0)
             {
