@@ -16,6 +16,9 @@ internal static class MmsCommand
     // TcpMessageHeader size (fixed: rep+version+sessionId+messageLength+seal+chunkCount+seq+MBZ+timeSent)
     public const int TCP_HEADER_SIZE = 32;
 
+    // Legit MMS commands are a few KB; the length field is client-controlled, so cap it before allocating
+    public const int MAX_COMMAND_BODY_SIZE = 0x10000;
+
     // ===================================================================
     // MID Constants - Server -> Client (0x0004xxxx)
     // ===================================================================
@@ -170,6 +173,11 @@ internal static class MmsCommand
             if (mmsBodyLen <= 0)
             {
                 return (true, Array.Empty<byte>());
+            }
+
+            if (mmsBodyLen > MAX_COMMAND_BODY_SIZE)
+            {
+                return (false, null);
             }
 
             // Pad to 8-byte boundary for reading

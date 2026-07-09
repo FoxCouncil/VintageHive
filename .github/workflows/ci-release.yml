@@ -42,7 +42,8 @@ jobs:
         release_name="VintageHive-$tag-${{ matrix.target }}"
 
         # Build everything
-        dotnet publish --runtime "${{ matrix.target }}" --self-contained true -c Release -o "$release_name"
+        # Target the csproj explicitly: bare publish resolves to VintageHive.sln, whose Release|x64 config has no Build.0 entries and produces no output
+        dotnet publish VintageHive.csproj --runtime "${{ matrix.target }}" --self-contained true -c Release -o "$release_name"
 
         # Pack files
         if [ "${{ matrix.target }}" == "win-x64" ]; then

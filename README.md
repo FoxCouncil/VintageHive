@@ -372,7 +372,7 @@ docker run -d \
   -p 631:631 \
   -p 515:515 \
   -p 9100:9100 \
-  -v vintagehive_data:/app/data \
+  -v vintagehive_data:/app/vfs \
   foxcouncil/vintagehive:latest
 ```
 The container exposes all service ports. Key ports:

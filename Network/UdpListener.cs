@@ -67,11 +67,11 @@ public abstract class UdpListener
 
     /// <summary>
     /// Block until the listener is bound and accepting datagrams.
-    /// Returns false if the timeout expires before the listener starts.
+    /// Returns false if the listener failed to bind or the timeout expires before it starts.
     /// </summary>
     public bool WaitForStart(int timeoutMs = 5000)
     {
-        return _startedEvent.Wait(timeoutMs);
+        return _startedEvent.Wait(timeoutMs) && _running;
     }
 
     /// <summary>
@@ -94,12 +94,25 @@ public abstract class UdpListener
 
     private async void Run()
     {
-        _udp = new UdpClient(new IPEndPoint(_address, _port));
+        var logSource = GetType().Name;
+
+        try
+        {
+            _udp = new UdpClient(new IPEndPoint(_address, _port));
+        }
+        catch (SocketException ex)
+        {
+            Log.WriteLine(Log.LEVEL_ERROR, logSource, $"Failed to bind {_address}:{_port} - {ex.Message}", "");
+
+            _running = false;
+
+            _startedEvent.Set();
+
+            return;
+        }
 
         BoundPort = ((IPEndPoint)_udp.Client.LocalEndPoint).Port;
         _startedEvent.Set();
-
-        var logSource = GetType().Name;
 
         Log.WriteLine(Log.LEVEL_INFO, logSource, $"Starting {logSource}...{_address}:{BoundPort}", "");
 

@@ -23,6 +23,9 @@ EXPOSE 1969
 # OSCAR (AIM/ICQ)
 EXPOSE 5190
 
+# Finger
+EXPOSE 79
+
 # HTTPS
 EXPOSE 9999
 
@@ -71,9 +74,6 @@ EXPOSE 1755
 # PNA (RealPlayer)
 EXPOSE 7070
 
-# Create data volume
-VOLUME /app/data
-
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["VintageHive.csproj", "."]
@@ -91,9 +91,14 @@ COPY --from=publish /app/publish .
 # The container uses the distro's ffmpeg (installed above via PATH); drop the bundled Windows/macOS/amd64
 # binaries so the correct architecture is always used and the image isn't carrying ~240MB of dead weight.
 RUN rm -f libs/ffmpeg.exe libs/ffmpeg.osx.intel libs/ffmpeg.amd64
-# Create a non-root user
+# Create a non-root user; pre-create the VFS root so a fresh named volume mounts writable
 RUN useradd -m vintagehive && \
+    mkdir -p /app/vfs && \
     chown -R vintagehive:vintagehive /app
+
+# All persistent state (SQLite DBs, mail, print jobs, downloads) lives under the VFS root.
+# Declared after the chown so the volume snapshot inherits vintagehive ownership.
+VOLUME /app/vfs
 
 USER vintagehive
 
