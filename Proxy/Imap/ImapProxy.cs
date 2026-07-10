@@ -465,13 +465,10 @@ internal partial class ImapProxy : Listener
             return BuildResponse($"{tag} NO Not authenticated{EOL}");
         }
 
-        // Simplified APPEND: we accept the command but respond with OK
-        // Full literal handling would require multi-line reads from the socket
-        var sb = new StringBuilder();
-
-        sb.Append($"{tag} OK APPEND completed{EOL}");
-
-        return BuildResponse(sb.ToString());
+        // We don't implement APPEND literal handling. Reply NO (before the synchronizing-literal continuation, so
+        // a compliant client never sends the data) instead of OK - the old OK silently discarded the message,
+        // making Sent/Drafts server copies vanish. NO makes the client keep its local copy.
+        return BuildResponse($"{tag} NO APPEND not supported{EOL}");
     }
 
     #endregion
@@ -953,8 +950,27 @@ internal partial class ImapProxy : Listener
             {
                 var range = part.Split(':', 2);
 
-                var startVal = range[0] == "*" ? (useUid ? messages[^1].Uid : messages.Count) : int.Parse(range[0]);
-                var endVal = range[1] == "*" ? (useUid ? messages[^1].Uid : messages.Count) : int.Parse(range[1]);
+                int startVal;
+                int endVal;
+
+                // TryParse (was int.Parse - a non-numeric range threw FormatException and 500'd the handler)
+                if (range[0] == "*")
+                {
+                    startVal = useUid ? messages[^1].Uid : messages.Count;
+                }
+                else if (!int.TryParse(range[0], out startVal))
+                {
+                    continue;
+                }
+
+                if (range[1] == "*")
+                {
+                    endVal = useUid ? messages[^1].Uid : messages.Count;
+                }
+                else if (!int.TryParse(range[1], out endVal))
+                {
+                    continue;
+                }
 
                 if (startVal > endVal)
                 {
@@ -973,12 +989,13 @@ internal partial class ImapProxy : Listener
                 }
                 else
                 {
-                    for (var seq = startVal; seq <= endVal; seq++)
+                    // Clamp to [1, count] BEFORE looping so a huge/overflow endVal can't pin the CPU
+                    var from = Math.Max(1, startVal);
+                    var to = Math.Min(messages.Count, endVal);
+
+                    for (var seq = from; seq <= to; seq++)
                     {
-                        if (seq >= 1 && seq <= messages.Count)
-                        {
-                            result.Add(seq - 1);
-                        }
+                        result.Add(seq - 1);
                     }
                 }
             }
