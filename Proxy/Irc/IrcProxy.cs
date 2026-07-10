@@ -20,6 +20,10 @@ internal class IrcProxy : Listener
     private readonly ConcurrentDictionary<Guid, IrcUser> Users = new();
     private readonly ConcurrentDictionary<string, IrcChannel> Channels = new(StringComparer.OrdinalIgnoreCase);
 
+    // Atomic nick reservation - replaces the check-then-act "is this nick taken?" scans that let two interleaved
+    // connections claim the same nick. A nick is held from the moment it's chosen until the connection drops.
+    private readonly ConcurrentDictionary<string, byte> ReservedNicks = new(StringComparer.OrdinalIgnoreCase);
+
     private DateTime StartTime;
 
     #endregion
@@ -188,7 +192,18 @@ internal class IrcProxy : Listener
     {
         if (Users.TryRemove(connection.TraceId, out var user))
         {
+            if (!string.IsNullOrEmpty(user.Nick))
+            {
+                ReservedNicks.TryRemove(user.Nick, out _);
+            }
+
             await RemoveUserFromAllChannels(user, "Connection closed");
+        }
+
+        // Release a nick reserved during an incomplete registration (user never entered Users)
+        if (connection.DataBag.TryGetValue(NICK, out var nickObj) && nickObj is string reservedNick)
+        {
+            ReservedNicks.TryRemove(reservedNick, out _);
         }
 
         await Task.CompletedTask;
@@ -414,12 +429,23 @@ internal class IrcProxy : Listener
             return SendIrcReply(IRCD_HOSTNAME, ERR_ERRONEUSNICKNAME, "*", new[] { nick }, "Erroneous nickname");
         }
 
-        if (Users.Values.Any(x => x.Nick.Equals(nick, StringComparison.OrdinalIgnoreCase)))
-        {
-            return SendIrcReply(IRCD_HOSTNAME, ERR_NICKNAMEINUSE, "*", new[] { nick }, "Nickname is already in use");
-        }
+        var priorNick = connection.DataBag.TryGetValue(NICK, out var priorObj) ? priorObj as string : null;
 
-        connection.DataBag[NICK] = nick;
+        if (!nick.Equals(priorNick, StringComparison.OrdinalIgnoreCase))
+        {
+            // Atomically claim the nick; a concurrent connection that already claimed it fails here
+            if (!ReservedNicks.TryAdd(nick, 0))
+            {
+                return SendIrcReply(IRCD_HOSTNAME, ERR_NICKNAMEINUSE, "*", new[] { nick }, "Nickname is already in use");
+            }
+
+            if (priorNick != null)
+            {
+                ReservedNicks.TryRemove(priorNick, out _);
+            }
+
+            connection.DataBag[NICK] = nick;
+        }
 
         return CheckIfRegistrationComplete(connection);
     }
@@ -1440,20 +1466,23 @@ internal class IrcProxy : Listener
             return null;
         }
 
-        // Check if nick is in use by another connected user
-        if (Users.Values.Any(x => !ReferenceEquals(x, user) && x.Nick.Equals(newNick, StringComparison.OrdinalIgnoreCase)))
-        {
-            return SendIrcReply(IRCD_HOSTNAME, ERR_NICKNAMEINUSE, user.Nick, new[] { newNick }, "Nickname is already in use");
-        }
-
-        // Check if nick is registered to someone else
+        // Check if nick is registered to someone else (before claiming, so a failure here doesn't leak the claim)
         if (!user.IsAuthenticated && Mind.Db.UserExistsByUsername(newNick))
         {
             return SendIrcReply(IRCD_HOSTNAME, ERR_NICKNAMEINUSE, user.Nick, new[] { newNick }, "Nickname is registered. Use PASS to authenticate.");
         }
 
+        // Atomically claim the new nick (replaces the racy Users.Values.Any scan)
+        if (!ReservedNicks.TryAdd(newNick, 0))
+        {
+            return SendIrcReply(IRCD_HOSTNAME, ERR_NICKNAMEINUSE, user.Nick, new[] { newNick }, "Nickname is already in use");
+        }
+
         var oldNick = user.Nick;
         var oldFullname = user.Fullname;
+
+        // Release the old nick now that the new one is secured
+        ReservedNicks.TryRemove(oldNick, out _);
 
         // Update nick in all channels
         foreach (var channelName in user.Channels.ToList())

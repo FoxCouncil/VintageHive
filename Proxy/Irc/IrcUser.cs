@@ -1,11 +1,16 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
+using VintageHive.Utilities;
 
 namespace VintageHive.Proxy.Irc;
 
 public class IrcUser
 {
+    // Serializes writes to this user's socket so a broadcast from another connection can't interleave with
+    // this connection's own reply (which corrupts IRC line framing, especially on partial sends).
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+
     public string Nick { get; set; }
 
     public string Username { get; set; }
@@ -14,9 +19,9 @@ public class IrcUser
 
     public string Realname { get; set; }
 
-    public HashSet<string> Channels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentHashSet<string> Channels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public HashSet<char> Modes { get; set; } = new();
+    public ConcurrentHashSet<char> Modes { get; set; } = new();
 
     public ListenerSocket ListenerSocket { get; set; }
 
@@ -43,6 +48,15 @@ public class IrcUser
 
     public async Task SendData(byte[] data)
     {
-        await ListenerSocket.Stream.WriteAsync(data, 0, data.Length);
+        await _writeLock.WaitAsync();
+
+        try
+        {
+            await ListenerSocket.Stream.WriteAsync(data, 0, data.Length);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using VintageHive.Utilities;
 
 namespace VintageHive.Proxy.Irc;
 
@@ -17,7 +18,7 @@ internal class IrcChannel
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public HashSet<char> Modes { get; set; } = new() { 'n', 't' };
+    public ConcurrentHashSet<char> Modes { get; set; } = new() { 'n', 't' };
 
     public string Key { get; set; } = string.Empty;
 
@@ -27,13 +28,13 @@ internal class IrcChannel
 
     public ConcurrentDictionary<string, IrcUser> Members { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public HashSet<string> Operators { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentHashSet<string> Operators { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public HashSet<string> Voiced { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentHashSet<string> Voiced { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public HashSet<string> BanMasks { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentHashSet<string> BanMasks { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public HashSet<string> InviteList { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public ConcurrentHashSet<string> InviteList { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public IrcChannel(string name)
     {
