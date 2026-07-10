@@ -202,17 +202,36 @@ internal class DnsProxy
         return response;
     }
 
+    // Iterative, not recursive: a crafted compression pointer that points to itself (or forms a
+    // cycle) would otherwise recurse until StackOverflowException - which is uncatchable and kills
+    // the whole process. Pointers here must jump strictly backward AND strictly decrease on each
+    // follow (backward-only alone still permits a revisit cycle), with a hard hop budget as backstop.
     private static string ParseDomainName(byte[] data, ref int offset)
     {
         var labels = new List<string>();
+        var terminated = false;
 
-        while (offset < data.Length)
+        var current = offset;
+        var followedPointer = false;
+        var minPointer = data.Length;
+        var jumps = 0;
+        var totalLength = 0;
+
+        while (current < data.Length)
         {
-            var labelLen = data[offset];
+            var labelLen = data[current];
 
             if (labelLen == 0)
             {
-                offset++; // Skip the null terminator
+                current++; // Skip the null terminator
+
+                // Only the pre-pointer bytes belong to this name in the original stream
+                if (!followedPointer)
+                {
+                    offset = current;
+                }
+
+                terminated = true;
 
                 break;
             }
@@ -220,39 +239,53 @@ internal class DnsProxy
             // Compression pointer (top two bits set) - shouldn't appear in queries, but handle it
             if ((labelLen & 0xC0) == 0xC0)
             {
-                if (offset + 1 >= data.Length)
+                if (current + 1 >= data.Length)
                 {
                     return null;
                 }
 
-                var pointer = ((labelLen & 0x3F) << 8) | data[offset + 1];
-                var pointerOffset = pointer;
+                var pointer = ((labelLen & 0x3F) << 8) | data[current + 1];
 
-                // Follow the pointer to read the rest of the name
-                var rest = ParseDomainName(data, ref pointerOffset);
-
-                if (rest != null && rest.Length > 0)
+                // Reject forward/self pointers, non-decreasing jumps (cycles), and runaway chains
+                if (pointer >= current || pointer >= minPointer || ++jumps > 128)
                 {
-                    labels.Add(rest);
+                    return null;
                 }
 
-                offset += 2;
+                minPointer = pointer;
 
-                return string.Join(".", labels);
+                // The name's own bytes end just past this first pointer
+                if (!followedPointer)
+                {
+                    offset = current + 2;
+
+                    followedPointer = true;
+                }
+
+                current = pointer;
+
+                continue;
             }
 
-            offset++;
+            current++;
 
-            if (offset + labelLen > data.Length)
+            if (current + labelLen > data.Length)
             {
                 return null;
             }
 
-            labels.Add(Encoding.ASCII.GetString(data, offset, labelLen));
+            totalLength += labelLen + 1;
 
-            offset += labelLen;
+            if (totalLength > 255) // RFC 1035 max name length
+            {
+                return null;
+            }
+
+            labels.Add(Encoding.ASCII.GetString(data, current, labelLen));
+
+            current += labelLen;
         }
 
-        return labels.Count > 0 ? string.Join(".", labels) : null;
+        return terminated && labels.Count > 0 ? string.Join(".", labels) : null;
     }
 }
