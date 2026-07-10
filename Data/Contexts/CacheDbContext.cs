@@ -77,7 +77,8 @@ public class CacheDbContext : DbContextBase
                 return null;
             }
 
-            return reader.GetString(0);
+            // A NULL value column would throw from GetString; treat it as the empty-string negative sentinel
+            return reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
         });
     }
 
@@ -93,8 +94,8 @@ public class CacheDbContext : DbContextBase
 
             updateCommand.Parameters.Add(new SqliteParameter("@url", url));
             updateCommand.Parameters.Add(new SqliteParameter("@year", year));
-            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
-            updateCommand.Parameters.Add(new SqliteParameter("@results", results));
+            updateCommand.Parameters.Add(new SqliteParameter("@value", (object)value ?? DBNull.Value));
+            updateCommand.Parameters.Add(new SqliteParameter("@results", (object)results ?? DBNull.Value));
 
             if (updateCommand.ExecuteNonQuery() == 0)
             {
@@ -104,8 +105,8 @@ public class CacheDbContext : DbContextBase
 
                 insertCommand.Parameters.Add(new SqliteParameter("@url", url));
                 insertCommand.Parameters.Add(new SqliteParameter("@year", year));
-                insertCommand.Parameters.Add(new SqliteParameter("@value", value));
-                insertCommand.Parameters.Add(new SqliteParameter("@results", results));
+                insertCommand.Parameters.Add(new SqliteParameter("@value", (object)value ?? DBNull.Value));
+                insertCommand.Parameters.Add(new SqliteParameter("@results", (object)results ?? DBNull.Value));
 
                 insertCommand.ExecuteNonQuery();
             }

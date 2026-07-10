@@ -54,7 +54,7 @@ internal static class InternetArchiveProcessor
 
     // Bump to invalidate VintageHive's own Wayback cache after a pipeline change (mirrors the worker's STRIP_VERSION).
     // Old entries orphan and expire on their TTL; the next request repopulates through the current worker + scrub path.
-    const string CacheKeyVersion = "v2";
+    const string CacheKeyVersion = "v3";
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
@@ -157,14 +157,15 @@ internal static class InternetArchiveProcessor
                 return true;
             }
 
-            var iaHtmlData = await workerResponse.Content.ReadAsStringAsync();
+            var htmlEncoding = GetHtmlEncoding(contentType);
+            var iaHtmlData = htmlEncoding.GetString(await workerResponse.Content.ReadAsByteArrayAsync());
 
             if (string.IsNullOrWhiteSpace(iaHtmlData))
             {
                 return false;
             }
 
-            contentData = Encoding.ASCII.GetBytes(ScrubHtml(iaUrl, iaHtmlData));
+            contentData = htmlEncoding.GetBytes(ScrubHtml(iaUrl, iaHtmlData));
 
             if (contentData == null || contentData.Length == 0)
             {
@@ -190,14 +191,7 @@ internal static class InternetArchiveProcessor
             return false;
         }
 
-        if (contentType.Contains("utf8"))
-        {
-            res.SetEncoding(Encoding.UTF8);
-        }
-        else
-        {
-            res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
-        }
+        res.SetEncoding(GetHtmlEncoding(contentType));
 
         Log.WriteLine(Log.LEVEL_INFO, nameof(InternetArchiveProcessor), $"{req.Uri} [{(cachedResponse == null ? "worker-fetch" : "cache-hit")}] {contentData.Length}b {sw.ElapsedMilliseconds}ms", req.ListenerSocket.TraceId.ToString());
 
@@ -251,18 +245,12 @@ internal static class InternetArchiveProcessor
 
             if (contentType.StartsWith("text/html"))
             {
-                var iaHtmlData = await iaResponse.Content.ReadAsStringAsync();
+                var htmlEncoding = GetHtmlEncoding(contentType);
+                var iaHtmlData = htmlEncoding.GetString(await iaResponse.Content.ReadAsByteArrayAsync());
 
                 if (!string.IsNullOrWhiteSpace(iaHtmlData))
                 {
-                    iaHtmlData = ScrubHtml(iaUrl, iaHtmlData);
-
-                    if (iaHtmlData.Contains("https"))
-                    {
-                        // Debugger.Break();
-                    }
-
-                    contentData = Encoding.ASCII.GetBytes(iaHtmlData);
+                    contentData = htmlEncoding.GetBytes(ScrubHtml(iaUrl, iaHtmlData));
                 }
                 else
                 {
@@ -293,14 +281,7 @@ internal static class InternetArchiveProcessor
             return false;
         }
 
-        if (contentType.Contains("utf8"))
-        {
-            res.SetEncoding(Encoding.UTF8);
-        }
-        else
-        {
-            res.SetEncoding(Encoding.GetEncoding(ASCIIEncoding));
-        }
+        res.SetEncoding(GetHtmlEncoding(contentType));
 
         res.SetBodyData(contentData, contentType);
 
@@ -410,9 +391,15 @@ internal static class InternetArchiveProcessor
 
                     result = $"{FullRewritePattern}{timestamp}{iaType}/{iaUrl}";
                 }
-
-                Mind.Cache.SetWaybackAvailability(incomingUrl, internetArchiveYear, result, availabilityResponseRaw);
             }
+            else
+            {
+                res.ErrorMessage = $"No Internet Archive availability data found for this URL.</p><p><b>{availabilityUri}</b></p><p>[CacheMiss]";
+            }
+
+            // Persist the outcome unconditionally - empty string is the negative sentinel, so a repeat lookup for a
+            // dead URL is a cache hit ([CacheHit] below) instead of re-hitting CDX/the worker every time.
+            Mind.Cache.SetWaybackAvailability(incomingUrl, internetArchiveYear, result ?? string.Empty, availabilityResponseRaw ?? string.Empty);
         }
 
         if (string.IsNullOrWhiteSpace(result))
@@ -440,12 +427,18 @@ internal static class InternetArchiveProcessor
 
             if (parts.Length == 4)
             {
+                // CDX uses "-" for unknown length; Length only feeds the largest-capture ranking, so 0 keeps it usable
+                if (!int.TryParse(parts[3], out var length))
+                {
+                    length = 0;
+                }
+
                 var result = new WaybackCDXResult
                 {
                     Url = parts[0],
                     Timestamp = parts[1],
                     MimeType = parts[2],
-                    Length = int.Parse(parts[3])
+                    Length = length
                 };
 
                 response.Add(result);
@@ -453,6 +446,18 @@ internal static class InternetArchiveProcessor
         }
 
         return response;
+    }
+
+    // 1990s pages are Latin-1/CP-1252 unless the header says UTF-8; ISO-8859-1 is byte-bijective, so
+    // decode->scrub->encode with it round-trips every high byte losslessly (ScrubHtml only rewrites ASCII markup).
+    internal static Encoding GetHtmlEncoding(string contentType)
+    {
+        if (contentType != null && (contentType.Contains("utf-8", StringComparison.OrdinalIgnoreCase) || contentType.Contains("utf8", StringComparison.OrdinalIgnoreCase)))
+        {
+            return Encoding.UTF8;
+        }
+
+        return Encoding.GetEncoding(ASCIIEncoding);
     }
 
     internal static string ScrubHtml(Uri iaUrl, string html)
