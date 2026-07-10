@@ -31,6 +31,7 @@ internal partial class AdminController : Controller
         { "t120", ConfigNames.ServiceT120 },
         { "finger", ConfigNames.ServiceFinger },
         { "gopher", ConfigNames.ServiceGopher },
+        { "socks5auth", ConfigNames.ServiceSocks5RequireAuth },
     };
 
     public override async Task CallInitial(string rawPath)

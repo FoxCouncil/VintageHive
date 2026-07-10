@@ -3,6 +3,10 @@
 using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
+using System.Text;
+using VintageHive;
+using VintageHive.Data.Contexts;
 using VintageHive.Network;
 using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Socks.Socks4;
@@ -11,6 +15,43 @@ using VintageHive.Proxy.Socks.Socks5;
 #pragma warning disable MSTEST0025 // Enum-to-byte casts are intentional - verifying wire-level constants
 
 namespace Socks;
+
+// Mind.Db is a file-backed SQLite whose setter is private; set it once via reflection and seed a known user,
+// matching the pattern in IrcConformanceTests/MailProtocolTests, so RFC 1929 credential checks can run.
+internal static class SocksTestEnv
+{
+    private static readonly object Gate = new();
+    private static bool _ready;
+
+    public const string User = "socks";
+    public const string Password = "hunter2";
+
+    public static void EnsureUser()
+    {
+        lock (Gate)
+        {
+            if (_ready)
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "vfs", "data"));
+
+            if (Mind.Db == null)
+            {
+                var setter = typeof(Mind).GetProperty(nameof(Mind.Db))!.GetSetMethod(nonPublic: true)!;
+                setter.Invoke(null, new object[] { new HiveDbContext() });
+            }
+
+            if (!Mind.Db!.UserExistsByUsername(User))
+            {
+                Mind.Db.UserCreate(User, Password);
+            }
+
+            _ready = true;
+        }
+    }
+}
 
 #region Enum Tests
 
@@ -384,6 +425,191 @@ public class Socks5ProtocolTests
 
 #endregion
 
+#region SOCKS5 RFC 1929 Auth Tests
+
+[TestClass]
+public class Socks5AuthTests
+{
+    private static byte[] UsernamePasswordRequest(string username, string password)
+    {
+        var user = Encoding.UTF8.GetBytes(username);
+        var pass = Encoding.UTF8.GetBytes(password);
+        var request = new byte[3 + user.Length + pass.Length];
+
+        request[0] = 0x01; // RFC 1929 sub-negotiation version - NOT 0x05
+        request[1] = (byte)user.Length;
+
+        Buffer.BlockCopy(user, 0, request, 2, user.Length);
+
+        request[2 + user.Length] = (byte)pass.Length;
+
+        Buffer.BlockCopy(pass, 0, request, 3 + user.Length, pass.Length);
+
+        return request;
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthRequired_NoAuthOnlyGreeting_RejectsWithFF()
+    {
+        using var pair = await SocketPair.CreateAsync(requireAuth: true);
+
+        // Client offers only NO_AUTH (0x00) - unacceptable when auth is required.
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x00 });
+
+        var reply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x05, reply[0]);
+        Assert.AreEqual((byte)0xFF, reply[1], "Auth required: a no-auth-only client must be rejected, never silently allowed");
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthRequired_OffersUsernamePassword_SelectsMethod02()
+    {
+        using var pair = await SocketPair.CreateAsync(requireAuth: true);
+
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x02 });
+
+        var reply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x05, reply[0]);
+        Assert.AreEqual((byte)0x02, reply[1], "Auth required: must select username/password (0x02)");
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthRequired_GoodCredentials_SucceedsAndEntersRequestPhase()
+    {
+        SocksTestEnv.EnsureUser();
+
+        using var pair = await SocketPair.CreateAsync(requireAuth: true);
+
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x02 });
+
+        var methodReply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x02, methodReply[1]);
+
+        await pair.ClientStream.WriteAsync(UsernamePasswordRequest(SocksTestEnv.User, SocksTestEnv.Password));
+
+        var authReply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x01, authReply[0], "Auth reply version must be 0x01");
+        Assert.AreEqual((byte)0x00, authReply[1], "Correct credentials must yield success status 0x00");
+
+        // Proves we advanced into the request phase: a BIND command is answered, not dropped.
+        await pair.ClientStream.WriteAsync(new byte[] { 0x05, 0x02, 0x00, 0x01, 127, 0, 0, 1, 0x00, 0x50 });
+
+        var requestReply = await pair.ReadClientAsync(10);
+
+        Assert.AreEqual((byte)0x05, requestReply[0]);
+        Assert.AreEqual((byte)Socks5ReplyType.CommandNotSupported, requestReply[1]);
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthRequired_WrongPassword_FailsAndCloses()
+    {
+        SocksTestEnv.EnsureUser();
+
+        using var pair = await SocketPair.CreateAsync(requireAuth: true);
+
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x02 });
+
+        await pair.ReadClientAsync(2);
+
+        await pair.ClientStream.WriteAsync(UsernamePasswordRequest(SocksTestEnv.User, "wrongpass"));
+
+        var authReply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x01, authReply[0]);
+        Assert.AreEqual((byte)0x01, authReply[1], "Wrong credentials must yield a non-zero failure status");
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthRequired_EmptyPassword_IsRejectedNotBypassed()
+    {
+        SocksTestEnv.EnsureUser();
+
+        using var pair = await SocketPair.CreateAsync(requireAuth: true);
+
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x02 });
+
+        await pair.ReadClientAsync(2);
+
+        // PLEN=0. UserFetch with an empty password would match on username alone - this must NOT authenticate.
+        await pair.ClientStream.WriteAsync(UsernamePasswordRequest(SocksTestEnv.User, string.Empty));
+
+        var authReply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x01, authReply[1], "A zero-length password must be rejected, not treated as a username-only match");
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthRequired_BadSubnegotiationVersion_Fails()
+    {
+        SocksTestEnv.EnsureUser();
+
+        using var pair = await SocketPair.CreateAsync(requireAuth: true);
+
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x02 });
+
+        await pair.ReadClientAsync(2);
+
+        // Otherwise-VALID credentials, but with the wrong sub-negotiation version byte (0x05 instead of 0x01).
+        // Only the version check can cause failure here: if it were removed, the valid creds would authenticate (0x00).
+        var badVersion = UsernamePasswordRequest(SocksTestEnv.User, SocksTestEnv.Password);
+
+        badVersion[0] = 0x05;
+
+        await pair.ClientStream.WriteAsync(badVersion);
+
+        var authReply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x01, authReply[0], "Failure reply still carries the RFC 1929 version 0x01");
+        Assert.AreEqual((byte)0x01, authReply[1], "A bad sub-negotiation version must fail authentication even with valid credentials");
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks5_AuthOff_NoAuthGreeting_StillAccepted()
+    {
+        using var pair = await SocketPair.CreateAsync(requireAuth: false);
+
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x00 });
+
+        var reply = await pair.ReadClientAsync(2);
+
+        Assert.AreEqual((byte)0x00, reply[1], "Auth off: the existing no-auth path is unchanged");
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Socks4_AuthRequired_IsRejected()
+    {
+        using var pair = await SocketPair.CreateAsync(socksVersion: 4, requireAuth: true);
+
+        // A SOCKS4 CONNECT to 1.2.3.4:80 with an empty userid.
+        await pair.ClientStream.WriteAsync(new byte[] { 0x01, 0x00, 0x50, 1, 2, 3, 4, 0x00 });
+
+        var reply = await pair.ReadClientAsync(8);
+
+        Assert.AreEqual((byte)0x00, reply[0], "SOCKS4 reply leading byte");
+        Assert.AreEqual((byte)0x5B, reply[1], "SOCKS4 must be rejected (0x5B) when auth is required - it has no password mechanism");
+
+        // The pre-parse auth reject replies with port 0 / 0.0.0.0. A connect-failure reject (if the reject block were
+        // removed and the handler tried to reach 1.2.3.4:80) would echo port 0x0050 / 1.2.3.4 - so these bytes prove
+        // the rejection came from the policy, not from a failed dial to the requested address.
+        Assert.AreEqual(0, reply[2] | reply[3], "Auth reject must report port 0, not the requested port");
+        Assert.AreEqual(0, reply[4] | reply[5] | reply[6] | reply[7], "Auth reject must report 0.0.0.0, not the requested address");
+    }
+}
+
+#endregion
+
 #region SOCKS4 Protocol Tests
 
 [TestClass]
@@ -635,7 +861,7 @@ internal class SocketPair : IDisposable
 
     private CancellationTokenSource Cts { get; init; } = null!;
 
-    public static async Task<SocketPair> CreateAsync(int socksVersion = 5)
+    public static async Task<SocketPair> CreateAsync(int socksVersion = 5, bool requireAuth = false)
     {
         using var listener = new TcpListener(IPAddress.Loopback, 0);
 
@@ -684,7 +910,7 @@ internal class SocketPair : IDisposable
             {
                 try
                 {
-                    await Socks5Handler.HandleAsync(listenerSocket, versionByte, cts.Token);
+                    await Socks5Handler.HandleAsync(listenerSocket, versionByte, requireAuth, cts.Token);
                 }
                 catch { }
                 finally
@@ -699,7 +925,7 @@ internal class SocketPair : IDisposable
             {
                 try
                 {
-                    await Socks4Handler.HandleAsync(listenerSocket, versionByte, cts.Token);
+                    await Socks4Handler.HandleAsync(listenerSocket, versionByte, requireAuth, cts.Token);
                 }
                 catch { }
                 finally

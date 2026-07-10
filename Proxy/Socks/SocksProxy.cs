@@ -28,6 +28,9 @@ internal class SocksProxy : Listener
 
         var version = buf[0];
 
+        // Read once here so the policy applies to the next connection without a restart, and handlers stay testable without Mind.Db.
+        var requireAuth = Mind.Db?.ConfigGet<bool>(ConfigNames.ServiceSocks5RequireAuth) ?? false;
+
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
 
         try
@@ -36,13 +39,13 @@ internal class SocksProxy : Listener
             {
                 case 0x05:
                 {
-                    await Socks5Handler.HandleAsync(connection, version, cts.Token);
+                    await Socks5Handler.HandleAsync(connection, version, requireAuth, cts.Token);
                 }
                 break;
 
                 case 0x04:
                 {
-                    await Socks4Handler.HandleAsync(connection, version, cts.Token);
+                    await Socks4Handler.HandleAsync(connection, version, requireAuth, cts.Token);
                 }
                 break;
 

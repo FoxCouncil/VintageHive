@@ -455,7 +455,6 @@ VintageHive uses SQLite for persistent storage, with separate database contexts 
 ### Planned
 - HTTPS re-enablement and certificate improvements
 - FTP authentication
-- SOCKS5 proxy improvements
 - Yahoo! IM and MSN Messenger
 - NetMeeting App Sharing (T.128)
 - Community servers
@@ -468,6 +467,7 @@ Key configuration options:
 - **Internet Archive Year** - Which year to fetch archived pages from (1997-2021)
 - **Internet Archive Edge Worker** - Optionally route Wayback Machine lookups and fetches through a Cloudflare Worker cache instead of hitting `web.archive.org` directly. Toggle it on and set the worker's base URL (e.g. `https://your-worker.workers.dev`) in the admin panel's Internet Archive card.
 - **Service Toggles** - Enable or disable Intranet, ProtoWeb, Internet Archive, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, Finger, Gopher, ILS, H.323, RAS, T.120 from the admin dashboard. The intranet portal applies immediately; listener-based services apply the next time VintageHive restarts.
+- **SOCKS5 Auth** - When enabled (admin dashboard, off by default), the SOCKS proxy requires RFC 1929 username/password authentication against the VintageHive user accounts; a client offering only no-auth is refused, and SOCKS4 (which has no password mechanism) is rejected. The policy applies to the next connection, no restart needed.
 - **Temperature Units** - Celsius or Fahrenheit
 - **Distance Units** - Metric or Imperial
 

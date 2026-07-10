@@ -7,7 +7,13 @@ namespace VintageHive.Proxy.Socks.Socks5;
 
 internal static class Socks5Handler
 {
-    public static async Task HandleAsync(ListenerSocket connection, byte firstByte, CancellationToken ct)
+    // RFC 1929 username/password sub-negotiation uses its OWN version byte 0x01, NOT the SOCKS 0x05.
+    private const byte AuthSubnegotiationVersion = 0x01;
+    private const byte AuthStatusSuccess = 0x00;
+    private const byte AuthStatusFailure = 0x01;
+    private const byte NoAcceptableMethod = 0xFF;
+
+    public static async Task HandleAsync(ListenerSocket connection, byte firstByte, bool requireAuth, CancellationToken ct)
     {
         var stream = connection.Stream;
         var traceId = connection.TraceId.ToString();
@@ -30,25 +36,21 @@ internal static class Socks5Handler
             return;
         }
 
-        // We only support NO AUTH (0x00) for now.
-        byte selectedAuth = 0xFF; // no acceptable method
-
-        for (var i = 0; i < methods.Length; i++)
-        {
-            if (methods[i] == (byte)Socks5AuthType.None)
-            {
-                selectedAuth = (byte)Socks5AuthType.None;
-
-                break;
-            }
-        }
+        // When auth is required, only accept username/password (0x02); otherwise accept no-auth (0x00). Never silently fall back.
+        var wanted = requireAuth ? (byte)Socks5AuthType.UsernamePassword : (byte)Socks5AuthType.None;
+        var selectedAuth = methods.Contains(wanted) ? wanted : NoAcceptableMethod;
 
         await stream.WriteAsync(new byte[] { 0x05, selectedAuth }, ct);
 
-        if (selectedAuth == 0xFF)
+        if (selectedAuth == NoAcceptableMethod)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), "No acceptable auth method", traceId);
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), requireAuth ? "Client offered no username/password auth method" : "No acceptable auth method", traceId);
 
+            return;
+        }
+
+        if (selectedAuth == (byte)Socks5AuthType.UsernamePassword && !await AuthenticateAsync(connection, stream, traceId, ct))
+        {
             return;
         }
 
@@ -224,6 +226,70 @@ internal static class Socks5Handler
         await SocksProxy.TunnelAsync(stream, targetStream);
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), $"Tunnel closed to {displayHost}:{destPort}", traceId);
+    }
+
+    // RFC 1929: client sends VER(0x01), ULEN, UNAME, PLEN, PASSWD; server replies VER(0x01), STATUS (0x00 ok, non-zero fail).
+    private static async Task<bool> AuthenticateAsync(ListenerSocket connection, Stream stream, string traceId, CancellationToken ct)
+    {
+        var version = await ReadByteAsync(stream, ct);
+
+        if (version != AuthSubnegotiationVersion)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), $"Bad auth sub-negotiation version: 0x{version:X2}", traceId);
+
+            // Wrong version means we cannot trust the framing; reply failure and close rather than guess.
+            await stream.WriteAsync(new byte[] { AuthSubnegotiationVersion, AuthStatusFailure }, ct);
+
+            return false;
+        }
+
+        var username = await ReadLengthPrefixedStringAsync(stream, ct);
+        var password = await ReadLengthPrefixedStringAsync(stream, ct);
+
+        if (username == null || password == null)
+        {
+            return false;
+        }
+
+        // RFC 1929 allows zero-length fields; reject them explicitly. UserFetch with an empty password matches on username alone, which would be an auth bypass.
+        var authenticated = username.Length > 0 && password.Length > 0 && Mind.Db?.UserFetch(username, password) != null;
+
+        await stream.WriteAsync(new byte[] { AuthSubnegotiationVersion, authenticated ? AuthStatusSuccess : AuthStatusFailure }, ct);
+
+        if (!authenticated)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), $"Authentication failed for user '{username}'", traceId);
+
+            return false;
+        }
+
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks5Handler), $"Authenticated user '{username}'", traceId);
+
+        return true;
+    }
+
+    private static async Task<string> ReadLengthPrefixedStringAsync(Stream stream, CancellationToken ct)
+    {
+        var length = await ReadByteAsync(stream, ct);
+
+        if (length == -1)
+        {
+            return null;
+        }
+
+        if (length == 0)
+        {
+            return string.Empty;
+        }
+
+        var buffer = new byte[length];
+
+        if (!await ReadExactAsync(stream, buffer, ct))
+        {
+            return null;
+        }
+
+        return Encoding.UTF8.GetString(buffer);
     }
 
     private static async Task SendReplyAsync(Stream stream, Socks5ReplyType reply, CancellationToken ct)

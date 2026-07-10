@@ -90,6 +90,8 @@ public static class ConfigNames
 
     public const string ServiceGopher = "servicegopher";
 
+    public const string ServiceSocks5RequireAuth = "servicesocks5requireauth";
+
     public const string DownloadRepos = "downloadrepos";
 
     public const string Location = "location";

@@ -11,10 +11,20 @@ internal static class Socks4Handler
     private const byte REPLY_GRANTED = 0x5A;
     private const byte REPLY_REJECTED = 0x5B;
 
-    public static async Task HandleAsync(ListenerSocket connection, byte firstByte, CancellationToken ct)
+    public static async Task HandleAsync(ListenerSocket connection, byte firstByte, bool requireAuth, CancellationToken ct)
     {
         var stream = connection.Stream;
         var traceId = connection.TraceId.ToString();
+
+        // SOCKS4/4a has no password mechanism (USERID is an unverified ident token), so it cannot satisfy a require-auth policy. Reject it.
+        if (requireAuth)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), "Rejecting SOCKS4: authentication is required and SOCKS4 cannot provide it", traceId);
+
+            await SendReplyAsync(stream, REPLY_REJECTED, 0, IPAddress.Any, ct);
+
+            return;
+        }
 
         // First byte (0x04) already consumed by the dispatcher.
         // Remaining request: [CMD(1), PORT(2), IP(4), ...USERID, 0x00]

@@ -88,6 +88,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServicePrinter, true },
         { ConfigNames.ServiceFinger, true },
         { ConfigNames.ServiceGopher, true },
+        { ConfigNames.ServiceSocks5RequireAuth, false },
         { ConfigNames.ServiceDns, true },
         { ConfigNames.ServiceIls, true },
         { ConfigNames.ServiceRas, true },
