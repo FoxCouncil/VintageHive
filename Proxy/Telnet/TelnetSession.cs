@@ -123,8 +123,8 @@ public class TelnetSession
             return;
         }
 
-        // Attempts to add the window by name.
-        var result = _windowManager.TryAddWindow(command);
+        // Attempts to add the window by name (normalized - the raw command may be mixed-case/padded).
+        var result = _windowManager.TryAddWindow(cleanCmd);
         if (result)
         {
             _windowManager.GetTopWindow().OnAdd(this);

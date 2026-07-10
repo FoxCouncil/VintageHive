@@ -52,66 +52,71 @@ public class TelnetNewsArticleView : ITelnetWindow
 
     private async void Startup_Timer(object? sender, System.Timers.ElapsedEventArgs e)
     {
-        // Never run the timer again.
-        _startupDelay.Stop();
-        _startupDelay.Enabled = false;
-
-        // Create a cancellation token source.
-        var timeout = 1000;
-        var cancellationToken = new CancellationToken();
-
-        // Start the blocking task
-        Task<Article> task = DownloadArticle(_headline.Id);
-
-        if (await Task.WhenAny(task, Task.Delay(timeout, cancellationToken)) == task)
+        // async void on a timer thread: any escaped exception (a faulted download, a null article,
+        // a bad scraped <img> URL) crashes the whole process, so the entire body is guarded.
+        try
         {
-            // Task completed within timeout.
-            // Consider that the task may have faulted or been canceled.
-            // We re-await the task so that any exceptions/cancellation is rethrown.
-            await task;
-            var article = task.Result;
+            // Never run the timer again.
+            _startupDelay.Stop();
+            _startupDelay.Enabled = false;
 
-            var articleUrl = $"https://news.google.com/__i/rss/rd/articles/{_headline.Id}";
+            var timeout = 1000;
 
-            // --------Image malarkey-----
-            var mimetype = MimeTypesMap.GetMimeType(articleUrl);
-            if (!mimetype.StartsWith("image"))
+            // Start the blocking task
+            Task<Article> task = DownloadArticle(_headline.Id);
+
+            if (await Task.WhenAny(task, Task.Delay(timeout)) == task)
             {
-                var articleDocument = new HtmlDocument();
-                articleDocument.LoadHtml(task.Result.Content);
-                var links = GetImageLinks(articleDocument);
+                var article = await task;
 
-                if (links != null)
+                if (article == null)
                 {
-                    articleImageLinks = new(links);
+                    _text = "Failed to load article, type [q]uit to return to headline view.\r\n";
                 }
                 else
                 {
-                    articleImageLinks = new();
+                    var articleUrl = $"https://news.google.com/__i/rss/rd/articles/{_headline.Id}";
+
+                    // --------Image malarkey-----
+                    var mimetype = MimeTypesMap.GetMimeType(articleUrl);
+                    if (!mimetype.StartsWith("image"))
+                    {
+                        var articleDocument = new HtmlDocument();
+                        articleDocument.LoadHtml(article.Content);
+                        articleImageLinks = GetImageLinks(articleDocument) ?? new();
+                    }
+
+                    // -------Text malarkey--------
+                    var rawArticleText = article.TextContent.ReplaceLineEndings("\r\n");
+                    articleText = $"{article.Title.ReplaceLineEndings(string.Empty)}\r\n\r\n";
+                    articleText += rawArticleText;
+
+                    // Figure out how many pages this text will take to display.
+                    words = articleText.Split(' ');
+                    totalPages = (int)Math.Ceiling((double)words.Length / LinesPerPage);
+                    currentPage = 1;
+
+                    UpdateArticleText();
                 }
             }
+            else
+            {
+                // timeout/cancellation logic
+                _text = "Failed to load article, type [q]uit to return to headline view.\r\n";
+                Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetNewsArticleView), $"Client {_session.Client.RemoteIP} timeout occurred getting news article {_headline.Id}. Task cancelled.", _session.Client.TraceId.ToString());
+            }
 
-            // -------Text malarkey--------
-            var rawArticleText = article.TextContent.ReplaceLineEndings("\r\n");
-            articleText = $"{article.Title.ReplaceLineEndings(string.Empty)}\r\n\r\n";
-            articleText += rawArticleText;
-
-            // Figure out how many pages this text will take to display.
-            words = articleText.Split(' ');
-            totalPages = (int)Math.Ceiling((double)words.Length / LinesPerPage);
-            currentPage = 1;
-
-            UpdateArticleText();
+            // Since this happens on another thread and at a random time we have to force a tick to update screen!
+            await _session.TickWindows();
         }
-        else
+        catch (Exception ex)
         {
-            // timeout/cancellation logic
             _text = "Failed to load article, type [q]uit to return to headline view.\r\n";
-            Log.WriteLine(Log.LEVEL_ERROR, nameof(TelnetNewsArticleView), $"Client {_session.Client.RemoteIP} timeout occurred getting news article {_headline.Id}. Task cancelled.", _session.Client.TraceId.ToString());
-        }
 
-        // Since this happens on another thread and at a random time we have to force a tick to update screen!
-        await _session.TickWindows();
+            Log.WriteException(nameof(TelnetNewsArticleView), ex, _session?.Client?.TraceId.ToString() ?? "");
+
+            try { await _session.TickWindows(); } catch { }
+        }
     }
 
     private static List<string> GetImageLinks(HtmlDocument articleDocument)
@@ -134,11 +139,13 @@ public class TelnetNewsArticleView : ITelnetWindow
                     img = node.GetAttributeValue("data-src-medium", "");
                 }
 
-                var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
-                //var imageUrl = $"http://api.hive.com/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}";
-                var imageUrl = imgUri.ToString();
+                // SmartReader output can carry relative/empty src values; skip rather than throw UriFormatException
+                if (!Uri.TryCreate(img.StartsWith("//") ? $"https:{img}" : img, UriKind.Absolute, out var imgUri))
+                {
+                    continue;
+                }
 
-                result.Add(imageUrl);
+                result.Add(imgUri.ToString());
             }
 
             return result;
