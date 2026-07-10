@@ -19,6 +19,14 @@ internal static class ProtoWebProcessor
 
     static List<string> AvailableFtpSites;
 
+    // The static site lists used to populate once and never refresh for the process lifetime; reload after the
+    // same 6h the underlying Mind.Cache.Do entry lives, so a reload within the window is a cache hit (no network).
+    static readonly TimeSpan SiteListRefreshInterval = TimeSpan.FromHours(6);
+
+    static DateTime httpSitesLoadedAtUtc;
+
+    static DateTime ftpSitesLoadedAtUtc;
+
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
         var protoWebEnabled = Mind.Db.ConfigLocalGet<bool>(req.ListenerSocket.RemoteIP, ConfigNames.ServiceProtoWeb);
@@ -28,14 +36,17 @@ internal static class ProtoWebProcessor
             return false;
         }
 
-        if (AvailableHttpSites == null)
+        if (AvailableHttpSites == null || DateTime.UtcNow - httpSitesLoadedAtUtc > SiteListRefreshInterval)
         {
-            AvailableHttpSites = await ProtoWebUtils.GetAvailableHttpSites();
+            var sites = await ProtoWebUtils.GetAvailableHttpSites();
 
-            if (AvailableHttpSites == null || AvailableHttpSites.Count == 0)
+            if (sites == null || sites.Count == 0)
             {
                 return false;
             }
+
+            AvailableHttpSites = sites;
+            httpSitesLoadedAtUtc = DateTime.UtcNow;
         }
 
         if (AvailableHttpSites.Any(x => req.Uri.Host.EndsWith(x)))
@@ -50,11 +61,15 @@ internal static class ProtoWebProcessor
 
                 try
                 {
-                    var proxyRes = await proxyClient.GetAsync(req.Uri);
+                    using var proxyRes = await proxyClient.GetAsync(req.Uri);
+
+                    // One transaction: pair the headers and body from the same response, and throw on non-2xx
+                    // exactly as GetByteArrayAsync did so the catch below still falls through to the next handler.
+                    proxyRes.EnsureSuccessStatusCode();
 
                     var contentType = proxyRes.Content.Headers.ContentType?.ToString() ?? "text/html";
 
-                    byte[] contentData = await proxyClient.GetByteArrayAsync(req.Uri);
+                    byte[] contentData = await proxyRes.Content.ReadAsByteArrayAsync();
 
                     res.SetBodyData(contentData, contentType);
 
@@ -97,14 +112,17 @@ internal static class ProtoWebProcessor
             return false;
         }
 
-        if (AvailableFtpSites == null)
+        if (AvailableFtpSites == null || DateTime.UtcNow - ftpSitesLoadedAtUtc > SiteListRefreshInterval)
         {
-            AvailableFtpSites = await ProtoWebUtils.GetAvailableFtpSites();
+            var sites = await ProtoWebUtils.GetAvailableFtpSites();
 
-            if (AvailableFtpSites == null)
+            if (sites == null)
             {
                 return false;
             }
+
+            AvailableFtpSites = sites;
+            ftpSitesLoadedAtUtc = DateTime.UtcNow;
         }
 
         if (AvailableFtpSites.Any(req.Uri.Host.EndsWith))

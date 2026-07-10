@@ -22,8 +22,22 @@ namespace VintageHive.Utilities
 
         static readonly object lockObj = new();
 
+        // Runtime health, NOT the persisted ServiceProtoWeb config toggle - an outage must not permanently
+        // disable a user's setting. Self-heals: after the cooldown the next call retries and clears the flag.
+        public static bool IsOnline { get; private set; } = true;
+
+        static DateTime offlineSinceUtc = DateTime.MinValue;
+
+        static readonly TimeSpan OfflineRetryCooldown = TimeSpan.FromMinutes(5);
+
         public static async Task<List<Tuple<string, string>>> GetSites()
         {
+            // While known-offline, short-circuit so every proxied request doesn't stall on the 10s fetch timeout
+            if (!IsOnline && DateTime.UtcNow - offlineSinceUtc < OfflineRetryCooldown)
+            {
+                return null;
+            }
+
             var protowebSiteList = await Mind.Cache.Do<List<Tuple<string, string>>>("protowebsitelist", TimeSpan.FromHours(6), async () =>
             {
                 var proxyClient = HttpClientUtils.GetProxiedHttpClient(null, MainProxyUri);
@@ -35,14 +49,17 @@ namespace VintageHive.Utilities
                 try
                 {
                     site = await proxyClient.GetStringAsync(RequestUri);
+
+                    IsOnline = true;
                 }
                 catch (Exception ex)
                 {
                     Log.WriteException(nameof(ProtoWebUtils), ex, "");
 
-                    Log.WriteLine(Log.LEVEL_INFO, nameof(ProtoWebUtils), "ProtoWeb is offline! Turning it off!", "");
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(ProtoWebUtils), "ProtoWeb is unreachable! Marking offline; will retry in 5 minutes.", "");
 
-                    Mind.Db.ConfigSet(ConfigNames.ServiceProtoWeb, false);
+                    IsOnline = false;
+                    offlineSinceUtc = DateTime.UtcNow;
 
                     return null;
                 }

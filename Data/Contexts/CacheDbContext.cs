@@ -148,8 +148,12 @@ public class CacheDbContext : DbContextBase
             stringData = JsonSerializer.Serialize(data);
         }
 
-        // Phase 3: Quick write - store result with a short-lived connection
-        SetData(key, ttl, stringData);
+        // Phase 3: Quick write - but never persist a null result. Serializing null yields the literal "null",
+        // which caches for the full TTL and blocks re-fetching (e.g. a transient ProtoWeb outage) until expiry.
+        if (data != null)
+        {
+            SetData(key, ttl, stringData);
+        }
 
         return data;
     }
