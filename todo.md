@@ -29,7 +29,7 @@
 - [x] FTP response caching dead block removed from `FtpProxy.cs` (documented why it's not implemented)
 - [x] `tools/UsenetCurator/README.md` written - pipeline phases, modes, CLI flags, and how the output feeds `NntpProxy`
 - [x] HTTPS proxy (9999) - working as designed. Serves the intranet plus DialNine, the live "outside line" (dial 9) that forwards old browsers to still-working external HTTPS services via the OpenSSL 1.0.2a stack. The SHA-NI crash was fixed in 223b307. No ProtoWeb/IA passthrough by design: archive reconstruction is HTTP-only; DialNine must reach the live service, never an archived copy.
-- [ ] SOCKS5 auth, T.128 app-sharing server, Gopher, Yahoo!/MSN - out of scope this pass (new-protocol roadmap items)
+> **Roadmap - deferred, not part of the audit-fix pass:** SOCKS5 auth, T.128 app-sharing server, Gopher, Yahoo!/MSN. Each is a net-new protocol implementation (a new listener + protocol stack), tracked separately from the bug-fix work above rather than as an open defect.
 
 ## Cleanup
 
