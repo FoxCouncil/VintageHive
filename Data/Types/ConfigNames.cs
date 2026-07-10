@@ -6,6 +6,10 @@ public static class ConfigNames
 {
     public const string IpAddress = "ipaddress";
 
+    public const string AdminUsername = "adminusername";
+
+    public const string AdminPassword = "adminpassword";
+
     public const string PortHttp = "porthttp";
 
     public const string PortHttps = "porthttps";

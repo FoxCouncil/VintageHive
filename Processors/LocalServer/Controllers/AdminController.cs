@@ -365,7 +365,12 @@ internal partial class AdminController : Controller
         var username = Request.FormData["username"];
         var password = Request.FormData["password"];
 
-        if (username == "penis" && password == "penis")
+        // Credentials come from config (defaults admin/vintagehive) instead of being hardcoded in source; change
+        // them from the admin panel. The control plane is otherwise reachable via the loopback-URI rewrite.
+        var adminUsername = Mind.Db.ConfigGet<string>(ConfigNames.AdminUsername);
+        var adminPassword = Mind.Db.ConfigGet<string>(ConfigNames.AdminPassword);
+
+        if (!string.IsNullOrEmpty(adminUsername) && username == adminUsername && password == adminPassword)
         {
             Session.login = username;
 

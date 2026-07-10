@@ -100,23 +100,44 @@ public static class NewsUtils
 
     const string GoogleArticleUrl = "https://news.google.com/rss/articles/";
 
+    // One shared client with a browser User-Agent (was a per-call `new HttpClient()` with no UA, leaking sockets)
+    private static readonly HttpClient GoogleNewsClient = CreateGoogleNewsClient();
+
+    private static HttpClient CreateGoogleNewsClient()
+    {
+        var client = new HttpClient();
+
+        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        return client;
+    }
+
     public static async Task<Article> GetGoogleNewsArticle(string articleId)
     {
-        var url = string.Concat(GoogleArticleUrl, articleId);
-
-        var encodedUrls = new List<string> { url };
-
-        var articlesParams = encodedUrls.Select(url =>
+        try
         {
+            var url = string.Concat(GoogleArticleUrl, articleId);
             var gnArtId = new Uri(url).AbsolutePath.Split('/').Last();
-            return GetDecodingParams(gnArtId);
-        }).ToList();
 
-        var decodedUrls = DecodeUrls(articlesParams);
+            var decodingParams = await GetDecodingParams(gnArtId);
 
-        var decodedUrl = decodedUrls.FirstOrDefault();
+            if (decodingParams == null)
+            {
+                return null;
+            }
 
-        return await GetReaderOutput(decodedUrl);
+            var decodedUrls = await DecodeUrls(new List<Dictionary<string, string>> { decodingParams });
+
+            var decodedUrl = decodedUrls.FirstOrDefault();
+
+            return decodedUrl == null ? null : await GetReaderOutput(decodedUrl);
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(NewsUtils), $"Google News article decode failed for {articleId}: {ex.Message}", "");
+
+            return null;
+        }
     }
 
     public static async Task<Article> GetReaderOutput(string url)
@@ -133,19 +154,23 @@ public static class NewsUtils
         }
     }
 
-    static Dictionary<string, string> GetDecodingParams(string gn_art_id)
+    static async Task<Dictionary<string, string>> GetDecodingParams(string gn_art_id)
     {
-        var client = new HttpClient();
-        var response = client.GetAsync($"https://news.google.com/articles/{gn_art_id}").Result;
+        var response = await GoogleNewsClient.GetAsync($"https://news.google.com/articles/{gn_art_id}");
 
         response.EnsureSuccessStatusCode();
 
-        var responseText = response.Content.ReadAsStringAsync().Result;
+        var responseText = await response.Content.ReadAsStringAsync();
         var doc = new HtmlDocument();
 
         doc.LoadHtml(responseText);
 
         var div = doc.DocumentNode.SelectSingleNode("//c-wiz/div");
+
+        if (div == null)
+        {
+            return null; // markup changed / not the expected shape - fail soft instead of NREing the article view
+        }
 
         return new Dictionary<string, string>
         {
@@ -155,7 +180,7 @@ public static class NewsUtils
         };
     }
 
-    static List<string> DecodeUrls(List<Dictionary<string, string>> articles)
+    static async Task<List<string>> DecodeUrls(List<Dictionary<string, string>> articles)
     {
         var articles_reqs = articles.Select(art => new List<string>
         {
@@ -169,12 +194,11 @@ public static class NewsUtils
 
         var content = new StringContent(encodedPayload, Encoding.UTF8, "application/x-www-form-urlencoded");
 
-        var client = new HttpClient();
-        var response = client.PostAsync("https://news.google.com/_/DotsSplashUi/data/batchexecute", content).Result;
+        var response = await GoogleNewsClient.PostAsync("https://news.google.com/_/DotsSplashUi/data/batchexecute", content);
 
         response.EnsureSuccessStatusCode();
 
-        var responseText = response.Content.ReadAsStringAsync().Result;
+        var responseText = await response.Content.ReadAsStringAsync();
 
         var parts = responseText.Split(new[] { "\n\n" }, StringSplitOptions.None);
         var jsonResponseText = parts.Length > 1 ? parts[1] : null;

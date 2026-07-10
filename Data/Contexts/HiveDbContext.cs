@@ -45,6 +45,8 @@ public class HiveDbContext : DbContextBase
     {
         // Networking Settings
         { ConfigNames.IpAddress, IPAddress.Any.ToString() },
+        { ConfigNames.AdminUsername, "admin" },
+        { ConfigNames.AdminPassword, "vintagehive" },
         { ConfigNames.PortHttp, 1990 },
         { ConfigNames.PortHttps, 9999 },
         { ConfigNames.PortFtp, 1971 },

@@ -62,7 +62,7 @@ public class HttpProxy : Listener
 
         var httpResponse = new HttpResponse(httpRequest);
 
-        var key = $"HPC-{httpRequest.Uri}";
+        var key = $"HPC-{httpRequest.Method}-{httpRequest.Uri}";
 
         var cachedResponse = Mind.Cache.GetHttpProxy(key);
 

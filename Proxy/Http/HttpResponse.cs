@@ -303,12 +303,30 @@ public sealed class HttpResponse
             ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) => true
         });
 
-        foreach (var header in Request.Headers)
+        // Preserve the original method and body - the old code forwarded EVERYTHING as GET and threw when a content
+        // header (Content-Type/Length) was fed to DefaultRequestHeaders, so all POSTs through DialNine/Helper failed.
+        var requestMessage = new HttpRequestMessage(new HttpMethod(Request.Method), url);
+
+        if (Request.BodyData != null && Request.BodyData.Length > 0)
         {
-            httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+            requestMessage.Content = new ByteArrayContent(Request.BodyData);
         }
 
-        var externalResponse = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        foreach (var header in Request.Headers)
+        {
+            if (IsHopByHopHeader(header.Key))
+            {
+                continue;
+            }
+
+            // TryAddWithoutValidation splits content headers to Content; never throws on an unknown/odd header
+            if (!requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value))
+            {
+                requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        var externalResponse = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
 
         CacheTtl = externalResponse.Headers.CacheControl?.MaxAge ?? TimeSpan.FromSeconds(300);
 
@@ -322,5 +340,20 @@ public sealed class HttpResponse
         SetBodyStream(externalResponse.Content.ReadAsStream(), mimeType); // Trial Run
 
         // SetBodyData(await externalResponse.Content.ReadAsByteArrayAsync(), mimeType);
+    }
+
+    // Hop-by-hop headers must not be forwarded to the upstream; Host is set by HttpClient from the target URL
+    private static bool IsHopByHopHeader(string name)
+    {
+        return name.Equals("Host", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Connection", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Keep-Alive", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Proxy-Connection", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Proxy-Authenticate", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Proxy-Authorization", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("TE", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Trailer", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Upgrade", StringComparison.OrdinalIgnoreCase);
     }
 }
