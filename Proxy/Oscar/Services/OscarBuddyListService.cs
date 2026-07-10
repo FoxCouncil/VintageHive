@@ -107,6 +107,14 @@ public class OscarBuddyListService : IOscarService
 
     public static async Task SendUserOnline(OscarSession recipient, OscarSession onlineUser)
     {
+        // Privacy list: the online user must not be announced to a watcher they have denied/not permitted. This is
+        // the single choke point for buddy-presence-on-sign-on in both directions, mirroring the same gate that
+        // BroadcastStatusToWatchers applies for status-change presence.
+        if (!onlineUser.IsVisibleTo(recipient.ScreenName))
+        {
+            return;
+        }
+
         var isOnlineSnac = new Snac(FAMILY_ID, SRV_USER_ONLINE);
 
         isOnlineSnac.WriteUInt8((byte)onlineUser.ScreenName.Length);
@@ -167,9 +175,16 @@ public class OscarBuddyListService : IOscarService
 
         while (readIdx < data.Length)
         {
-            var buddyLength = (ushort)data[readIdx];
+            var buddyLength = data[readIdx];
 
-            var buddy = Encoding.ASCII.GetString(data[(readIdx + 1)..(readIdx + 1 + buddyLength)]);
+            // Trust nothing on the wire: a length byte that runs past the buffer would throw on the range slice.
+            // Stop parsing cleanly instead of tearing the connection down on a truncated/hostile buddy list.
+            if (readIdx + 1 + buddyLength > data.Length)
+            {
+                break;
+            }
+
+            var buddy = Encoding.ASCII.GetString(data, readIdx + 1, buddyLength);
 
             buddies.Add(buddy);
 

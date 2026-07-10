@@ -9,6 +9,7 @@ internal class OscarGenericServiceControls : IOscarService
     public const ushort CLI_READY = 0x02;
     public const ushort SRV_FAMILIES = 0x03;
     public const ushort CLI_SERVICExREQ = 0x04;
+    public const ushort SRV_SERVICE_REDIRECT = 0x05;
     public const ushort CLI_RATES_REQUEST = 0x06;
     public const ushort SRV_RATE_LIMIT_INFO = 0x07;
     public const ushort CLI_RATES_ACK = 0x08;
@@ -62,6 +63,39 @@ internal class OscarGenericServiceControls : IOscarService
             case CLI_SERVICExREQ:
             {
                 var familyReq = OscarUtils.ToUInt16(snac.RawData);
+
+                // Accepting a channel-2 chat invitation requests the chat service (0x0E) with the target room carried
+                // in TLV 0x01. Answer with the same (01,05) service redirect the chat-nav create path issues, so the
+                // client opens a chat connection and joins the room. Previously this dead-ended and the invite was lost.
+                if (familyReq == OscarChatService.FAMILY_ID && snac.RawData.Length > 2)
+                {
+                    var reqTlvs = OscarUtils.DecodeTlvs(snac.RawData[2..]);
+                    var roomInfoTlv = reqTlvs.GetTlv(0x01);
+
+                    if (roomInfoTlv?.Value != null && TryParseChatRoomInfo(roomInfoTlv.Value, out var exchange, out var roomName))
+                    {
+                        var room = OscarServer.GetOrCreateChatRoom(roomName, exchange, session.ScreenName);
+                        var chatCookie = OscarServer.IssueChatCookie(room);
+
+                        var serverIP = ((IPEndPoint)session.Client.RawSocket.LocalEndPoint).Address.MapToIPv4();
+
+                        var redirectSnac = new Snac(Family, SRV_SERVICE_REDIRECT);
+
+                        redirectSnac.WriteTlvs(new List<Tlv>
+                        {
+                            new Tlv(0x0D, OscarUtils.GetBytes(OscarChatService.FAMILY_ID)), // Service family (Chat)
+                            new Tlv(0x05, $"{serverIP}:5190"),                              // Chat server address
+                            new Tlv(0x06, chatCookie),                                      // One-shot join cookie
+                            new Tlv(0x01, room.EncodeChatRoomInfo()),                       // Room being joined
+                        });
+
+                        await session.SendSnac(redirectSnac);
+
+                        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarGenericServiceControls), $"Chat service redirect for room \"{room.Name}\" to {session.ScreenName}", traceId);
+
+                        break;
+                    }
+                }
 
                 Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarGenericServiceControls), $"Service request for family 0x{familyReq:X4} (not implemented)", traceId);
             }
@@ -215,6 +249,35 @@ internal class OscarGenericServiceControls : IOscarService
             }
             break;
         }
+    }
+
+    /// <summary>
+    /// Parse the chat room-info blob carried in TLV 0x01 of a chat service request: exchange(2) + cookieLen(1) +
+    /// cookie(len) [+ instance(2)]. The cookie field is the room name (see <see cref="OscarChatRoom.EncodeChatRoomInfo"/>).
+    /// Bounds-checked - a hostile length can't run off the buffer.
+    /// </summary>
+    private static bool TryParseChatRoomInfo(byte[] data, out ushort exchange, out string roomName)
+    {
+        exchange = 0;
+        roomName = null;
+
+        if (data.Length < 3)
+        {
+            return false;
+        }
+
+        exchange = OscarUtils.ToUInt16(data[0..2]);
+
+        var cookieLen = data[2];
+
+        if (3 + cookieLen > data.Length)
+        {
+            return false;
+        }
+
+        roomName = Encoding.ASCII.GetString(data, 3, cookieLen);
+
+        return roomName.Length > 0;
     }
 
     private async Task DeliverOfflineMessages(OscarSession session)

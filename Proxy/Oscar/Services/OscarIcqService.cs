@@ -593,12 +593,41 @@ internal class OscarIcqService : IOscarService
         await SendMetaData(session, snac, icqMetaReq, META_SET_ACK, ack);
     }
 
+    /// <summary>
+    /// Resolve the sender's ICQ UIN for an offline-message header. A real ICQ sender's screen name IS its numeric
+    /// UIN, so it is used verbatim. An AIM sender has no UIN, so one is derived by FNV-1a over the lowercased name -
+    /// deterministic across process runs, unlike <see cref="string.GetHashCode"/> which is randomized per process
+    /// and never matched the identity the live-message path presents.
+    /// </summary>
+    private static uint ScreenNameToUin(string screenName)
+    {
+        if (string.IsNullOrEmpty(screenName))
+        {
+            return 0;
+        }
+
+        if (uint.TryParse(screenName, out var uin))
+        {
+            return uin;
+        }
+
+        uint hash = 2166136261; // FNV-1a 32-bit offset basis
+
+        foreach (var b in Encoding.ASCII.GetBytes(screenName.ToLowerInvariant()))
+        {
+            hash ^= b;
+            hash *= 16777619; // FNV-1a 32-bit prime
+        }
+
+        return hash;
+    }
+
     private async Task SendIcqOfflineMessage(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, OscarOfflineMessage msg)
     {
         var mem = new MemoryStream();
 
         // Offline message header
-        var senderUin = (uint)msg.FromScreenName.GetHashCode();
+        var senderUin = ScreenNameToUin(msg.FromScreenName);
 
         mem.Write(BitConverter.GetBytes(senderUin));
 

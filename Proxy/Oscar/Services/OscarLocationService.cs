@@ -108,7 +108,9 @@ public class OscarLocationService : IOscarService
 
                 var userSession = OscarServer.Sessions.GetByScreenName(screenName);
 
-                if (userSession == null)
+                // A subject who has the requester denied/not-permitted must appear offline - fall into the same
+                // not-found reply so their profile and away message are never exposed via a get-info probe.
+                if (userSession == null || !userSession.IsVisibleTo(session.ScreenName))
                 {
                     var notFoundSnac = snac.NewReply(Family, CLI_SRV_ERROR);
 

@@ -114,6 +114,16 @@ internal class OscarIcbmService : IOscarService
                         await session.SendSnac(notFoundSnac);
                     }
                 }
+                else if (!userSession.IsVisibleTo(session.ScreenName))
+                {
+                    // Privacy list: the recipient has this sender denied or not permitted. AIM convention is that a
+                    // blocked user appears offline to the blocked party, so reply "not logged on" and deliver nothing.
+                    var blockedSnac = snac.NewReply(Family, CLI_SRV_ERROR);
+
+                    blockedSnac.WriteUInt16(0x0004); // Not logged on
+
+                    await session.SendSnac(blockedSnac);
+                }
                 else
                 {
                     var sendClientMessageSnac = new Snac(Family, SRV_CLIENT_ICBM);
@@ -188,7 +198,8 @@ internal class OscarIcbmService : IOscarService
 
                 var targetSession = OscarServer.Sessions.GetByScreenName(targetName);
 
-                if (targetSession != null)
+                // Privacy list: don't leak typing activity to a target who has this sender denied/not permitted.
+                if (targetSession != null && targetSession.IsVisibleTo(session.ScreenName))
                 {
                     // Forward typing notification to target
                     var mtnSnac = new Snac(Family, SRV_MTN);
@@ -235,6 +246,18 @@ internal class OscarIcbmService : IOscarService
             errorSnac.WriteUInt16(0x0004); // Not logged on
 
             await session.SendSnac(errorSnac);
+
+            return;
+        }
+
+        // Privacy list: a sender the target has denied/not-permitted cannot warn them - treat as not available.
+        if (!targetSession.IsVisibleTo(session.ScreenName))
+        {
+            var blockedSnac = snac.NewReply(Family, CLI_SRV_ERROR);
+
+            blockedSnac.WriteUInt16(0x0004); // Not logged on
+
+            await session.SendSnac(blockedSnac);
 
             return;
         }

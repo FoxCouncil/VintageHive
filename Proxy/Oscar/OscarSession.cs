@@ -264,6 +264,34 @@ public class OscarSession
         return true;
     }
 
+    /// <summary>
+    /// Privacy-list gate. Returns whether the user identified by <paramref name="otherScreenName"/> is allowed to
+    /// see this user's presence and to reach them with messages, typing notifications and warnings, per THIS user's
+    /// <see cref="PrivacyMode"/>/<see cref="PermitList"/>/<see cref="DenyList"/>. The same predicate governs both
+    /// directions: for delivery the subject is the recipient (does the recipient permit the sender), and for
+    /// presence the subject is the user whose status changed (does that user permit the watcher). A denied party
+    /// therefore both fails to receive and sees the subject as offline - no more one-shot "offline" contradicted by
+    /// the next presence broadcast.
+    /// </summary>
+    public bool IsVisibleTo(string otherScreenName)
+    {
+        if (string.IsNullOrEmpty(otherScreenName))
+        {
+            return false;
+        }
+
+        bool OnList(List<string> list) => list != null && list.Any(x => x.Equals(otherScreenName, StringComparison.OrdinalIgnoreCase));
+
+        return PrivacyMode switch
+        {
+            2 => false,                 // deny all
+            3 => OnList(PermitList),     // allow only users on the permit list
+            4 => !OnList(DenyList),      // block only users on the deny list
+            5 => OnList(Buddies),        // allow only users on the buddy list
+            _ => true                    // 1 (allow all) and any unknown mode stay open
+        };
+    }
+
     public async Task BroadcastStatusToWatchers()
     {
         foreach (var session in OscarServer.Sessions.Values)
@@ -274,6 +302,12 @@ public class OscarSession
             }
 
             if (!session.Buddies.Any(b => b.Equals(ScreenName, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            // Respect this user's privacy list - a denied/non-permitted watcher must not see us come online.
+            if (!IsVisibleTo(session.ScreenName))
             {
                 continue;
             }

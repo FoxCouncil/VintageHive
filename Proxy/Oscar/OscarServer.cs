@@ -14,9 +14,44 @@ public class OscarServer : Listener
 
     public static readonly ConcurrentDictionary<string, OscarChatRoom> ChatRooms = new();
 
-    public static readonly ConcurrentDictionary<string, OscarChatRoom> PendingChatCookies = new();
+    // Keyed by a UNIQUE one-shot join cookie (not the shared room cookie) so concurrent joiners to the same room
+    // don't race over a single entry that the first redemption deletes. Each entry carries an expiry so a cookie
+    // that is issued but never redeemed cannot linger forever.
+    public static readonly ConcurrentDictionary<string, PendingChatCookie> PendingChatCookies = new();
 
     private static ushort nextChatInstance = 1;
+
+    /// <summary>A pending chat-room join grant: the target room plus the instant its one-shot cookie expires.</summary>
+    public readonly record struct PendingChatCookie(OscarChatRoom Room, DateTimeOffset ExpiresAt);
+
+    /// <summary>How long an issued-but-unredeemed chat join cookie stays valid.</summary>
+    private static readonly TimeSpan ChatCookieLifetime = TimeSpan.FromMinutes(5);
+
+    /// <summary>Drop any pending chat cookies whose grant window has elapsed. Cheap; called on each sign-on.</summary>
+    private static void PurgeExpiredChatCookies()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var kvp in PendingChatCookies)
+        {
+            if (kvp.Value.ExpiresAt < now)
+            {
+                PendingChatCookies.TryRemove(kvp.Key, out _);
+            }
+        }
+    }
+
+    /// <summary>Issue a fresh one-shot join cookie for a room and register it with an expiry. Returns the cookie.</summary>
+    public static string IssueChatCookie(OscarChatRoom room)
+    {
+        PurgeExpiredChatCookies();
+
+        var cookie = $"CHAT:{room.Cookie}:{Guid.NewGuid():N}";
+
+        PendingChatCookies[cookie] = new PendingChatCookie(room, DateTimeOffset.UtcNow.Add(ChatCookieLifetime));
+
+        return cookie;
+    }
 
     public static DateTimeOffset ServerTime => DateTime.Now;
 
@@ -115,30 +150,31 @@ public class OscarServer : Listener
                             }
                             else
                             {
-                                var cookieValue = Encoding.ASCII.GetString(tlvs.GetTlv(0x06).Value);
+                                var cookieTlv = tlvs.GetTlv(0x06);
 
-                                // Check if this is a chat room cookie
-                                if (PendingChatCookies.TryRemove(cookieValue, out var pendingRoom))
+                                if (cookieTlv?.Value == null)
                                 {
-                                    chatRoom = pendingRoom;
+                                    // A single-TLV sign-on that isn't the auth cookie (0x06) used to NRE here and drop
+                                    // the socket with no reply. Answer with an auth-failed FLAP instead.
+                                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), "Sign-on rejected: single TLV carried no auth cookie", traceId);
 
-                                    // Look up the original session for this user
-                                    var originalSession = Sessions.Values.FirstOrDefault(s => s != session && s.ScreenName != null && PendingChatCookies.Values.Any(r => r == pendingRoom));
+                                    await AuthFailedError(session);
 
-                                    // Try to find the user who requested this room
-                                    // The cookie format is "CHAT:{roomCookie}", extract room cookie
-                                    if (cookieValue.StartsWith("CHAT:"))
-                                    {
-                                        var roomCookieId = cookieValue[5..];
-                                        var room = ChatRooms.Values.FirstOrDefault(r => r.Cookie == roomCookieId);
+                                    break;
+                                }
 
-                                        if (room != null)
-                                        {
-                                            chatRoom = room;
-                                        }
-                                    }
+                                var cookieValue = Encoding.ASCII.GetString(cookieTlv.Value);
 
-                                    // Set a screen name from the pending chat context (best effort)
+                                PurgeExpiredChatCookies();
+
+                                // Chat-room join cookie? Each joiner holds a unique one-shot cookie, so concurrent
+                                // joiners to the same room no longer race over a single shared entry.
+                                if (PendingChatCookies.TryRemove(cookieValue, out var pending))
+                                {
+                                    chatRoom = pending.Room;
+
+                                    // A chat connection authenticates purely by the cookie; give it a placeholder name
+                                    // when one wasn't carried over.
                                     if (session.ScreenName == null)
                                     {
                                         session.ScreenName = "ChatUser" + session.ID;
@@ -259,6 +295,17 @@ public class OscarServer : Listener
 
         var storedSession = Mind.Db.OscarGetSessionByCookie(cookie);
 
+        // An unknown/garbage cookie (neither a pending chat cookie nor a stored sign-on cookie) used to NRE on the
+        // next line and drop the socket silently. Reply with an auth-failed FLAP instead.
+        if (storedSession == null)
+        {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), "Cookie auth failed: unknown session cookie", traceId);
+
+            await AuthFailedError(session);
+
+            return;
+        }
+
         session.Cookie = storedSession.Cookie;
         session.ScreenName = storedSession.ScreenName;
         session.UserAgent = storedSession.UserAgent;
@@ -278,7 +325,24 @@ public class OscarServer : Listener
     {
         var traceId = session.Client.TraceId.ToString();
 
-        session.ScreenName = Encoding.ASCII.GetString(tlvs.GetTlv(0x01).Value);
+        var screenNameTlv = tlvs.GetTlv(0x01);
+        var passwordTlv = tlvs.GetTlv(0x02);
+
+        if (screenNameTlv?.Value != null)
+        {
+            session.ScreenName = Encoding.ASCII.GetString(screenNameTlv.Value);
+        }
+
+        // A malformed sign-on that omits the screen-name or password TLV used to NRE on GetTlv(...).Value and
+        // drop the socket with no reply. Answer with an auth-failed FLAP so the client shows an error instead.
+        if (screenNameTlv?.Value == null || passwordTlv?.Value == null)
+        {
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Auth failed (malformed sign-on: missing screen-name or password TLV) for '{session.ScreenName}'", traceId);
+
+            await AuthFailedError(session);
+
+            return;
+        }
 
         if (!Mind.Db.UserExistsByUsername(session.ScreenName))
         {
@@ -291,9 +355,10 @@ public class OscarServer : Listener
 
         var user = Mind.Db.UserFetch(session.ScreenName);
 
-        if (OscarUtils.RoastPassword(user.Password).SequenceEqual(tlvs.GetTlv(0x02).Value))
+        if (OscarUtils.RoastPassword(user.Password).SequenceEqual(passwordTlv.Value))
         {
-            session.UserAgent = Encoding.ASCII.GetString(tlvs.GetTlv(0x03).Value);
+            // The user-agent TLV 0x03 is optional; a client that omits it used to NRE here and drop sign-on.
+            session.UserAgent = tlvs.GetTlv(0x03)?.Value is { } uaBytes ? Encoding.ASCII.GetString(uaBytes) : "unknown";
 
             session.Load(session.ScreenName);
 
@@ -334,7 +399,7 @@ public class OscarServer : Listener
     {
         var authFailed = new List<Tlv>
         {
-            new Tlv(Tlv.Type_ScreenName, session.ScreenName),
+            new Tlv(Tlv.Type_ScreenName, session.ScreenName ?? string.Empty),
             new Tlv(0x0004, LoginHelpUrl),
             new Tlv(0x0008, (ushort)OscarAuthError.IncorrectScreenNameOrPassword),
             new Tlv(0x000C, 0x0001)

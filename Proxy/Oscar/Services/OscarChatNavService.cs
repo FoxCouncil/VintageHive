@@ -111,10 +111,8 @@ internal class OscarChatNavService : IOscarService
 
         Log.WriteLine(Log.LEVEL_INFO, nameof(OscarChatNavService), $"{session.ScreenName} created/joining chat room \"{roomName}\"", traceId);
 
-        // Generate a chat cookie for this session
-        var chatCookie = $"CHAT:{room.Cookie}";
-
-        OscarServer.PendingChatCookies[chatCookie] = room;
+        // Issue a unique one-shot join cookie (registered with an expiry) so concurrent joiners don't race.
+        var chatCookie = OscarServer.IssueChatCookie(room);
 
         // Send room info back
         var reply = snac.NewReply(FAMILY_ID, SRV_CHATNAV_INFO);
