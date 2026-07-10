@@ -2,6 +2,14 @@
 
 ## Uncommitted work (finish before commit)
 
+- [x] Gopher (RFC 1436) service - `Proxy/Gopher/GopherServer.cs` + `GopherMenuItem.cs`, port 70 (`PortGopher`/`ServiceGopher`, defaults in `HiveDbContext.cs`), gated via `StartService` in `Mind.cs`
+- [x] Gopher: hive portal root menu (news via `NewsUtils`, weather via `WeatherUtils`, online users via `FingerServer.BuildUserList`, about) plus curated Live Gopherspace menu
+- [x] Gopher: live gopherspace relay - remote menus rewritten into the `/g/<type>/<host>:<port>/<selector>` namespace so all of gopherspace browses through the hive; non-menu types raw-relayed until close; ungated plain TCP by design (same policy as SOCKS)
+- [x] Gopher: browser proxy mode - `GET gopher://` sniffed on port 70 (FTP-over-HTTP precedent), menus rendered as HTML Squid-style, `<isindex>` search prompt for type 7; note .NET's gopher `Uri` parser folds `?` into the path
+- [x] Gopher: server closes the socket after the reply (RFC 1436 EOF semantics; the Listener base never closes) with remote address captured pre-close for the disconnect log
+- [x] Gopher: admin toggle (`AdminController.ToggleableServices` + `serviceLabels`), Dockerfile `EXPOSE 70`, README (ports row, feature section, docker `-p 70:70`, toggles sentence, Planned entry removed)
+- [x] Gopher: hardening pass from a multi-agent adversarial review - encode upstream host/type into HTML hrefs (XSS via hostile menu), track bytes-sent so a mid-relay failure RSTs instead of appending an error onto partial content, request-read + client-write timeouts (slowloris), advertise a dialable host behind Docker/NAT via `ConfigNames.IpAddress` (falls back to socket LocalIP), self-proxy loop guard, port-aware local-host check, RFC 4266 Latin1 raw-octet percent-decode with correct plus-ordering, type-0 un-stuffing in browser mode, `URL:` web-link passthrough
+- [x] Gopher: `GopherTests.cs` - 42 tests (menu item codec, `/g/` selector round-trip, menu rewrite, dot-stuffing/un-stuffing, gopher URL parse incl. %2B/raw-octet, HTML render + XSS-encoding, loopback end-to-end incl. server-close and self-proxy refusal); verified live against Floodgap (menu relay, rewrite, Veronica-2 search, HTML proxy mode, raw text relay)
 - [x] Finger: `ServiceFinger` on/off config flag added (`ConfigNames.cs`, default true in `HiveDbContext.cs`) and gated in `Mind.cs`
 - [x] Finger: admin panel toggle - new Services section in `admin.hive.com/index.html` driven by `/api/servicetoggle` and `/api/status`
 - [x] Finger: README entries - Service Ports row (79/TCP), feature section, Docker port, config toggle

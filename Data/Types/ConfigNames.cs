@@ -48,6 +48,8 @@ public static class ConfigNames
 
     public const string PortFinger = "portfinger";
 
+    public const string PortGopher = "portgopher";
+
     public const string ServiceDns = "servicedns";
 
     public const string ServiceIls = "serviceils";
@@ -85,6 +87,8 @@ public static class ConfigNames
     public const string ServicePrinter = "serviceprinter";
 
     public const string ServiceFinger = "servicefinger";
+
+    public const string ServiceGopher = "servicegopher";
 
     public const string DownloadRepos = "downloadrepos";
 

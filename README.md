@@ -126,6 +126,17 @@ An RFC 1288 Finger server that exposes presence and profile information for Vint
 - `/W` verbose prefix for extended output; `user@host` forwarding is rejected per RFC 1288 for security
 - Compatible with any classic `finger` client
 
+### Gopher - port 70
+
+An RFC 1436 Gopher server that doubles as a gateway to live gopherspace:
+
+- **Hive portal** - the root menu serves news headlines, the local weather report, who is online and an about page
+- **Live gopherspace relay** - remote gopher servers (Floodgap, SDF, Gopherpedia, Veronica-2 search and friends) are fetched over plain TCP and every menu is rewritten so all of gopherspace stays browsable through VintageHive
+- **Browser proxy mode** - point a vintage browser's gopher proxy setting at port 70 and menus are rendered as HTML, Squid-style
+- Compatible with native gopher clients (UMN gopher, Netscape, WSGopher, etc.)
+
+> Native menus advertise a host for each item so clients know where to reconnect. VintageHive uses the accepted socket's local address by default; behind Docker port-mapping or NAT that address is unreachable, so set the server IP config to the box's real LAN/public address and menu items will point there.
+
 ### NetMeeting - ports 1002, 1503, 1719, 1720
 
 Full Microsoft NetMeeting conferencing support with a complete H.323/T.120 protocol stack:
@@ -239,6 +250,7 @@ Visit `http://admin.hive.com:1990` to:
 | Telnet Server | 1969 | TCP | Stable |
 | OSCAR (AIM/ICQ) | 5190 | TCP | Stable |
 | Finger | 79 | TCP | Experimental |
+| Gopher | 70 | TCP | Experimental |
 | SOCKS5 Proxy | 1996 | TCP | Experimental |
 | DNS Proxy | 1953 | UDP | Experimental |
 | MMS (Windows Media) | 1755 | TCP | Stable |
@@ -355,6 +367,7 @@ docker run -d \
   -p 1969:1969 \
   -p 5190:5190 \
   -p 79:79 \
+  -p 70:70 \
   -p 1996:1996 \
   -p 1900-1910:1900-1910 \
   -p 1953:1953/udp \
@@ -441,7 +454,6 @@ VintageHive uses SQLite for persistent storage, with separate database contexts 
 
 ### Planned
 - HTTPS re-enablement and certificate improvements
-- Gopher protocol support
 - FTP authentication
 - SOCKS5 proxy improvements
 - Yahoo! IM and MSN Messenger
@@ -455,7 +467,7 @@ Most settings are managed through the **Admin Panel** at `http://admin.hive.com:
 Key configuration options:
 - **Internet Archive Year** - Which year to fetch archived pages from (1997-2021)
 - **Internet Archive Edge Worker** - Optionally route Wayback Machine lookups and fetches through a Cloudflare Worker cache instead of hitting `web.archive.org` directly. Toggle it on and set the worker's base URL (e.g. `https://your-worker.workers.dev`) in the admin panel's Internet Archive card.
-- **Service Toggles** - Enable or disable Intranet, ProtoWeb, Internet Archive, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, Finger, ILS, H.323, RAS, T.120 from the admin dashboard. The intranet portal applies immediately; listener-based services apply the next time VintageHive restarts.
+- **Service Toggles** - Enable or disable Intranet, ProtoWeb, Internet Archive, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, Finger, Gopher, ILS, H.323, RAS, T.120 from the admin dashboard. The intranet portal applies immediately; listener-based services apply the next time VintageHive restarts.
 - **Temperature Units** - Celsius or Fahrenheit
 - **Distance Units** - Metric or Imperial
 

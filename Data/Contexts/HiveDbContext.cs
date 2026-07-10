@@ -66,6 +66,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.PortH323, 1720 },
         { ConfigNames.PortT120, 1503 },
         { ConfigNames.PortFinger, 79 },
+        { ConfigNames.PortGopher, 70 },
 
         // System Display Settings
         { ConfigNames.TemperatureUnits, WeatherUtils.TemperatureUnits.Celsius },
@@ -86,6 +87,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServiceImap, true },
         { ConfigNames.ServicePrinter, true },
         { ConfigNames.ServiceFinger, true },
+        { ConfigNames.ServiceGopher, true },
         { ConfigNames.ServiceDns, true },
         { ConfigNames.ServiceIls, true },
         { ConfigNames.ServiceRas, true },

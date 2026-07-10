@@ -26,6 +26,9 @@ EXPOSE 5190
 # Finger
 EXPOSE 79
 
+# Gopher
+EXPOSE 70
+
 # HTTPS
 EXPOSE 9999
 

@@ -5,6 +5,7 @@ using VintageHive.Data.Contexts;
 using VintageHive.Processors;
 using VintageHive.Proxy.Dns;
 using VintageHive.Proxy.Ftp;
+using VintageHive.Proxy.Gopher;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Imap;
 using VintageHive.Proxy.Irc;
@@ -69,6 +70,8 @@ public static class Mind
     static NntpProxy nntpProxy;
 
     static FingerServer fingerServer;
+
+    static GopherServer gopherServer;
 
     static readonly DateTime StartTimeUtc = DateTime.UtcNow;
 
@@ -267,6 +270,11 @@ public static class Mind
         var fingerPort = Db.ConfigGet<int>(ConfigNames.PortFinger);
 
         fingerServer = new(ipAddress, fingerPort);
+
+        // Gopher protocol (RFC 1436, hive portal + live gopherspace relay)
+        var gopherPort = Db.ConfigGet<int>(ConfigNames.PortGopher);
+
+        gopherServer = new(ipAddress, gopherPort);
     }
 
     public static void Start()
@@ -324,6 +332,8 @@ public static class Mind
         StartService(ConfigNames.ServiceT120, "T.120", () => t120Server.Start());
 
         StartService(ConfigNames.ServiceFinger, "Finger", () => fingerServer.Start());
+
+        StartService(ConfigNames.ServiceGopher, "Gopher", () => gopherServer.Start());
 
         resetEvent.WaitOne();
 

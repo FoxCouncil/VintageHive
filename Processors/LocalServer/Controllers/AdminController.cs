@@ -30,6 +30,7 @@ internal partial class AdminController : Controller
         { "h323", ConfigNames.ServiceH323 },
         { "t120", ConfigNames.ServiceT120 },
         { "finger", ConfigNames.ServiceFinger },
+        { "gopher", ConfigNames.ServiceGopher },
     };
 
     public override async Task CallInitial(string rawPath)
