@@ -111,7 +111,19 @@ public class SmtpConformanceTests
 
     [TestMethod]
     public async Task Data_Replies354()
-        => StringAssert.StartsWith(await MailTestEnv.Cmd(_proxy, new ListenerSocket(), "DATA"), "354 "); // RFC 5321 4.1.1.4
+    {
+        // RFC 5321 4.1.1.4 - DATA after a valid MAIL FROM + RCPT TO returns 354
+        var conn = new ListenerSocket();
+        conn.DataBag["mailfrom"] = new VintageHive.Data.Types.EmailAddress("fox@hive.com");
+        conn.DataBag["mailto"] = new HashSet<VintageHive.Data.Types.EmailAddress> { new VintageHive.Data.Types.EmailAddress("alice@hive.com") };
+
+        StringAssert.StartsWith(await MailTestEnv.Cmd(_proxy, conn, "DATA"), "354 ");
+    }
+
+    [TestMethod]
+    public async Task Data_WithoutTransaction_Replies503()
+        // RFC 5321 3.3 - DATA before MAIL FROM/RCPT TO is a bad command sequence
+        => StringAssert.StartsWith(await MailTestEnv.Cmd(_proxy, new ListenerSocket(), "DATA"), "503 ");
 
     [TestMethod]
     public async Task Help_Replies502NotImplemented()

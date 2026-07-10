@@ -19,6 +19,9 @@ internal partial class SmtpProxy : Listener
 
     private const string MailData = "mail_data";
 
+    // Bound an unauthenticated DATA stream so it can't exhaust memory on the default 0.0.0.0 bind
+    private const int MaxMessageBytes = 32 * 1024 * 1024;
+
     private const string RequestingUsername = "requesting_username";
     private const string RequestingPassword = "requesting_password";
     private const string RequestingData = "requesting_data";
@@ -161,6 +164,12 @@ internal partial class SmtpProxy : Listener
 
             case SmtpCommands.DATA:
             {
+                // Reject DATA before a transaction is set up - otherwise delivery later NREs on the missing MAIL FROM
+                if (!bag.ContainsKey(MailFrom) || !bag.ContainsKey(MailTo))
+                {
+                    return await SendResponse(BadSequenceOfCommands, "Need MAIL FROM and RCPT TO before DATA");
+                }
+
                 bag[RequestingData] = true;
                 bag[MailData] = string.Empty;
 
@@ -192,22 +201,36 @@ internal partial class SmtpProxy : Listener
             {
                 if (bag.ContainsKey(RequestingData))
                 {
-                    bag[MailData] += Message;
+                    var mailData = (bag[MailData] as string) + Message;
 
-                    if (!(bag[MailData] as string).EndsWith(EOM))
+                    if (mailData.Length > MaxMessageBytes)
+                    {
+                        bag.Remove(RequestingData);
+                        bag.Remove(MailData);
+                        bag.Remove(MailFrom);
+                        bag.Remove(MailTo);
+
+                        return await SendResponse(ExceededStorageAllocation, "Message exceeds the maximum allowed size");
+                    }
+
+                    bag[MailData] = mailData;
+
+                    if (!mailData.EndsWith(EOM))
                     {
                         return null;
                     }
 
-                    bag[MailData] = (bag[MailData] as string).Replace(EOM, string.Empty);
+                    // Strip ONLY the trailing terminator (Replace(EOM) mangled interior sequences), then reverse
+                    // SMTP dot-stuffing so IMAP FETCH doesn't expose ".." corruption on lines that began with a dot.
+                    var message = UnstuffDots(mailData[..^EOM.Length]);
 
                     bag.Remove(RequestingData);
+                    bag.Remove(MailData);
 
-                    Mind.PostOfficeDb.ProcessAndInsertEmail(bag[MailFrom] as EmailAddress, bag[MailTo] as HashSet<EmailAddress>, bag[MailData] as string);
+                    Mind.PostOfficeDb.ProcessAndInsertEmail(bag[MailFrom] as EmailAddress, bag[MailTo] as HashSet<EmailAddress>, message);
 
                     bag.Remove(MailFrom);
                     bag.Remove(MailTo);
-                    bag.Remove(MailData);
 
                     return await SendResponse(RequestedMailActionCompleted, "Ok, message accepted for delivery");
                 }
@@ -308,6 +331,17 @@ internal partial class SmtpProxy : Listener
         }
     }
 
+    // Reverse SMTP dot-stuffing: a line that began with '.' was transmitted as '..'
+    private static string UnstuffDots(string data)
+    {
+        if (data.StartsWith(".."))
+        {
+            data = data[1..];
+        }
+
+        return data.Replace("\r\n..", "\r\n.");
+    }
+
     private void PostmasterRun()
     {
         var logName = GetType().Name + "Postmaster";
@@ -318,6 +352,8 @@ internal partial class SmtpProxy : Listener
 
         while (postmasterThreadRunning)
         {
+          try
+          {
             var emailsToProcess = Mind.PostOfficeDb.GetUndeliveredEmails();
 
             if (emailsToProcess.Count != 0) Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Detected {emailsToProcess.Count} undelivered emails to process.", "");
@@ -355,6 +391,12 @@ internal partial class SmtpProxy : Listener
                     Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) User {email.ToAddress} not found, rejecting and sending bounce email!", "");
                 }
             }
+          }
+          catch (Exception ex)
+          {
+            // A rare SqliteException (disk I/O, corruption, external lock) used to escape and kill the process
+            Log.WriteException(logName, ex, "");
+          }
 
             Thread.Sleep(1000);
         }
