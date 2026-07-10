@@ -273,7 +273,12 @@ public static class Mind
             rawPrintProxy.Start();
         });
 
-        StartService(ConfigNames.ServiceSmtp, "SMTP", () => smtpProxy.Start());
+        StartService(ConfigNames.ServiceSmtp, "SMTP", () =>
+        {
+            smtpProxy.StartPostmaster();
+
+            smtpProxy.Start();
+        });
 
         StartService(ConfigNames.ServicePop3, "POP3", () => pop3Proxy.Start());
 

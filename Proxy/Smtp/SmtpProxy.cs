@@ -33,6 +33,15 @@ internal partial class SmtpProxy : Listener
 
     public SmtpProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp)
     {
+    }
+
+    internal void StartPostmaster()
+    {
+        if (postmasterThread != null)
+        {
+            return;
+        }
+
         postmasterThread = new Thread(new ThreadStart(PostmasterRun))
         {
             Name = "VintageHive Postmaster General",

@@ -21,8 +21,8 @@ internal static class MailTestEnv
     private static readonly object Gate = new();
     private static bool _ready;
 
-    // SMTP's constructor starts a postmaster thread that touches Mind.PostOfficeDb; auth on all three
-    // touches Mind.Db. Both are file-backed and only read here, so empty initialized contexts suffice.
+    // SMTP's DATA delivery touches Mind.PostOfficeDb; auth on all three touches Mind.Db.
+    // Both are file-backed and only read here, so empty initialized contexts suffice.
     // Their setters are private, so set once via reflection.
     public static void Ensure()
     {
