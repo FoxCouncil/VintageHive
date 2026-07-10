@@ -11,6 +11,9 @@ namespace VintageHive.Proxy.Printer;
 /// </summary>
 internal class RawPrintProxy : Listener
 {
+    // Raw 9100 has no length framing, so bound the in-memory accumulation (unauth LAN memory-exhaustion guard)
+    const int MAX_JOB_SIZE = 64 * 1024 * 1024;
+
     public RawPrintProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp)
     {
     }
@@ -46,6 +49,12 @@ internal class RawPrintProxy : Listener
                 if (read == 0)
                 {
                     break; // Client closed connection - data transfer complete
+                }
+
+                if (memoryStream.Length + read > MAX_JOB_SIZE)
+                {
+                    Log.WriteLine(Log.LEVEL_WARN, nameof(RawPrintProxy), $"Raw TCP job exceeded {MAX_JOB_SIZE} bytes - dropping the rest", connection.TraceId.ToString());
+                    break;
                 }
 
                 memoryStream.Write(buffer, 0, read);

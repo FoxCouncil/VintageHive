@@ -28,7 +28,11 @@ internal static class PrintSpooler
             Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), "PostScript/PCL print jobs will be saved as raw files (GhostScript unavailable)", "");
         }
 
-        Task.Run(SpoolerThread);
+        // Recover jobs that were mid-conversion when the app last stopped
+        Mind.PrinterDb.RequeueProcessingJobs();
+
+        // Observe the background loop's fault so a crash isn't swallowed by an unwatched Task
+        _ = Task.Run(SpoolerThread).ContinueWith(t => Log.WriteException(nameof(PrintSpooler), t.Exception, ""), TaskContinuationOptions.OnlyOnFaulted);
     }
 
     public static string SpoolerPath => _spoolerPath;
@@ -39,18 +43,21 @@ internal static class PrintSpooler
     {
         while (Mind.IsRunning)
         {
-            var job = Mind.PrinterDb.GetNextJob();
-
-            if (job == null)
-            {
-                Thread.Sleep(100);
-                continue;
-            }
-
-            Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job found! Processing job {job.Id}!");
+            PrinterJob job = null;
 
             try
             {
+                // GetNextJob is inside the try now: a DB error here used to escape and silently kill the spooler.
+                job = Mind.PrinterDb.GetNextJob();
+
+                if (job == null)
+                {
+                    await Task.Delay(100); // was Thread.Sleep - don't block a pool thread at 10 Hz
+                    continue;
+                }
+
+                Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job found! Processing job {job.Id}!");
+
                 if (job.DocData == null || job.DocData.Length == 0)
                 {
                     if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Canceled))
@@ -130,12 +137,19 @@ internal static class PrintSpooler
             }
             catch (Exception ex)
             {
-                if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Aborted))
+                // Best-effort abort of the current job; guarded so a DB error while aborting can't kill the loop
+                try
                 {
-                    Log.WriteLine(Log.LEVEL_ERROR, nameof(PrintSpooler), $"Failed to set job state to aborted; {job.Id}", "");
+                    if (job != null)
+                    {
+                        Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Aborted);
+                    }
                 }
+                catch { }
 
-                Log.WriteLine(Log.LEVEL_ERROR, nameof(PrintSpooler), $"Error in SpoolerThread; {ex}", "");
+                Log.WriteException(nameof(PrintSpooler), ex, "");
+
+                await Task.Delay(100); // avoid a tight error loop if GetNextJob keeps throwing
             }
         }
 

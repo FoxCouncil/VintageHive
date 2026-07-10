@@ -39,8 +39,6 @@ internal class PrinterProxy : Listener
 
     static readonly SharpIppServer _ippServer = new();
 
-    static string PrinterUrl;
-
     public PrinterProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp)
     {
     }
@@ -56,7 +54,8 @@ internal class PrinterProxy : Listener
             return null;
         }
 
-        PrinterUrl = $"http://{httpRequest.Uri.Authority}/";
+        // Per-request local (was a shared static that raced across concurrent IPP connections)
+        var printerUrl = $"http://{httpRequest.Uri.Authority}/";
 
         var httpResponse = new HttpResponse(httpRequest);
 
@@ -84,9 +83,9 @@ internal class PrinterProxy : Listener
                         CancelJobRequest x => GetCancelJobResponse(x),
                         CreateJobRequest x => GetCreateJobResponse(x),
                         CUPSGetPrintersRequest x => GetCUPSGetPrintersResponse(x),
-                        GetJobAttributesRequest x => GetJobAttributesResponse(x),
-                        GetJobsRequest x => GetJobsResponse(x),
-                        GetPrinterAttributesRequest x => GetPrinterAttributesResponse(x),
+                        GetJobAttributesRequest x => GetJobAttributesResponse(x, printerUrl),
+                        GetJobsRequest x => GetJobsResponse(x, printerUrl),
+                        GetPrinterAttributesRequest x => GetPrinterAttributesResponse(x, printerUrl),
                         HoldJobRequest x => GetHoldJobResponse(x),
                         PausePrinterRequest x => GetPausePrinterResponse(x),
                         PrintJobRequest x => GetPrintJobResponse(x),
@@ -95,7 +94,7 @@ internal class PrinterProxy : Listener
                         ReleaseJobRequest x => GetReleaseJobResponse(x),
                         RestartJobRequest x => GetRestartJobResponse(x),
                         ResumePrinterRequest x => GetResumePrinterResponse(x),
-                        SendDocumentRequest x => GetSendDocumentResponse(x),
+                        SendDocumentRequest x => GetSendDocumentResponse(x, printerUrl),
                         SendUriRequest x => SendUriResponse(x),
                         ValidateJobRequest x => GetValidateJobResponse(x),
                         _ => null
@@ -123,12 +122,12 @@ internal class PrinterProxy : Listener
 
                         await _ippServer.SendRawResponseAsync(unsupported, responseStream);
 
-                        return responseStream.ToArray();
+                        return WrapIpp(httpResponse, responseStream);
                     }
 
                     await _ippServer.SendResponseAsync(ippResponse, responseStream);
 
-                    return responseStream.ToArray();
+                    return WrapIpp(httpResponse, responseStream);
                 }
                 catch (IppRequestException ex)
                 {
@@ -150,15 +149,16 @@ internal class PrinterProxy : Listener
 
                     Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Process Request failed: IppRequestException {ex}", "");
 
-                    return responseStream.ToArray();
+                    return WrapIpp(httpResponse, responseStream);
                 }
                 catch (Exception ex)
                 {
-                    httpResponse.StatusCode = Http.HttpStatusCode.InternalServerError;
-
                     Log.WriteLine(Log.LEVEL_ERROR, nameof(PrinterProxy), $"Process Request failed: Exception {ex}", "");
 
-                    return null;
+                    httpResponse.SetStatusCode(Http.HttpStatusCode.InternalServerError);
+                    httpResponse.SetBodyString("IPP processing error", "text/plain");
+
+                    return httpResponse.GetResponseEncodedData();
                 }
             }
 
@@ -168,6 +168,15 @@ internal class PrinterProxy : Listener
                 return null;
             }
         }
+    }
+
+    private static byte[] WrapIpp(HttpResponse httpResponse, MemoryStream responseStream)
+    {
+        // Wrap the raw IPP bytes in a proper HTTP response. The old code returned raw IPP with no HTTP status
+        // line - era WinInet clients tolerated it but CUPS / strict IPP tooling reject a non-HTTP response.
+        httpResponse.SetBodyData(responseStream.ToArray(), "application/ipp");
+
+        return httpResponse.GetResponseEncodedData();
     }
 
     private ValidateJobResponse GetValidateJobResponse(ValidateJobRequest request)
@@ -180,34 +189,18 @@ internal class PrinterProxy : Listener
         };
     }
 
-    private SendUriResponse SendUriResponse(SendUriRequest request)
+    private static SendUriResponse SendUriResponse(SendUriRequest request)
     {
-        var response = new SendUriResponse
+        // VintageHive does not fetch documents from URIs, so report unsupported instead of stranding a New job
+        return new SendUriResponse
         {
             RequestId = request.RequestId,
             Version = request.Version,
-            StatusCode = IppStatusCode.ClientErrorNotPossible
+            StatusCode = IppStatusCode.ServerErrorOperationNotSupported
         };
-
-        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
-
-        response.JobId = jobId;
-        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
-
-        Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendUri job created; Id={jobId}", "");
-
-        if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
-        {
-            request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
-        }
-
-        response.JobState = JobState.Pending;
-        response.StatusCode = IppStatusCode.SuccessfulOk;
-
-        return response;
     }
 
-    private SendDocumentResponse GetSendDocumentResponse(SendDocumentRequest request)
+    private SendDocumentResponse GetSendDocumentResponse(SendDocumentRequest request, string printerUrl)
     {
         var response = new SendDocumentResponse
         {
@@ -216,20 +209,33 @@ internal class PrinterProxy : Listener
             StatusCode = IppStatusCode.ClientErrorNotPossible
         };
 
-        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
+        // Send-Document must attach to the job Create-Job made (was creating a brand-new job and discarding the
+        // document, stranding both in New/Pending forever). Store the bytes on that job and move it to Pending.
+        var jobId = request.OperationAttributes.JobId;
 
-        response.JobId = jobId;
-        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
-
-        Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendDocument job created; Id={jobId}", "");
+        if (!jobId.HasValue)
+        {
+            return response;
+        }
 
         if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
         {
             request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
         }
 
+        var documentData = request.Document?.ReadAllBytes() ?? [];
+
+        if (!Mind.PrinterDb.SetJobDocumentData(jobId.Value, JsonSerializer.Serialize(request.OperationAttributes), "{}", documentData))
+        {
+            return response;
+        }
+
+        response.JobId = jobId.Value;
+        response.JobUri = printerUrl + jobId.Value;
         response.JobState = JobState.Pending;
         response.StatusCode = IppStatusCode.SuccessfulOk;
+
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(PrinterProxy), $"SendDocument stored {documentData.Length} bytes for job {jobId.Value}", "");
 
         return response;
     }
@@ -283,6 +289,10 @@ internal class PrinterProxy : Listener
 
     private PurgeJobsResponse GetPurgeJobsResponse(PurgeJobsRequest request)
     {
+        var purged = Mind.PrinterDb.PurgeTerminalJobs();
+
+        Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterProxy), $"Purge-Jobs removed {purged} finished job(s)", "");
+
         return new PurgeJobsResponse
         {
             RequestId = request.RequestId,
@@ -291,38 +301,16 @@ internal class PrinterProxy : Listener
         };
     }
 
-    private PrintUriResponse GetPrintUriResponse(PrintUriRequest request)
+    private static PrintUriResponse GetPrintUriResponse(PrintUriRequest request)
     {
-        var response = new PrintUriResponse
+        // VintageHive does not fetch documents from URIs, so report unsupported instead of stranding a New job
+        return new PrintUriResponse
         {
             RequestId = request.RequestId,
             Version = request.Version,
-            JobState = JobState.Pending,
-            StatusCode = IppStatusCode.ClientErrorNotPossible
+            JobState = JobState.Aborted,
+            StatusCode = IppStatusCode.ServerErrorOperationNotSupported
         };
-
-        var jobId = Mind.PrinterDb.CreateJob(request.OperationAttributes.RequestingUserName);
-
-        response.JobId = jobId;
-        response.JobUri = request.OperationAttributes.PrinterUri + $"/{jobId}";
-
-        request.JobTemplateAttributes ??= new();
-
-        FillWithDefaultValues(request.JobTemplateAttributes);
-
-        if (string.IsNullOrEmpty(request.OperationAttributes.JobName))
-        {
-            request.OperationAttributes.JobName = $"Job {jobId}";
-        }
-
-        if (string.IsNullOrEmpty(request.OperationAttributes.DocumentFormat))
-        {
-            request.OperationAttributes.DocumentFormat = DEFAULT_DOCUMENT_FORMAT;
-        }
-
-        response.StatusCode = IppStatusCode.SuccessfulOk;
-
-        return response;
     }
 
     private PrintJobResponse GetPrintJobResponse(PrintJobRequest request)
@@ -397,7 +385,7 @@ internal class PrinterProxy : Listener
         return response;
     }
 
-    private GetPrinterAttributesResponse GetPrinterAttributesResponse(GetPrinterAttributesRequest request)
+    private GetPrinterAttributesResponse GetPrinterAttributesResponse(GetPrinterAttributesRequest request, string printerUrl)
     {
         bool IsRequired(string attributeName) => request.OperationAttributes.RequestedAttributes?.Contains(attributeName) ?? true;
 
@@ -450,7 +438,7 @@ internal class PrinterProxy : Listener
             PrinterLocation = !IsRequired(PrinterAttribute.PrinterLocation) ? null : "VintageHive",
             PrintScalingDefault = !IsRequired(PrinterAttribute.PrintScalingDefault) ? null : DEAFULT_PRINT_SCALING,
             PrintScalingSupported = !IsRequired(PrinterAttribute.PrintScalingSupported) ? null : [DEAFULT_PRINT_SCALING],
-            PrinterUriSupported = !IsRequired(PrinterAttribute.PrinterUriSupported) ? null : [PrinterUrl],
+            PrinterUriSupported = !IsRequired(PrinterAttribute.PrinterUriSupported) ? null : [printerUrl],
             UriAuthenticationSupported = !IsRequired(PrinterAttribute.UriAuthenticationSupported) ? null : [UriAuthentication.None],
             UriSecuritySupported = !IsRequired(PrinterAttribute.UriSecuritySupported) ? null : [UriSecurity.None],
             PrinterUpTime = !IsRequired(PrinterAttribute.PrinterUpTime) ? null : (int)Mind.TotalRuntime.TotalSeconds,
@@ -475,14 +463,14 @@ internal class PrinterProxy : Listener
             PageRangesSupported = !IsRequired(PrinterAttribute.PageRangesSupported) ? null : false,
             PagesPerMinute = !IsRequired(PrinterAttribute.PagesPerMinute) ? null : 20,
             PagesPerMinuteColor = !IsRequired(PrinterAttribute.PagesPerMinuteColor) ? null : 20,
-            PrinterMoreInfo = !IsRequired(PrinterAttribute.PrinterMoreInfo) ? null : PrinterUrl,
+            PrinterMoreInfo = !IsRequired(PrinterAttribute.PrinterMoreInfo) ? null : printerUrl,
             JobHoldUntilSupported = !IsRequired(PrinterAttribute.JobHoldUntilSupported) ? null : [DEFAULT_JOB_UNTIL],
             JobHoldUntilDefault = !IsRequired(PrinterAttribute.JobHoldUntilDefault) ? null : DEFAULT_JOB_UNTIL,
             ReferenceUriSchemesSupported = !IsRequired(PrinterAttribute.ReferenceUriSchemesSupported) ? null : [UriScheme.Ftp, UriScheme.Http, UriScheme.Https],
         };
     }
 
-    private GetJobsResponse GetJobsResponse(GetJobsRequest request)
+    private GetJobsResponse GetJobsResponse(GetJobsRequest request, string printerUrl)
     {
         var allJobs = Mind.PrinterDb.GetAllJobs();
 
@@ -507,7 +495,7 @@ internal class PrinterProxy : Listener
             JobId = j.Id,
             JobState = MapJobState(j.State),
             JobName = j.Name ?? $"Job {j.Id}",
-            JobUri = PrinterUrl + j.Id,
+            JobUri = printerUrl + j.Id,
             JobStateReasons = [MapJobStateReason(j.State)],
             TimeAtCreation = (int)(j.Created - DateTime.UnixEpoch).TotalSeconds,
             TimeAtProcessing = j.Processed.HasValue ? (int)(j.Processed.Value - DateTime.UnixEpoch).TotalSeconds : 0,
@@ -523,7 +511,7 @@ internal class PrinterProxy : Listener
         };
     }
 
-    private GetJobAttributesResponse GetJobAttributesResponse(GetJobAttributesRequest request)
+    private GetJobAttributesResponse GetJobAttributesResponse(GetJobAttributesRequest request, string printerUrl)
     {
         var response = new GetJobAttributesResponse
         {
@@ -553,8 +541,8 @@ internal class PrinterProxy : Listener
             JobId = job.Id,
             JobState = MapJobState(job.State),
             JobName = job.Name ?? $"Job {job.Id}",
-            JobUri = PrinterUrl + job.Id,
-            JobPrinterUri = PrinterUrl,
+            JobUri = printerUrl + job.Id,
+            JobPrinterUri = printerUrl,
             JobStateReasons = [MapJobStateReason(job.State)],
             TimeAtCreation = (int)(job.Created - DateTime.UnixEpoch).TotalSeconds,
             TimeAtProcessing = job.Processed.HasValue ? (int)(job.Processed.Value - DateTime.UnixEpoch).TotalSeconds : 0,

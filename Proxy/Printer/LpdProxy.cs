@@ -23,6 +23,9 @@ internal class LpdProxy : Listener
     const byte ACK = 0x00;
     const byte NAK = 0x01;
 
+    // Reject an unauthenticated client's declared file size beyond this instead of allocating it (LAN memory-exhaustion guard)
+    const int MAX_JOB_SIZE = 64 * 1024 * 1024;
+
     public LpdProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp)
     {
     }
@@ -160,6 +163,14 @@ internal class LpdProxy : Listener
                         continue;
                     }
 
+                    if (count <= 0 || count > MAX_JOB_SIZE)
+                    {
+                        Log.WriteLine(Log.LEVEL_WARN, nameof(LpdProxy), $"Rejecting LPD file with out-of-range declared size {count}", connection.TraceId.ToString());
+
+                        await stream.WriteAsync(new byte[] { NAK });
+                        continue;
+                    }
+
                     // ACK ready to receive
                     await stream.WriteAsync(new byte[] { ACK });
 
@@ -193,6 +204,14 @@ internal class LpdProxy : Listener
 
                     if (!int.TryParse(subLine[..spaceIdx], out int count))
                     {
+                        await stream.WriteAsync(new byte[] { NAK });
+                        continue;
+                    }
+
+                    if (count <= 0 || count > MAX_JOB_SIZE)
+                    {
+                        Log.WriteLine(Log.LEVEL_WARN, nameof(LpdProxy), $"Rejecting LPD file with out-of-range declared size {count}", connection.TraceId.ToString());
+
                         await stream.WriteAsync(new byte[] { NAK });
                         continue;
                     }

@@ -30,8 +30,13 @@ internal class EscPosRenderer
     bool _ibmMode;
 
     // Pages
+    // Each page is a full-size ~48 MB Rgba32 image; without a cap an unauth client can OOM the process by
+    // sending a stream full of form-feeds / overflowing line-feeds. 200 pages is far beyond any real job.
+    const int MAX_PAGES = 200;
+
     readonly List<Image<Rgba32>> _pages = [];
     Image<Rgba32> _currentPage;
+    bool _pageCapReached;
 
     // Font - loaded from embedded resource (same as BannerGenerator)
     static readonly Lazy<FontFamily> _fontFamily = new(() =>
@@ -48,37 +53,53 @@ internal class EscPosRenderer
         renderer.Reset();
         renderer.Process(data);
 
-        if (renderer._pages.Count == 0)
+        try
         {
-            return null;
+            if (renderer._pages.Count == 0)
+            {
+                return null;
+            }
+
+            // ProcessPostScript has this guard; ESC/P lacked it and threw on every job on GhostScript-less installs
+            if (!GhostScriptNative.IsAvailable)
+            {
+                Log.WriteLine(Log.LEVEL_WARN, nameof(EscPosRenderer), $"ESC/P job {jobId} rendered but GhostScript is unavailable - cannot produce PDF", "");
+
+                return null;
+            }
+
+            var psPath = $"{spoolerPath}{jobId}_escp.ps";
+            var pdfPath = $"{spoolerPath}{jobId}_escp.pdf";
+
+            try
+            {
+                // Write PostScript with embedded monochrome image data
+                using (var psStream = VFS.FileWrite(psPath))
+                {
+                    renderer.WritePagesAsPostScript(psStream);
+                    await psStream.FlushAsync();
+                }
+
+                // Convert PS to PDF via GhostScript
+                GhostScriptNative.ConvertPsToPdf(VFS.GetFullPath(psPath), VFS.GetFullPath(pdfPath));
+
+                return await VFS.FileReadDataAsync(pdfPath);
+            }
+            finally
+            {
+                // Always clean the temp spool files, even if conversion threw
+                VFS.FileDelete(psPath);
+                VFS.FileDelete(pdfPath);
+            }
         }
-
-        var psPath = $"{spoolerPath}{jobId}_escp.ps";
-        var pdfPath = $"{spoolerPath}{jobId}_escp.pdf";
-
-        // Write PostScript with embedded monochrome image data
-        using (var psStream = VFS.FileWrite(psPath))
+        finally
         {
-            renderer.WritePagesAsPostScript(psStream);
-            await psStream.FlushAsync();
+            // Always dispose the page images
+            foreach (var page in renderer._pages)
+            {
+                page.Dispose();
+            }
         }
-
-        // Convert PS to PDF via GhostScript
-        GhostScriptNative.ConvertPsToPdf(VFS.GetFullPath(psPath), VFS.GetFullPath(pdfPath));
-
-        var pdfData = await VFS.FileReadDataAsync(pdfPath);
-
-        // Cleanup temp files
-        VFS.FileDelete(psPath);
-        VFS.FileDelete(pdfPath);
-
-        // Dispose page images
-        foreach (var page in renderer._pages)
-        {
-            page.Dispose();
-        }
-
-        return pdfData;
     }
 
     void Reset()
@@ -103,6 +124,17 @@ internal class EscPosRenderer
 
     void NewPage()
     {
+        if (_pages.Count >= MAX_PAGES)
+        {
+            if (!_pageCapReached)
+            {
+                _pageCapReached = true;
+                Log.WriteLine(Log.LEVEL_WARN, nameof(EscPosRenderer), $"ESC/P job hit the {MAX_PAGES}-page cap; truncating render", "");
+            }
+
+            return;
+        }
+
         _currentPage = new Image<Rgba32>(PAGE_WIDTH_DOTS, PAGE_HEIGHT_DOTS, SixLabors.ImageSharp.Color.White);
         _pages.Add(_currentPage);
         _headX = _leftMargin;
@@ -123,7 +155,7 @@ internal class EscPosRenderer
     {
         int i = 0;
 
-        while (i < data.Length)
+        while (i < data.Length && !_pageCapReached)
         {
             byte b = data[i];
 

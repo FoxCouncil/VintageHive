@@ -54,6 +54,12 @@ public sealed partial class HttpRequest : Request
 
         var rawBody = bodyPointer == -1 ? string.Empty : rawBodyData;
 
+        // BodyData must be the EXACT original bytes (binary IPP/PDF/PostScript document data). Round-tripping
+        // through the decoded string corrupts it - under ASCII every byte >0x7F becomes '?'. Slice from the
+        // raw byte buffer at the byte offset of the header terminator instead.
+        var bodyByteStart = rawData == null ? -1 : FindHeaderTerminator(rawData, rawData.Length);
+        var bodyBytes = bodyByteStart >= 0 && bodyByteStart <= rawData.Length ? rawData[bodyByteStart..] : Array.Empty<byte>();
+
         var parsedRequestArray = rawHeaders.Trim().Split("\r\n");
 
         if (parsedRequestArray.Length == 1)
@@ -222,7 +228,7 @@ public sealed partial class HttpRequest : Request
             QueryParams = queryParams,
             FormData = formData,
             Body = rawBody,
-            BodyData = encoding.GetBytes(rawBody),
+            BodyData = bodyBytes,
             ListenerSocket = listenerSocket
         };
     }

@@ -58,6 +58,49 @@ public class PrinterDbContext : DbContextBase
         return printerState;
     }
 
+    // Jobs left in Processing when the app stopped mid-conversion would wedge forever (GetNextJob only fetches
+    // Pending, and the state machine has no Processing->anything transition). Requeue them on startup.
+    public void RequeueProcessingJobs()
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"UPDATE {TABLE_JOBS} SET state = @pending WHERE state = @processing";
+
+            command.Parameters.Add(new SqliteParameter("@pending", (int)PrinterJobState.Pending));
+            command.Parameters.Add(new SqliteParameter("@processing", (int)PrinterJobState.Processing));
+
+            var count = command.ExecuteNonQuery();
+
+            if (count > 0)
+            {
+                Log.WriteLine(Log.LEVEL_INFO, nameof(PrinterDbContext), $"Requeued {count} job(s) stuck in Processing after restart", "");
+            }
+        });
+    }
+
+    // Real Purge-Jobs (was a no-op): delete finished jobs so the table doesn't grow forever. Active jobs are left alone.
+    public int PurgeTerminalJobs()
+    {
+        var count = 0;
+
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_JOBS} WHERE state = @completed OR state = @canceled OR state = @aborted";
+
+            command.Parameters.Add(new SqliteParameter("@completed", (int)PrinterJobState.Completed));
+            command.Parameters.Add(new SqliteParameter("@canceled", (int)PrinterJobState.Canceled));
+            command.Parameters.Add(new SqliteParameter("@aborted", (int)PrinterJobState.Aborted));
+
+            count = command.ExecuteNonQuery();
+        });
+
+        return count;
+    }
+
     public PrinterJob GetNextJob()
     {
         PrinterJob job = null;
@@ -334,6 +377,7 @@ public class PrinterDbContext : DbContextBase
                     {
                         allowStateChange = true;
                         newCompleted = now;
+                        needToClearDocumentStreams = true;
                     }
                     break;
 
@@ -347,10 +391,13 @@ public class PrinterDbContext : DbContextBase
 
                 if (allowStateChange)
                 {
-                    // Update the job in the database
+                    // Update the job in the database. On terminal states, also null out the doc/print blobs so the
+                    // table doesn't carry them forever (printData is write-only dead weight; docData is spent).
                     using var updateCommand = context.CreateCommand();
 
-                    updateCommand.CommandText = $"UPDATE {TABLE_JOBS} SET state = @state, processed = @processed, completed = @completed WHERE id = @id";
+                    updateCommand.CommandText = needToClearDocumentStreams
+                        ? $"UPDATE {TABLE_JOBS} SET state = @state, processed = @processed, completed = @completed, docData = NULL, printData = NULL WHERE id = @id"
+                        : $"UPDATE {TABLE_JOBS} SET state = @state, processed = @processed, completed = @completed WHERE id = @id";
 
                     updateCommand.Parameters.Add(new SqliteParameter("@state", (int)newState));
                     updateCommand.Parameters.Add(new SqliteParameter("@processed", newProcessed.HasValue ? newProcessed.Value : DBNull.Value));
@@ -363,14 +410,7 @@ public class PrinterDbContext : DbContextBase
 
                     if (success)
                     {
-                        // Commit transaction
                         transaction.Commit();
-
-                        // Optionally clear document streams if needed
-                        if (needToClearDocumentStreams)
-                        {
-                            // this will be done later...
-                        }
                     }
                     else
                     {
