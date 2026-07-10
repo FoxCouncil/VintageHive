@@ -132,7 +132,7 @@ Full Microsoft NetMeeting conferencing support with a complete H.323/T.120 proto
 
 - **ILS Directory** (port 1002) - Internet Locator Service for user registration and lookup via LDAP, compatible with NetMeeting 2.x/3.x
 - **H.225 RAS Gatekeeper** (port 1719/UDP) - Endpoint discovery, registration, and admission control
-- **H.323 Call Signaling** (port 1720) - Q.931 call setup with bidirectional message proxying, H.245 control channel relay, and RTP/RTCP media relay
+- **H.323 Call Signaling** (port 1720) - Q.931 call setup with bidirectional message proxying; endpoints negotiate the H.245 control channel and RTP/RTCP media directly (LAN-direct). An H.245/RTP relay is built and unit-tested but not engaged, pending H245Address rewriting for NAT traversal
 - **T.120 Data Conferencing** (port 1503) - Full MCS domain management supporting Chat, Whiteboard (T.126 drawing primitives), and File Transfer (MBFT)
 
 ### Debug / Experimental Services

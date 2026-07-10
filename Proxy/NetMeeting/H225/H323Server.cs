@@ -4,8 +4,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using VintageHive.Network;
-using VintageHive.Proxy.NetMeeting.H245;
-using VintageHive.Proxy.NetMeeting.Rtp;
 
 namespace VintageHive.Proxy.NetMeeting.H225;
 
@@ -41,6 +39,7 @@ internal class H323Server : Listener
 
         TcpClient calleeClient = null;
         NetworkStream calleeStream = null;
+        H323Call call = null;
 
         try
         {
@@ -79,7 +78,7 @@ internal class H323Server : Listener
             }
 
             // Create call model
-            var call = new H323Call
+            call = new H323Call
             {
                 CallReference = setupQ931.CallReference,
                 State = H323CallState.Setup,
@@ -104,6 +103,18 @@ internal class H323Server : Listener
             if (calleeEp == null)
             {
                 Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: callee not found, sending ReleaseComplete", "");
+
+                await SendReleaseComplete(callerStream, call.CallReference, true, H225CallCodec.REL_UNREACHABLE_DEST);
+
+                call.State = H323CallState.Released;
+                call.ReleasedAt = DateTime.UtcNow;
+
+                return null;
+            }
+
+            if (calleeEp.CallSignalAddresses == null || calleeEp.CallSignalAddresses.Length == 0)
+            {
+                Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: callee has no call-signal address, releasing", "");
 
                 await SendReleaseComplete(callerStream, call.CallReference, true, H225CallCodec.REL_UNREACHABLE_DEST);
 
@@ -166,13 +177,11 @@ internal class H323Server : Listener
             calleeStream?.Dispose();
             calleeClient?.Dispose();
 
-            // Clean up call from active set
-            foreach (var kvp in _activeCalls)
+            // Always drop THIS call regardless of its final state - a throw before it reached Released (e.g. an
+            // unauth Setup + RST, or a SendReleaseComplete write failure) previously leaked it in _activeCalls forever.
+            if (call != null)
             {
-                if (kvp.Value.State == H323CallState.Released)
-                {
-                    _activeCalls.TryRemove(kvp.Key, out _);
-                }
+                _activeCalls.TryRemove(call.CallId, out _);
             }
         }
 
@@ -318,7 +327,13 @@ internal class H323Server : Listener
                     }
                 }
 
-                StartH245Relay(call);
+                // H.245/RTP relaying is intentionally not engaged. The forwarded Connect/Alerting carries the
+                // peer's real H245Address unchanged, so the two clients negotiate the H.245 control channel - and
+                // therefore RTP/RTCP media - directly with each other. That is correct for the LAN scenario
+                // VintageHive targets. Interposing the relay would require rewriting H245Address in the forwarded
+                // UUIE to point at our listener (a NAT-traversal feature left for future work); simply starting it
+                // here only parked an accept task that never received a connection. The H245Handler / RtpRelayManager
+                // building blocks remain unit-tested and ready for that rewrite.
             }
             break;
 
@@ -346,68 +361,6 @@ internal class H323Server : Listener
         catch
         {
             return null;
-        }
-    }
-
-    // ----------------------------------------------------------
-    //  H.245 / RTP relay wiring
-    // ----------------------------------------------------------
-
-    private void StartH245Relay(H323Call call)
-    {
-        // Guard: skip if H.245 addresses are missing or already started
-        if (call.CallerH245Address == null || call.CalleeH245Address == null)
-        {
-            return;
-        }
-
-        if (call.H245Handler != null)
-        {
-            return;
-        }
-
-        try
-        {
-            var handler = new H245Handler(Address, 0);
-            var relay = new RtpRelayManager(Address);
-
-            call.H245Handler = handler;
-            call.RelayManager = relay;
-
-            handler.OnChannelOpened = (channelNumber, channelInfo) =>
-            {
-                if (channelInfo.SenderMediaChannel != null && channelInfo.ReceiverMediaChannel != null)
-                {
-                    var pair = relay.CreateRelay(channelNumber);
-                    relay.StartRelay(channelNumber, channelInfo.SenderMediaChannel, channelInfo.SenderMediaControlChannel, channelInfo.ReceiverMediaChannel, channelInfo.ReceiverMediaControlChannel);
-                }
-            };
-
-            handler.OnChannelClosed = (channelNumber) =>
-            {
-                _ = relay.StopRelayAsync(channelNumber);
-            };
-
-            // Run H.245 proxy in background
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: H.245 relay listening on port {handler.Port}", "");
-
-                    await handler.RunAsync(call.CalleeH245Address);
-                }
-                catch (Exception ex)
-                {
-                    Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{call}: H.245 relay error: {ex.Message}", "");
-                }
-            });
-
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"{call}: H.245 relay started", "");
-        }
-        catch (Exception ex)
-        {
-            Log.WriteLine(Log.LEVEL_DEBUG, LOG_SRC, $"{call}: failed to start H.245 relay: {ex.Message}", "");
         }
     }
 

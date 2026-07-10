@@ -16,6 +16,8 @@ internal class RasServer : UdpListener
     private const string GK_ID = "VintageHive";
     private const int DEFAULT_TTL_SECONDS = 300;
 
+    private const int MAX_TTL_SECONDS = 3600;
+
     private readonly RasRegistry _registry = new();
     private readonly Timer _ttlTimer;
 
@@ -81,8 +83,19 @@ internal class RasServer : UdpListener
     {
         var rrq = msg.Rrq;
 
-        var endpointId = _registry.GenerateEndpointId();
-        var ttl = rrq.TimeToLive > 0 ? rrq.TimeToLive : DEFAULT_TTL_SECONDS;
+        // Reject a registration with no call-signal address - an admission/Setup on it would IndexOutOfRange on [0]
+        if (rrq.CallSignalAddresses == null || rrq.CallSignalAddresses.Length == 0)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, LOG_SRC, "RRQ rejected: no call-signal address", "");
+
+            return RasCodec.EncodeRegistrationReject(rrq.RequestSeqNum, H225Constants.RRJ_INVALID_CALL_SIGNALING_ADDRESS);
+        }
+
+        // Re-registration (keep-alive RRQ) from the same call-signal address reuses its endpoint id instead of
+        // leaking a fresh entry every time; TTL is clamped so a client can't pin a registration for an absurd span.
+        var existing = _registry.FindByCallSignalAddress(rrq.CallSignalAddresses[0]);
+        var endpointId = existing?.EndpointId ?? _registry.GenerateEndpointId();
+        var ttl = Math.Min(rrq.TimeToLive > 0 ? rrq.TimeToLive : DEFAULT_TTL_SECONDS, MAX_TTL_SECONDS);
 
         // Truncate aliases exceeding 256 characters
         var aliases = rrq.Aliases;
@@ -108,7 +121,12 @@ internal class RasServer : UdpListener
             ExpiresAt = DateTime.UtcNow.AddSeconds(ttl)
         };
 
-        _registry.Register(endpoint);
+        if (!_registry.Register(endpoint))
+        {
+            Log.WriteLine(Log.LEVEL_WARN, LOG_SRC, $"RRQ rejected: registry full ({RasRegistry.MaxEndpoints} endpoints)", "");
+
+            return RasCodec.EncodeRegistrationReject(rrq.RequestSeqNum, H225Constants.RRJ_UNDEFINED);
+        }
 
         Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"RRQ -> RCF: ep={endpointId} aliases={FormatAliases(rrq.Aliases)} ttl={ttl}s (registry has {_registry.Count} endpoints)", "");
 
@@ -155,9 +173,9 @@ internal class RasServer : UdpListener
             }
         }
 
-        if (destEp == null)
+        if (destEp == null || destEp.CallSignalAddresses == null || destEp.CallSignalAddresses.Length == 0)
         {
-            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ -> ARJ: destination {FormatAliases(arq.DestinationAliases)} not found", "");
+            Log.WriteLine(Log.LEVEL_INFO, LOG_SRC, $"ARQ -> ARJ: destination {FormatAliases(arq.DestinationAliases)} not found or has no signal address", "");
             return RasCodec.EncodeAdmissionReject(arq.RequestSeqNum, H225Constants.ARJ_CALLED_PARTY_NOT_REGISTERED);
         }
 
