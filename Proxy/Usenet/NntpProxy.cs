@@ -32,9 +32,56 @@ internal class NntpProxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
+        const string LineBufferKey = "_nntp_linebuf";
+        const int MaxLineBytes = 16 * 1024;
+
+        // Buffer to CRLF and loop: a command split across the 4096-byte read (or pipelined commands) was
+        // previously truncated/dropped with no carry-over.
+        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
+        var buffer = prev + data[..read].ToASCII();
+
+        var responses = new List<byte>();
+
+        int start = 0, idx;
+
+        while ((idx = buffer.IndexOf('\n', start)) != -1)
+        {
+            var line = buffer[start..idx].TrimEnd('\r');
+
+            start = idx + 1;
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var resp = await ProcessCommandLine(connection, line);
+
+            if (resp != null)
+            {
+                responses.AddRange(resp);
+            }
+
+            if (!connection.IsKeepAlive)
+            {
+                connection.DataBag[LineBufferKey] = string.Empty;
+
+                return responses.Count > 0 ? responses.ToArray() : null;
+            }
+        }
+
+        var remainder = buffer[start..];
+
+        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+
+        return responses.Count > 0 ? responses.ToArray() : null;
+    }
+
+    private async Task<byte[]> ProcessCommandLine(ListenerSocket connection, string commandLine)
+    {
         var bag = connection.DataBag;
 
-        var (command, argument) = ParseCommand(data, read);
+        var (command, argument) = ParseCommand(commandLine);
 
         switch (command)
         {
@@ -561,7 +608,12 @@ internal class NntpProxy : Listener
 
     internal static (string Command, string Argument) ParseCommand(ReadOnlySpan<byte> data, int read)
     {
-        var rawData = data[..read].ToASCII().Split(" ", 2);
+        return ParseCommand(data[..read].ToASCII());
+    }
+
+    internal static (string Command, string Argument) ParseCommand(string line)
+    {
+        var rawData = line.Split(" ", 2);
 
         var cmd = rawData[0].Trim().ToUpperInvariant();
         var arg = rawData.Length == 2 ? rawData[1].Trim() : string.Empty;

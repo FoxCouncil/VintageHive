@@ -31,9 +31,54 @@ internal partial class ImapProxy : Listener
     {
         await Task.Delay(0);
 
-        var session = connection.DataBag[SessionKey] as ImapSession;
+        const string LineBufferKey = "_imap_linebuf";
+        const int MaxLineBytes = 16 * 1024;
 
-        var rawLine = Encoding.ASCII.GetString(data, 0, read).TrimEnd('\r', '\n');
+        // Buffer to CRLF and loop so pipelined commands are all answered and a command split across TCP reads
+        // is reassembled instead of misparsed (its tag would otherwise never be answered - the client stalls).
+        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
+        var buffer = prev + Encoding.ASCII.GetString(data, 0, read);
+
+        var responses = new List<byte>();
+
+        int start = 0, idx;
+
+        while ((idx = buffer.IndexOf('\n', start)) != -1)
+        {
+            var line = buffer[start..idx].TrimEnd('\r');
+
+            start = idx + 1;
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var resp = ProcessCommandLine(connection, line);
+
+            if (resp != null)
+            {
+                responses.AddRange(resp);
+            }
+
+            if (!connection.IsKeepAlive)
+            {
+                connection.DataBag[LineBufferKey] = string.Empty;
+
+                return responses.Count > 0 ? responses.ToArray() : null;
+            }
+        }
+
+        var remainder = buffer[start..];
+
+        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+
+        return responses.Count > 0 ? responses.ToArray() : null;
+    }
+
+    private byte[] ProcessCommandLine(ListenerSocket connection, string rawLine)
+    {
+        var session = connection.DataBag[SessionKey] as ImapSession;
 
         var match = CommandRegex().Match(rawLine);
 
@@ -45,6 +90,8 @@ internal partial class ImapProxy : Listener
         var tag = match.Groups[1].Value;
         var command = match.Groups[2].Value.ToUpperInvariant();
         var args = match.Groups[3].Success ? match.Groups[3].Value : string.Empty;
+
+        var lineBytes = Encoding.ASCII.GetBytes(rawLine);
 
         return command switch
         {
@@ -62,14 +109,14 @@ internal partial class ImapProxy : Listener
             "LIST" => HandleList(tag, args, session),
             "LSUB" => HandleLsub(tag, args, session),
             "STATUS" => HandleStatus(tag, args, session),
-            "APPEND" => HandleAppend(tag, args, session, connection, data, read),
+            "APPEND" => HandleAppend(tag, args, session, connection, lineBytes, lineBytes.Length),
             "CLOSE" => HandleClose(tag, session),
             "EXPUNGE" => HandleExpunge(tag, session),
             "SEARCH" => HandleSearch(tag, args, session, useUid: false),
             "FETCH" => HandleFetch(tag, args, session, useUid: false),
             "STORE" => HandleStore(tag, args, session, useUid: false),
             "COPY" => HandleCopy(tag, args, session, useUid: false),
-            "UID" => HandleUid(tag, args, session, connection, data, read),
+            "UID" => HandleUid(tag, args, session, connection, lineBytes, lineBytes.Length),
             _ => BuildResponse($"{tag} BAD Unknown command{EOL}")
         };
     }

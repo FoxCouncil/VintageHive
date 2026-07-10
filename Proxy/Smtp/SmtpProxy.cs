@@ -63,6 +63,78 @@ internal partial class SmtpProxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
+        const string LineBufferKey = "_smtp_linebuf";
+        const int MaxLineBytes = 8 * 1024;
+
+        var bag = connection.DataBag;
+
+        // In DATA mode the payload is the message body (accumulated until EOM by the NONE case) - pass it straight
+        // through without line-splitting. In command mode, buffer to CRLF so a split command is reassembled and
+        // pipelined commands are all answered instead of only the first.
+        if (bag.ContainsKey(RequestingData))
+        {
+            return await ProcessRequestInner(connection, data, read);
+        }
+
+        var prev = bag.TryGetValue(LineBufferKey, out var lb) ? lb as string : string.Empty;
+        var buffer = prev + Encoding.ASCII.GetString(data, 0, read);
+
+        var responses = new List<byte>();
+
+        int start = 0, nl;
+
+        while ((nl = buffer.IndexOf('\n', start)) != -1)
+        {
+            var line = buffer[start..nl].TrimEnd('\r');
+
+            start = nl + 1;
+
+            var lineBytes = Encoding.ASCII.GetBytes(line);
+
+            var resp = await ProcessRequestInner(connection, lineBytes, lineBytes.Length);
+
+            if (resp != null)
+            {
+                responses.AddRange(resp);
+            }
+
+            if (!connection.IsKeepAlive)
+            {
+                bag[LineBufferKey] = string.Empty;
+
+                return responses.Count > 0 ? responses.ToArray() : null;
+            }
+
+            // If that command (DATA) switched us into body mode, the rest of the buffer is message body
+            if (bag.ContainsKey(RequestingData))
+            {
+                bag[LineBufferKey] = string.Empty;
+
+                if (start < buffer.Length)
+                {
+                    var bodyBytes = Encoding.ASCII.GetBytes(buffer[start..]);
+
+                    var bodyResp = await ProcessRequestInner(connection, bodyBytes, bodyBytes.Length);
+
+                    if (bodyResp != null)
+                    {
+                        responses.AddRange(bodyResp);
+                    }
+                }
+
+                return responses.Count > 0 ? responses.ToArray() : null;
+            }
+        }
+
+        var remainder = buffer[start..];
+
+        bag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+
+        return responses.Count > 0 ? responses.ToArray() : null;
+    }
+
+    private async Task<byte[]> ProcessRequestInner(ListenerSocket connection, byte[] data, int read)
+    {
         var bag = connection.DataBag;
 
         var (Command, Message) = await ReadRequest(data, read, bag.ContainsKey(RequestingData));
