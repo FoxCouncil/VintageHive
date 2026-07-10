@@ -131,19 +131,30 @@ internal class IrcProxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
-        var input = data[..read].ToUTF8().TrimEnd('\r', '\n');
+        const string LineBufferKey = "_irc_linebuf";
+        const int MaxLineBytes = 16 * 1024;
 
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return null;
-        }
+        // Carry any partial line from the previous read so a command split across TCP reads (or a paste burst
+        // spanning the 4096-byte buffer) is reassembled instead of truncated into garbage.
+        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
+        var buffer = prev + data[..read].ToUTF8();
 
-        var lines = input.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
         var responses = new List<byte>();
 
-        foreach (var line in lines)
+        int start = 0, idx;
+
+        while ((idx = buffer.IndexOf('\n', start)) != -1)
         {
-            var client = ParseIrcCommand(line.TrimEnd('\r'));
+            var line = buffer[start..idx].TrimEnd('\r');
+
+            start = idx + 1;
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var client = ParseIrcCommand(line);
 
             if (client == null)
             {
@@ -159,9 +170,16 @@ internal class IrcProxy : Listener
 
             if (!connection.IsKeepAlive)
             {
-                break;
+                connection.DataBag[LineBufferKey] = string.Empty;
+
+                return responses.Count > 0 ? responses.ToArray() : null;
             }
         }
+
+        // Retain the trailing incomplete line for the next read (bounded so an unterminated line can't grow forever)
+        var remainder = buffer[start..];
+
+        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
 
         return responses.Count > 0 ? responses.ToArray() : null;
     }

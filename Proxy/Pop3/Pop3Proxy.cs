@@ -28,11 +28,58 @@ internal class Pop3Proxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
+        const string LineBufferKey = "_pop3_linebuf";
+        const int MaxLineBytes = 8 * 1024;
+
+        // Buffer to CRLF and loop: a client that pipelines commands in one packet, or whose command is split
+        // across TCP reads, was previously misparsed (only the first line handled; later tags never answered).
+        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
+        var buffer = prev + Encoding.ASCII.GetString(data, 0, read);
+
+        var responses = new List<byte>();
+
+        int start = 0, idx;
+
+        while ((idx = buffer.IndexOf('\n', start)) != -1)
+        {
+            var line = buffer[start..idx].TrimEnd('\r');
+
+            start = idx + 1;
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var resp = await ProcessCommandLine(connection, line);
+
+            if (resp != null)
+            {
+                responses.AddRange(resp);
+            }
+
+            if (!connection.IsKeepAlive)
+            {
+                connection.DataBag[LineBufferKey] = string.Empty;
+
+                return responses.Count > 0 ? responses.ToArray() : null;
+            }
+        }
+
+        var remainder = buffer[start..];
+
+        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+
+        return responses.Count > 0 ? responses.ToArray() : null;
+    }
+
+    private async Task<byte[]> ProcessCommandLine(ListenerSocket connection, string commandLine)
+    {
         var bag = connection.DataBag;
 
         var username = bag[Username].ToString();
 
-        var (Command, Message) = ParseRawCommand(data, read);
+        var (Command, Message) = ParseCommandLine(commandLine);
 
         // Auth guard for commands that require authentication
         switch (Command)
@@ -293,9 +340,9 @@ internal class Pop3Proxy : Listener
         return $"{(success ? "+OK" : "-ERR")} {message}".ToASCII();
     }
 
-    private (string Command, string Message) ParseRawCommand(ReadOnlySpan<byte> data, int read)
+    private static (string Command, string Message) ParseCommandLine(string line)
     {
-        var rawData = data[..read].ToASCII().Split(" ", 2);
+        var rawData = line.Split(" ", 2);
 
         var cmd = rawData[0].Trim().ToUpperInvariant();
         var msg = rawData.Length == 2 ? rawData[1].Trim() : string.Empty;
