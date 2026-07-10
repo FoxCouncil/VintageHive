@@ -175,9 +175,7 @@ public static class Mind
 
         IrcServer.InitChannels();
 
-        // Print services (IPP, LPD, Raw TCP) and shared spooler
-        PrintSpooler.Init();
-
+        // Print services (IPP, LPD, Raw TCP)
         var ippPort = Db.ConfigGet<int>(ConfigNames.PortIpp);
 
         printerProxy = new PrinterProxy(ipAddress, ippPort);
@@ -268,6 +266,8 @@ public static class Mind
 
         StartService(ConfigNames.ServicePrinter, "Printer (IPP/LPD/Raw)", () =>
         {
+            PrintSpooler.Init();
+
             printerProxy.Start();
             lpdProxy.Start();
             rawPrintProxy.Start();

@@ -45,7 +45,7 @@ public static class Extensions
 
     public static bool ConfirmValidPath(this string path)
     {
-        return !string.IsNullOrEmpty(path) && path.IndexOfAny(Path.GetInvalidPathChars()) <= 0;
+        return !string.IsNullOrEmpty(path) && path.IndexOfAny(Path.GetInvalidPathChars()) < 0;
     }
 
     public static string ToOnOff(this bool boolean)

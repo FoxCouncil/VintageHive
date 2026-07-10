@@ -9,7 +9,6 @@ namespace VintageHive.Processors.LocalServer.Controllers;
 [Domain(HiveDomains.Api)]
 internal class ApiController : Controller
 {
-    static readonly ConcurrentDictionary<string, string> _brokenUrls = new();
     static readonly ConcurrentDictionary<string, Task<string>> _inflightFetches = new();
     static readonly SemaphoreSlim _fetchThrottle = new(8, 8);
 
@@ -19,7 +18,7 @@ internal class ApiController : Controller
         var url = Request.QueryParams.ContainsKey("url") && !string.IsNullOrWhiteSpace(Request.QueryParams["url"]) ? Request.QueryParams["url"] : string.Empty;
         var fallbackUrl = Request.QueryParams.ContainsKey("fburl") && !string.IsNullOrWhiteSpace(Request.QueryParams["fburl"]) ? Request.QueryParams["fburl"] : string.Empty;
 
-        if (string.IsNullOrEmpty(url) || _brokenUrls.ContainsKey(url))
+        if (string.IsNullOrEmpty(url))
         {
             if (!string.IsNullOrEmpty(fallbackUrl))
             {
@@ -37,10 +36,9 @@ internal class ApiController : Controller
 
         _inflightFetches.TryRemove(url, out _);
 
+        // Failed fetches are negatively cached for 365 days by Mind.Cache (empty string result), so no in-memory broken-URL set is needed
         if (string.IsNullOrEmpty(imageDataBase64))
         {
-            _brokenUrls.TryAdd(url, string.Empty);
-
             if (!string.IsNullOrEmpty(fallbackUrl))
             {
                 Response.SetFound(fallbackUrl);

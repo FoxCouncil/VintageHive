@@ -258,7 +258,8 @@ internal class RtpRelayManager : IDisposable
         var assigned = ((IPEndPoint)probe.Client.LocalEndPoint).Port;
         probe.Close();
 
-        return assigned % 2 == 0 ? assigned : assigned + 1;
+        // Round DOWN to even: 65535 + 1 would put RTCP at 65536, past the valid port range
+        return assigned % 2 == 0 ? assigned : assigned - 1;
     }
 }
 

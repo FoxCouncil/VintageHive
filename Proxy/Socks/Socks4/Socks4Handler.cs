@@ -80,7 +80,7 @@ internal static class Socks4Handler
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), $"CONNECT {displayHost}:{destPort}", traceId);
 
         // -- Connect to target -------------------------------------------
-        Socket targetSocket;
+        Socket targetSocket = null;
 
         try
         {
@@ -90,12 +90,17 @@ internal static class Socks4Handler
         }
         catch (Exception ex)
         {
+            targetSocket?.Dispose();
+
             Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), $"Connect failed to {displayHost}:{destPort}: {ex.Message}", traceId);
 
             await SendReplyAsync(stream, REPLY_REJECTED, destPort, destAddress, ct);
 
             return;
         }
+
+        // Own the socket via its stream immediately so a throw on the reply write or request tracking disposes it
+        using var targetStream = new NetworkStream(targetSocket, ownsSocket: true);
 
         // Send success reply
         var localEp = (IPEndPoint)targetSocket.LocalEndPoint;
@@ -108,8 +113,6 @@ internal static class Socks4Handler
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), $"Tunnel established to {displayHost}:{destPort}", traceId);
 
         // -- Bidirectional tunnel ----------------------------------------
-        using var targetStream = new NetworkStream(targetSocket, ownsSocket: true);
-
         await SocksProxy.TunnelAsync(stream, targetStream);
 
         Log.WriteLine(Log.LEVEL_DEBUG, nameof(Socks4Handler), $"Tunnel closed to {displayHost}:{destPort}", traceId);
