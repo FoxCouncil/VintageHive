@@ -50,7 +50,11 @@ internal static class HtmlUtils
                     img = node.GetAttributeValue("data-src-medium", "");
                 }
 
-                var imgUri = new Uri(img.StartsWith("//") ? $"https:{img}" : img);
+                // SmartReader output can have no usable src at all, or a relative one; skip those nodes instead of 500ing the viewer
+                if (!Uri.TryCreate(img.StartsWith("//") ? $"https:{img}" : img, UriKind.Absolute, out var imgUri))
+                {
+                    continue;
+                }
 
                 var imageLinkNode = HtmlNode.CreateNode($"<a href=\"/viewer.html?url={Uri.EscapeDataString(imgUri.ToString())}\"><img src=\"http://{HiveDomains.Api}/image/fetch?url={Uri.EscapeDataString(imgUri.ToString())}\" border=\"0\"></a>");
 

@@ -217,9 +217,18 @@ internal partial class AdminController : Controller
         if (!Request.FormData.ContainsKey("year"))
         {
             Response.SetJsonSuccess(false);
+
+            return;
         }
 
-        Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchiveYear, Request.FormData["year"]);
+        if (!int.TryParse(Request.FormData["year"], out var year) || !InternetArchiveProcessor.ValidYears.Contains(year))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        Mind.Db.ConfigSet(ConfigNames.ServiceInternetArchiveYear, year);
 
         Response.SetJsonSuccess();
     }

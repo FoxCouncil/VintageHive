@@ -294,7 +294,7 @@ public sealed class HttpResponse
     {
         if (string.IsNullOrEmpty(url))
         {
-            url = Request.Uri.ToString().ToLower();
+            url = Request.Uri.ToString();
         }
 
         using var httpClient = HttpClientUtils.GetHttpClient(Request, new HttpClientHandler

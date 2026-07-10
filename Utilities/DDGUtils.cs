@@ -14,7 +14,14 @@ internal static class DDGUtils
 
     internal static async Task<List<SearchResult>> Search(string keywords, uint page = 1, string region = "wt-wt", SafeSearchLevel safesearch = SafeSearchLevel.Off)
     {
+        var output = new List<SearchResult>();
+
         var vqd = await GetVqd(keywords);
+
+        if (string.IsNullOrEmpty(vqd))
+        {
+            return output;
+        }
 
         var idx = (page * 20) - 20;
 
@@ -36,11 +43,31 @@ internal static class DDGUtils
 
         var response = await client.SendAsync(request);
 
+        // DDG answers 202 + a JS anti-bot challenge when it flags a client, so 2xx alone doesn't mean JSON
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            return output;
+        }
+
         var rawouput = await response.Content.ReadAsStringAsync();
 
-        var searchResults = JsonSerializer.Deserialize<DDGResults>(rawouput);
+        DDGResults searchResults;
 
-        var output = new List<SearchResult>();
+        try
+        {
+            searchResults = JsonSerializer.Deserialize<DDGResults>(rawouput);
+        }
+        catch (JsonException)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, "DDGUtils", $"Links endpoint returned non-JSON for '{keywords}' (anti-bot challenge?)", "");
+
+            return output;
+        }
+
+        if (searchResults?.results == null)
+        {
+            return output;
+        }
 
         foreach (var result in searchResults.results)
         {
@@ -72,7 +99,8 @@ internal static class DDGUtils
     {
         var vqd = Mind.Db.VqdGet(keywords);
 
-        if (vqd != null)
+        // Empty rows are poison from failed scrapes (pre-fix persistence); treat them as a miss so they self-heal
+        if (!string.IsNullOrEmpty(vqd))
         {
             Log.WriteLine(Log.LEVEL_DEBUG, "DDGUtils", vqd + "-sql", "");
 
@@ -100,9 +128,21 @@ internal static class DDGUtils
 
         var response = await client.SendAsync(request);
 
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
         var result = await response.Content.ReadAsStringAsync();
 
-        vqd = VqdRegex.Match(result).Groups[1].Value;
+        var match = VqdRegex.Match(result);
+
+        if (!match.Success || string.IsNullOrEmpty(match.Groups[1].Value))
+        {
+            return null;
+        }
+
+        vqd = match.Groups[1].Value;
 
         Mind.Db.VqdSet(keywords, vqd);
 
