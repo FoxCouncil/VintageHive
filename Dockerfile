@@ -29,6 +29,12 @@ EXPOSE 79
 # Gopher
 EXPOSE 70
 
+# Yahoo! Messenger
+EXPOSE 5050
+
+# MSN Messenger
+EXPOSE 1863
+
 # HTTPS
 EXPOSE 9999
 

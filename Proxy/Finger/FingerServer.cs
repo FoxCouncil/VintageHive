@@ -2,6 +2,7 @@
 
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Presence;
 
 namespace VintageHive.Proxy.Finger;
 
@@ -69,9 +70,10 @@ internal class FingerServer : Listener
         sb.AppendLine("VintageHive Finger Server");
         sb.AppendLine(new string('-', 60));
 
-        var sessions = OscarServer.Sessions.Values.ToList();
+        // Presence now spans every messenger network via the shared registry, not just OSCAR/AIM.
+        var entries = PresenceRegistry.Online().ToList();
 
-        if (sessions.Count == 0)
+        if (entries.Count == 0)
         {
             sb.AppendLine("No users currently online.");
         }
@@ -80,18 +82,13 @@ internal class FingerServer : Listener
             sb.AppendLine($"{"User",-20} {"Status",-15} {"Idle",-10} {"On Since"}");
             sb.AppendLine($"{new string('-', 20)} {new string('-', 15)} {new string('-', 10)} {new string('-', 20)}");
 
-            foreach (var session in sessions)
+            foreach (var entry in entries)
             {
-                if (string.IsNullOrEmpty(session.ScreenName))
-                {
-                    continue;
-                }
+                var status = FormatStatus(entry.Status);
+                var idle = FormatIdle(entry.IdleSeconds);
+                var signOn = entry.SignOnTime.LocalDateTime.ToString("ddd MMM dd HH:mm");
 
-                var status = FormatStatus(session);
-                var idle = FormatIdle(session);
-                var signOn = session.SignOnTime.LocalDateTime.ToString("ddd MMM dd HH:mm");
-
-                sb.AppendLine($"{session.ScreenName,-20} {status,-15} {idle,-10} {signOn}");
+                sb.AppendLine($"{entry.Username,-20} {status,-15} {idle,-10} {signOn}");
             }
         }
 
@@ -108,9 +105,9 @@ internal class FingerServer : Listener
             return sb.ToString();
         }
 
-        // Check online status
-        var session = OscarServer.Sessions.GetByScreenName(username);
-        var isOnline = session != null;
+        // Check online status across all messenger networks
+        var entry = PresenceRegistry.Find(username);
+        var isOnline = entry != null;
 
         // Get profile from DB
         var profile = Mind.Db.OscarGetProfile(username);
@@ -119,20 +116,20 @@ internal class FingerServer : Listener
 
         if (isOnline)
         {
-            sb.AppendLine($"On since {session.SignOnTime.LocalDateTime:ddd MMM dd HH:mm} on hive");
+            sb.AppendLine($"On since {entry.SignOnTime.LocalDateTime:ddd MMM dd HH:mm} on hive");
 
-            var idle = session.GetCurrentIdleSeconds();
+            var idle = entry.IdleSeconds;
 
             if (idle > 0)
             {
                 sb.AppendLine($"Idle {FormatIdleLong(idle)}");
             }
 
-            sb.AppendLine($"Status: {FormatStatus(session)}");
+            sb.AppendLine($"Status: {FormatStatus(entry.Status)}");
 
-            if (!string.IsNullOrEmpty(session.AwayMessage))
+            if (!string.IsNullOrEmpty(entry.AwayMessage))
             {
-                sb.AppendLine($"Away: {session.AwayMessage}");
+                sb.AppendLine($"Away: {entry.AwayMessage}");
             }
         }
         else
@@ -173,11 +170,11 @@ internal class FingerServer : Listener
             }
         }
 
-        // .plan - we use the Oscar profile text as the plan
-        if (isOnline && !string.IsNullOrEmpty(session.Profile))
+        // .plan - a live session's profile text is the plan when the user is online
+        if (isOnline && !string.IsNullOrEmpty(entry.PlanText))
         {
             sb.AppendLine("Plan:");
-            sb.AppendLine(session.Profile);
+            sb.AppendLine(entry.PlanText);
         }
         else if (profile != null && !string.IsNullOrEmpty(profile.Notes))
         {
@@ -237,25 +234,28 @@ internal class FingerServer : Listener
         return parts.Count > 0 ? string.Join(" ", parts) : "(unknown)";
     }
 
-    internal static string FormatStatus(OscarSession session)
+    internal static string FormatStatus(PresenceStatus status)
     {
-        return session.Status switch
+        return status switch
         {
-            OscarSessionOnlineStatus.Online => "Online",
-            OscarSessionOnlineStatus.Away => "Away",
-            OscarSessionOnlineStatus.DoNotDisturb => "Do Not Disturb",
-            OscarSessionOnlineStatus.NotAvailable => "Not Available",
-            OscarSessionOnlineStatus.Occupied => "Occupied",
-            OscarSessionOnlineStatus.FreeToChat => "Free to Chat",
-            OscarSessionOnlineStatus.Invisible => "Invisible",
+            PresenceStatus.Online => "Online",
+            PresenceStatus.Away => "Away",
+            PresenceStatus.DoNotDisturb => "Do Not Disturb",
+            PresenceStatus.NotAvailable => "Not Available",
+            PresenceStatus.Occupied => "Occupied",
+            PresenceStatus.FreeToChat => "Free to Chat",
+            PresenceStatus.Invisible => "Invisible",
+            PresenceStatus.Idle => "Idle",
+            PresenceStatus.Busy => "Busy",
+            PresenceStatus.OnThePhone => "On the Phone",
+            PresenceStatus.OutToLunch => "Out to Lunch",
+            PresenceStatus.BeRightBack => "Be Right Back",
             _ => "Online"
         };
     }
 
-    internal static string FormatIdle(OscarSession session)
+    internal static string FormatIdle(uint seconds)
     {
-        var seconds = session.GetCurrentIdleSeconds();
-
         if (seconds == 0)
         {
             return "-";

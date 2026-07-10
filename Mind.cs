@@ -15,13 +15,16 @@ using VintageHive.Proxy.NetMeeting.ILS;
 using VintageHive.Proxy.NetMeeting.T120;
 using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Finger;
+using VintageHive.Proxy.Presence;
 using VintageHive.Proxy.Pna;
 using VintageHive.Proxy.Pop3;
 using VintageHive.Proxy.Printer;
 using VintageHive.Proxy.Smtp;
 using VintageHive.Proxy.Socks;
 using VintageHive.Proxy.Telnet;
+using VintageHive.Proxy.Msn;
 using VintageHive.Proxy.Usenet;
+using VintageHive.Proxy.Yahoo;
 
 namespace VintageHive;
 
@@ -56,6 +59,10 @@ public static class Mind
     static ImapProxy imapProxy;
 
     static OscarServer oscarServer;
+
+    static YmsgServer yahooServer;
+
+    static MsnServer msnServer;
 
     static MmsServer mmsServer;
 
@@ -195,6 +202,9 @@ public static class Mind
 
         oscarServer = new(ipAddress);
 
+        // Feed OSCAR presence into the shared registry so Finger (and any future consumer) sees AIM/ICQ users.
+        PresenceRegistry.Register(new OscarPresenceProvider());
+
         mmsServer = new(ipAddress);
 
         pnaServer = new(ipAddress);
@@ -275,6 +285,20 @@ public static class Mind
         var gopherPort = Db.ConfigGet<int>(ConfigNames.PortGopher);
 
         gopherServer = new(ipAddress, gopherPort);
+
+        // Yahoo! Messenger (YMSG, login + presence + IM)
+        var yahooPort = Db.ConfigGet<int>(ConfigNames.PortYahoo);
+
+        yahooServer = new(ipAddress, yahooPort);
+
+        PresenceRegistry.Register(new YahooPresenceProvider());
+
+        // MSN Messenger (MSNP, notification + switchboard on one port)
+        var msnPort = Db.ConfigGet<int>(ConfigNames.PortMsn);
+
+        msnServer = new(ipAddress, msnPort);
+
+        PresenceRegistry.Register(new MsnPresenceProvider());
     }
 
     public static void Start()
@@ -334,6 +358,10 @@ public static class Mind
         StartService(ConfigNames.ServiceFinger, "Finger", () => fingerServer.Start());
 
         StartService(ConfigNames.ServiceGopher, "Gopher", () => gopherServer.Start());
+
+        StartService(ConfigNames.ServiceYahoo, "Yahoo! Messenger", () => yahooServer.Start());
+
+        StartService(ConfigNames.ServiceMsn, "MSN Messenger", () => msnServer.Start());
 
         resetEvent.WaitOne();
 

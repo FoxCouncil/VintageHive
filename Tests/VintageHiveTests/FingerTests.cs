@@ -2,6 +2,7 @@
 
 using VintageHive.Proxy.Finger;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Presence;
 
 #pragma warning disable MSTEST0025 // Use Assert.Fail instead of always-failing Assert.AreEqual
 
@@ -150,71 +151,71 @@ public class FingerFormatStatusTests
     [TestMethod]
     public void FormatStatus_Online()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.Online };
-
-        Assert.AreEqual("Online", FingerServer.FormatStatus(session));
+        Assert.AreEqual("Online", FingerServer.FormatStatus(PresenceStatus.Online));
     }
 
     [TestMethod]
     public void FormatStatus_Away()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.Away };
-
-        Assert.AreEqual("Away", FingerServer.FormatStatus(session));
+        Assert.AreEqual("Away", FingerServer.FormatStatus(PresenceStatus.Away));
     }
 
     [TestMethod]
     public void FormatStatus_DoNotDisturb()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.DoNotDisturb };
-
-        Assert.AreEqual("Do Not Disturb", FingerServer.FormatStatus(session));
+        Assert.AreEqual("Do Not Disturb", FingerServer.FormatStatus(PresenceStatus.DoNotDisturb));
     }
 
     [TestMethod]
     public void FormatStatus_NotAvailable()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.NotAvailable };
-
-        Assert.AreEqual("Not Available", FingerServer.FormatStatus(session));
+        Assert.AreEqual("Not Available", FingerServer.FormatStatus(PresenceStatus.NotAvailable));
     }
 
     [TestMethod]
     public void FormatStatus_Occupied()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.Occupied };
-
-        Assert.AreEqual("Occupied", FingerServer.FormatStatus(session));
+        Assert.AreEqual("Occupied", FingerServer.FormatStatus(PresenceStatus.Occupied));
     }
 
     [TestMethod]
     public void FormatStatus_FreeToChat()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.FreeToChat };
-
-        Assert.AreEqual("Free to Chat", FingerServer.FormatStatus(session));
+        Assert.AreEqual("Free to Chat", FingerServer.FormatStatus(PresenceStatus.FreeToChat));
     }
 
     [TestMethod]
     public void FormatStatus_Invisible()
     {
-        var session = new OscarSession { Status = OscarSessionOnlineStatus.Invisible };
+        Assert.AreEqual("Invisible", FingerServer.FormatStatus(PresenceStatus.Invisible));
+    }
 
-        Assert.AreEqual("Invisible", FingerServer.FormatStatus(session));
+    [TestMethod]
+    public void FormatStatus_YahooMsnStates()
+    {
+        Assert.AreEqual("Idle", FingerServer.FormatStatus(PresenceStatus.Idle));
+        Assert.AreEqual("Busy", FingerServer.FormatStatus(PresenceStatus.Busy));
+        Assert.AreEqual("On the Phone", FingerServer.FormatStatus(PresenceStatus.OnThePhone));
+        Assert.AreEqual("Out to Lunch", FingerServer.FormatStatus(PresenceStatus.OutToLunch));
+        Assert.AreEqual("Be Right Back", FingerServer.FormatStatus(PresenceStatus.BeRightBack));
     }
 }
 
 [TestClass]
 public class FingerFormatIdleTests
 {
-    #region FormatIdle (session-based)
+    #region FormatIdle (seconds-based)
 
     [TestMethod]
     public void FormatIdle_NotIdle_ReturnsDash()
     {
-        var session = new OscarSession();
+        Assert.AreEqual("-", FingerServer.FormatIdle(0u));
+    }
 
-        Assert.AreEqual("-", FingerServer.FormatIdle(session));
+    [TestMethod]
+    public void FormatIdle_Idle_FormatsLong()
+    {
+        Assert.AreEqual("5m", FingerServer.FormatIdle(300u));
     }
 
     #endregion
@@ -389,6 +390,10 @@ public class FingerUserListTests
     // Finger list assertions don't leak into (or out of) the OSCAR tests.
     private static void WithSessions(Action<Action<OscarSession>> body)
     {
+        // Finger now reads presence through the shared registry; ensure the OSCAR provider is wired so
+        // sessions added here surface in BuildUserList (registration is idempotent by network key).
+        PresenceRegistry.Register(new OscarPresenceProvider());
+
         var snapshot = OscarServer.Sessions.ToArray();
 
         OscarServer.Sessions.Clear();

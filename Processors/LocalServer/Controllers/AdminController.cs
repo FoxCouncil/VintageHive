@@ -31,6 +31,8 @@ internal partial class AdminController : Controller
         { "t120", ConfigNames.ServiceT120 },
         { "finger", ConfigNames.ServiceFinger },
         { "gopher", ConfigNames.ServiceGopher },
+        { "yahoo", ConfigNames.ServiceYahoo },
+        { "msn", ConfigNames.ServiceMsn },
         { "socks5auth", ConfigNames.ServiceSocks5RequireAuth },
     };
 

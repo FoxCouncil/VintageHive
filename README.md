@@ -88,6 +88,26 @@ A fully functional OSCAR protocol server compatible with vintage AIM and ICQ cli
 - **Privacy** - Permit/deny lists and visibility controls
 - **ICQ Extensions** - User info queries, offline messages
 
+### Yahoo! Messenger - port 5050
+
+A self-hosted YMSG server for period Yahoo! Messenger 5.x clients:
+
+- **Login** - the v9/v10 challenge handshake (VintageHive is the auth server, so it validates the account against the shared user table rather than reproducing Yahoo's crypt)
+- **Presence** - online/away/idle/custom status broadcast to other signed-in users
+- **Messaging** - 1:1 instant messages relayed between clients
+- **Roster** - every registered hive account appears as a buddy so any two users can find each other
+
+### MSN Messenger - port 1863
+
+A self-hosted MSNP server (MSNP2-7, MD5 auth, no Passport) for MSN Messenger 4.x-5.0:
+
+- **Login** - VER/CVR/USR MD5 challenge auth validated against the shared user table
+- **Notification + Switchboard on one port** - the notification server and chat switchboards share 1863; a callee's ring is delivered over its own notification connection
+- **Presence** - NLN/AWY/BSY/IDL/PHN status with initial-presence (ILN) and live (NLN/FLN) notifications
+- **Messaging** - 1:1 switchboard sessions relay MIME message payloads with ACK/NAK
+
+> Both messengers appear in the shared presence view: Finger's online-user list now spans AIM/ICQ, Yahoo! and MSN. Switchboard/redirect addresses use the configured server IP so, as with Gopher, set a real LAN/public IP behind Docker/NAT.
+
 ### Telnet Server - port 1969
 
 A text-mode BBS accessible from any Telnet client:
@@ -249,6 +269,8 @@ Visit `http://admin.hive.com:1990` to:
 | FTP Passive Range | 1900-1910 | TCP | Stable |
 | Telnet Server | 1969 | TCP | Stable |
 | OSCAR (AIM/ICQ) | 5190 | TCP | Stable |
+| Yahoo! Messenger | 5050 | TCP | Experimental |
+| MSN Messenger | 1863 | TCP | Experimental |
 | Finger | 79 | TCP | Experimental |
 | Gopher | 70 | TCP | Experimental |
 | SOCKS5 Proxy | 1996 | TCP | Experimental |
@@ -366,6 +388,8 @@ docker run -d \
   -p 1971:1971 \
   -p 1969:1969 \
   -p 5190:5190 \
+  -p 5050:5050 \
+  -p 1863:1863 \
   -p 79:79 \
   -p 70:70 \
   -p 1996:1996 \
@@ -394,6 +418,8 @@ The container exposes all service ports. Key ports:
 - 1971: FTP Server
 - 1969: Telnet Server
 - 5190: OSCAR (AIM/ICQ) Server
+- 5050: Yahoo! Messenger
+- 1863: MSN Messenger
 - 1755: MMS (Windows Media) Streaming
 - 7070: PNA (RealPlayer) Streaming
 - 1002/1719/1720/1503: NetMeeting (ILS, RAS, H.323, T.120)
@@ -455,7 +481,6 @@ VintageHive uses SQLite for persistent storage, with separate database contexts 
 ### Planned
 - HTTPS re-enablement and certificate improvements
 - FTP authentication
-- Yahoo! IM and MSN Messenger
 - NetMeeting App Sharing (T.128)
 - Community servers
 
@@ -466,7 +491,7 @@ Most settings are managed through the **Admin Panel** at `http://admin.hive.com:
 Key configuration options:
 - **Internet Archive Year** - Which year to fetch archived pages from (1997-2021)
 - **Internet Archive Edge Worker** - Optionally route Wayback Machine lookups and fetches through a Cloudflare Worker cache instead of hitting `web.archive.org` directly. Toggle it on and set the worker's base URL (e.g. `https://your-worker.workers.dev`) in the admin panel's Internet Archive card.
-- **Service Toggles** - Enable or disable Intranet, ProtoWeb, Internet Archive, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, Finger, Gopher, ILS, H.323, RAS, T.120 from the admin dashboard. The intranet portal applies immediately; listener-based services apply the next time VintageHive restarts.
+- **Service Toggles** - Enable or disable Intranet, ProtoWeb, Internet Archive, SMTP, POP3, IMAP, IRC, Usenet, DNS, Printer, Finger, Gopher, Yahoo! Messenger, MSN Messenger, ILS, H.323, RAS, T.120 from the admin dashboard. The intranet portal applies immediately; listener-based services apply the next time VintageHive restarts.
 - **SOCKS5 Auth** - When enabled (admin dashboard, off by default), the SOCKS proxy requires RFC 1929 username/password authentication against the VintageHive user accounts; a client offering only no-auth is refused, and SOCKS4 (which has no password mechanism) is rejected. The policy applies to the next connection, no restart needed.
 - **Temperature Units** - Celsius or Fahrenheit
 - **Distance Units** - Metric or Imperial

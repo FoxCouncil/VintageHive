@@ -50,6 +50,10 @@ public static class ConfigNames
 
     public const string PortGopher = "portgopher";
 
+    public const string PortYahoo = "portyahoo";
+
+    public const string PortMsn = "portmsn";
+
     public const string ServiceDns = "servicedns";
 
     public const string ServiceIls = "serviceils";
@@ -91,6 +95,10 @@ public static class ConfigNames
     public const string ServiceGopher = "servicegopher";
 
     public const string ServiceSocks5RequireAuth = "servicesocks5requireauth";
+
+    public const string ServiceYahoo = "serviceyahoo";
+
+    public const string ServiceMsn = "servicemsn";
 
     public const string DownloadRepos = "downloadrepos";
 
