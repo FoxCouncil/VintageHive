@@ -149,6 +149,9 @@ public static class Mind
             Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"ProtoWeb sitelist fetch failed (offline?): {ex.Message}", "");
         }
 
+        // Periodic DB maintenance - sweep expired cache/log/request/session rows and checkpoint the WAL
+        _ = Task.Run(MaintenanceLoop);
+
         // Proxies
         var ipAddressString = Db.ConfigGet<string>(ConfigNames.IpAddress);
 
@@ -325,6 +328,24 @@ public static class Mind
         resetEvent.WaitOne();
 
         IsRunning = false;
+    }
+
+    static async Task MaintenanceLoop()
+    {
+        while (IsRunning)
+        {
+            await Task.Delay(TimeSpan.FromHours(1));
+
+            try
+            {
+                Cache?.RunMaintenance();
+                Db?.RunMaintenance();
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"Maintenance sweep failed: {ex.Message}", "");
+            }
+        }
     }
 
     static void StartService(string serviceConfigName, string displayName, Action start)

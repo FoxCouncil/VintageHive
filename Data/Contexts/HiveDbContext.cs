@@ -469,6 +469,16 @@ public class HiveDbContext : DbContextBase
 
     #endregion
 
+    // Retention sweep: logs/requests/websessions grew forever (no TTL check anywhere). Then checkpoint the WAL.
+    public void RunMaintenance()
+    {
+        DeleteOlderThan(TABLE_LOGS, "timestamp", TimeSpan.FromDays(7));
+        DeleteOlderThan(TABLE_REQUESTS, "timestamp", TimeSpan.FromDays(30));
+        DeleteOlderThan(TABLE_WEBSESSION, "ttl", TimeSpan.FromDays(7));
+
+        Checkpoint();
+    }
+
     #region Request Methods
     public void RequestsTrack(ListenerSocket socket, string useragent, string type, string requestUrl, string processor)
     {

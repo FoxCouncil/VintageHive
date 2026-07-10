@@ -176,4 +176,44 @@ public class DbContextBase
             transaction.Commit();
         });
     }
+
+    // --- Maintenance: expired rows were skipped on read but never deleted, so every cache/log table grew forever ---
+
+    protected int DeleteExpiredByTtl(string table)
+    {
+        return WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {table} WHERE ttl <= @now";
+            command.Parameters.Add(new SqliteParameter("@now", DateTime.UtcNow));
+
+            return command.ExecuteNonQuery();
+        });
+    }
+
+    protected int DeleteOlderThan(string table, string column, TimeSpan age)
+    {
+        return WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {table} WHERE {column} < @cutoff";
+            command.Parameters.Add(new SqliteParameter("@cutoff", DateTime.UtcNow - age));
+
+            return command.ExecuteNonQuery();
+        });
+    }
+
+    protected void Checkpoint()
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+
+            command.ExecuteNonQuery();
+        });
+    }
 }

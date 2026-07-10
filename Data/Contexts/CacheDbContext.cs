@@ -31,6 +31,27 @@ public class CacheDbContext : DbContextBase
         CreateTable(CacheTableNames.Usenet, "key TEXT UNIQUE, ttl TEXT, value TEXT");
     }
 
+    // Delete expired rows from every TTL-based cache table (they were skipped on read but never removed), then checkpoint
+    public void RunMaintenance()
+    {
+        foreach (var table in new[]
+        {
+            CacheTableNames.ProxyHttp,
+            CacheTableNames.ProxyFtp,
+            CacheTableNames.Wayback,
+            CacheTableNames.Protoweb,
+            CacheTableNames.Weather,
+            CacheTableNames.RadioBrowser,
+            CacheTableNames.Data,
+            CacheTableNames.Usenet
+        })
+        {
+            DeleteExpiredByTtl(table);
+        }
+
+        Checkpoint();
+    }
+
     internal string GetHttpProxy(string url) => GetCachedValue(CacheTableNames.ProxyHttp, "url", url);
 
     internal void SetHttpProxy(string url, TimeSpan ttl, string value) => SetCachedValue(CacheTableNames.ProxyHttp, "url", url, ttl, value);
