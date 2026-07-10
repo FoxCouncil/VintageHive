@@ -9,7 +9,9 @@ public class OscarSession
 {
     static ulong SessionID = 0;
 
-    readonly byte[] buffer = new byte[4096];
+    // Serializes sequence-number assignment + the socket write so a broadcast from another session can't
+    // interleave with this session's own reply (which corrupts FLAP framing and duplicates sequence numbers).
+    readonly SemaphoreSlim writeLock = new(1, 1);
 
     public ulong ID { get; } = SessionID++;
 
@@ -177,47 +179,94 @@ public class OscarSession
     {
         Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"<- {snac}", Client.TraceId.ToString());
 
-        var snacDataFlap = new Flap(FlapFrameType.Data)
+        await writeLock.WaitAsync();
+
+        try
         {
-            Data = snac.Encode(),
-            Sequence = SequenceNumber++
-        };
+            var snacDataFlap = new Flap(FlapFrameType.Data)
+            {
+                Data = snac.Encode(),
+                Sequence = SequenceNumber++
+            };
 
-        var encodedFlap = snacDataFlap.Encode();
-
-        await Client.Stream.WriteAsync(encodedFlap);
+            await Client.Stream.WriteAsync(snacDataFlap.Encode());
+        }
+        finally
+        {
+            writeLock.Release();
+        }
     }
 
     public async Task SendFlap(Flap flap)
     {
-        flap.Sequence = SequenceNumber++;
+        await writeLock.WaitAsync();
 
-        var encodedFlap = flap.Encode();
+        try
+        {
+            flap.Sequence = SequenceNumber++;
 
-        await Client.Stream.WriteAsync(encodedFlap);
+            await Client.Stream.WriteAsync(flap.Encode());
+        }
+        finally
+        {
+            writeLock.Release();
+        }
     }
 
     public async Task<Flap[]> ReceiveFlaps()
     {
-        var read = await Client.Stream.ReadAsync(buffer);
+        // A FLAP header is 6 bytes: 0x2A, type(1), sequence(2), payloadLength(2). Reading one whole frame at a
+        // time (header, then the exact declared payload) instead of assuming a single ReadAsync returns a full
+        // frame fixes deterministic disconnects on frames split across reads or larger than the old 4096 buffer.
+        var header = new byte[6];
 
-        if (read == 0)
+        if (!await ReadExactAsync(header))
+        {
+            return null; // disconnected
+        }
+
+        if (header[0] != (byte)'*')
+        {
+            // Framing desync - treat as a disconnect rather than misparsing the rest of the stream
+            return null;
+        }
+
+        var payloadLength = (header[4] << 8) | header[5];
+
+        var frame = new byte[6 + payloadLength];
+
+        Array.Copy(header, frame, 6);
+
+        if (payloadLength > 0 && !await ReadExactAsync(frame.AsMemory(6, payloadLength)))
         {
             return null;
         }
 
-        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"Received {read} bytes...", Client.TraceId.ToString());
+        return OscarUtils.DecodeFlaps(frame);
+    }
 
-        var flaps = OscarUtils.DecodeFlaps(buffer[..read]);
+    async Task<bool> ReadExactAsync(Memory<byte> buffer)
+    {
+        var total = 0;
 
-        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarSession), $"Total {flaps.Length} flaps", Client.TraceId.ToString());
+        while (total < buffer.Length)
+        {
+            var read = await Client.Stream.ReadAsync(buffer[total..]);
 
-        return flaps;
+            if (read == 0)
+            {
+                return false;
+            }
+
+            total += read;
+        }
+
+        return true;
     }
 
     public async Task BroadcastStatusToWatchers()
     {
-        foreach (var session in OscarServer.Sessions)
+        foreach (var session in OscarServer.Sessions.Values)
         {
             if (session == this || session.Client == null || !session.Client.IsConnected)
             {

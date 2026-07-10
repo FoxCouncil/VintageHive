@@ -69,7 +69,7 @@ internal class FingerServer : Listener
         sb.AppendLine("VintageHive Finger Server");
         sb.AppendLine(new string('-', 60));
 
-        var sessions = OscarServer.Sessions.ToList();
+        var sessions = OscarServer.Sessions.Values.ToList();
 
         if (sessions.Count == 0)
         {

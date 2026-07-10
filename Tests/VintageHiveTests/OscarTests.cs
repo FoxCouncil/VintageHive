@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
+using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
 
 #pragma warning disable MSTEST0025 // Use Assert.Fail instead of always-failing Assert.AreEqual
@@ -1477,6 +1480,178 @@ public class OscarServiceFamilyTests
     public void AuthorizationService_Family_Is0x17()
     {
         Assert.AreEqual((ushort)0x0017, VintageHive.Proxy.Oscar.Services.OscarAuthorizationService.FAMILY_ID);
+    }
+}
+
+[TestClass]
+public class OscarSessionRobustnessTests
+{
+    private static byte[] BuildFlapFrame(ushort seq, byte[] payload)
+    {
+        var frame = new byte[6 + payload.Length];
+        frame[0] = 0x2A;
+        frame[1] = 0x02; // Data
+        frame[2] = (byte)(seq >> 8);
+        frame[3] = (byte)(seq & 0xFF);
+        frame[4] = (byte)(payload.Length >> 8);
+        frame[5] = (byte)(payload.Length & 0xFF);
+        Array.Copy(payload, 0, frame, 6, payload.Length);
+        return frame;
+    }
+
+    private static async Task<(OscarSession session, NetworkStream clientStream, TcpClient client, TcpClient server)> MakeSessionPair()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, port);
+        var server = await listener.AcceptTcpClientAsync();
+        listener.Stop();
+
+        var ls = new ListenerSocket { IsSecure = false, RawSocket = server.Client, Stream = server.GetStream() };
+
+        return (new OscarSession(ls), client.GetStream(), client, server);
+    }
+
+    [TestMethod]
+    public void GetByScreenName_PreAuthNullScreenName_DoesNotThrow()
+    {
+        OscarServer.Sessions.Clear();
+
+        try
+        {
+            var preAuth = new OscarSession();                        // ScreenName == null (stalled login)
+            var authed = new OscarSession { ScreenName = "FoxRunner" };
+
+            OscarServer.Sessions[preAuth.ID] = preAuth;
+            OscarServer.Sessions[authed.ID] = authed;
+
+            Assert.AreSame(authed, OscarServer.Sessions.GetByScreenName("foxrunner"));
+            Assert.IsNull(OscarServer.Sessions.GetByScreenName("nobody"));
+            Assert.IsNull(OscarServer.Sessions.GetByScreenName(null));
+        }
+        finally
+        {
+            OscarServer.Sessions.Clear();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task ReceiveFlaps_FrameSplitAcrossReads_IsReassembled()
+    {
+        var (session, clientStream, client, server) = await MakeSessionPair();
+
+        try
+        {
+            var frame = BuildFlapFrame(7, new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+            _ = Task.Run(async () =>
+            {
+                await clientStream.WriteAsync(frame.AsMemory(0, 3)); // straddles the 6-byte header
+                await clientStream.FlushAsync();
+                await Task.Delay(100);
+                await clientStream.WriteAsync(frame.AsMemory(3));
+                await clientStream.FlushAsync();
+            });
+
+            var flaps = await session.ReceiveFlaps();
+
+            Assert.IsNotNull(flaps);
+            Assert.AreEqual(1, flaps.Length);
+            Assert.AreEqual((ushort)7, flaps[0].Sequence);
+            Assert.AreEqual(4, flaps[0].Data.Length);
+        }
+        finally
+        {
+            client.Dispose();
+            server.Dispose();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task ReceiveFlaps_PartialHeaderThenDisconnect_ReturnsNull()
+    {
+        var (session, clientStream, client, server) = await MakeSessionPair();
+
+        try
+        {
+            _ = Task.Run(async () =>
+            {
+                await clientStream.WriteAsync(new byte[] { 0x2A, 0x02 }); // 2 of 6 header bytes
+                await clientStream.FlushAsync();
+                await Task.Delay(80);
+                clientStream.Socket.Shutdown(SocketShutdown.Send);
+            });
+
+            var flaps = await session.ReceiveFlaps();
+
+            Assert.IsNull(flaps);
+        }
+        finally
+        {
+            client.Dispose();
+            server.Dispose();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task SendFlap_ConcurrentSends_ProduceUniqueSequenceNumbers()
+    {
+        var (session, clientStream, client, server) = await MakeSessionPair();
+
+        var collected = new List<byte>();
+
+        var drain = Task.Run(async () =>
+        {
+            var buf = new byte[4096];
+            try { while (true) { var n = await clientStream.ReadAsync(buf); if (n == 0) break; collected.AddRange(buf[..n]); } } catch { }
+        });
+
+        try
+        {
+            const int count = 200;
+            var tasks = new List<Task>();
+
+            for (var i = 0; i < count; i++)
+            {
+                tasks.Add(session.SendFlap(new Flap(FlapFrameType.Data) { Data = new byte[] { 1, 2, 3, 4 } }));
+            }
+
+            await Task.WhenAll(tasks);
+            await Task.Delay(150);
+
+            client.Dispose();
+            server.Dispose();
+            await drain;
+
+            var bytes = collected.ToArray();
+            var seqs = new List<int>();
+            var idx = 0;
+
+            while (idx + 6 <= bytes.Length)
+            {
+                Assert.AreEqual(0x2A, bytes[idx], "FLAP framing corrupted by interleaved writes");
+
+                var seq = (bytes[idx + 2] << 8) | bytes[idx + 3];
+                var len = (bytes[idx + 4] << 8) | bytes[idx + 5];
+
+                seqs.Add(seq);
+                idx += 6 + len;
+            }
+
+            Assert.AreEqual(count, seqs.Count, "every send should produce exactly one frame");
+            Assert.AreEqual(count, seqs.Distinct().Count(), "sequence numbers must be unique (no ++ race)");
+        }
+        finally
+        {
+            client.Dispose();
+            server.Dispose();
+        }
     }
 }
 

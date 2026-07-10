@@ -10,7 +10,7 @@ public class OscarServer : Listener
 {
     public const string LoginHelpUrl = "http://" + HiveDomains.Intranet + "/help.html#aim_login";
 
-    public static readonly List<OscarSession> Sessions = new();
+    public static readonly ConcurrentDictionary<ulong, OscarSession> Sessions = new();
 
     public static readonly ConcurrentDictionary<string, OscarChatRoom> ChatRooms = new();
 
@@ -72,27 +72,26 @@ public class OscarServer : Listener
 
         var session = new OscarSession(connection);
 
-        Sessions.Add(session);
-
-        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client connected from {connection.RemoteAddress}", traceId);
-
-        await session.SendFlap(HelloFlap);
-
-        session.SentHello = true;
-
         OscarChatRoom chatRoom = null;
 
         try
         {
+            Sessions[session.ID] = session;
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client connected from {connection.RemoteAddress}", traceId);
+
+            await session.SendFlap(HelloFlap);
+
+            session.SentHello = true;
+
             while (session.Client.IsConnected)
             {
                 var flaps = await session.ReceiveFlaps();
 
                 if (flaps == null)
                 {
-                    Thread.Sleep(1);
-
-                    continue;
+                    // null now means the client disconnected (or a framing desync) - stop, don't hot-spin
+                    break;
                 }
 
                 foreach (Flap flap in flaps)
@@ -124,7 +123,7 @@ public class OscarServer : Listener
                                     chatRoom = pendingRoom;
 
                                     // Look up the original session for this user
-                                    var originalSession = Sessions.FirstOrDefault(s => s != session && s.ScreenName != null && PendingChatCookies.Values.Any(r => r == pendingRoom));
+                                    var originalSession = Sessions.Values.FirstOrDefault(s => s != session && s.ScreenName != null && PendingChatCookies.Values.Any(r => r == pendingRoom));
 
                                     // Try to find the user who requested this room
                                     // The cookie format is "CHAT:{roomCookie}", extract room cookie
@@ -220,33 +219,34 @@ public class OscarServer : Listener
         {
             Log.WriteException(nameof(OscarServer), ex, traceId);
         }
-
-        // Leave chat room if in one
-        if (chatRoom != null)
+        finally
         {
-            var chatService = (OscarChatService)services.FirstOrDefault(x => x.Family == OscarChatService.FAMILY_ID);
-
-            await chatService.LeaveRoom(session, chatRoom);
-        }
-
-        // Send offline notifications for normal sessions
-        if (chatRoom == null && session.Buddies.Count > 0)
-        {
+            // Deterministic teardown: broadcast the departure, then drop the session from the registry.
+            // Previously an early abort (hello throw) skipped Remove entirely, leaking a ghost "online" session.
             try
             {
-                var blmService = (OscarBuddyListService)services.FirstOrDefault(x => x.Family == OscarBuddyListService.FAMILY_ID);
+                if (chatRoom != null)
+                {
+                    var chatService = (OscarChatService)services.FirstOrDefault(x => x.Family == OscarChatService.FAMILY_ID);
 
-                await blmService.ProcessOfflineNotifications(session);
+                    await chatService.LeaveRoom(session, chatRoom);
+                }
+                else if (session.Buddies.Count > 0)
+                {
+                    var blmService = (OscarBuddyListService)services.FirstOrDefault(x => x.Family == OscarBuddyListService.FAMILY_ID);
+
+                    await blmService.ProcessOfflineNotifications(session);
+                }
             }
             catch (Exception ex)
             {
                 Log.WriteException(nameof(OscarServer), ex, traceId);
             }
+
+            Sessions.TryRemove(session.ID, out _);
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client disconnected: {session.ScreenName ?? "unknown"}", traceId);
         }
-
-        Sessions.Remove(session);
-
-        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Client disconnected: {session.ScreenName ?? "unknown"}", traceId);
 
         return null;
     }

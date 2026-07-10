@@ -1,5 +1,7 @@
 ﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Collections.Concurrent;
+
 namespace VintageHive.Proxy.Oscar;
 
 public static class OscarUtils
@@ -173,9 +175,15 @@ public static class OscarUtils
         return bytes.ToArray();
     }
 
-    public static OscarSession GetByScreenName(this List<OscarSession> sessions, string screenName)
+    public static OscarSession GetByScreenName(this ConcurrentDictionary<ulong, OscarSession> sessions, string screenName)
     {
-        return sessions.FirstOrDefault(x => x.ScreenName.ToLower() == screenName.ToLower());
+        if (string.IsNullOrEmpty(screenName))
+        {
+            return null;
+        }
+
+        // Only authenticated sessions have a ScreenName; a pre-auth (null) session used to NRE the whole lookup
+        return sessions.Values.FirstOrDefault(x => x.ScreenName != null && x.ScreenName.Equals(screenName, StringComparison.OrdinalIgnoreCase));
     }
 
     public static string ToASCII(this byte[] data)

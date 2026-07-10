@@ -387,20 +387,24 @@ public class FingerUserListTests
 {
     // OscarServer.Sessions is shared static state; snapshot and restore it around each test so
     // Finger list assertions don't leak into (or out of) the OSCAR tests.
-    private static void WithSessions(Action<List<OscarSession>> body)
+    private static void WithSessions(Action<Action<OscarSession>> body)
     {
-        var snapshot = OscarServer.Sessions.ToList();
+        var snapshot = OscarServer.Sessions.ToArray();
 
         OscarServer.Sessions.Clear();
 
         try
         {
-            body(OscarServer.Sessions);
+            body(session => OscarServer.Sessions[session.ID] = session);
         }
         finally
         {
             OscarServer.Sessions.Clear();
-            OscarServer.Sessions.AddRange(snapshot);
+
+            foreach (var kvp in snapshot)
+            {
+                OscarServer.Sessions[kvp.Key] = kvp.Value;
+            }
         }
     }
 
@@ -419,9 +423,9 @@ public class FingerUserListTests
     [TestMethod]
     public void BuildUserList_WithOnlineUser_ListsScreenNameAndStatus()
     {
-        WithSessions(sessions =>
+        WithSessions(add =>
         {
-            sessions.Add(new OscarSession { ScreenName = "FoxRunner", Status = OscarSessionOnlineStatus.Away });
+            add(new OscarSession { ScreenName = "FoxRunner", Status = OscarSessionOnlineStatus.Away });
 
             var output = FingerServer.BuildUserList();
 
@@ -434,10 +438,10 @@ public class FingerUserListTests
     [TestMethod]
     public void BuildUserList_SkipsSessionsWithoutScreenName()
     {
-        WithSessions(sessions =>
+        WithSessions(add =>
         {
-            sessions.Add(new OscarSession { ScreenName = "", Status = OscarSessionOnlineStatus.Online });
-            sessions.Add(new OscarSession { ScreenName = "RealUser", Status = OscarSessionOnlineStatus.Online });
+            add(new OscarSession { ScreenName = "", Status = OscarSessionOnlineStatus.Online });
+            add(new OscarSession { ScreenName = "RealUser", Status = OscarSessionOnlineStatus.Online });
 
             var output = FingerServer.BuildUserList();
 
