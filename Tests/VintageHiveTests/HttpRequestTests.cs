@@ -24,6 +24,26 @@ public class HttpRequestTests
     }
 
     [TestMethod]
+    public void Parse_BinaryBody_PreservedByteForByte()
+    {
+        // A binary POST body (e.g. an IPP/PDF print job) must survive Parse even though the request is decoded as
+        // ASCII - BodyData is sliced from the raw bytes, not round-tripped through the string (which turned every
+        // byte above 0x7F into '?').
+        var headerText = "POST /printer HTTP/1.1\r\nHost: printer.local\r\nContent-Type: application/ipp\r\nContent-Length: 6\r\n\r\n";
+        var body = new byte[] { 0x25, 0x50, 0x44, 0x80, 0xFF, 0x00 }; // "%PD" + high bytes + NUL
+
+        var headerBytes = Encoding.ASCII.GetBytes(headerText);
+        var rawData = new byte[headerBytes.Length + body.Length];
+        Buffer.BlockCopy(headerBytes, 0, rawData, 0, headerBytes.Length);
+        Buffer.BlockCopy(body, 0, rawData, headerBytes.Length, body.Length);
+
+        var request = HttpRequest.Parse(rawData, Encoding.ASCII.GetString(rawData), Encoding.ASCII);
+
+        Assert.IsTrue(request.IsValid);
+        CollectionAssert.AreEqual(body, request.BodyData);
+    }
+
+    [TestMethod]
     public void GET_Request()
     {
         // Arrange
