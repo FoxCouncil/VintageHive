@@ -330,6 +330,7 @@ internal partial class AdminController : Controller
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),
             iaworkerurl = Mind.Db.ConfigGet<string>(ConfigNames.ServiceInternetArchiveWorkerUrl),
             protoweb = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceProtoWeb),
+            protowebOnline = ProtoWebUtils.IsOnline, // runtime reachability, distinct from the config toggle above
             services = ToggleableServices.ToDictionary(kv => kv.Key, kv => Mind.Db.ConfigGet<bool>(kv.Value)),
             irc = new {
                 users = Mind.IrcServer?.UserCount ?? 0,
