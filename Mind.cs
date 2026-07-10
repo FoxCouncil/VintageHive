@@ -120,10 +120,34 @@ public static class Mind
         RadioBrowserDB = new();
         RadioBrowser = new();
 
-        await RadioBrowser.Init();
+        // These reach out to the network; an offline or degraded-internet start must NOT crash the process
+        // before any service comes up. Log-and-continue - the affected feature degrades, the rest still runs.
+        try
+        {
+            await RadioBrowser.Init();
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"RadioBrowser init failed (offline?): {ex.Message}", "");
+        }
 
-        await GeoIpUtils.CheckGeoIp();
-        await ProtoWebUtils.GetSites();
+        try
+        {
+            await GeoIpUtils.CheckGeoIp();
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"GeoIP check failed (offline?): {ex.Message}", "");
+        }
+
+        try
+        {
+            await ProtoWebUtils.GetSites();
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"ProtoWeb sitelist fetch failed (offline?): {ex.Message}", "");
+        }
 
         // Proxies
         var ipAddressString = Db.ConfigGet<string>(ConfigNames.IpAddress);
