@@ -13,7 +13,9 @@ internal sealed class MsnPresenceProvider : IPresenceProvider
     {
         foreach (var session in MsnServer.NsSessions.Values.ToArray())
         {
-            if (!session.IsAuthenticated || string.IsNullOrEmpty(session.Account) || session.Status == MsnStatus.Offline)
+            // Hidden sessions were announced to peers as FLN; the registry (and so Finger's public list)
+            // must not contradict that.
+            if (!session.IsAuthenticated || string.IsNullOrEmpty(session.Account) || session.Status is MsnStatus.Offline or MsnStatus.Hidden)
             {
                 continue;
             }
@@ -30,8 +32,9 @@ internal sealed class MsnPresenceProvider : IPresenceProvider
         }
 
         // Mirror Online(): a session that authenticated but has not yet sent CHG is still Offline and must
-        // not be reported as online (its default FLN status would otherwise map to Online).
-        if (!session.IsAuthenticated || session.Status == MsnStatus.Offline)
+        // not be reported as online (its default FLN status would otherwise map to Online), and a Hidden
+        // session must look offline to cross-protocol consumers too.
+        if (!session.IsAuthenticated || session.Status is MsnStatus.Offline or MsnStatus.Hidden)
         {
             return null;
         }
@@ -47,7 +50,7 @@ internal sealed class MsnPresenceProvider : IPresenceProvider
             Network = "MSN",
             Status = MsnStatus.ToPresenceStatus(session.Status),
             SignOnTime = session.SignOnTime,
-            IdleSeconds = 0,
+            IdleSeconds = session.GetCurrentIdleSeconds(),
             AwayMessage = string.Empty,
             PlanText = string.Empty
         };

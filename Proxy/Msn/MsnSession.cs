@@ -36,8 +36,22 @@ internal sealed class MsnSession
 
     public DateTimeOffset SignOnTime { get; } = DateTimeOffset.UtcNow;
 
+    // When the client went idle (CHG IDL); MinValue while not idle. Mirrors YmsgSession so the presence
+    // registry can report a real idle duration.
+    public DateTimeOffset IdleSince { get; set; } = DateTimeOffset.MinValue;
+
     // Switchboard-only: the session id this SB connection belongs to.
     public string SwitchboardId { get; set; }
+
+    public uint GetCurrentIdleSeconds()
+    {
+        if (IdleSince == DateTimeOffset.MinValue)
+        {
+            return 0;
+        }
+
+        return (uint)Math.Max(0, (DateTimeOffset.UtcNow - IdleSince).TotalSeconds);
+    }
 
     public async Task SendLineAsync(string line, CancellationToken cancellationToken = default)
     {

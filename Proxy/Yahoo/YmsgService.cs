@@ -39,7 +39,10 @@ internal static class YmsgStatus
     public const uint Custom = 99;
     public const uint Idle = 999;
 
-    // Header-level status values.
+    // Header-level status values. Duplicate shares LoginError's wire value: libyahoo2-lineage clients
+    // recognize "signed in from another location" as a Logoff carrying status 0xFFFFFFFF (their API enum
+    // value 99 is not the wire value; on the wire 99 means Custom).
     public const uint LoginError = 0xFFFFFFFF;
-    public const uint Duplicate = 99;
+    public const uint Duplicate = 0xFFFFFFFF;
+    public const uint OfflineMessage = 5;
 }

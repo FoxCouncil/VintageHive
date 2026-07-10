@@ -441,4 +441,161 @@ public class MsnServerTests
         Assert.AreEqual("MSN", entry.Network);
         Assert.AreEqual(PresenceStatus.Online, entry.Status);
     }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Syn_SendsAllFourContactLists()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("SYN 5");
+
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("SYN 5"), "SYN echo");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("GTC 5"), "GTC");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("BLP 5"), "BLP");
+
+        // Each list arrives as LST lines terminated by its item#/total pair (a single 0 0 line when
+        // empty); the client will not consider contact sync complete until all four lists have arrived.
+        foreach (var list in new[] { "FL", "AL", "BL", "RL" })
+        {
+            var first = (await alice.ReadLineAsync()).Split(' ');
+
+            Assert.AreEqual("LST", first[0], $"Expected an LST line for {list}");
+            Assert.AreEqual(list, first[2], $"Lists must arrive in FL/AL/BL/RL order; got {first[2]} while expecting {list}");
+
+            var total = int.Parse(first[5]);
+            var members = new List<string>();
+
+            if (total > 0)
+            {
+                members.Add(first[6]);
+            }
+
+            for (var i = 1; i < total; i++)
+            {
+                var line = (await alice.ReadLineAsync()).Split(' ');
+
+                Assert.AreEqual(list, line[2]);
+
+                members.Add(line[6]);
+            }
+
+            if (list == "BL")
+            {
+                Assert.AreEqual(0, total, "BL must be empty");
+            }
+            else
+            {
+                CollectionAssert.Contains(members, "bob", $"{list} must contain the other hive accounts");
+            }
+        }
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Cal_HiddenCallee_Gets217NotRinging()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var aliceNs = new MsnConn(server);
+        using var bobNs = new MsnConn(server);
+
+        await aliceNs.LoginAsync("alice");
+        await aliceNs.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await aliceNs.ReadLineAsync());
+
+        await bobNs.LoginAsync("bob");
+        await bobNs.SendAsync("CHG 6 HDN");
+        Assert.AreEqual("CHG 6 HDN", await bobNs.ReadLineAsync());
+
+        // Going hidden broadcasts FLN, so alice believes bob is offline.
+        Assert.AreEqual("FLN bob", await aliceNs.ReadLineAsync());
+
+        await aliceNs.SendAsync("XFR 10 SB");
+
+        var cookie = (await aliceNs.ReadLineAsync()).Split(' ')[5];
+
+        using var aliceSb = new MsnConn(server);
+
+        await aliceSb.SendAsync($"USR 1 alice {cookie}");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("USR 1 OK"));
+
+        // Calling the hidden bob must confirm nothing: 217 (not online), no RINGING, no RNG to bob.
+        await aliceSb.SendAsync("CAL 2 bob");
+
+        var reply = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(reply.StartsWith("217 2"), $"Calling a hidden user must report not-online, got: {reply}");
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Switchboard_CookieRedeemedByWrongAccount_IsRejected()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var aliceNs = new MsnConn(server);
+
+        await aliceNs.LoginAsync("alice");
+        await aliceNs.SendAsync("XFR 10 SB");
+
+        var cookie = (await aliceNs.ReadLineAsync()).Split(' ')[5];
+
+        // The ticket was minted for alice; a different self-asserted account must not be able to redeem it.
+        using var mallory = new MsnConn(server);
+
+        await mallory.SendAsync($"USR 1 bob {cookie}");
+
+        var reply = await mallory.ReadLineAsync();
+
+        Assert.IsTrue(reply.StartsWith("911"), $"A cookie must only be redeemable by the account it was minted for, got: {reply}");
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task ChgIdl_TracksIdleTimeForPresence()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        PresenceRegistry.Register(new MsnPresenceProvider());
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 IDL");
+        Assert.AreEqual("CHG 5 IDL", await alice.ReadLineAsync());
+
+        var session = MsnServer.NsSessions["alice"];
+
+        Assert.AreNotEqual(DateTimeOffset.MinValue, session.IdleSince, "CHG IDL must stamp the idle start time");
+        Assert.AreEqual(PresenceStatus.Idle, PresenceRegistry.Find("alice").Status);
+
+        // Returning online clears the idle clock.
+        await alice.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await alice.ReadLineAsync());
+
+        Assert.AreEqual(DateTimeOffset.MinValue, session.IdleSince);
+        Assert.AreEqual(0u, PresenceRegistry.Find("alice").IdleSeconds);
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task HiddenUser_IsHiddenFromThePresenceRegistry()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        PresenceRegistry.Register(new MsnPresenceProvider());
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 HDN");
+        Assert.AreEqual("CHG 5 HDN", await alice.ReadLineAsync());
+
+        Assert.IsNull(PresenceRegistry.Find("alice"), "Hidden users must not be exposed via the presence registry");
+        Assert.IsFalse(PresenceRegistry.Online().Any(e => e.Network == "MSN" && e.Username == "alice"), "Hidden users must not appear in the online list");
+    }
 }

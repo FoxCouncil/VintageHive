@@ -14,7 +14,9 @@ internal sealed class YahooPresenceProvider : IPresenceProvider
     {
         foreach (var session in YmsgServer.Sessions.Values.ToArray())
         {
-            if (!session.IsAuthenticated || string.IsNullOrEmpty(session.Username))
+            // An invisible user was announced to peers as signed-off; the registry (and so Finger's
+            // public list) must not contradict that.
+            if (!session.IsAuthenticated || string.IsNullOrEmpty(session.Username) || session.YahooStatus == YmsgStatus.Invisible)
             {
                 continue;
             }
@@ -32,7 +34,13 @@ internal sealed class YahooPresenceProvider : IPresenceProvider
 
         foreach (var session in YmsgServer.Sessions.Values.ToArray())
         {
-            if (session.IsAuthenticated && string.Equals(session.Username, username, StringComparison.OrdinalIgnoreCase))
+            // Mirror Online(): invisible users must look offline to cross-protocol consumers too.
+            if (!session.IsAuthenticated || session.YahooStatus == YmsgStatus.Invisible)
+            {
+                continue;
+            }
+
+            if (string.Equals(session.Username, username, StringComparison.OrdinalIgnoreCase))
             {
                 return Project(session);
             }

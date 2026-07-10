@@ -29,6 +29,11 @@ internal sealed class MsnServer : Listener
     // Per-peer write timeout so one stalled (non-reading) client cannot freeze a broadcast for everyone.
     const int BroadcastWriteTimeoutMs = 5000;
 
+    // A switchboard ticket is redeemable once, only by the account it was minted for, and only briefly;
+    // without a lifetime every abandoned XFR or unanswered ring would sit in PendingInvites forever and
+    // its cookie would stay redeemable indefinitely.
+    static readonly TimeSpan InviteLifetime = TimeSpan.FromMinutes(5);
+
     static readonly string[] SupportedVersions = { "MSNP7", "MSNP6", "MSNP5", "MSNP4", "MSNP3", "MSNP2" };
 
     // Sends to one peer with a bounded timeout, swallowing failures so a dead/slow peer cannot break a broadcast.
@@ -219,16 +224,28 @@ internal sealed class MsnServer : Listener
         await session.SendLineAsync($"GTC {trid} {version} A");
         await session.SendLineAsync($"BLP {trid} {version} AL");
 
-        var total = contacts.Count;
+        // MSNP2-7 clients expect ALL FOUR lists in the SYN response, each terminated by its item#/total
+        // pair (0 0 when empty), before they consider contact sync complete. Everyone is a buddy of
+        // everyone on the hive, so FL and RL carry the full account list; AL mirrors FL (everyone is
+        // pre-allowed, so GTC A never triggers a prompt storm) and BL stays empty.
+        await SendContactListAsync(session, trid, version, "FL", contacts);
+        await SendContactListAsync(session, trid, version, "AL", contacts);
+        await SendContactListAsync(session, trid, version, "BL", new List<string>());
+        await SendContactListAsync(session, trid, version, "RL", contacts);
+    }
 
-        for (var i = 0; i < total; i++)
+    static async Task SendContactListAsync(MsnSession session, string trid, string version, string list, List<string> contacts)
+    {
+        if (contacts.Count == 0)
         {
-            await session.SendLineAsync($"LST {trid} FL {version} {i + 1} {total} {contacts[i]} {UrlEncode(contacts[i])}");
+            await session.SendLineAsync($"LST {trid} {list} {version} 0 0");
+
+            return;
         }
 
-        if (total == 0)
+        for (var i = 0; i < contacts.Count; i++)
         {
-            await session.SendLineAsync($"LST {trid} FL {version} 0 0");
+            await session.SendLineAsync($"LST {trid} {list} {version} {i + 1} {contacts.Count} {contacts[i]} {UrlEncode(contacts[i])}");
         }
     }
 
@@ -248,6 +265,20 @@ internal sealed class MsnServer : Listener
         }
 
         session.Status = status;
+
+        // Track when the client went idle so the presence registry (Finger) reports a real duration;
+        // repeated CHG IDL keepalives must not reset the clock.
+        if (status == MsnStatus.Idle)
+        {
+            if (session.IdleSince == DateTimeOffset.MinValue)
+            {
+                session.IdleSince = DateTimeOffset.UtcNow;
+            }
+        }
+        else
+        {
+            session.IdleSince = DateTimeOffset.MinValue;
+        }
 
         await session.SendLineAsync($"CHG {trid} {status}");
 
@@ -294,7 +325,10 @@ internal sealed class MsnServer : Listener
         var sessionId = NextCookie();
         var cookie = NextCookie();
 
-        PendingInvites[cookie] = new SbInvite(cookie, sessionId, session.Account);
+        PruneExpiredInvites();
+
+        // The requester itself redeems this ticket over its new SB connection (USR).
+        PendingInvites[cookie] = new SbInvite(cookie, sessionId, session.Account, DateTimeOffset.UtcNow);
 
         await session.SendLineAsync($"XFR {trid} SB {AdvertisedAddress(session)} CKI {cookie}");
     }
@@ -307,8 +341,9 @@ internal sealed class MsnServer : Listener
 
         if (verb == "USR")
         {
-            // USR <trid> <account> <cookie> - the caller joining the SB it requested.
-            if (parts.Length < 4 || !PendingInvites.TryRemove(parts[3], out var invite))
+            // USR <trid> <account> <cookie> - the caller joining the SB it requested. The cookie is
+            // consumed even on rejection so a mismatched account burns the ticket instead of probing it.
+            if (parts.Length < 4 || !PendingInvites.TryRemove(parts[3], out var invite) || !IsRedeemableBy(invite, parts[2]))
             {
                 await session.SendLineAsync("911 " + (parts.Length > 1 ? parts[1] : "0"));
 
@@ -326,8 +361,9 @@ internal sealed class MsnServer : Listener
         }
         else if (verb == "ANS")
         {
-            // ANS <trid> <account> <cookie> <sessionId> - the callee answering the ring.
-            if (parts.Length < 5 || !PendingInvites.TryRemove(parts[3], out var invite) || invite.SessionId != parts[4])
+            // ANS <trid> <account> <cookie> <sessionId> - the callee answering the ring; the ticket only
+            // admits the account it was minted for.
+            if (parts.Length < 5 || !PendingInvites.TryRemove(parts[3], out var invite) || invite.SessionId != parts[4] || !IsRedeemableBy(invite, parts[2]))
             {
                 await session.SendLineAsync("911 " + (parts.Length > 1 ? parts[1] : "0"));
 
@@ -401,9 +437,11 @@ internal sealed class MsnServer : Listener
         var trid = parts[1];
         var callee = parts[2];
 
-        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated)
+        // Hidden (and authenticated-but-pre-CHG, still-FLN) callees must look offline to a caller: ringing
+        // them would leak the concealed presence via RINGING-vs-217 and pop an RNG the FLN broadcast said
+        // could not happen. 217 = principal not online.
+        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden)
         {
-            // 217 = principal not online.
             await session.SendLineAsync($"217 {trid}");
 
             return;
@@ -413,7 +451,10 @@ internal sealed class MsnServer : Listener
 
         var cookie = NextCookie();
 
-        PendingInvites[cookie] = new SbInvite(cookie, session.SwitchboardId, session.Account);
+        PruneExpiredInvites();
+
+        // The CALLEE redeems this ticket when answering the ring (ANS).
+        PendingInvites[cookie] = new SbInvite(cookie, session.SwitchboardId, callee, DateTimeOffset.UtcNow);
 
         // The ring is delivered over the callee's notification connection, not the switchboard.
         await SafeSendAsync(calleeNs, $"RNG {session.SwitchboardId} {AdvertisedAddress(session)} CKI {cookie} {session.Account} {UrlEncode(session.DisplayName)}");
@@ -484,6 +525,24 @@ internal sealed class MsnServer : Listener
     static Switchboard GetOrCreateSwitchboard(string sessionId)
     {
         return Switchboards.GetOrAdd(sessionId, id => new Switchboard(id));
+    }
+
+    static bool IsRedeemableBy(SbInvite invite, string account)
+    {
+        return string.Equals(invite.Account, account, StringComparison.OrdinalIgnoreCase) && DateTimeOffset.UtcNow - invite.IssuedAt <= InviteLifetime;
+    }
+
+    // Opportunistic sweep on invite creation (no timer thread needed): abandoned XFRs and unanswered rings
+    // must not accumulate in the static dictionary for the life of the process.
+    static void PruneExpiredInvites()
+    {
+        foreach (var invite in PendingInvites.Values.ToArray())
+        {
+            if (DateTimeOffset.UtcNow - invite.IssuedAt > InviteLifetime)
+            {
+                PendingInvites.TryRemove(invite.Cookie, out _);
+            }
+        }
     }
 
     void Teardown(MsnSession session)
@@ -587,7 +646,9 @@ internal sealed class MsnServer : Listener
         return Uri.EscapeDataString(value ?? string.Empty);
     }
 
-    sealed record SbInvite(string Cookie, string SessionId, string InviterAccount);
+    // Account = the one account allowed to redeem this ticket (the XFR requester for USR, the ring's
+    // callee for ANS), so a leaked or guessed cookie cannot admit an arbitrary self-asserted name.
+    sealed record SbInvite(string Cookie, string SessionId, string Account, DateTimeOffset IssuedAt);
 
     sealed class Switchboard
     {

@@ -5,6 +5,7 @@ using System.Data;
 using System.Dynamic;
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Yahoo;
 
 namespace VintageHive.Data.Contexts;
 
@@ -40,6 +41,8 @@ public class HiveDbContext : DbContextBase
     private const string TABLE_OSCAROFFLINEMSG = "oscar_offline_msg";
 
     private const string TABLE_OSCARSSI = "oscar_ssi";
+
+    private const string TABLE_YAHOOOFFLINEMSG = "yahoo_offline_msg";
 
     static readonly IReadOnlyDictionary<string, object> kDefaultGlobalSettings = new Dictionary<string, object>()
     {
@@ -166,6 +169,9 @@ public class HiveDbContext : DbContextBase
 
         // Oscar SSI (Server-Side Information)
         CreateTable(TABLE_OSCARSSI, "screenname TEXT COLLATE NOCASE, name TEXT, groupid INTEGER, itemid INTEGER, itemtype INTEGER, tlvdata BLOB");
+
+        // Yahoo! Messenger Offline Messages
+        CreateTable(TABLE_YAHOOOFFLINEMSG, "id INTEGER PRIMARY KEY AUTOINCREMENT, fromusername TEXT, tousername TEXT COLLATE NOCASE, message TEXT, timestamp INTEGER");
     }
 
     #region Log Methods
@@ -989,6 +995,93 @@ public class HiveDbContext : DbContextBase
             command.CommandText = $"DELETE FROM {TABLE_OSCAROFFLINEMSG} WHERE toscreenname = @to";
 
             command.Parameters.Add(new SqliteParameter("@to", screenName));
+
+            command.ExecuteNonQuery();
+        });
+    }
+    #endregion
+
+    #region Yahoo Offline Message Methods
+    public void YahooStoreOfflineMessage(string from, string to, string message)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"INSERT INTO {TABLE_YAHOOOFFLINEMSG} (fromusername, tousername, message, timestamp) VALUES (@from, @to, @message, @timestamp)";
+
+            command.Parameters.Add(new SqliteParameter("@from", from));
+            command.Parameters.Add(new SqliteParameter("@to", to));
+            command.Parameters.Add(new SqliteParameter("@message", message));
+            command.Parameters.Add(new SqliteParameter("@timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+
+            command.ExecuteNonQuery();
+        });
+    }
+
+    public List<YahooOfflineMessage> YahooGetOfflineMessages(string username)
+    {
+        return WithContext<List<YahooOfflineMessage>>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT * FROM {TABLE_YAHOOOFFLINEMSG} WHERE tousername = @to ORDER BY timestamp ASC, id ASC";
+
+            command.Parameters.Add(new SqliteParameter("@to", username));
+
+            using var reader = command.ExecuteReader();
+
+            var messages = new List<YahooOfflineMessage>();
+
+            while (reader.Read())
+            {
+                messages.Add(new YahooOfflineMessage(reader));
+            }
+
+            return messages;
+        });
+    }
+
+    public void YahooDeleteOfflineMessages(string username)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_YAHOOOFFLINEMSG} WHERE tousername = @to";
+
+            command.Parameters.Add(new SqliteParameter("@to", username));
+
+            command.ExecuteNonQuery();
+        });
+    }
+
+    // Deletes exactly the rows a delivery flush actually sent; a blanket by-username delete would destroy
+    // any message stored concurrently between the flush's SELECT and its delete.
+    public void YahooDeleteOfflineMessages(IEnumerable<long> ids)
+    {
+        WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            var names = new List<string>();
+            var index = 0;
+
+            foreach (var id in ids)
+            {
+                var name = $"@id{index++}";
+
+                names.Add(name);
+
+                command.Parameters.Add(new SqliteParameter(name, id));
+            }
+
+            if (names.Count == 0)
+            {
+                return;
+            }
+
+            command.CommandText = $"DELETE FROM {TABLE_YAHOOOFFLINEMSG} WHERE id IN ({string.Join(",", names)})";
 
             command.ExecuteNonQuery();
         });

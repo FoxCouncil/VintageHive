@@ -280,6 +280,11 @@ public class YmsgServerTests
     {
         YmsgTestEnv.Ensure();
         YmsgServer.Sessions.Clear();
+
+        // Offline-message queues are per-account DB state; flush them so one test's undelivered messages
+        // don't surface in another test's login.
+        Mind.Db!.YahooDeleteOfflineMessages("alice");
+        Mind.Db!.YahooDeleteOfflineMessages("bob");
     }
 
     [TestMethod]
@@ -357,6 +362,7 @@ public class YmsgServerTests
 
         Assert.AreEqual(YmsgService.Message, delivered.Service);
         Assert.AreEqual("alice", delivered.Get(4), "Sender must be rewritten into field 4");
+        Assert.IsNull(delivered.Get(1), "Field 1 must be absent or period clients attribute the message to the recipient");
         Assert.AreEqual("bob", delivered.Get(5));
         Assert.AreEqual("hello bob", delivered.Get(14));
     }
@@ -403,5 +409,211 @@ public class YmsgServerTests
         Assert.IsNotNull(entry, "Yahoo user should be visible via the shared presence registry");
         Assert.AreEqual("Yahoo", entry.Network);
         Assert.AreEqual(PresenceStatus.Online, entry.Status);
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Message_ToOfflineUser_IsQueuedAndDeliveredOnLogin()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using (var alice = new YmsgConn(server))
+        {
+            await alice.LoginAsync("alice");
+
+            // Bob exists but is offline; the message must queue instead of vanishing.
+            await alice.SendAsync(new YmsgPacket(YmsgService.Message, 0, 0).Add(1, "alice").Add(5, "bob").Add(14, "read this later"));
+
+            // A ping round-trip proves the message was processed before we move on.
+            await alice.SendAsync(new YmsgPacket(YmsgService.Ping, 0, 0));
+            await alice.ReadAsync();
+        }
+
+        using var bob = new YmsgConn(server);
+
+        await bob.LoginAsync("bob");
+
+        var delivered = await bob.ReadAsync();
+
+        Assert.AreEqual(YmsgService.Message, delivered.Service);
+        Assert.AreEqual(YmsgStatus.OfflineMessage, delivered.Status, "Offline delivery must carry the offline header status");
+        Assert.AreEqual("alice", delivered.Get(4), "Sender must be in field 4");
+        Assert.IsNull(delivered.Get(1), "Field 1 must be absent or period clients attribute the message to the recipient");
+        Assert.AreEqual("read this later", delivered.Get(14));
+
+        // The server deletes the queue AFTER the send we just read, so synchronize on a ping round-trip
+        // (the handler loop is sequential) before asserting the flush committed.
+        await bob.SendAsync(new YmsgPacket(YmsgService.Ping, 0, 0));
+        await bob.ReadAsync();
+
+        // The queue must be flushed after delivery so the message is not redelivered on the next login.
+        Assert.AreEqual(0, Mind.Db!.YahooGetOfflineMessages("bob").Count);
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task DuplicateLogin_SupersedesThePriorSession()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var first = new YmsgConn(server);
+
+        await first.LoginAsync("alice");
+
+        using var second = new YmsgConn(server);
+
+        await second.LoginAsync("alice");
+
+        // The first connection is told it was superseded, then dropped.
+        var notice = await first.ReadAsync();
+
+        Assert.AreEqual(YmsgService.Logoff, notice.Service);
+        Assert.AreEqual(YmsgStatus.Duplicate, notice.Status, "The superseded session must get a duplicate-login logoff");
+
+        // Exactly one live alice session remains, so IMs cannot route to the zombie.
+        Assert.AreEqual(1, YmsgServer.Sessions.Values.Count(s => s.IsAuthenticated && string.Equals(s.Username, "alice", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Message_ToDeadRecipient_DoesNotKillTheSender_AndFallsBackToOfflineStorage()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var alice = new YmsgConn(server);
+
+        await alice.LoginAsync("alice");
+
+        // A dead-but-still-registered recipient: no handler task owns this session, so it cannot be torn
+        // down before the relay attempts the send, and its disposed socket fails the write immediately.
+        // This pins the TrySendAsync relay path deterministically (a real crashed peer would race its own
+        // teardown and could dodge the relay entirely).
+        var zombie = MakeDeadSession("bob");
+
+        YmsgServer.Sessions[zombie.SessionId] = zombie;
+
+        await alice.SendAsync(new YmsgPacket(YmsgService.Message, 0, 0).Add(1, "alice").Add(5, "bob").Add(14, "anyone home?"));
+
+        // The sender's session must survive the failed relay: a ping still round-trips, and the handler
+        // loop is sequential so the pong also proves the message was fully processed.
+        await alice.SendAsync(new YmsgPacket(YmsgService.Ping, 0, 0));
+
+        var pong = await alice.ReadAsync();
+
+        Assert.AreEqual(YmsgService.Ping, pong.Service, "Sender must remain connected after messaging a dead recipient");
+
+        // The undeliverable message must fall back to offline storage instead of vanishing.
+        var queued = Mind.Db!.YahooGetOfflineMessages("bob");
+
+        Assert.AreEqual(1, queued.Count);
+        Assert.AreEqual("alice", queued[0].FromUsername);
+        Assert.AreEqual("anyone home?", queued[0].Message);
+    }
+
+    private static YmsgSession MakeDeadSession(string username)
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+
+        listener.Start();
+
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        var acceptTask = listener.AcceptSocketAsync();
+
+        client.Connect(IPAddress.Loopback, port);
+
+        var serverSocket = acceptTask.GetAwaiter().GetResult();
+
+        listener.Stop();
+
+        var connection = new ListenerSocket
+        {
+            RawSocket = serverSocket,
+            Stream = new NetworkStream(serverSocket),
+        };
+
+        var session = new YmsgSession(connection)
+        {
+            Username = username,
+            IsAuthenticated = true,
+        };
+
+        // Kill both ends so any write to the session fails immediately and deterministically.
+        connection.Stream.Dispose();
+        serverSocket.Dispose();
+        client.Dispose();
+
+        return session;
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Notify_TypingIndicator_IsRelayedToTarget()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var alice = new YmsgConn(server);
+
+        await alice.LoginAsync("alice");
+
+        using var bob = new YmsgConn(server);
+
+        await bob.LoginAsync("bob");
+        await alice.ReadAsync(); // drain bob's arrival LOGON
+
+        // 22 is the client's TYPING header status; it must be echoed through to the recipient.
+        await alice.SendAsync(new YmsgPacket(YmsgService.Notify, 22, 0).Add(1, "alice").Add(5, "bob").Add(49, "TYPING").Add(13, "1").Add(14, " "));
+
+        var notify = await bob.ReadAsync();
+
+        Assert.AreEqual(YmsgService.Notify, notify.Service);
+        Assert.AreEqual(22u, notify.Status, "Header status must be relayed");
+        Assert.AreEqual("alice", notify.Get(4), "Sender must be rewritten into field 4");
+        Assert.AreEqual("TYPING", notify.Get(49));
+        Assert.AreEqual("1", notify.Get(13));
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task AddBuddy_IsAcknowledgedWithSuccess()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var alice = new YmsgConn(server);
+
+        await alice.LoginAsync("alice");
+
+        await alice.SendAsync(new YmsgPacket(YmsgService.AddBuddy, 0, 0).Add(1, "alice").Add(7, "bob").Add(65, "Hive"));
+
+        var ack = await alice.ReadAsync();
+
+        Assert.AreEqual(YmsgService.AddBuddy, ack.Service);
+        Assert.AreEqual("bob", ack.Get(7));
+        Assert.AreEqual("Hive", ack.Get(65));
+        Assert.AreEqual("0", ack.Get(66), "Field 66 = 0 means success");
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task InvisibleUser_IsHiddenFromThePresenceRegistry()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        PresenceRegistry.Register(new YahooPresenceProvider());
+
+        using var alice = new YmsgConn(server);
+
+        await alice.LoginAsync("alice");
+
+        Assert.IsNotNull(PresenceRegistry.Find("alice"), "Sanity: alice is visible while Available");
+
+        await alice.SendAsync(new YmsgPacket(YmsgService.IsAway, 0, 0).Add(10, YmsgStatus.Invisible.ToString()));
+
+        // A ping round-trip guarantees the status change was processed before asserting.
+        await alice.SendAsync(new YmsgPacket(YmsgService.Ping, 0, 0));
+        await alice.ReadAsync();
+
+        Assert.IsNull(PresenceRegistry.Find("alice"), "Invisible users must not be exposed via the presence registry");
+        Assert.IsFalse(PresenceRegistry.Online().Any(e => e.Network == "Yahoo" && e.Username == "alice"), "Invisible users must not appear in the online list");
     }
 }
