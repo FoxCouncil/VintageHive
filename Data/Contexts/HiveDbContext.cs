@@ -579,11 +579,11 @@ public class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = $"SELECT value FROM {TABLE_WEBSESSION} WHERE key = @key AND ip = @ip AND ua = @ua";
+            // Was filtering ip/ua = the session GUID (dead columns) with no expiry, so a session cookie was valid
+            // forever. Key on the cookie and require the row to be within the 7-day TTL (refreshed on each write).
+            command.CommandText = $"SELECT value FROM {TABLE_WEBSESSION} WHERE key = @key AND ttl > datetime('now', '-7 days')";
 
             command.Parameters.Add(new SqliteParameter("@key", sessionId.ToString()));
-            command.Parameters.Add(new SqliteParameter("@ip", sessionId.ToString()));
-            command.Parameters.Add(new SqliteParameter("@ua", sessionId.ToString()));
 
             using var reader = command.ExecuteReader();
 
@@ -608,11 +608,10 @@ public class HiveDbContext : DbContextBase
 
             using var updateCommand = context.CreateCommand();
 
-            updateCommand.CommandText = $"UPDATE {TABLE_WEBSESSION} SET value = @value WHERE key = @key AND ip = @ip AND ua = @ua";
+            // Refresh ttl on write so an active session slides forward and only genuinely idle sessions expire
+            updateCommand.CommandText = $"UPDATE {TABLE_WEBSESSION} SET value = @value, ttl = datetime() WHERE key = @key";
 
             updateCommand.Parameters.Add(new SqliteParameter("@key", sessionId.ToString()));
-            updateCommand.Parameters.Add(new SqliteParameter("@ip", sessionId.ToString()));
-            updateCommand.Parameters.Add(new SqliteParameter("@ua", sessionId.ToString()));
             updateCommand.Parameters.Add(new SqliteParameter("@value", jsonString));
 
             if (updateCommand.ExecuteNonQuery() == 0)

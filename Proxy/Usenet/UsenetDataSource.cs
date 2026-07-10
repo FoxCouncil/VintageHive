@@ -12,6 +12,9 @@ internal class UsenetDataSource
 
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
+    // A dead/unknown group returns nothing; cache that miss briefly so it isn't re-fetched from the archives every request
+    private static readonly TimeSpan EmptyCacheTtl = TimeSpan.FromMinutes(15);
+
     private List<UsenetGroup> _bundledGroups;
 
     private Dictionary<string, List<UsenetArticle>> _bundledArticles;
@@ -50,10 +53,8 @@ internal class UsenetDataSource
             {
                 allArticles = await FetchFromArchivesAsync(groupName);
 
-                if (allArticles.Count > 0)
-                {
-                    Mind.Cache.SetData(cacheKey, CacheTtl, JsonSerializer.Serialize(allArticles));
-                }
+                // Cache both hits (24h) and misses (15m) so a repeated request for a dead group doesn't re-fetch
+                Mind.Cache.SetData(cacheKey, allArticles.Count > 0 ? CacheTtl : EmptyCacheTtl, JsonSerializer.Serialize(allArticles));
             }
         }
 

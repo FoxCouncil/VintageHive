@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Collections.Concurrent;
 using System.Xml.Serialization;
 using static VintageHive.Proxy.Http.HttpUtilities;
 
@@ -19,9 +20,9 @@ public static class SCUtils
 
     const string M3uSig = "#EXTINF:-1,";
 
-    readonly static Dictionary<string, int> genreCache = new();
+    readonly static ConcurrentDictionary<string, int> genreCache = new();
 
-    readonly static Dictionary<int, ShoutcastStation> stationCache = new();
+    readonly static ConcurrentDictionary<int, ShoutcastStation> stationCache = new();
 
     public static async Task<List<Genre>> GetGenres()
     {
@@ -35,8 +36,7 @@ public static class SCUtils
 
         foreach (var genre in data.Genre)
         {
-            genreCache.Remove(genre.Name);
-            genreCache.Add(genre.Name, genre.Count);
+            genreCache[genre.Name] = genre.Count;
         }
 
         return data.Genre;
@@ -54,11 +54,9 @@ public static class SCUtils
 
         foreach (var station in data.Stations)
         {
-            stationCache.Remove(station.Id);
-
             station.Mt = GetFormatString(station.Mt);
 
-            stationCache.Add(station.Id, station);
+            stationCache[station.Id] = station;
         }
 
         return data.Stations;
@@ -76,11 +74,9 @@ public static class SCUtils
 
         foreach (var station in data.Stations)
         {
-            stationCache.Remove(station.Id);
-
             station.Mt = GetFormatString(station.Mt);
 
-            stationCache.Add(station.Id, station);
+            stationCache[station.Id] = station;
         }
 
         return data.Stations;
@@ -98,11 +94,9 @@ public static class SCUtils
 
         foreach (var station in data.Stations)
         {
-            stationCache.Remove(station.Id);
-
             station.Mt = GetFormatString(station.Mt);
 
-            stationCache.Add(station.Id, station);
+            stationCache[station.Id] = station;
         }
 
         return data.Stations;

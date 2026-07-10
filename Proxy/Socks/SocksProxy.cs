@@ -75,14 +75,28 @@ internal class SocksProxy : Listener
     /// </summary>
     internal static async Task TunnelAsync(Stream clientStream, Stream targetStream)
     {
-        var clientToTarget = CopyStreamAsync(clientStream, targetStream);
-        var targetToClient = CopyStreamAsync(targetStream, clientStream);
+        using var cts = new CancellationTokenSource();
 
-        // When either direction finishes, we're done
+        var clientToTarget = CopyStreamAsync(clientStream, targetStream, cts.Token);
+        var targetToClient = CopyStreamAsync(targetStream, clientStream, cts.Token);
+
+        // When either direction finishes, cancel the other and await both - otherwise the loser pump keeps reading
+        // a stream that's about to be torn down (an uncaught ObjectDisposedException, and two readers on one stream).
         await Task.WhenAny(clientToTarget, targetToClient);
+
+        cts.Cancel();
+
+        try
+        {
+            await Task.WhenAll(clientToTarget, targetToClient);
+        }
+        catch
+        {
+            // Cancellation / teardown of the loser direction is expected
+        }
     }
 
-    private static async Task CopyStreamAsync(Stream source, Stream destination)
+    private static async Task CopyStreamAsync(Stream source, Stream destination, CancellationToken cancellationToken)
     {
         var buffer = new byte[BUFFER_SIZE];
 
@@ -90,20 +104,20 @@ internal class SocksProxy : Listener
         {
             while (true)
             {
-                var read = await source.ReadAsync(buffer);
+                var read = await source.ReadAsync(buffer, cancellationToken);
 
                 if (read == 0)
                 {
                     break;
                 }
 
-                await destination.WriteAsync(buffer.AsMemory(0, read));
-                await destination.FlushAsync();
+                await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                await destination.FlushAsync(cancellationToken);
             }
         }
-        catch (Exception ex) when (ex is IOException || ex is SocketException)
+        catch (Exception ex) when (ex is IOException || ex is SocketException || ex is OperationCanceledException || ex is ObjectDisposedException)
         {
-            // One side closed - expected during tunnel teardown
+            // One side closed or the loser direction was cancelled - expected during tunnel teardown
         }
     }
 }
