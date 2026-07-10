@@ -130,12 +130,16 @@ internal static class JsonExporter
         Console.WriteLine($"    Uncompressed: {uncompressedSize / (1024.0 * 1024.0):F1} MB");
         Console.WriteLine($"    Compressed:   {compressedSize / (1024.0 * 1024.0):F1} MB ({ratio:F0}% reduction)");
 
-        // Also write an uncompressed copy for debugging
-        var jsonPath = Path.Combine(outputDir, "articles.json");
+        // Opt-in uncompressed debug copy. It used to be written on every run - including CI/bundle - landing an
+        // ungitignored ~N MB articles.json in Statics/usenet that got embedded into every build.
+        if (Environment.GetEnvironmentVariable("CURATOR_DEBUG_JSON") == "1")
+        {
+            var jsonPath = Path.Combine(outputDir, "articles.json");
 
-        File.WriteAllText(jsonPath, json, Encoding.UTF8);
+            File.WriteAllText(jsonPath, json, Encoding.UTF8);
 
-        Console.WriteLine($"  Wrote {jsonPath} (uncompressed copy for debugging)");
+            Console.WriteLine($"  Wrote {jsonPath} (uncompressed copy for debugging)");
+        }
     }
 
     private class ExportGroup

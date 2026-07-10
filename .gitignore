@@ -341,3 +341,6 @@ ASALocalRun/
 
 # Cloudflare Wrangler local state (contains account id; the worker lives in a separate repo)
 .wrangler/
+
+# UsenetCurator uncompressed debug dump (only the .gz is shipped)
+Statics/usenet/articles.json

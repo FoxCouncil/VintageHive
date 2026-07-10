@@ -31,6 +31,12 @@ internal static class Setup
         // Filter by --groups if specified
         var targetGroups = FilterManifestGroups(options);
 
+        // A typo'd --groups would otherwise silently overwrite the shipped Statics/usenet bundle with a near-empty set
+        if (targetGroups.Count == 0)
+        {
+            throw new InvalidOperationException("No groups matched the --groups filter; refusing to regenerate the bundle with an empty set. Check the group names.");
+        }
+
         var maxPerGroup = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
         var readLimits = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 

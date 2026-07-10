@@ -13,24 +13,28 @@ internal static class FfmpegUtils
             throw new ApplicationException("Somehow, it's not x64? Everything VintageHive is 64bit. What?");
         }
 
-        string bundled;
+        string fileName;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            bundled = Path.Combine("libs", "ffmpeg.exe");
+            fileName = "ffmpeg.exe";
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            bundled = Path.Combine("libs", "ffmpeg.osx.intel");
+            fileName = "ffmpeg.osx.intel";
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            bundled = Path.Combine("libs", "ffmpeg.amd64");
+            fileName = "ffmpeg.amd64";
         }
         else
         {
             throw new Exception("Cannot determine operating system!");
         }
+
+        // Resolve against the app directory (like VFS/Log/DbContext), NOT the current working directory - a service
+        // started from a different CWD would otherwise never find the bundled binary and silently fall back to PATH.
+        var bundled = Path.Combine(AppContext.BaseDirectory, "libs", fileName);
 
         // Fall back to a system-installed ffmpeg (resolved via PATH) when the bundled binary isn't shipped -
         // the Docker image and non-amd64 Linux/macOS hosts rely on the OS package instead.

@@ -113,7 +113,11 @@ internal static partial class DateNormalizer
     /// </summary>
     public static string ToRfc2822(DateTimeOffset dto)
     {
-        return dto.ToString("ddd, dd MMM yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture);
+        // RFC 1036/2822 require a numeric ±HHMM zone with NO colon; the "zzz" format produced "+00:00" (invalid)
+        var offset = dto.Offset;
+        var zone = $"{(offset < TimeSpan.Zero ? "-" : "+")}{Math.Abs(offset.Hours):D2}{Math.Abs(offset.Minutes):D2}";
+
+        return dto.ToString("ddd, dd MMM yyyy HH:mm:ss ", CultureInfo.InvariantCulture) + zone;
     }
 
     private static string ReplaceTimezoneAbbreviations(string dateStr)

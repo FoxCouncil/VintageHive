@@ -19,7 +19,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <EmbeddedResource Include="Statics\**\*" />
+      <!-- Exclude the curator's uncompressed debug dump; only the shipped articles.json.gz should be embedded -->
+      <EmbeddedResource Include="Statics\**\*" Exclude="Statics\usenet\articles.json" />
     </ItemGroup>
 
     <ItemGroup>
@@ -37,7 +38,22 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="libs\*.*">
+      <!-- Everything in libs/ EXCEPT the platform ffmpeg binaries, which are conditioned per-RID below -->
+      <Content Include="libs\*.*" Exclude="libs\ffmpeg.exe;libs\ffmpeg.osx.intel;libs\ffmpeg.amd64">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <!-- No RID (dev / dotnet run): ship all ffmpeg binaries so it runs on any host -->
+      <Content Include="libs\ffmpeg.exe;libs\ffmpeg.osx.intel;libs\ffmpeg.amd64" Condition="'$(RuntimeIdentifier)' == ''">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <!-- Published (RID-specific): only the matching platform's ffmpeg, saving ~240 MB/RID of foreign binaries -->
+      <Content Include="libs\ffmpeg.exe" Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="libs\ffmpeg.amd64" Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="libs\ffmpeg.osx.intel" Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
       <Content Include="Statics\app.ico" />
