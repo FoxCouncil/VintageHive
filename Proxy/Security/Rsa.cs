@@ -29,7 +29,7 @@ public class Rsa : NativeRef
 
     public string PEMPrivateKey()
     {
-        var writeBio = new BasicInputOutput();
+        using var writeBio = new BasicInputOutput();
 
         var result = PEM_write_bio_RSAPrivateKey(writeBio, this, IntPtr.Zero, null, 0, IntPtr.Zero, IntPtr.Zero);
 
@@ -40,7 +40,7 @@ public class Rsa : NativeRef
 
     public string PEMPublicKey()
     {
-        var writeBio = new BasicInputOutput();
+        using var writeBio = new BasicInputOutput();
 
         var result = PEM_write_bio_RSA_PUBKEY(writeBio, this);
 
@@ -56,7 +56,7 @@ public class Rsa : NativeRef
 
     public static Rsa FromPEMPrivateKey(string key)
     {
-        var readBio = new BasicInputOutput(key);
+        using var readBio = new BasicInputOutput(key);
 
         var rsaPtr = PEM_read_bio_RSAPrivateKey(readBio, IntPtr.Zero, null, IntPtr.Zero);
 

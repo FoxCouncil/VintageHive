@@ -53,13 +53,29 @@ public class SslStream : NativeRef
         var ret = SetAccept();
     }
 
+    ~SslStream()
+    {
+        // Backstop: if the owner never disposed us, still free the native SSL handle + BIOs
+        Dispose();
+    }
+
     public override void Dispose()
     {
+        if (Handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // SSL_set_bio transferred ownership of bioInput/bioOutput, so SSL_free releases all three
         Native.SSL_free(Handle);
+
+        Handle = IntPtr.Zero;
 
         GC.KeepAlive(callback);
 
         callback = null;
+
+        GC.SuppressFinalize(this);
     }
 
     public void UseCertificate(X509Certificate cert)

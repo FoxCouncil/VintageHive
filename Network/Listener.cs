@@ -25,6 +25,8 @@ public abstract class Listener
 
     public Thread ProcessThread { get; private set; }
 
+    const int HandshakeTimeoutMs = 15000;
+
     public Listener(IPAddress listenAddress, int port, SocketType type, ProtocolType protocol, bool secure = false)
     {
         Address = listenAddress;
@@ -122,155 +124,140 @@ public abstract class Listener
 
                 SslStream sslStream = null;
 
-                if (IsSecure)
+                ListenerSocket listenerSocket = null;
+
+                try
                 {
-                    int read = await connection.ReceiveAsync(reqBuffer, SocketFlags.None);
-
-                    if (read == 0)
+                    if (IsSecure)
                     {
-                        // Bail!
-                        connection.Close();
+                        int read = await connection.ReceiveAsync(reqBuffer, SocketFlags.None);
 
-                        return;
-                    }
-
-                    var rawPacket = Encoding.ASCII.GetString(reqBuffer, 0, read);
-
-                    // The Client is asking us to forward the connection.
-                    if (rawPacket.StartsWith("CONNECT"))
-                    {
-                        // We need to fake it...
-                        await connection.SendAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection Established\r\n\r\n"), SocketFlags.None);
-                    }
-
-                    var baseRequest = HttpRequest.Parse(reqBuffer[..read], rawPacket, Encoding.ASCII);
-
-                    if (!baseRequest.IsValid)
-                    {
-                        connection.Close();
-
-                        return;
-                    }
-
-                    var sslCertificate = CertificateAuthority.GetOrCreateDomainCertificate(baseRequest.Uri.Host);
-
-                    sslStream = new SslStream(SecurityContext, networkStream);
-
-                    using var cert = X509Certificate.FromPEM(sslCertificate.Certificate);
-                    using var key = Rsa.FromPEMPrivateKey(sslCertificate.Key);
-
-                    sslStream.UseCertificate(cert);
-                    sslStream.UseRSAPrivateKey(key);
-
-                    sslStream.AuthenticateAsServer();
-                }
-
-                var listenerSocket = new ListenerSocket
-                {
-                    IsSecure = IsSecure,
-                    RawSocket = connection,
-                    Stream = networkStream,
-                    SecureStream = sslStream
-                };
-
-                var remoteAddress = listenerSocket.RemoteAddress;
-
-                Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Opening connection to {remoteAddress}", listenerSocket.TraceId.ToString());
-
-                if (connection.Connected)
-                {
-                    var connectionBuffer = await ProcessConnection(listenerSocket);
-
-                    if (connectionBuffer != null)
-                    {
-                        if (IsSecure)
+                        if (read == 0)
                         {
-                            await sslStream.WriteAsync(connectionBuffer);
-                        }
-                        else
-                        {
-                            await connection.SendAsync(connectionBuffer, SocketFlags.None);
-                        }
-                    }
-                }
-
-                while (connection.Connected)
-                {
-                    try
-                    {
-                        if (!connection.Connected)
-                        {
-                            break;
+                            return;
                         }
 
-                        if (listenerSocket.IsKeepAlive)
+                        var rawPacket = Encoding.ASCII.GetString(reqBuffer, 0, read);
+
+                        // The Client is asking us to forward the connection.
+                        if (rawPacket.StartsWith("CONNECT"))
                         {
-                            Console.Error.WriteLine($"[LISTENER] Keep-alive: awaiting next request on {listenerSocket.TraceId}");
-                            Console.Error.Flush();
+                            // We need to fake it...
+                            await connection.SendAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection Established\r\n\r\n"), SocketFlags.None);
                         }
 
-                        int read = IsSecure ? await sslStream.ReadAsync(reqBuffer) : await networkStream.ReadAsync(reqBuffer);
+                        var baseRequest = HttpRequest.Parse(reqBuffer[..read], rawPacket, Encoding.ASCII);
 
-                        if (read <= 0)
+                        if (!baseRequest.IsValid)
                         {
-                            if (listenerSocket.IsKeepAlive)
+                            return;
+                        }
+
+                        var sslCertificate = CertificateAuthority.GetOrCreateDomainCertificate(baseRequest.Uri.Host);
+
+                        sslStream = new SslStream(SecurityContext, networkStream);
+
+                        using var cert = X509Certificate.FromPEM(sslCertificate.Certificate);
+                        using var key = Rsa.FromPEMPrivateKey(sslCertificate.Key);
+
+                        sslStream.UseCertificate(cert);
+                        sslStream.UseRSAPrivateKey(key);
+
+                        // Bound the synchronous handshake reads so a silent half-open peer can't pin this thread forever
+                        networkStream.ReadTimeout = HandshakeTimeoutMs;
+
+                        sslStream.AuthenticateAsServer();
+
+                        networkStream.ReadTimeout = Timeout.Infinite;
+                    }
+
+                    listenerSocket = new ListenerSocket
+                    {
+                        IsSecure = IsSecure,
+                        RawSocket = connection,
+                        Stream = networkStream,
+                        SecureStream = sslStream
+                    };
+
+                    var remoteAddress = listenerSocket.RemoteAddress;
+
+                    Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Opening connection to {remoteAddress}", listenerSocket.TraceId.ToString());
+
+                    if (connection.Connected)
+                    {
+                        var connectionBuffer = await ProcessConnection(listenerSocket);
+
+                        if (connectionBuffer != null)
+                        {
+                            if (IsSecure)
                             {
-                                Console.Error.WriteLine($"[LISTENER] Keep-alive connection read returned {read} (remote closed) on {listenerSocket.TraceId}");
-                                Console.Error.Flush();
+                                await sslStream.WriteAsync(connectionBuffer);
                             }
-                            break;
+                            else
+                            {
+                                await connection.SendAsync(connectionBuffer, SocketFlags.None);
+                            }
                         }
+                    }
 
-                        var resBuffer = await ProcessRequest(listenerSocket, reqBuffer, read).ConfigureAwait(false);
-
-                        if (IsSecure)
+                    while (connection.Connected)
+                    {
+                        try
                         {
+                            int read = IsSecure ? await sslStream.ReadAsync(reqBuffer) : await networkStream.ReadAsync(reqBuffer);
+
+                            if (read <= 0)
+                            {
+                                break;
+                            }
+
+                            var resBuffer = await ProcessRequest(listenerSocket, reqBuffer, read).ConfigureAwait(false);
+
                             if (resBuffer != null)
                             {
-                                await sslStream.WriteAsync(resBuffer);
-                            }
-                            else if (!listenerSocket.IsKeepAlive)
-                            {
-                                sslStream.Dispose();
-                            }
-                        }
-                        else
-                        {
-                            if (resBuffer != null)
-                            {
-                                await connection.SendAsync(resBuffer, SocketFlags.None);
-                            }
-                            else if (!listenerSocket.IsKeepAlive)
-                            {
-                                if (connection.Connected)
+                                if (IsSecure)
                                 {
-                                    connection.Disconnect(false);
+                                    await sslStream.WriteAsync(resBuffer);
+                                }
+                                else
+                                {
+                                    await connection.SendAsync(resBuffer, SocketFlags.None);
                                 }
                             }
-                        }
 
-                        if (!listenerSocket.IsKeepAlive)
+                            if (!listenerSocket.IsKeepAlive)
+                            {
+                                break;
+                            }
+                        }
+                        catch (Exception ex) when (ex is SocketException || ex is IOException)
                         {
-                            connection.Close();
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.WriteException(GetType().Name, ex, listenerSocket.TraceId.ToString());
                         }
                     }
-                    catch (Exception ex) when (ex is SocketException || ex is IOException)
-                    {
-                        if (listenerSocket.IsKeepAlive)
-                        {
-                            Console.Error.WriteLine($"[LISTENER] Keep-alive connection exception: {ex.GetType().Name}: {ex.Message} on {listenerSocket.TraceId}");
-                            Console.Error.Flush();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.WriteException(GetType().Name, ex, listenerSocket.TraceId.ToString());
-                    }
+
+                    await ProcessDisconnection(listenerSocket);
+
+                    Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Closing connection to {remoteAddress}", listenerSocket.TraceId.ToString());
                 }
+                catch (Exception ex)
+                {
+                    // Setup failures (bad probe, failed handshake, cert error) used to vanish out of this async void with no log
+                    Log.WriteException(GetType().Name, ex, listenerSocket?.TraceId.ToString() ?? "");
+                }
+                finally
+                {
+                    // The single deterministic teardown: SSL_free (frees the SSL handle + both BIOs), the stream, and the socket
+                    sslStream?.Dispose();
 
-                await ProcessDisconnection(listenerSocket);
+                    networkStream.Dispose();
 
-                Log.WriteLine(Log.LEVEL_DEBUG, GetType().Name, $"Closing connection to {remoteAddress}", listenerSocket.TraceId.ToString());
+                    try { connection.Close(); } catch { }
+                }
             });
         }
 

@@ -124,7 +124,7 @@ public class X509Certificate : NativeRef
 
     public string ToPEM()
     {
-        var writeBio = new BasicInputOutput();
+        using var writeBio = new BasicInputOutput();
 
         var result = PEM_write_bio_X509(writeBio, this);
 
@@ -140,7 +140,7 @@ public class X509Certificate : NativeRef
 
     public static X509Certificate FromPEM(string pem)
     {
-        var readBio = new BasicInputOutput(pem);
+        using var readBio = new BasicInputOutput(pem);
 
         return new X509Certificate(PEM_read_bio_X509(readBio, IntPtr.Zero, null, IntPtr.Zero));
     }
