@@ -472,7 +472,14 @@ public class HiveDbContext : DbContextBase
     {
         if (requestUrl.StartsWith("http://web.archive.org/web/"))
         {
-            requestUrl = requestUrl[(requestUrl.IndexOf('_') + 2)..];
+            // Strip the "/web/<timestamp><type>_/" prefix by matching the "_/" marker explicitly. The old
+            // IndexOf('_')+2 chopped the first char when no '_' was present and threw when '_' was the last char.
+            var markerIndex = requestUrl.IndexOf("_/");
+
+            if (markerIndex != -1)
+            {
+                requestUrl = requestUrl[(markerIndex + 2)..];
+            }
         }
 
         WithContext(context =>
