@@ -76,14 +76,19 @@ internal static class RadioMp3Streaming
             {
                 await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
-                Task.WaitAny(
+                // await (not Task.WaitAny) so we don't block a thread-pool thread for the whole stream.
+                await Task.WhenAny(
                     clientStream.CopyToAsync(process.StandardInput.BaseStream),
                     process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
                 );
             }
             catch (IOException) { }
+            finally
+            {
+                // Always tear down the ffmpeg process tree - a non-IOException escaping the try used to orphan it.
+                try { process.Kill(true); } catch { }
+            }
 
-            process.Kill();
             response.Handled = true;
         }
         else
@@ -103,7 +108,10 @@ internal static class RadioMp3Streaming
 
             try
             {
-                response.SetBodyStream(clientStream, "audio/x-mpeg");
+                // Stream straight to the socket and mark the response handled. Previously this ALSO called
+                // SetBodyStream without setting Handled, so HttpProxy re-sent the headers and re-copied the
+                // already-consumed (and disposed) stream, injecting stray header bytes into the audio.
+                response.Handled = true;
 
                 await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
@@ -119,15 +127,11 @@ internal static class RadioMp3Streaming
 
     public static async Task HandleWmpMp3Stream(HttpRequest request, HttpResponse response, string stationId)
     {
-        Console.Error.WriteLine($"[WMP] HandleWmpStream entered, id={stationId}");
-        Console.Error.Flush();
+        var headersSent = false;
 
         try
         {
             var info = await RadioStationResolver.ResolveStation(stationId);
-
-            Console.Error.WriteLine($"[WMP] Station: {info.Name}, Codec: {info.Codec}, URL: {info.StreamUrl}");
-            Console.Error.Flush();
 
             using var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
             {
@@ -140,14 +144,10 @@ internal static class RadioMp3Streaming
 
             using var upstream = await httpClient.GetAsync(info.StreamUrl, HttpCompletionOption.ResponseHeadersRead);
 
-            Console.Error.WriteLine($"[WMP] Upstream: {(int)upstream.StatusCode}");
-            Console.Error.Flush();
-
             using var clientStream = await upstream.Content.ReadAsStreamAsync();
 
-            // Plain HTTP/1.0 response - no WMSP, no chunked, no ICY
-            // Large Content-Length tells WMP to start playback immediately
-            // instead of buffering the entire "file" before playing.
+            // Plain HTTP/1.0 response - no WMSP, no chunked, no ICY. A large Content-Length tells WMP to start
+            // playback immediately instead of buffering the entire "file" before playing.
             response.Headers.Add(HttpHeaderName.ContentType, "audio/mpeg");
             response.Headers.Add("Content-Length", "2147483647");
             response.Headers.Add("Connection", "close");
@@ -160,43 +160,46 @@ internal static class RadioMp3Streaming
                 process.Start();
                 _ = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
 
-                var responseBytes = response.GetResponseEncodedData();
-                Console.Error.WriteLine($"[WMP] Headers (ffmpeg):\n{System.Text.Encoding.ASCII.GetString(responseBytes).TrimEnd()}");
-                Console.Error.Flush();
+                headersSent = true;
+                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
-                await request.ListenerSocket.Stream.WriteAsync(responseBytes);
-
-                Task.WaitAny(
-                    clientStream.CopyToAsync(process.StandardInput.BaseStream),
-                    process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
-                );
-
-                process.Kill();
+                try
+                {
+                    await Task.WhenAny(
+                        clientStream.CopyToAsync(process.StandardInput.BaseStream),
+                        process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
+                    );
+                }
+                catch (IOException) { }
+                finally
+                {
+                    try { process.Kill(true); } catch { }
+                }
             }
             else
             {
-                var responseBytes = response.GetResponseEncodedData();
-                Console.Error.WriteLine($"[WMP] Headers (passthrough):\n{System.Text.Encoding.ASCII.GetString(responseBytes).TrimEnd()}");
-                Console.Error.Flush();
-
-                await request.ListenerSocket.Stream.WriteAsync(responseBytes);
-
-                Console.Error.WriteLine("[WMP] Streaming MP3...");
-                Console.Error.Flush();
+                headersSent = true;
+                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
                 await clientStream.CopyToAsync(request.ListenerSocket.Stream);
             }
-
-            Console.Error.WriteLine("[WMP] Stream ended normally");
-            Console.Error.Flush();
 
             response.Handled = true;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[WMP] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
-            Console.Error.Flush();
-            response.Handled = true;
+            Log.WriteException(nameof(RadioMp3Streaming), ex, "");
+
+            // If nothing has been written yet (station lookup or upstream connect failed) return a real error so the
+            // client sees a failure instead of an empty 200. Once bytes are on the wire we can only log and stop.
+            if (!headersSent)
+            {
+                response.SetStatusCode(VintageHive.Proxy.Http.HttpStatusCode.BadGateway).SetBodyString($"Unable to reach radio station: {ex.Message}");
+            }
+            else
+            {
+                response.Handled = true;
+            }
         }
     }
 
@@ -243,14 +246,19 @@ internal static class RadioMp3Streaming
             {
                 await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
-                Task.WaitAny(
+                // await (not Task.WaitAny) so we don't block a thread-pool thread for the whole stream.
+                await Task.WhenAny(
                     clientStream.CopyToAsync(process.StandardInput.BaseStream),
                     process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
                 );
             }
             catch (IOException) { }
+            finally
+            {
+                // Always tear down the ffmpeg process tree - a non-IOException escaping the try used to orphan it.
+                try { process.Kill(true); } catch { }
+            }
 
-            process.Kill();
             response.Handled = true;
         }
         else
@@ -270,13 +278,15 @@ internal static class RadioMp3Streaming
 
             try
             {
-                response.SetBodyStream(clientStream, "audio/x-mpeg");
+                // Stream straight to the socket and mark the response handled (see the ICY branch above - calling
+                // SetBodyStream here as well made HttpProxy re-emit headers and re-copy the disposed stream).
+                response.Handled = true;
 
                 await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
                 await clientStream.CopyToAsync(request.ListenerSocket.Stream);
             }
-            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"WMP stream write failed: {ex.Message}", ""); }
+            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"Browser stream write failed: {ex.Message}", ""); }
         }
     }
 
@@ -288,7 +298,7 @@ internal static class RadioMp3Streaming
     {
         var station = await GetStationById(request.QueryParams["id"]);
 
-        var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
+        using var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
         {
             AllowAutoRedirect = true,
             MaxAutomaticRedirections = 3,
@@ -309,9 +319,9 @@ internal static class RadioMp3Streaming
             httpClient.DefaultRequestHeaders.Add(HttpHeaderName.IcyMetadata, "1");
         }
 
-        var client = await httpClient.GetAsync(station.Item2, HttpCompletionOption.ResponseHeadersRead);
+        using var client = await httpClient.GetAsync(station.Item2, HttpCompletionOption.ResponseHeadersRead);
 
-        var clientStream = await client.Content.ReadAsStreamAsync();
+        using var clientStream = await client.Content.ReadAsStreamAsync();
 
         if (stationCodec != "MP3")
         {
@@ -327,14 +337,19 @@ internal static class RadioMp3Streaming
             {
                 await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
-                Task.WaitAny(
+                // await (not Task.WaitAny) so we don't block a thread-pool thread for the whole stream.
+                await Task.WhenAny(
                     clientStream.CopyToAsync(process.StandardInput.BaseStream),
                     process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
                 );
             }
             catch (IOException) { }
+            finally
+            {
+                // Always tear down the ffmpeg process tree - a non-IOException escaping the try used to orphan it.
+                try { process.Kill(true); } catch { }
+            }
 
-            process.Kill();
             response.Handled = true;
         }
         else
@@ -347,7 +362,23 @@ internal static class RadioMp3Streaming
                 }
             }
 
-            response.SetBodyStream(clientStream, HttpContentTypeMimeType.Audio.Mpeg);
+            response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
+            response.Headers.Add(HttpHeaderName.ContentDisposition, "inline");
+            response.Headers.Add("Connection", "keep-alive");
+            response.Headers.Add("Accept-Ranges", "bytes");
+
+            try
+            {
+                // Stream directly (was SetBodyStream, which deferred the copy to HttpProxy AFTER this handler - and
+                // its httpClient/response - was disposed, closing the stream out from under the copy and leaking the
+                // HttpClient). Owning the copy here lets the using-scoped httpClient/client/clientStream dispose safely.
+                response.Handled = true;
+
+                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
+
+                await clientStream.CopyToAsync(request.ListenerSocket.Stream);
+            }
+            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"Shoutcast stream write failed: {ex.Message}", ""); }
         }
     }
 }

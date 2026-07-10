@@ -473,7 +473,7 @@ public class CookEncoderEncodingTests
     [TestMethod]
     public void EncodePcm_RawFrames_CollectsAllFrames()
     {
-        var encoder = new CookEncoder(11025, 2, 19000);
+        var encoder = new CookEncoder(11025, 2, 19000) { CollectRawFrames = true };
 
         int pcmBytes = 256 * 2 * 2 * 100;
         var silence = new byte[pcmBytes];
@@ -485,7 +485,7 @@ public class CookEncoderEncodingTests
     [TestMethod]
     public void EncodePcm_RawFrameSize_MatchesSubPacketSize()
     {
-        var encoder = new CookEncoder(11025, 2, 19000);
+        var encoder = new CookEncoder(11025, 2, 19000) { CollectRawFrames = true };
 
         // Flavor 9: FrameBits=464, subPacketSize=464/8=58
         int pcmBytes = 256 * 2 * 2 * 100;
@@ -501,7 +501,7 @@ public class CookEncoderEncodingTests
     [TestMethod]
     public void EncodePcm_XorScramble_Applied()
     {
-        var encoder = new CookEncoder(11025, 2, 19000);
+        var encoder = new CookEncoder(11025, 2, 19000) { CollectRawFrames = true };
 
         // Encode silence - all-zero coefficients should still produce non-zero frames
         // because of XOR scrambling and Huffman-coded spectral envelope

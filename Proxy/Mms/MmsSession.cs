@@ -188,6 +188,15 @@ internal class MmsSession
 
     private async Task HandleOpenFile(byte[] fields)
     {
+        // A second OpenFile on the same connection (a station change) must release the previous live session's client
+        // slot first - otherwise its ffmpeg + upstream connection leaks for every distinct station id switched to,
+        // since _liveSession is about to be overwritten. _stationId still holds the previous id at this point.
+        if (_liveSession != null)
+        {
+            _liveSession.RemoveClient(_stationId);
+            _liveSession = null;
+        }
+
         var openFilePlayIncarnation = fields.Length >= 4 ? BitConverter.ToUInt32(fields, 0) : 0u;
         var fileName = fields.Length > 16
             ? MmsCommand.ExtractUnicodeString(fields, 16)

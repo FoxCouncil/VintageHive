@@ -88,6 +88,11 @@ internal partial class CookEncoder
     // Raw cook frame collector for testing (written before interleaving)
     internal List<byte[]> RawFrames { get; } = new();
 
+    // Gate for RawFrames population. OFF by default so the live streaming pipeline never accumulates every encoded
+    // frame for the whole session (which grew without bound with continuous playback). Tests and the file-encode
+    // dev helper opt in explicitly.
+    internal bool CollectRawFrames { get; set; }
+
     // ===================================================================
     // Construction
     // ===================================================================
@@ -307,7 +312,12 @@ internal partial class CookEncoder
                         $"Cook frame size mismatch: got {cookFrame.Length}, expected {_subPacketSize}");
                 }
                 _interleaveBuffer.Add(cookFrame);
-                RawFrames.Add(cookFrame);
+
+                if (CollectRawFrames)
+                {
+                    RawFrames.Add(cookFrame);
+                }
+
                 _pcmBufferPos = 0;
 
                 // When we have a full GENR interleave group, emit sub_packet_h RM packets

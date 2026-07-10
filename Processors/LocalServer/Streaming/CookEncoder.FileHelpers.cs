@@ -137,7 +137,7 @@ internal partial class CookEncoder
         int sampleRate = 11025;
         int channels = 2;
         int bitrate = 19000;
-        var encoder = new CookEncoder(sampleRate, channels, bitrate);
+        var encoder = new CookEncoder(sampleRate, channels, bitrate) { CollectRawFrames = true };
 
         var ffmpegPath = FfmpegUtils.GetExecutablePath();
         var ffmpegArgs = $"-i \"{inputPath}\" -ar {sampleRate} -ac {channels} -c:a pcm_s16le -f s16le pipe:1";

@@ -59,12 +59,12 @@ internal static class RadioMmshStreaming
     // ASF utilities
     // ===================================================================
 
-    private static async Task<int> ReadExactAsync(Stream stream, byte[] buffer, int offset, int count)
+    private static async Task<int> ReadExactAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
     {
         int totalRead = 0;
         while (totalRead < count)
         {
-            int read = await stream.ReadAsync(buffer.AsMemory(offset + totalRead, count - totalRead));
+            int read = await stream.ReadAsync(buffer.AsMemory(offset + totalRead, count - totalRead), cancellationToken);
             if (read == 0) break;
             totalRead += read;
         }
@@ -808,7 +808,12 @@ internal static class RadioMmshStreaming
     // ===================================================================
 
     private static readonly ConcurrentDictionary<string, MmshLiveSession> _liveSessions = new();
-    private static readonly SemaphoreSlim _sessionCreateLock = new(1, 1);
+
+    // Per-station creation locks. A single global lock let one station whose ffmpeg header read stalled block
+    // session creation for every OTHER station; scoping the lock to the station id contains that to itself.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _sessionCreateLocks = new();
+
+    private static SemaphoreSlim GetSessionCreateLock(string stationId) => _sessionCreateLocks.GetOrAdd(stationId, _ => new SemaphoreSlim(1, 1));
 
     internal class MmshLiveSession : IDisposable
     {
@@ -979,18 +984,41 @@ internal static class RadioMmshStreaming
             await waitTask.WaitAsync(_cts.Token);
         }
 
-        public void AddClient(string stationId)
+        // Returns false if the session was already disposed (lost the race with the idle cleanup) so the caller can
+        // fall back to creating a fresh one. _activeClients, _cleanupCts and the dispose decision are all guarded by
+        // _lock, so a client can never register on a session the cleanup is concurrently tearing down.
+        public bool AddClient(string stationId)
         {
-            var count = Interlocked.Increment(ref _activeClients);
-            _cleanupCts?.Cancel();
-            _cleanupCts = null;
+            int count;
+
+            lock (_lock)
+            {
+                if (_disposed)
+                {
+                    return false;
+                }
+
+                count = ++_activeClients;
+                _cleanupCts?.Cancel();
+                _cleanupCts = null;
+            }
+
             Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Station {stationId}: client connected ({count} active)");
+
+            return true;
         }
 
         public void RemoveClient(string stationId)
         {
-            var count = Interlocked.Decrement(ref _activeClients);
+            int count;
+
+            lock (_lock)
+            {
+                count = --_activeClients;
+            }
+
             Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Station {stationId}: client disconnected ({count} active)");
+
             if (count <= 0)
             {
                 Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Station {stationId}: last client left, cleanup in 30s");
@@ -998,23 +1026,54 @@ internal static class RadioMmshStreaming
             }
         }
 
-        private void ScheduleCleanup(string stationId)
+        // Arm the 30s idle-cleanup timer. Idempotent (cancels any prior timer) and a no-op if a client is present or
+        // the session is already gone. Called both when the last client leaves AND at creation, so a session that is
+        // created for a DESCRIBE but never gets a streaming client is still reaped instead of leaking ffmpeg forever.
+        public void ScheduleCleanup(string stationId)
         {
-            var cts = new CancellationTokenSource();
-            _cleanupCts = cts;
+            CancellationTokenSource cts;
+
+            lock (_lock)
+            {
+                if (_disposed || _activeClients > 0)
+                {
+                    return;
+                }
+
+                _cleanupCts?.Cancel();
+                cts = new CancellationTokenSource();
+                _cleanupCts = cts;
+            }
+
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(30), cts.Token);
-                    if (_activeClients <= 0)
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                var reaped = false;
+
+                lock (_lock)
+                {
+                    // Re-check under the lock: a client may have registered during the delay, or another path may
+                    // have disposed us. Dispose inside the lock so an AddClient can't slip in between decision and kill.
+                    if (_activeClients <= 0 && !_disposed)
                     {
                         _liveSessions.TryRemove(stationId, out _);
                         Dispose();
-                        Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session for {stationId} cleaned up (no clients for 30s)");
+                        reaped = true;
                     }
                 }
-                catch (OperationCanceledException) { }
+
+                if (reaped)
+                {
+                    Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session for {stationId} cleaned up (no clients for 30s)");
+                }
             });
         }
 
@@ -1036,7 +1095,13 @@ internal static class RadioMmshStreaming
         if (_liveSessions.TryGetValue(stationId, out var session) && session.IsAlive)
             return session;
 
-        await _sessionCreateLock.WaitAsync();
+        var createLock = GetSessionCreateLock(stationId);
+        await createLock.WaitAsync();
+
+        HttpClient httpClient = null;
+        HttpResponseMessage upstreamResponse = null;
+        Process ffmpeg = null;
+
         try
         {
             if (_liveSessions.TryGetValue(stationId, out session) && session.IsAlive)
@@ -1045,7 +1110,7 @@ internal static class RadioMmshStreaming
             var info = await RadioStationResolver.ResolveStation(stationId);
             Log.WriteLine(Log.LEVEL_INFO, LogSession, $"Session creating: {info.Name} ({info.Codec})");
 
-            var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
+            httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
             {
                 AllowAutoRedirect = true,
                 MaxAutomaticRedirections = 3,
@@ -1056,8 +1121,12 @@ internal static class RadioMmshStreaming
 
             httpClient.DefaultRequestHeaders.Add("Icy-MetaData", "1");
 
-            var upstreamResponse = await httpClient.GetAsync(info.StreamUrl, HttpCompletionOption.ResponseHeadersRead);
+            upstreamResponse = await httpClient.GetAsync(info.StreamUrl, HttpCompletionOption.ResponseHeadersRead);
             var rawUpstreamStream = await upstreamResponse.Content.ReadAsStreamAsync();
+
+            // Bound the ffmpeg header-read phase below. A station that connects but never emits a valid ASF header
+            // must not block on the reads forever while holding this station's create lock.
+            using var headerCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
             IcyMetadataStrippingStream icyStream = null;
             Stream upstreamStream = rawUpstreamStream;
@@ -1081,7 +1150,7 @@ internal static class RadioMmshStreaming
                 Log.WriteLine(Log.LEVEL_INFO, LogSession, "Session: upstream has no ICY metadata support");
             }
 
-            var ffmpeg = CreateWmaFfmpegProcess();
+            ffmpeg = CreateWmaFfmpegProcess();
             ffmpeg.Start();
             _ = Task.Run(async () =>
             {
@@ -1101,17 +1170,17 @@ internal static class RadioMmshStreaming
             var ffmpegOut = ffmpeg.StandardOutput.BaseStream;
 
             var headerPrefix = new byte[24];
-            if (await ReadExactAsync(ffmpegOut, headerPrefix, 0, 24) < 24)
+            if (await ReadExactAsync(ffmpegOut, headerPrefix, 0, 24, headerCts.Token) < 24)
                 throw new InvalidOperationException("Failed to read ASF Header Object prefix");
 
             long asfHeaderSize = BitConverter.ToInt64(headerPrefix, 16);
             var headerObj = new byte[asfHeaderSize];
             Buffer.BlockCopy(headerPrefix, 0, headerObj, 0, 24);
-            if (await ReadExactAsync(ffmpegOut, headerObj, 24, (int)asfHeaderSize - 24) < (int)asfHeaderSize - 24)
+            if (await ReadExactAsync(ffmpegOut, headerObj, 24, (int)asfHeaderSize - 24, headerCts.Token) < (int)asfHeaderSize - 24)
                 throw new InvalidOperationException("Incomplete ASF Header Object");
 
             var dataObjHeader = new byte[50];
-            if (await ReadExactAsync(ffmpegOut, dataObjHeader, 0, 50) < 50)
+            if (await ReadExactAsync(ffmpegOut, dataObjHeader, 0, 50, headerCts.Token) < 50)
                 throw new InvalidOperationException("Failed to read ASF Data Object header");
 
             BitConverter.GetBytes((long)0).CopyTo(dataObjHeader, 16);
@@ -1185,15 +1254,37 @@ internal static class RadioMmshStreaming
 
             var newSession = new MmshLiveSession(httpClient, upstreamResponse, ffmpeg, hChunk, packetSize, ffmpegOut, info, icyStream);
 
+            // Ownership of these transfers to newSession.Dispose(); prevent the failure catch below from double-disposing.
+            httpClient = null;
+            upstreamResponse = null;
+            ffmpeg = null;
+
             if (_liveSessions.TryGetValue(stationId, out var old))
                 old.Dispose();
             _liveSessions[stationId] = newSession;
 
+            // Arm the idle-cleanup timer immediately. A DESCRIBE that creates this session but never registers a
+            // streaming client would otherwise leak its ffmpeg + upstream forever; the first AddClient cancels it.
+            newSession.ScheduleCleanup(stationId);
+
             return newSession;
+        }
+        catch (Exception ex)
+        {
+            // Header read timed out, or the upstream/ffmpeg failed during setup. Kill and dispose the partially-built
+            // pieces here (inside the lock) rather than leaking an orphaned ffmpeg + HttpClient + upstream connection.
+            try { ffmpeg?.Kill(true); } catch { }
+            try { ffmpeg?.Dispose(); } catch { }
+            try { upstreamResponse?.Dispose(); } catch { }
+            try { httpClient?.Dispose(); } catch { }
+
+            Log.WriteException(LogSession, ex, "");
+
+            throw;
         }
         finally
         {
-            _sessionCreateLock.Release();
+            createLock.Release();
         }
     }
 
