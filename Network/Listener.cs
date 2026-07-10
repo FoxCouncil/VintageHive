@@ -145,6 +145,13 @@ public abstract class Listener
 
                     var baseRequest = HttpRequest.Parse(reqBuffer[..read], rawPacket, Encoding.ASCII);
 
+                    if (!baseRequest.IsValid)
+                    {
+                        connection.Close();
+
+                        return;
+                    }
+
                     var sslCertificate = CertificateAuthority.GetOrCreateDomainCertificate(baseRequest.Uri.Host);
 
                     sslStream = new SslStream(SecurityContext, networkStream);

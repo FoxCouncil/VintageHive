@@ -49,14 +49,14 @@ internal class PrinterProxy : Listener
     {
         var httpRequest = await HttpRequest.Build(connection, Encoding.ASCII, data[..read]);
 
-        PrinterUrl = $"http://{httpRequest.Uri.Authority}/";
-
         if (!httpRequest.IsValid)
         {
             Log.WriteLine(Log.LEVEL_ERROR, nameof(HttpProxy), $"Unhandled type of IPP request; {Encoding.GetString(data[..read])}", httpRequest.ListenerSocket?.TraceId.ToString() ?? "N/A");
 
             return null;
         }
+
+        PrinterUrl = $"http://{httpRequest.Uri.Authority}/";
 
         var httpResponse = new HttpResponse(httpRequest);
 

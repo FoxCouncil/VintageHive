@@ -32,7 +32,7 @@ public sealed partial class HttpRequest : Request
 
     public byte[] BodyData { get; private set; }
 
-    public string UserAgent => Headers[HttpHeaderName.UserAgent] ?? "NA";
+    public string UserAgent => Headers.TryGetValue(HttpHeaderName.UserAgent, out var userAgent) ? userAgent : "NA";
 
     public bool IsRelativeUri(string uri)
     {
@@ -79,6 +79,12 @@ public sealed partial class HttpRequest : Request
 
             var splitHeaderKV = header.Split(":", 2);
 
+            // Skip malformed (colon-less) header lines rather than indexing [1] into thin air
+            if (splitHeaderKV.Length != 2 || string.IsNullOrWhiteSpace(splitHeaderKV[0]))
+            {
+                continue;
+            }
+
             if (!headers.ContainsKey(splitHeaderKV[0]))
             {
                 headers.Add(splitHeaderKV[0], splitHeaderKV[1].Trim());
@@ -100,7 +106,13 @@ public sealed partial class HttpRequest : Request
             {
                 var cookieData = cookie.Split("=", 2);
 
-                requestCookies.Add(cookieData[0], cookieData[1]);
+                // Skip valueless cookie fragments; last-wins for duplicate names (browsers send path-scoped dupes)
+                if (cookieData.Length != 2 || cookieData[0].Length == 0)
+                {
+                    continue;
+                }
+
+                requestCookies[cookieData[0]] = cookieData[1];
             }
         }
 
@@ -190,13 +202,20 @@ public sealed partial class HttpRequest : Request
             uri = (uri.EndsWith(":443") ? "https://" : "http://") + uri;
         }
 
+        // No Host on an origin-form request leaves uri relative; Uri.TryCreate(Absolute) even succeeds as
+        // file:/// on Linux, so the scheme guard is required to reject it rather than build a bogus request.
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsedUri) || (parsedUri.Scheme != Uri.UriSchemeHttp && parsedUri.Scheme != Uri.UriSchemeHttps))
+        {
+            return Invalid;
+        }
+
         return new HttpRequest
         {
             IsValid = true,
             Raw = rawRequest,
             Encoding = encoding,
             Type = httpRequestLine[0],
-            Uri = new Uri(uri),
+            Uri = parsedUri,
             Version = httpRequestLine[2],
             Headers = headers,
             Cookies = new ReadOnlyDictionary<string, string>(requestCookies),

@@ -82,7 +82,7 @@ public class HttpProxy : Listener
 
                         if (host != HiveDomains.Intranet && !host.EndsWith(HiveDomains.DotSuffix))
                         {
-                            Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
+                            Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.UserAgent, "HTTP", httpRequest.Uri.ToString(), handler.Method.DeclaringType.Name);
                         }
 
                         break;
@@ -173,7 +173,7 @@ public class HttpProxy : Listener
         }
         else
         {
-            Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), "CACHED RESPONSE");
+            Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.UserAgent, "HTTP", httpRequest.Uri.ToString(), "CACHED RESPONSE");
 
             try
             {
@@ -203,7 +203,7 @@ public class HttpProxy : Listener
 
         httpResponse.Headers.Add(HttpHeaderName.Date, date);
 
-        Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.Headers[HttpHeaderName.UserAgent], "HTTP", httpRequest.Uri.ToString(), $"ERROR {(int)statusCode}{(exception != null ? $": {exception}" : "")}");
+        Mind.Db.RequestsTrack(httpRequest.ListenerSocket, httpRequest.UserAgent, "HTTP", httpRequest.Uri.ToString(), $"ERROR {(int)statusCode}{(exception != null ? $": {exception}" : "")}");
 
         // A 404 is an expected miss (no capture / not proxied), not a system fault - keep it out of the ERROR stream.
         var level = statusCode == HttpStatusCode.NotFound ? Log.LEVEL_WARN : Log.LEVEL_ERROR;
