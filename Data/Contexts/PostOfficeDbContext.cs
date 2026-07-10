@@ -138,6 +138,15 @@ public class PostOfficeDbContext : DbContextBase
     {
         WithContext(context =>
         {
+            // Cascade to the mailbox links (the FK pragma is off), or IMAP keeps showing a phantom message
+            using var deleteLinks = context.CreateCommand();
+
+            deleteLinks.CommandText = $"DELETE FROM {TABLE_MESSAGE_MAILBOX} WHERE email_id = @id";
+
+            deleteLinks.Parameters.Add(new SqliteParameter("@id", id));
+
+            deleteLinks.ExecuteNonQuery();
+
             using var deleteCommand = context.CreateCommand();
 
             deleteCommand.CommandText = $"DELETE FROM {TABLE_EMAILS} WHERE id = @id";
@@ -531,11 +540,12 @@ public class PostOfficeDbContext : DbContextBase
             using var reader = selectCmd.ExecuteReader();
 
             var sequenceNum = 1;
-            var toDelete = new List<int>();
+            var toDelete = new List<(int mmId, int emailId)>();
 
             while (reader.Read())
             {
                 var id = reader.GetInt32(0);
+                var emailId = reader.GetInt32(1);
 
                 var flags = string.Empty;
 
@@ -555,7 +565,7 @@ public class PostOfficeDbContext : DbContextBase
                 if (flags.Contains("\\Deleted"))
                 {
                     expungedSequences.Add(sequenceNum);
-                    toDelete.Add(id);
+                    toDelete.Add((id, emailId));
                 }
 
                 sequenceNum++;
@@ -563,15 +573,25 @@ public class PostOfficeDbContext : DbContextBase
 
             reader.Close();
 
-            foreach (var id in toDelete)
+            foreach (var (mmId, emailId) in toDelete)
             {
                 using var delCmd = context.CreateCommand();
 
                 delCmd.CommandText = $"DELETE FROM {TABLE_MESSAGE_MAILBOX} WHERE id = @id";
 
-                delCmd.Parameters.Add(new SqliteParameter("@id", id));
+                delCmd.Parameters.Add(new SqliteParameter("@id", mmId));
 
                 delCmd.ExecuteNonQuery();
+
+                // Cascade to the underlying email once no other mailbox references it - otherwise POP3 (which reads
+                // the emails table directly) keeps seeing it and orphan rows accumulate forever.
+                using var delEmailCmd = context.CreateCommand();
+
+                delEmailCmd.CommandText = $"DELETE FROM {TABLE_EMAILS} WHERE id = @emailId AND NOT EXISTS (SELECT 1 FROM {TABLE_MESSAGE_MAILBOX} WHERE email_id = @emailId)";
+
+                delEmailCmd.Parameters.Add(new SqliteParameter("@emailId", emailId));
+
+                delEmailCmd.ExecuteNonQuery();
             }
 
             return expungedSequences;
