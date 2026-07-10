@@ -108,6 +108,73 @@ public class HttpRequestTests
         AssertHeader(request, HttpHeaderName.UserAgent, userAgent);
     }
 
+    [TestMethod]
+    public void MalformedHeaderLine_IsSkipped()
+    {
+        // A colon-less header line used to throw IndexOutOfRange; it must be skipped, request still valid
+        var raw = "GET http://example.org/ HTTP/1.0\r\nJunkNoColon\r\nHost: example.org\r\nUser-Agent: Moo\r\n\r\n";
+
+        var request = HttpRequest.Parse(Encoding.ASCII.GetBytes(raw), raw, Encoding.ASCII);
+
+        Assert.IsTrue(request.IsValid);
+        Assert.IsFalse(request.Headers!.ContainsKey("JunkNoColon"));
+        Assert.AreEqual("Moo", request.Headers[HttpHeaderName.UserAgent]);
+    }
+
+    [TestMethod]
+    public void ValuelessCookie_IsSkipped()
+    {
+        // A cookie fragment with no '=' used to throw; it must be skipped
+        var raw = "GET http://example.org/ HTTP/1.0\r\nHost: example.org\r\nCookie: bareflag\r\n\r\n";
+
+        var request = HttpRequest.Parse(Encoding.ASCII.GetBytes(raw), raw, Encoding.ASCII);
+
+        Assert.IsTrue(request.IsValid);
+        Assert.AreEqual(0, request.Cookies.Count);
+    }
+
+    [TestMethod]
+    public void DuplicateCookieName_LastWins()
+    {
+        // Duplicate cookie names (browsers send path-scoped dupes) used to throw from Dictionary.Add
+        var raw = "GET http://example.org/ HTTP/1.0\r\nHost: example.org\r\nCookie: a=1; a=2\r\n\r\n";
+
+        var request = HttpRequest.Parse(Encoding.ASCII.GetBytes(raw), raw, Encoding.ASCII);
+
+        Assert.IsTrue(request.IsValid);
+        Assert.AreEqual("2", request.Cookies["a"]);
+    }
+
+    [TestMethod]
+    public void OriginFormWithoutHost_IsInvalid()
+    {
+        // An origin-form request with no Host header has no absolute URI; must be Invalid, not a throw
+        // (and not a bogus file:/// URI, which Uri.TryCreate accepts on Linux)
+        var raw = "GET /index.html HTTP/1.0\r\n\r\n";
+
+        var request = HttpRequest.Parse(Encoding.ASCII.GetBytes(raw), raw, Encoding.ASCII);
+
+        Assert.IsFalse(request.IsValid);
+    }
+
+    [TestMethod]
+    public void MissingUserAgent_ReturnsNa()
+    {
+        // The Headers dictionary indexer throws on a missing key, so UserAgent must use TryGetValue
+        var raw = "GET http://example.org/ HTTP/1.0\r\nHost: example.org\r\n\r\n";
+
+        var request = HttpRequest.Parse(Encoding.ASCII.GetBytes(raw), raw, Encoding.ASCII);
+
+        Assert.IsTrue(request.IsValid);
+        Assert.AreEqual("NA", request.UserAgent);
+    }
+
+    [TestMethod]
+    public void InvalidRequest_UserAgentDoesNotThrow()
+    {
+        Assert.AreEqual("NA", HttpRequest.Invalid.UserAgent);
+    }
+
     static void AssertBasicRequest(HttpRequest request, string type, string version, string path, string domain)
     {
         Assert.IsNotNull(request, "Request was null");

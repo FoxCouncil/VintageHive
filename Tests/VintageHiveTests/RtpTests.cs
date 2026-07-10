@@ -578,6 +578,20 @@ public class RtpRelayManagerTests
     }
 
     [TestMethod]
+    public void AllocateEvenPort_CompanionPortAlwaysInRange()
+    {
+        // Rounding an odd ephemeral port UP could yield 65536 for the RTCP companion (RTP+1) and throw
+        // ArgumentOutOfRange past the SocketException-only retry. Rounding down keeps RTP+1 <= 65535.
+        for (var i = 0; i < 300; i++)
+        {
+            var port = RtpRelayManager.AllocateEvenPort();
+
+            Assert.AreEqual(0, port % 2, $"Port {port} should be even");
+            Assert.IsTrue(port >= 1 && port + 1 <= 65535, $"RTP {port} + RTCP {port + 1} must fit in the valid port range");
+        }
+    }
+
+    [TestMethod]
     public async Task FullRelay_CreateStartStop()
     {
         using var manager = new RtpRelayManager(IPAddress.Loopback);

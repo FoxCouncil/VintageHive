@@ -347,6 +347,23 @@ public class UsenetTests
         Assert.AreEqual("Normal\r\n..first dot\r\n..second dot\r\nNormal again", result);
     }
 
+    [TestMethod]
+    public void DotStuff_ShouldEscapeDotAtStartOfBody()
+    {
+        // The old Replace("\r\n.", ...) only caught dots after a CRLF, missing a dot on the very first line
+        var input = ".first line\r\nsecond line";
+        var result = NntpProxy.DotStuff(input);
+
+        Assert.AreEqual("..first line\r\nsecond line", result);
+    }
+
+    [TestMethod]
+    public void DotStuff_ShouldEscapeLoneDotBody()
+    {
+        // A body of exactly "." would otherwise be sent unstuffed and prematurely terminate the multiline response
+        Assert.AreEqual("..", NntpProxy.DotStuff("."));
+    }
+
     #endregion
 
     #region Command Parsing Tests

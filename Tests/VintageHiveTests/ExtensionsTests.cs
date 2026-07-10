@@ -157,6 +157,19 @@ public class ExtensionsTests
         Assert.IsFalse(((string)null!).ConfirmValidPath());
     }
 
+    [TestMethod]
+    public void ConfirmValidPath_InvalidCharAtIndexZero_ReturnsFalse()
+    {
+        // IndexOfAny returns 0 for an invalid char at the start; the old `<= 0` reported that path as valid
+        Assert.IsFalse(("\0abc").ConfirmValidPath());
+    }
+
+    [TestMethod]
+    public void ConfirmValidPath_InvalidCharInMiddle_ReturnsFalse()
+    {
+        Assert.IsFalse(("ab\0c").ConfirmValidPath());
+    }
+
     #endregion
 
     #region RegexIndexOf

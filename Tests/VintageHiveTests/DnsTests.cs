@@ -950,6 +950,154 @@ public class DnsMalformedInputTests
             proxy.Stop();
         }
     }
+
+    // Header (12 bytes, QDCOUNT=1) + the given question-section bytes + QTYPE(A)/QCLASS(IN)
+    private static byte[] BuildRawQuestionPacket(ushort txId, params byte[] question)
+    {
+        var packet = new byte[12 + question.Length + 4];
+
+        packet[0] = (byte)(txId >> 8);
+        packet[1] = (byte)(txId & 0xFF);
+        packet[2] = 0x01; // RD
+        packet[5] = 0x01; // QDCOUNT = 1
+
+        Buffer.BlockCopy(question, 0, packet, 12, question.Length);
+
+        var tail = 12 + question.Length;
+        packet[tail + 1] = 0x01;     // QTYPE = A
+        packet[tail + 3] = 0x01;     // QCLASS = IN
+
+        return packet;
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task SelfReferentialCompressionPointer_ServerSurvives()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            // Compression pointer at offset 12 pointing to offset 12 (itself). Pre-fix this recursed until
+            // StackOverflowException - uncatchable - and killed the whole process from one inbound packet.
+            var malicious = BuildRawQuestionPacket(0x1010, 0xC0, 0x0C);
+
+            await client.SendAsync(malicious, malicious.Length, server);
+
+            var validQuery = DnsPacketBuilder.BuildQuery(0xEEEE, "alive.pointer.test");
+
+            await client.SendAsync(validQuery, validQuery.Length, server);
+
+            using var cts = new CancellationTokenSource(3000);
+
+            var result = await client.ReceiveAsync(cts.Token);
+            var response = DnsResponse.Parse(result.Buffer);
+
+            Assert.AreEqual(0xEEEE, (int)response.TransactionId, "Server must survive a self-referential compression pointer");
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task CompressionPointerCycle_ServerSurvives()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            // Two-pointer cycle: offset 12 -> 14, offset 14 -> 12
+            var malicious = BuildRawQuestionPacket(0x2020, 0xC0, 0x0E, 0xC0, 0x0C);
+
+            await client.SendAsync(malicious, malicious.Length, server);
+
+            var validQuery = DnsPacketBuilder.BuildQuery(0xEEEF, "alive.cycle.test");
+
+            await client.SendAsync(validQuery, validQuery.Length, server);
+
+            using var cts = new CancellationTokenSource(3000);
+
+            var result = await client.ReceiveAsync(cts.Token);
+            var response = DnsResponse.Parse(result.Buffer);
+
+            Assert.AreEqual(0xEEEF, (int)response.TransactionId, "Server must survive a compression pointer cycle");
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task ForwardCompressionPointer_ServerSurvives()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            // Forward pointer (offset 12 -> 20): must be rejected, not followed
+            var packet = new byte[32];
+            packet[0] = 0x30;
+            packet[1] = 0x30;
+            packet[2] = 0x01;
+            packet[5] = 0x01;
+            packet[12] = 0xC0;
+            packet[13] = 20;
+            packet[20] = 3;
+            packet[21] = (byte)'a';
+            packet[22] = (byte)'b';
+            packet[23] = (byte)'c';
+            packet[24] = 0;
+
+            await client.SendAsync(packet, packet.Length, server);
+
+            var validQuery = DnsPacketBuilder.BuildQuery(0xEEF0, "alive.forward.test");
+
+            await client.SendAsync(validQuery, validQuery.Length, server);
+
+            using var cts = new CancellationTokenSource(3000);
+
+            var result = await client.ReceiveAsync(cts.Token);
+            var response = DnsResponse.Parse(result.Buffer);
+
+            Assert.AreEqual(0xEEF0, (int)response.TransactionId, "Server must survive a forward compression pointer");
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
 }
 
 #endregion

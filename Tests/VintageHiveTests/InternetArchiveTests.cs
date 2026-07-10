@@ -163,4 +163,46 @@ public class InternetArchiveProcessCDXTests
         Assert.AreEqual(1, result.Count);
         Assert.AreEqual(7, result[0].Length);
     }
+
+    [TestMethod]
+    public void ProcessCDX_DashLength_ParsesAsZero()
+    {
+        // CDX writes "-" for an unknown length; int.Parse threw on it before any caching, 500ing the page
+        var raw = "http://a.example/ 19990101000000 warc/revisit -";
+
+        var result = InternetArchiveProcessor.ProcessCDX(raw);
+
+        Assert.AreEqual(1, result.Count);
+        Assert.AreEqual(0, result[0].Length);
+    }
+}
+
+[TestClass]
+public class InternetArchiveHtmlEncodingTests
+{
+    [TestMethod]
+    public void GetHtmlEncoding_Utf8Header_ReturnsUtf8()
+    {
+        Assert.AreEqual("utf-8", InternetArchiveProcessor.GetHtmlEncoding("text/html; charset=UTF-8").WebName);
+        Assert.AreEqual("utf-8", InternetArchiveProcessor.GetHtmlEncoding("text/html; charset=utf8").WebName);
+    }
+
+    [TestMethod]
+    public void GetHtmlEncoding_NoCharset_ReturnsLatin1()
+    {
+        Assert.AreEqual(28591, InternetArchiveProcessor.GetHtmlEncoding("text/html").CodePage);
+        Assert.AreEqual(28591, InternetArchiveProcessor.GetHtmlEncoding("text/html; charset=ISO-8859-1").CodePage);
+    }
+
+    [TestMethod]
+    public void GetHtmlEncoding_Latin1_RoundTripsHighBytes()
+    {
+        // The old Encoding.ASCII turned every byte >0x7F into '?'; ISO-8859-1 is byte-bijective
+        var latin1 = InternetArchiveProcessor.GetHtmlEncoding("text/html; charset=ISO-8859-1");
+        var original = new byte[] { 0xE9, 0xA9, 0xAE }; // é © ®
+
+        var roundTripped = latin1.GetBytes(latin1.GetString(original));
+
+        CollectionAssert.AreEqual(original, roundTripped);
+    }
 }
