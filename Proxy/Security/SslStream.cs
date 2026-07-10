@@ -90,25 +90,40 @@ public class SslStream : NativeRef
 
     public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        var encryptedBytesRead = await Stream.ReadAsync(buffer, cancellationToken);
+        var scratch = new byte[4096];
 
-        if (encryptedBytesRead != 0)
+        while (true)
         {
-            bioInput.Write(buffer.ToArray(), encryptedBytesRead);
+            // Drain plaintext OpenSSL has already decrypted before going back to the network. Cap at the caller's
+            // buffer length so a small caller buffer doesn't overflow on CopyTo (the old code always copied 4096).
+            var unencryptedBytesRead = Native.SSL_read(this, scratch, Math.Min(scratch.Length, buffer.Length));
+
+            if (unencryptedBytesRead > 0)
+            {
+                scratch.AsMemory(0, unencryptedBytesRead).CopyTo(buffer);
+
+                return unencryptedBytesRead;
+            }
+
+            var error = Native.SSL_get_error(this, unencryptedBytesRead);
+
+            // Only WANT_READ means "feed me more ciphertext". ZERO_RETURN (clean close), SSL and SYSCALL are all
+            // end-of-stream to the caller - return 0, never -1, so the Listener's `read <= 0` teardown fires cleanly
+            // instead of the old behavior where a record split across TCP segments looked like a disconnect.
+            if (error != Native.SSL_ERROR_WANT_READ)
+            {
+                return 0;
+            }
+
+            var encryptedBytesRead = await Stream.ReadAsync(scratch, cancellationToken);
+
+            if (encryptedBytesRead == 0)
+            {
+                return 0; // peer closed the TCP connection
+            }
+
+            bioInput.Write(scratch, encryptedBytesRead);
         }
-
-        var newBuffer = new byte[4096];
-
-        var unencryptedBytesRead = Native.SSL_read(this, newBuffer, newBuffer.Length);
-
-        if (unencryptedBytesRead == -1)
-        {
-            Native.CheckResultSuccess(Native.SSL_get_error(this, unencryptedBytesRead));
-        }
-
-        newBuffer.CopyTo(buffer);
-
-        return unencryptedBytesRead;
     }
 
     public async ValueTask<int> WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)

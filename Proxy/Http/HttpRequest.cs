@@ -227,6 +227,11 @@ public sealed partial class HttpRequest : Request
         };
     }
 
+    internal const int MaxHeaderBytes = 64 * 1024;
+
+    // Printers POST multi-MB IPP PDFs through Build, so the body cap is deliberately generous. Raise if a legitimate print job is larger.
+    internal const int MaxRequestBodySize = 64 * 1024 * 1024;
+
     internal static async Task<HttpRequest> Build(ListenerSocket socket, Encoding encoding, byte[] rawBytes)
     {
         if (socket == null || rawBytes == null)
@@ -234,43 +239,132 @@ public sealed partial class HttpRequest : Request
             return Invalid;
         }
 
-        var rawRequest = encoding.GetString(rawBytes);
+        var data = new MemoryStream();
+        data.Write(rawBytes, 0, rawBytes.Length);
 
-        if (!rawRequest.Contains(HttpNewLine))
+        // Reject non-HTTP garbage (e.g. RealPlayer probes) up front so it can't hold the read loop open
+        if (!StartsWithHttpVerb(data.GetBuffer(), (int)data.Length))
         {
             return Invalid;
         }
 
-        if (!rawRequest.StartsWith("GET"))
+        // Phase 1 - read until the header block is complete. Headers split across TCP segments used to be parsed
+        // truncated; now we wait for the CRLFCRLF terminator (or LFLF for LF-only Netscape clients).
+        var headerEnd = FindHeaderTerminator(data.GetBuffer(), (int)data.Length);
+
+        while (headerEnd == -1)
         {
-            var contentLengthMatch = HttpContentLengthParseRegex().Match(rawRequest);
-
-            if (contentLengthMatch.Success)
+            if (data.Length > MaxHeaderBytes)
             {
-                var expectedLength = contentLengthMatch.Success ? Convert.ToInt32(contentLengthMatch.Groups[1].Value) : 0;
-                var contentLength = rawRequest[(rawRequest.IndexOf(HttpBodySeperator) + HttpBodySeperator.Length)..].Length;
+                return Invalid;
+            }
 
-                while (expectedLength > contentLength)
+            var chunk = await ReadMoreAsync(socket);
+
+            if (chunk.Length == 0)
+            {
+                return Invalid; // client closed before the headers completed (also breaks the old FIN hot loop)
+            }
+
+            data.Write(chunk, 0, chunk.Length);
+
+            headerEnd = FindHeaderTerminator(data.GetBuffer(), (int)data.Length);
+        }
+
+        // Phase 2 - if a body is declared, read (counting BYTES) until we have all of it. Reads the decrypted
+        // SecureStream under TLS instead of the raw ciphertext, and breaks on a client FIN instead of spinning.
+        var headerText = encoding.GetString(data.GetBuffer(), 0, headerEnd);
+        var contentLengthMatch = HttpContentLengthParseRegex().Match(headerText);
+
+        if (contentLengthMatch.Success && int.TryParse(contentLengthMatch.Groups[1].Value, out var expectedBodyLength) && expectedBodyLength > 0)
+        {
+            if (expectedBodyLength > MaxRequestBodySize)
+            {
+                return Invalid;
+            }
+
+            while (data.Length - headerEnd < expectedBodyLength)
+            {
+                var chunk = await ReadMoreAsync(socket);
+
+                if (chunk.Length == 0)
                 {
-                    var buffer = new byte[4096];
-                    var read = await socket.Stream.ReadAsync(buffer);
-
-                    var extraData = encoding.GetString(buffer[..read]);
-
-                    contentLength += read;
-                    rawRequest += extraData;
+                    return Invalid; // truncated body
                 }
+
+                data.Write(chunk, 0, chunk.Length);
             }
         }
 
-        var newRequest = Parse(rawBytes, rawRequest, encoding, socket);
+        // Decode exactly once over contiguous bytes: no split-multibyte corruption, no char-vs-byte length mixing
+        var allBytes = data.ToArray();
 
-        return newRequest;
+        return Parse(allBytes, encoding.GetString(allBytes), encoding, socket);
+    }
+
+    // Reads one chunk, using the decrypted SecureStream when the socket is TLS. The 4096-byte buffer is mandatory:
+    // SslStream.ReadAsync copies up to a 4096-byte plaintext chunk per call.
+    static async Task<byte[]> ReadMoreAsync(ListenerSocket socket)
+    {
+        var buffer = new byte[4096];
+
+        var read = socket.IsSecure
+            ? await socket.SecureStream.ReadAsync(buffer)
+            : await socket.Stream.ReadAsync(buffer);
+
+        return read <= 0 ? Array.Empty<byte>() : buffer[..read];
+    }
+
+    // Index just past the header terminator (CRLFCRLF, or LFLF for LF-only clients), or -1 if not present yet.
+    static int FindHeaderTerminator(byte[] buffer, int length)
+    {
+        for (var i = 0; i + 1 < length; i++)
+        {
+            if (i + 3 < length && buffer[i] == (byte)'\r' && buffer[i + 1] == (byte)'\n' && buffer[i + 2] == (byte)'\r' && buffer[i + 3] == (byte)'\n')
+            {
+                return i + 4;
+            }
+
+            if (buffer[i] == (byte)'\n' && buffer[i + 1] == (byte)'\n')
+            {
+                return i + 2;
+            }
+        }
+
+        return -1;
+    }
+
+    // True when the bytes so far are (a prefix of) a known "VERB " token, so an incomplete first read still passes.
+    static bool StartsWithHttpVerb(byte[] buffer, int length)
+    {
+        foreach (var verb in HttpVerbs)
+        {
+            var token = verb + " ";
+            var n = Math.Min(length, token.Length);
+            var match = true;
+
+            for (var i = 0; i < n; i++)
+            {
+                if (buffer[i] != (byte)token[i])
+                {
+                    match = false;
+
+                    break;
+                }
+            }
+
+            if (match)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [GeneratedRegex("name=\"(.*?)\"")]
     private static partial Regex HttpContentBoundryRegex();
 
-    [GeneratedRegex("Content\\-Length\\:\\s(\\d+)\r\n")]
+    [GeneratedRegex("Content-Length:\\s*(\\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex HttpContentLengthParseRegex();
 }
