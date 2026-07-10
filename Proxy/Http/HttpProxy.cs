@@ -161,14 +161,30 @@ public class HttpProxy : Listener
                             await httpResponse.Stream.CopyToAsync(socket.Stream);
                         }
 
-                        await httpResponse.Stream.DisposeAsync();
-
                         return null;
                     }
 
                     return buffer;
                 }
-                catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(HttpProxy), $"Response write failed: {ex.Message}", connection.TraceId.ToString()); }
+                catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
+                {
+                    // Routine client disconnect mid-write - nothing actionable
+                    Log.WriteLine(Log.LEVEL_DEBUG, nameof(HttpProxy), $"Response write aborted: {ex.Message}", connection.TraceId.ToString());
+                }
+                catch (Exception ex)
+                {
+                    // A genuine response-path fault that used to be swallowed at DEBUG
+                    Log.WriteLine(Log.LEVEL_WARN, nameof(HttpProxy), $"Response write failed: {ex.Message}", connection.TraceId.ToString());
+                }
+                finally
+                {
+                    // Dispose the upstream content stream on every path (success, disconnect, fault). The fresh-per-request
+                    // HttpClient releases its socket only when this stream is disposed. NEVER touch socket.Stream/SecureStream - the Listener owns those.
+                    if (httpResponse.Stream != null)
+                    {
+                        try { await httpResponse.Stream.DisposeAsync(); } catch { }
+                    }
+                }
             }
         }
         else
