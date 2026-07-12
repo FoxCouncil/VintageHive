@@ -49,23 +49,29 @@ public static class OscarUtils
 
     public static ushort ToUInt16(byte[] data)
     {
-        MakeNetworkByteOrder(data);
+        var buf = (byte[])data.Clone();
 
-        return BitConverter.ToUInt16(data);
+        MakeNetworkByteOrder(buf);
+
+        return BitConverter.ToUInt16(buf);
     }
 
     public static uint ToUInt32(byte[] data)
     {
-        MakeNetworkByteOrder(data);
+        var buf = (byte[])data.Clone();
 
-        return BitConverter.ToUInt32(data);
+        MakeNetworkByteOrder(buf);
+
+        return BitConverter.ToUInt32(buf);
     }
 
     public static ulong ToUInt64(byte[] data)
     {
-        MakeNetworkByteOrder(data);
+        var buf = (byte[])data.Clone();
 
-        return BitConverter.ToUInt64(data);
+        MakeNetworkByteOrder(buf);
+
+        return BitConverter.ToUInt64(buf);
     }
 
     public static OscarSession GetSessionByCookie(this List<OscarSession> sessions, string cookie)
