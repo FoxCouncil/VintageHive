@@ -121,7 +121,7 @@ internal class BerDecoder
 
     public byte[] ReadBytes(int count)
     {
-        if (count < 0 || _position + count > _length)
+        if (count < 0 || count > Remaining)
         {
             throw new InvalidOperationException($"Cannot read {count} bytes, only {Remaining} remaining");
         }
@@ -133,7 +133,7 @@ internal class BerDecoder
 
     public BerDecoder Slice(int length)
     {
-        if (length < 0 || _position + length > _length)
+        if (length < 0 || length > Remaining)
         {
             throw new InvalidOperationException($"Cannot slice {length} bytes, only {Remaining} remaining");
         }
@@ -154,7 +154,7 @@ internal class BerDecoder
         var start = _position;
         ReadTag();
         var length = ReadLength();
-        if (_position + length > _length)
+        if (length < 0 || length > Remaining)
         {
             throw new InvalidOperationException($"TLV value extends past end of data");
         }
@@ -171,7 +171,7 @@ internal class BerDecoder
     {
         ReadTag();
         var length = ReadLength();
-        if (_position + length > _length)
+        if (length < 0 || length > Remaining)
         {
             throw new InvalidOperationException($"Cannot skip {length} bytes, only {Remaining} remaining");
         }
