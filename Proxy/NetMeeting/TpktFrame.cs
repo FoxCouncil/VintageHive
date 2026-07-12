@@ -108,6 +108,14 @@ internal static class TpktFrame
         }
 
         var totalLength = (frame[2] << 8) | frame[3];
+
+        // Mirror ReadAsync's guard: a sub-header length would make payloadLength negative and turn
+        // 'new byte[payloadLength]' into an OverflowException instead of a clean protocol rejection.
+        if (totalLength < HeaderSize)
+        {
+            throw new InvalidDataException($"Invalid TPKT length: {totalLength} (minimum is {HeaderSize})");
+        }
+
         var payloadLength = totalLength - HeaderSize;
 
         var payload = new byte[payloadLength];

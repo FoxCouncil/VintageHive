@@ -114,7 +114,9 @@ internal class PerDecoder
             return Array.Empty<byte>();
         }
 
-        if (_bitPosition + (count * 8) > _totalBits)
+        // Widen the comparison: count * 8 overflows a signed int for large counts and would wrap
+        // negative, sneaking past the guard and into an uncontrolled allocation below.
+        if (count < 0 || (long)_bitPosition + (long)count * 8 > _totalBits)
         {
             throw new InvalidOperationException(
                 $"Cannot read {count} octets, only {BitsRemaining} bits remaining");
@@ -568,6 +570,15 @@ internal class PerDecoder
     public byte[][] ReadExtensionAdditions()
     {
         var count = ReadNormallySmallNumber() + 1;
+
+        // The bitmap alone needs one bit per addition, so a count beyond the remaining bits is a lie.
+        // Reject it before allocating: an attacker-supplied ~2 billion count would otherwise OOM here.
+        if (count < 1 || count > BitsRemaining)
+        {
+            throw new InvalidOperationException(
+                $"Extension addition count {count} exceeds {BitsRemaining} bits remaining");
+        }
+
         var present = ReadOptionalBitmap(count);
         var additions = new byte[count][];
 

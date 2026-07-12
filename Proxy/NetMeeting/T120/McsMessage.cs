@@ -225,6 +225,11 @@ internal static class McsCodec
     /// </summary>
     public static McsConnectInitial DecodeConnectInitial(byte[] data)
     {
+        if (data == null || data.Length < 2)
+        {
+            throw new ArgumentException("Data too short for an MCS Connect-Initial");
+        }
+
         var offset = 0;
 
         // APPLICATION [101] tag
@@ -271,6 +276,11 @@ internal static class McsCodec
     /// </summary>
     public static McsConnectResponse DecodeConnectResponse(byte[] data)
     {
+        if (data == null || data.Length < 2)
+        {
+            throw new ArgumentException("Data too short for an MCS Connect-Response");
+        }
+
         var offset = 0;
 
         if (data[offset++] != McsConstants.CONNECT_RESPONSE_TAG_1 ||
@@ -384,10 +394,22 @@ internal static class McsCodec
     /// </summary>
     public static McsDomainPdu DecodeDomainPdu(byte[] data)
     {
+        if (data == null)
+        {
+            throw new ArgumentNullException(nameof(data));
+        }
+
         var dec = new PerDecoder(data);
 
         // DomainMCSPDU CHOICE (28 root, NOT extensible)
         var type = dec.ReadChoiceIndex(McsConstants.DOMAIN_ROOT_COUNT);
+
+        // The 5-bit constrained index can decode to 28..31, past the defined alternatives. A
+        // non-extensible CHOICE index beyond the root count is malformed, not a silent unknown type.
+        if (type >= McsConstants.DOMAIN_ROOT_COUNT)
+        {
+            throw new InvalidDataException($"MCS domain PDU CHOICE index {type} is out of range");
+        }
 
         switch (type)
         {
@@ -602,14 +624,27 @@ internal static class McsCodec
         }
 
         var numBytes = first & 0x7F;
-        var length = 0;
+
+        if (numBytes > 4)
+        {
+            throw new InvalidDataException($"BER length uses {numBytes} octets (max 4 supported)");
+        }
+
+        // Accumulate in a long so a 4-octet 0xFFFFFFFF does not wrap to a negative int and drive a
+        // 'new byte[-1]' overflow in a downstream consumer.
+        long length = 0;
 
         for (var i = 0; i < numBytes; i++)
         {
             length = (length << 8) | data[offset++];
         }
 
-        return length;
+        if (length > int.MaxValue)
+        {
+            throw new InvalidDataException($"BER length {length} is out of range");
+        }
+
+        return (int)length;
     }
 
     internal static void WriteBerLength(Stream stream, int length)
@@ -636,6 +671,14 @@ internal static class McsCodec
         var tag = data[offset++];
         // Tag should be 0x04 (UNIVERSAL OCTET STRING)
         var length = ReadBerLength(data, ref offset);
+
+        // Validate against the remaining buffer before allocating: a long-form BER length is otherwise
+        // an attacker-controlled allocation (up to ~2GB) from a tiny packet - a memory-exhaustion DoS.
+        if (length > data.Length - offset)
+        {
+            throw new InvalidDataException($"BER OCTET STRING length {length} exceeds {data.Length - offset} bytes remaining");
+        }
+
         var result = new byte[length];
         Array.Copy(data, offset, result, 0, length);
         offset += length;

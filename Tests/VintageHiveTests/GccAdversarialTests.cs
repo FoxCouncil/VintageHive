@@ -224,26 +224,22 @@ public class McsBerAdversarialTests
     [TestMethod]
     public void DecodeConnectResponse_UserDataLengthExceedsBuffer_Throws()
     {
-        // userData OCTET STRING declares 4096 bytes but supplies none. The decoder
-        // allocates the full 4096-byte target buffer first, then Array.Copy rejects
-        // the out-of-range source range. This proves the declared length is NOT
-        // validated against the remaining buffer before allocation. With a larger
-        // declared length (up to ~2GB via BER long form) this is a memory-exhaustion
-        // DoS - see the reported bug list. 4096 is used here to stay safe.
+        // userData OCTET STRING declares 4096 bytes (BER long form) but supplies none. ReadBerLength
+        // now rejects a declared length that runs past the buffer before anything is allocated,
+        // closing the memory-exhaustion DoS a ~2GB declared length would otherwise cause.
         var userData = new byte[] { 0x04, 0x82, 0x10, 0x00 }; // tag, long-form len = 0x1000
         var data = ConnectResponseWithUserData(userData);
-        Assert.ThrowsExactly<ArgumentException>(() => McsCodec.DecodeConnectResponse(data));
+        Assert.ThrowsExactly<InvalidDataException>(() => McsCodec.DecodeConnectResponse(data));
     }
 
     [TestMethod]
     public void DecodeConnectResponse_NegativeDeclaredLength_Throws()
     {
-        // BER long-form length 0xFFFFFFFF wraps to -1 as an int, so the decoder
-        // tries to allocate a negative-size array. This overflows rather than being
-        // rejected as malformed. Documented as a bug (missing length validation).
+        // BER long-form length 0xFFFFFFFF. ReadBerLength accumulates in a long so it no longer wraps
+        // to -1, and the over-buffer check rejects it as malformed instead of hitting a negative alloc.
         var userData = new byte[] { 0x04, 0x84, 0xFF, 0xFF, 0xFF, 0xFF };
         var data = ConnectResponseWithUserData(userData);
-        Assert.ThrowsExactly<OverflowException>(() => McsCodec.DecodeConnectResponse(data));
+        Assert.ThrowsExactly<InvalidDataException>(() => McsCodec.DecodeConnectResponse(data));
     }
 
     [TestMethod]
@@ -303,15 +299,12 @@ public class McsDomainPduAdversarialTests
     }
 
     [TestMethod]
-    public void DecodeDomainPdu_OutOfRangeChoiceIndex_AcceptedWithoutValidation()
+    public void DecodeDomainPdu_OutOfRangeChoiceIndex_Rejected()
     {
-        // 0xF8 -> extension bit is absent (not extensible), the 5-bit constrained
-        // choice reads 0b11111 = 31, which is beyond the 28 defined alternatives.
-        // The decoder does not validate the upper bound and returns an empty PDU
-        // with the bogus type. Documented as missing CHOICE-range validation.
-        var pdu = McsCodec.DecodeDomainPdu(new byte[] { 0xF8 });
-        Assert.AreEqual(31, pdu.Type);
-        Assert.IsNull(pdu.UserData);
+        // 0xF8 -> extension bit is absent (not extensible), the 5-bit constrained choice reads
+        // 0b11111 = 31, which is beyond the 28 defined alternatives. DecodeDomainPdu now range-checks
+        // the CHOICE index and rejects the malformed PDU instead of returning an empty bogus type.
+        Assert.ThrowsExactly<InvalidDataException>(() => McsCodec.DecodeDomainPdu(new byte[] { 0xF8 }));
     }
 
     [TestMethod]
