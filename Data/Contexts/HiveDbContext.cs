@@ -336,8 +336,25 @@ public class HiveDbContext : DbContextBase
             {
                 if (kDefaultGlobalSettings.ContainsKey(key))
                 {
-                    // Todo: Make better err handling
-                    var val = (T)kDefaultGlobalSettings[key];
+                    var raw = kDefaultGlobalSettings[key];
+
+                    // The default may be boxed as a different type than the caller asked for (the
+                    // TemperatureUnits/DistanceUnits enums are read back as strings), so convert rather than
+                    // hard-cast, which used to throw InvalidCastException on the first read of a fresh DB.
+                    T val;
+
+                    if (raw is T typed)
+                    {
+                        val = typed;
+                    }
+                    else if (typeof(T) == typeof(string))
+                    {
+                        val = (T)(object)raw.ToString();
+                    }
+                    else
+                    {
+                        val = (T)Convert.ChangeType(raw, typeof(T));
+                    }
 
                     ConfigSet(key, val);
 
