@@ -55,6 +55,11 @@ public sealed class MsnStreamReader
     // Reads exactly count raw bytes (an MSG payload body), drawing from the buffer first.
     public async Task<byte[]> ReadBytesAsync(int count)
     {
+        if (count < 0)
+        {
+            return null;
+        }
+
         var result = new byte[count];
         var written = 0;
 
