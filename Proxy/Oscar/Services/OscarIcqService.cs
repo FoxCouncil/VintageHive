@@ -290,7 +290,7 @@ internal class OscarIcqService : IOscarService
 
     // A numeric ICQ screen name IS its UIN; an AIM screen name's UIN is FNV-1a over the lowercased name (see
     // ScreenNameToUin). Reverse that to find which account a requested UIN belongs to.
-    private static string ResolveUinToScreenName(uint searchUin)
+    internal static string ResolveUinToScreenName(uint searchUin)
     {
         if (searchUin == 0)
         {
@@ -634,7 +634,7 @@ internal class OscarIcqService : IOscarService
     /// deterministic across process runs, unlike <see cref="string.GetHashCode"/> which is randomized per process
     /// and never matched the identity the live-message path presents.
     /// </summary>
-    private static uint ScreenNameToUin(string screenName)
+    internal static uint ScreenNameToUin(string screenName)
     {
         if (string.IsNullOrEmpty(screenName))
         {
