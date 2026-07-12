@@ -148,11 +148,31 @@ public sealed partial class HttpRequest : Request
                         break;
                     }
 
-                    var baseBoundryMarker = contentType[(contentType.IndexOf(';') + 11)..];
+                    // The boundary comes from the Content-Type; a hostile or malformed request may omit it,
+                    // so locate it explicitly rather than by a fixed offset from ';'.
+                    var boundaryIndex = contentType.IndexOf("boundary=", StringComparison.OrdinalIgnoreCase);
+
+                    if (boundaryIndex < 0)
+                    {
+                        break;
+                    }
+
+                    var baseBoundryMarker = contentType[(boundaryIndex + "boundary=".Length)..].Trim().Trim('"');
+
+                    if (baseBoundryMarker.Length == 0)
+                    {
+                        break;
+                    }
+
                     var startBoundryMarker = "--" + baseBoundryMarker;
                     var endBoundryMarker = startBoundryMarker + "--";
 
                     var boundriesRaw = rawBody.Split(endBoundryMarker, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+
+                    if (string.IsNullOrEmpty(boundriesRaw))
+                    {
+                        break;
+                    }
 
                     var boundries = boundriesRaw.Split(startBoundryMarker, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -162,9 +182,19 @@ public sealed partial class HttpRequest : Request
                     {
                         var boundryLines = boundry.Split("\r\n\r\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+                        // A part missing its blank-line-separated body yields a single element; skip it rather
+                        // than indexing out of bounds.
+                        if (boundryLines.Length < 2)
+                        {
+                            continue;
+                        }
+
                         var name = HttpContentBoundryRegex().Match(boundryLines[0]).Groups[1].Value;
 
-                        dict.Add(name, boundryLines[1]);
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            dict[name] = boundryLines[1];
+                        }
                     }
 
                     formData = dict;
