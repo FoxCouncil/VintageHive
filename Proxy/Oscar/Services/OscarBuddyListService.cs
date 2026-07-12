@@ -115,6 +115,14 @@ public class OscarBuddyListService : IOscarService
             return;
         }
 
+        // Invisible users must not be announced as online through the buddy-list sync path either (a watcher
+        // signing on, or the invisible user sending its own list); BroadcastStatusToWatchers only covers the
+        // status-change path.
+        if (onlineUser.Status == OscarSessionOnlineStatus.Invisible)
+        {
+            return;
+        }
+
         var isOnlineSnac = new Snac(FAMILY_ID, SRV_USER_ONLINE);
 
         isOnlineSnac.WriteUInt8((byte)onlineUser.ScreenName.Length);

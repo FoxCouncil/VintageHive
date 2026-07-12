@@ -312,31 +312,48 @@ public class OscarSession
                 continue;
             }
 
-            var statusSnac = new Snac(0x03, 0x0B); // Family 0x03, SRV_USER_ONLINE
+            Snac statusSnac;
 
-            statusSnac.WriteUInt8((byte)ScreenName.Length);
-            statusSnac.WriteString(ScreenName);
-            statusSnac.WriteUInt16(WarningLevel);
-
-            var tlvs = new List<Tlv>
+            if (Status == OscarSessionOnlineStatus.Invisible)
             {
-                new Tlv(0x01, OscarUtils.GetBytes(0)),
-                new Tlv(0x06, OscarUtils.GetBytes((uint)Status)),
-                new Tlv(0x0F, OscarUtils.GetBytes((uint)SignOnTime.ToUnixTimeSeconds())),
-                new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
-                new Tlv(0x05, OscarUtils.GetBytes((uint)SignOnTime.ToUnixTimeSeconds()))
-            };
+                // An invisible user must appear OFFLINE to watchers (mirrors the messengers hiding from
+                // peers), not online carrying an invisible flag: send a buddy-departed (SRV_USER_OFFLINE).
+                statusSnac = new Snac(0x03, 0x0C); // Family 0x03, SRV_USER_OFFLINE
 
-            if (GetCurrentIdleSeconds() > 0)
-            {
-                tlvs.Add(new Tlv(0x04, OscarUtils.GetBytes((ushort)GetCurrentIdleSeconds())));
+                statusSnac.WriteUInt8((byte)ScreenName.Length);
+                statusSnac.WriteString(ScreenName);
+                statusSnac.WriteUInt16(WarningLevel);
+                statusSnac.WriteUInt16(1);
+                statusSnac.Write(new Tlv(0x01, OscarUtils.GetBytes(0)).Encode());
             }
-
-            statusSnac.WriteUInt16((ushort)tlvs.Count);
-
-            foreach (Tlv tlv in tlvs)
+            else
             {
-                statusSnac.Write(tlv.Encode());
+                statusSnac = new Snac(0x03, 0x0B); // Family 0x03, SRV_USER_ONLINE
+
+                statusSnac.WriteUInt8((byte)ScreenName.Length);
+                statusSnac.WriteString(ScreenName);
+                statusSnac.WriteUInt16(WarningLevel);
+
+                var tlvs = new List<Tlv>
+                {
+                    new Tlv(0x01, OscarUtils.GetBytes(0)),
+                    new Tlv(0x06, OscarUtils.GetBytes((uint)Status)),
+                    new Tlv(0x0F, OscarUtils.GetBytes((uint)SignOnTime.ToUnixTimeSeconds())),
+                    new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
+                    new Tlv(0x05, OscarUtils.GetBytes((uint)SignOnTime.ToUnixTimeSeconds()))
+                };
+
+                if (GetCurrentIdleSeconds() > 0)
+                {
+                    tlvs.Add(new Tlv(0x04, OscarUtils.GetBytes((ushort)GetCurrentIdleSeconds())));
+                }
+
+                statusSnac.WriteUInt16((ushort)tlvs.Count);
+
+                foreach (Tlv tlv in tlvs)
+                {
+                    statusSnac.Write(tlv.Encode());
+                }
             }
 
             try
