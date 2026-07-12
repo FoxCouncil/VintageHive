@@ -263,21 +263,56 @@ internal class OscarIcqService : IOscarService
 
     private OscarUserProfile GetProfileForUin(uint searchUin, string fallbackScreenName)
     {
-        // In VintageHive, UIN = screenname since usernames are the only identity
-        // Try to find a user by UIN if it matches known users, otherwise use fallback
-        var screenName = fallbackScreenName ?? "unknown";
+        // Resolve the requested UIN to a real account, falling back to the caller's own identity only when
+        // the UIN cannot be resolved (e.g. a self-lookup that passes 0).
+        var screenName = ResolveUinToScreenName(searchUin) ?? fallbackScreenName;
 
-        // If searchUin != 0, try to look up by iterating known users (UIN is hash-based)
-        // For now, use the requesting user's own profile for self-lookup
-        var profile = Mind.Db.OscarGetProfile(screenName);
-
-        if (profile == null)
+        if (!string.IsNullOrEmpty(screenName))
         {
-            Mind.Db.OscarEnsureProfileExists(screenName);
-            profile = Mind.Db.OscarGetProfile(screenName);
+            var profile = Mind.Db.OscarGetProfile(screenName);
+
+            if (profile == null && Mind.Db.UserExistsByUsername(screenName))
+            {
+                Mind.Db.OscarEnsureProfileExists(screenName);
+                profile = Mind.Db.OscarGetProfile(screenName);
+            }
+
+            if (profile != null)
+            {
+                return profile;
+            }
         }
 
-        return profile;
+        // Unknown UIN with no fallback (a find-by-UIN miss): return an empty, non-persisted profile rather
+        // than fabricating and storing a bogus "unknown" account.
+        return new OscarUserProfile { ScreenName = screenName ?? string.Empty, Nickname = string.Empty };
+    }
+
+    // A numeric ICQ screen name IS its UIN; an AIM screen name's UIN is FNV-1a over the lowercased name (see
+    // ScreenNameToUin). Reverse that to find which account a requested UIN belongs to.
+    private static string ResolveUinToScreenName(uint searchUin)
+    {
+        if (searchUin == 0)
+        {
+            return null;
+        }
+
+        var direct = searchUin.ToString();
+
+        if (Mind.Db.UserExistsByUsername(direct))
+        {
+            return direct;
+        }
+
+        foreach (var user in Mind.Db.UserList())
+        {
+            if (ScreenNameToUin(user.Username) == searchUin)
+            {
+                return user.Username;
+            }
+        }
+
+        return null;
     }
 
     private async Task HandleSetBasicInfo(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq)
