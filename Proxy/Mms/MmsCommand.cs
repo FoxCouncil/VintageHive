@@ -107,6 +107,14 @@ internal static class MmsCommand
     public static byte[] BuildDataPacket(uint locationId, byte incarnation, byte afFlags, byte[] asfPayload)
     {
         int totalPacketSize = 8 + asfPayload.Length;
+
+        // PacketSize is a ushort wire field; a payload that pushes the total past 65535 would silently
+        // truncate it (65536 -> 0) and desync the reader. Reject it loudly instead of shipping a lie.
+        if (totalPacketSize > ushort.MaxValue)
+        {
+            throw new ArgumentException($"MMS data packet total {totalPacketSize} exceeds the 65535-byte PacketSize field", nameof(asfPayload));
+        }
+
         var packet = new byte[totalPacketSize];
 
         BitConverter.GetBytes(locationId).CopyTo(packet, 0);                      // LocationId

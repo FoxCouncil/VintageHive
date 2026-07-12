@@ -1685,7 +1685,10 @@ public class IrcProxy : Listener
             return null;
         }
 
-        const string pattern = @"^(?::(?<prefix>[^\s]+)\s+)?(?<command>[A-Za-z0-9]+)(?:\s+(?<params>[^\s:]+))*(?:\s+:(?<trailing>.*))?$";
+        // A middle param is nospcrlfcl followed by any non-space (RFC 2812 permits ':' after the first
+        // char), so params use [^\s:][^\s]* not [^\s:]+. The trailing \s* tolerates a stray trailing
+        // space/CRLF instead of dropping the whole command.
+        const string pattern = @"^(?::(?<prefix>[^\s]+)\s+)?(?<command>[A-Za-z0-9]+)(?:\s+(?<params>[^\s:][^\s]*))*(?:\s+:(?<trailing>.*))?\s*$";
 
         var regex = new Regex(pattern);
         var match = regex.Match(input);
@@ -1695,7 +1698,9 @@ public class IrcProxy : Listener
             return null;
         }
 
-        var result = new IrcCommand { Command = match.Groups["command"].Value.ToUpper() };
+        // ToUpperInvariant, not ToUpper: on a Turkish/Azeri locale ToUpper folds 'i' to U+0130 and every
+        // command containing 'i' would stop matching the ASCII command constants HandleCommand switches on.
+        var result = new IrcCommand { Command = match.Groups["command"].Value.ToUpperInvariant() };
 
         foreach (var capture in match.Groups["params"].Captures.Cast<Capture>())
         {

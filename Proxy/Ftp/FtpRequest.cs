@@ -79,7 +79,7 @@ public sealed class FtpRequest : Request
     // RFC 959 4.2: a single-line reply is the 3-digit code, a space, then text, terminated by CRLF.
     internal static string FormatResponse(FtpResponseCode command, string args)
     {
-        return $"{(int)command} {args}\r\n";
+        return $"{(int)command} {SanitizeLine(args)}\r\n";
     }
 
     // RFC 2389 FEAT: a multi-line reply - "<code>-Features", each feature indented by a space, then
@@ -90,12 +90,19 @@ public sealed class FtpRequest : Request
 
         foreach (var arg in args)
         {
-            cmd += $" {arg}\r\n";
+            cmd += $" {SanitizeLine(arg)}\r\n";
         }
 
         cmd += $"{(int)command} End\r\n";
 
         return cmd;
+    }
+
+    // Strip embedded CR/LF so a value (e.g. an echoed path or feature string, which may legally contain
+    // LF on POSIX) cannot forge an extra control-channel response line. A null value renders as empty.
+    private static string SanitizeLine(string text)
+    {
+        return text is null ? string.Empty : text.Replace("\r", string.Empty).Replace("\n", string.Empty);
     }
 
     internal async Task SendResponse(FtpResponseCode command, string args)
