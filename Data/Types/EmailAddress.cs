@@ -6,10 +6,13 @@ namespace VintageHive.Data.Types;
 
 public partial class EmailAddress
 {
-    [GeneratedRegex(@"<(?<user>[^@]+)@(?<domain>[^>]+)>", RegexOptions.Compiled)]
+    // Excluding whitespace from both captures closes an SMTP header/command injection vector: an
+    // address like <a@b.com\r\nHELO evil> must not smuggle CRLF into the parsed domain.
+    [GeneratedRegex(@"<(?<user>[^@\s>]+)@(?<domain>[^@\s>]+)>", RegexOptions.Compiled)]
     private static partial Regex RegexFullEmail();
 
-    [GeneratedRegex(@"(?<user>[^@]+)@(?<domain>[^>]+)", RegexOptions.Compiled)]
+    // Anchored so the bare constructor validates the whole string instead of absorbing surrounding prose.
+    [GeneratedRegex(@"^(?<user>[^@\s>]+)@(?<domain>[^@\s>]+)$", RegexOptions.Compiled)]
     private static partial Regex RegexEmail();
 
     public string User { get; private set; }

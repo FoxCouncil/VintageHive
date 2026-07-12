@@ -55,7 +55,7 @@ public static class Extensions
 
     public static string StripHtml(this string input)
     {
-        return Regex.Replace(input, "<.*?>", " ").Trim();
+        return Regex.Replace(input, "<.*?>", " ", RegexOptions.Singleline).Trim();
     }
 
     public static void ReplaceTextById(this HtmlDocument doc, string id, string text)
@@ -339,7 +339,7 @@ public static class Extensions
                 currentLine.Clear();
             }
 
-            if (lines.Count == width)
+            if (lines.Count == height)
             {
                 break;
             }

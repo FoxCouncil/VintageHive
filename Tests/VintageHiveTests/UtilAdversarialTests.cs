@@ -38,14 +38,14 @@ public class UtilAdversarialTests
     }
 
     [TestMethod]
-    public void StripHtml_TagSpanningNewline_BypassesStripping()
+    public void StripHtml_TagSpanningNewline_IsStripped()
     {
-        // '.' does not match '\n' by default, so a tag containing a newline evades the stripper
+        // RegexOptions.Singleline makes '.' match '\n', so a tag containing a newline no longer
+        // evades the stripper - closing a sanitization bypass for newline-laden markup.
         var input = "x<a\nb>y";
         var result = input.StripHtml();
 
-        // The newline-bearing tag is preserved verbatim (only outer trim applied)
-        Assert.AreEqual("x<a\nb>y", result);
+        Assert.AreEqual("x y", result);
     }
 
     [TestMethod]
@@ -253,13 +253,11 @@ public class UtilAdversarialTests
     }
 
     [TestMethod]
-    public void EmailCtor_MultipleAt_UserIsFirstTokenDomainKeepsRest()
+    public void EmailCtor_MultipleAt_Throws()
     {
-        // [^@]+ is greedy but stops at the first @; domain [^>]+ then swallows the remaining @
-        var email = new EmailAddress("a@b@c.com");
-
-        Assert.AreEqual("a", email.User);
-        Assert.AreEqual("b@c.com", email.Domain);
+        // The domain capture now excludes '@' and the pattern is anchored, so a second '@' can no
+        // longer be swallowed into the domain; the whole string fails to validate.
+        Assert.ThrowsExactly<FormatException>(() => new EmailAddress("a@b@c.com"));
     }
 
     [TestMethod]
@@ -283,43 +281,32 @@ public class UtilAdversarialTests
     }
 
     [TestMethod]
-    public void EmailCtor_GreaterThanTruncatesDomain()
+    public void EmailCtor_GreaterThanTrailer_Throws()
     {
-        // Even in the plain constructor, a '>' terminates the domain capture
-        var email = new EmailAddress("user@domain>garbage");
-
-        Assert.AreEqual("user", email.User);
-        Assert.AreEqual("domain", email.Domain);
+        // A '>' still terminates the domain capture, but the anchored pattern now requires the whole
+        // string to be the address, so the '>garbage' trailer makes it fail rather than truncate.
+        Assert.ThrowsExactly<FormatException>(() => new EmailAddress("user@domain>garbage"));
     }
 
     [TestMethod]
-    public void EmailCtor_SurroundingText_IsAbsorbedNotRejected()
+    public void EmailCtor_SurroundingText_Rejected()
     {
-        // The regex is unanchored, so leading/trailing prose is captured into user/domain
-        var email = new EmailAddress("hello user@example.com world");
-
-        Assert.AreEqual("hello user", email.User);
-        Assert.AreEqual("example.com world", email.Domain);
+        // The anchored regex no longer absorbs leading/trailing prose into user/domain.
+        Assert.ThrowsExactly<FormatException>(() => new EmailAddress("hello user@example.com world"));
     }
 
     [TestMethod]
-    public void EmailCtor_WhitespaceOnlyParts_Accepted()
+    public void EmailCtor_WhitespaceOnlyParts_Rejected()
     {
-        // Spaces are non-@ and non-'>', so a whitespace local part and domain both "validate"
-        var email = new EmailAddress("  @  ");
-
-        Assert.AreEqual("  ", email.User);
-        Assert.AreEqual("  ", email.Domain);
+        // Whitespace is now excluded from both captures, so blank parts no longer "validate".
+        Assert.ThrowsExactly<FormatException>(() => new EmailAddress("  @  "));
     }
 
     [TestMethod]
-    public void EmailCtor_NewlineInDomain_Accepted()
+    public void EmailCtor_NewlineInDomain_Rejected()
     {
-        // [^>] matches a newline, letting a CRLF-bearing domain through
-        var email = new EmailAddress("u@d\r\nomain");
-
-        Assert.AreEqual("u", email.User);
-        Assert.IsTrue(email.Domain.Contains("\r\n"));
+        // A CRLF-bearing domain is now rejected instead of silently carrying control chars through.
+        Assert.ThrowsExactly<FormatException>(() => new EmailAddress("u@d\r\nomain"));
     }
 
     #endregion
@@ -343,12 +330,11 @@ public class UtilAdversarialTests
     }
 
     [TestMethod]
-    public void ParseFromSmtp_MultipleAtInsideBrackets_DomainKeepsRest()
+    public void ParseFromSmtp_MultipleAtInsideBrackets_Throws()
     {
-        var email = EmailAddress.ParseFromSmtp("MAIL FROM:<a@b@c.com>");
-
-        Assert.AreEqual("a", email.User);
-        Assert.AreEqual("b@c.com", email.Domain);
+        // Domain now excludes '@', so a second '@' before the closing '>' means no bracketed address
+        // matches and the malformed command is rejected.
+        Assert.ThrowsExactly<FormatException>(() => EmailAddress.ParseFromSmtp("MAIL FROM:<a@b@c.com>"));
     }
 
     [TestMethod]
@@ -380,14 +366,11 @@ public class UtilAdversarialTests
     }
 
     [TestMethod]
-    public void ParseFromSmtp_CrlfInjectionInDomain_PassesThroughUnfiltered()
+    public void ParseFromSmtp_CrlfInjectionInDomain_Rejected()
     {
-        // A CRLF-laden address between angle brackets survives, exposing an SMTP header-injection vector
-        var email = EmailAddress.ParseFromSmtp("<a@b.com\r\nHELO evil>");
-
-        Assert.AreEqual("a", email.User);
-        Assert.IsTrue(email.Domain.Contains("\r\n"), "CRLF should have survived domain parsing");
-        Assert.IsTrue(email.Domain.Contains("HELO evil"));
+        // The CRLF between angle brackets now breaks the domain capture, so the SMTP header-injection
+        // payload no longer parses into a valid address.
+        Assert.ThrowsExactly<FormatException>(() => EmailAddress.ParseFromSmtp("<a@b.com\r\nHELO evil>"));
     }
 
     #endregion
