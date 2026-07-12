@@ -6,7 +6,7 @@ using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Printer;
 
-internal static class PrintSpooler
+public static class PrintSpooler
 {
     const string DEFAULT_PS_SIGNATURE = "%!PS-Adobe-3.0";
 

@@ -13,7 +13,7 @@ using HttpStatusCode = VintageHive.Proxy.Http.HttpStatusCode;
 
 namespace VintageHive.Processors;
 
-internal static class LocalServerProcessor
+public static class LocalServerProcessor
 {
     static readonly FluidParser fluidParser = new();
 

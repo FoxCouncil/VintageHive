@@ -6,7 +6,7 @@ namespace VintageHive.Proxy.Yahoo;
 
 // Projects live YmsgServer.Sessions into the shared PresenceRegistry so Finger and the dashboard see
 // Yahoo! users alongside AIM/ICQ.
-internal sealed class YahooPresenceProvider : IPresenceProvider
+public sealed class YahooPresenceProvider : IPresenceProvider
 {
     public string Network => "Yahoo";
 

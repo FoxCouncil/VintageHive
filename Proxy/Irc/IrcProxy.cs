@@ -8,7 +8,7 @@ using static VintageHive.Proxy.Irc.IrcServerReplyType;
 
 namespace VintageHive.Proxy.Irc;
 
-internal class IrcProxy : Listener
+public class IrcProxy : Listener
 {
     #region Constants & Fields
 
@@ -89,7 +89,7 @@ internal class IrcProxy : Listener
         {
             var hive = new IrcChannel("#hive")
             {
-                Topic = "Welcome to VintageHive IRC!",
+                Topic = $"Welcome to {Mind.ProductName} IRC!",
                 TopicSetBy = IRCD_HOSTNAME,
                 TopicSetAt = DateTime.UtcNow,
                 IsPersisted = true
@@ -502,7 +502,7 @@ internal class IrcProxy : Listener
             (IRCD_HOSTNAME, RPL_YOURHOST, nick, null, $"Your host is {IRCD_HOSTNAME}, running version {IRCD_VERSION}"),
             (IRCD_HOSTNAME, RPL_CREATED, nick, null, $"This server was created {StartTime:R}"),
             (IRCD_HOSTNAME, RPL_MYINFO, nick, new[] { IRCD_HOSTNAME, IRCD_VERSION, "io", "ovntikl" }, ""),
-            (IRCD_HOSTNAME, RPL_BOUNCE, nick, new[] { "CHANLIMIT=#:20", "CHANTYPES=#", "PREFIX=(ov)@+", "NETWORK=VintageHive", "CASEMAPPING=ascii" }, "are supported by this server"),
+            (IRCD_HOSTNAME, RPL_BOUNCE, nick, new[] { "CHANLIMIT=#:20", "CHANTYPES=#", "PREFIX=(ov)@+", $"NETWORK={Mind.ProductName}", "CASEMAPPING=ascii" }, "are supported by this server"),
         };
 
         replies.AddRange(GetMOTD(nick));
@@ -914,7 +914,7 @@ internal class IrcProxy : Listener
         var replies = new List<(string, IrcServerReplyType, string, string[], string)>
         {
             (IRCD_HOSTNAME, RPL_WHOISUSER, user.Nick, new[] { targetUser.Nick, targetUser.Username, targetUser.Hostname, "*" }, targetUser.Realname),
-            (IRCD_HOSTNAME, RPL_WHOISSERVER, user.Nick, new[] { targetUser.Nick, IRCD_HOSTNAME }, "VintageHive IRC Network"),
+            (IRCD_HOSTNAME, RPL_WHOISSERVER, user.Nick, new[] { targetUser.Nick, IRCD_HOSTNAME }, $"{Mind.ProductName} IRC Network"),
         };
 
         // Channels
@@ -1578,7 +1578,7 @@ internal class IrcProxy : Listener
             (IRCD_HOSTNAME, RPL_MOTD, nick, null, @"-     \_/  |_|_| |_|\__\__,_|\__, |\___|_| |_|_| \_/ \___|"),
             (IRCD_HOSTNAME, RPL_MOTD, nick, null, @"-                             |___/                        "),
             (IRCD_HOSTNAME, RPL_MOTD, nick, null, "- "),
-            (IRCD_HOSTNAME, RPL_MOTD, nick, null, "- Welcome to the VintageHive IRC Network!"),
+            (IRCD_HOSTNAME, RPL_MOTD, nick, null, $"- Welcome to the {Mind.ProductName} IRC Network!"),
             (IRCD_HOSTNAME, RPL_MOTD, nick, null, "- "),
             (IRCD_HOSTNAME, RPL_MOTD, nick, null, "- Rules: Be excellent to each other."),
             (IRCD_HOSTNAME, RPL_MOTD, nick, null, "- "),

@@ -11,7 +11,7 @@ using static VintageHive.Proxy.Http.HttpUtilities;
 
 namespace VintageHive.Proxy.Printer;
 
-internal class PrinterProxy : Listener
+public class PrinterProxy : Listener
 {
     const string DEFAULT_PRINTER_NAME = "VintageHiveIPP";
 
@@ -63,7 +63,7 @@ internal class PrinterProxy : Listener
         {
             case "GET":
             {
-                httpResponse.SetBodyString("VintageHive IPP Proxy", "text/plain");
+                httpResponse.SetBodyString($"{Mind.ProductName} IPP Proxy", "text/plain");
 
                 return httpResponse.GetResponseEncodedData();
             }
@@ -435,7 +435,7 @@ internal class PrinterProxy : Listener
             ],
             MultipleDocumentJobsSupported = !IsRequired(PrinterAttribute.MultipleDocumentJobsSupported) ? null : true,
             CompressionSupported = !IsRequired(PrinterAttribute.CompressionSupported) ? null : [Compression.None],
-            PrinterLocation = !IsRequired(PrinterAttribute.PrinterLocation) ? null : "VintageHive",
+            PrinterLocation = !IsRequired(PrinterAttribute.PrinterLocation) ? null : Mind.ProductName,
             PrintScalingDefault = !IsRequired(PrinterAttribute.PrintScalingDefault) ? null : DEAFULT_PRINT_SCALING,
             PrintScalingSupported = !IsRequired(PrinterAttribute.PrintScalingSupported) ? null : [DEAFULT_PRINT_SCALING],
             PrinterUriSupported = !IsRequired(PrinterAttribute.PrinterUriSupported) ? null : [printerUrl],

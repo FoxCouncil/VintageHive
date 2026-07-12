@@ -4,7 +4,7 @@ using VintageHive.Network;
 
 namespace VintageHive.Proxy.Yahoo;
 
-internal sealed class YmsgSession
+public sealed class YmsgSession
 {
     static uint NextSessionId = 0x00010000;
 

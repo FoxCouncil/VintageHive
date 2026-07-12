@@ -6,7 +6,7 @@ namespace VintageHive.Proxy.Msn;
 
 // One connection to the MSN server. The same port carries both Notification-Server (NS) and
 // Switchboard (SB) connections; Role records which this became after its opening command.
-internal sealed class MsnSession
+public sealed class MsnSession
 {
     // Serializes writes so a pushed presence/IM notification cannot interleave with a command reply.
     readonly SemaphoreSlim _writeLock = new(1, 1);
@@ -88,7 +88,7 @@ internal sealed class MsnSession
     }
 }
 
-internal enum MsnRole
+public enum MsnRole
 {
     Unknown,
     Notification,

@@ -6,7 +6,7 @@ using VintageHive.Proxy.Presence;
 
 namespace VintageHive.Proxy.Finger;
 
-internal class FingerServer : Listener
+public class FingerServer : Listener
 {
     public FingerServer(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, false) { }
 
@@ -67,7 +67,7 @@ internal class FingerServer : Listener
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("VintageHive Finger Server");
+        sb.AppendLine($"{Mind.ProductName} Finger Server");
         sb.AppendLine(new string('-', 60));
 
         // Presence now spans every messenger network via the shared registry, not just OSCAR/AIM.

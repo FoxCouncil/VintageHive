@@ -205,7 +205,7 @@ internal partial class CookEncoder
     public byte[] BuildRmFileHeaders(string stationName, uint numPackets = 0, uint totalDataSize = 0, uint durationMs = 0x7FFFFFFF)
     {
         var ra5Header = BuildRa5Header();
-        var titleBytes = Encoding.ASCII.GetBytes(stationName ?? "VintageHive Radio");
+        var titleBytes = Encoding.ASCII.GetBytes(stationName ?? $"{Mind.ProductName} Radio");
 
         // Pre-calculate chunk sizes to determine data_offset
         int rmfSize = 18;
@@ -315,7 +315,7 @@ internal partial class CookEncoder
     private void WriteContChunk(MemoryStream ms, string title)
     {
         using var bw = new BigEndianWriter(ms, leaveOpen: true);
-        var titleBytes = Encoding.ASCII.GetBytes(title ?? "VintageHive Radio");
+        var titleBytes = Encoding.ASCII.GetBytes(title ?? $"{Mind.ProductName} Radio");
         // tag(4) + size(4) + version(2) + title_len(2) + title + author_len(2) + copyright_len(2) + comment_len(2)
         int chunkSize = 8 + 2 + 2 + titleBytes.Length + 2 + 2 + 2;
 

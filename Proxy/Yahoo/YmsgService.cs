@@ -3,7 +3,7 @@
 namespace VintageHive.Proxy.Yahoo;
 
 // YMSG service (command) codes. Values from libyahoo2 / the Wireshark ymsg dissector.
-internal enum YmsgService : ushort
+public enum YmsgService : ushort
 {
     Logon = 0x01,
     Logoff = 0x02,

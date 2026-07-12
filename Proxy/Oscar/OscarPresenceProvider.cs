@@ -6,7 +6,7 @@ namespace VintageHive.Proxy.Oscar;
 
 // Projects the live OscarServer.Sessions registry into protocol-neutral PresenceEntry values for the
 // shared PresenceRegistry. OSCAR's internal buddy/IM delivery keeps using OscarServer.Sessions directly.
-internal sealed class OscarPresenceProvider : IPresenceProvider
+public sealed class OscarPresenceProvider : IPresenceProvider
 {
     public string Network => "OSCAR";
 

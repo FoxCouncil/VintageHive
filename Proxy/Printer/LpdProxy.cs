@@ -8,7 +8,7 @@ namespace VintageHive.Proxy.Printer;
 /// LPD (Line Printer Daemon) protocol server - RFC 1179, default port 515.
 /// Accepts print jobs from LPR clients (DOS, Windows 3.x/95, Unix/Mac).
 /// </summary>
-internal class LpdProxy : Listener
+public class LpdProxy : Listener
 {
     const byte LPD_CMD_PRINT_WAITING = 0x01;
     const byte LPD_CMD_RECEIVE_JOB = 0x02;
@@ -270,7 +270,7 @@ internal class LpdProxy : Listener
 
         if (longFormat)
         {
-            sb.AppendLine($"VintageHive LPD Printer ({Mind.PrinterDb.GetProcessingJobCount()} active)");
+            sb.AppendLine($"{Mind.ProductName} LPD Printer ({Mind.PrinterDb.GetProcessingJobCount()} active)");
             sb.AppendLine();
 
             foreach (var job in jobs.Take(20))

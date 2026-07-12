@@ -27,7 +27,7 @@ internal class NntpProxy : Listener
         connection.DataBag[CurrentArticleNumber] = 0;
         connection.DataBag[ArticleList] = new List<UsenetArticle>();
 
-        return await SendResponse(NntpResponseCode.ServerReadyNoPosting, "VintageHive NNTP Service Ready - posting not allowed");
+        return await SendResponse(NntpResponseCode.ServerReadyNoPosting, $"{Mind.ProductName} NNTP Service Ready - posting not allowed");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -189,7 +189,7 @@ internal class NntpProxy : Listener
     {
         if (argument.Equals("READER", StringComparison.OrdinalIgnoreCase))
         {
-            return await SendResponse(NntpResponseCode.ServerReadyNoPosting, "VintageHive NNTP Service Ready - posting not allowed");
+            return await SendResponse(NntpResponseCode.ServerReadyNoPosting, $"{Mind.ProductName} NNTP Service Ready - posting not allowed");
         }
 
         return await SendResponse(NntpResponseCode.CommandNotRecognized, "Unknown MODE variant");
@@ -456,7 +456,7 @@ internal class NntpProxy : Listener
     {
         var helpText = new StringBuilder();
 
-        helpText.Append($"VintageHive NNTP Service{EOL}");
+        helpText.Append($"{Mind.ProductName} NNTP Service{EOL}");
         helpText.Append($"Available commands:{EOL}");
         helpText.Append($"  ARTICLE [number|<message-id>]  Retrieve an article{EOL}");
         helpText.Append($"  BODY [number|<message-id>]     Retrieve article body{EOL}");

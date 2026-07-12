@@ -46,7 +46,7 @@ public class TelnetSession
 
         // Build up current TUI
         var screenOutput = new StringBuilder();
-        screenOutput.Append($"VintageHive Telnet {Mind.ApplicationVersion}\r\n");
+        screenOutput.Append($"{Mind.ProductName} Telnet {Mind.ProductVersion}\r\n");
         screenOutput.Append(new string('-', TermWidth) + "\r\n");
         screenOutput.Append(TopWindowOutputBuffer);
         screenOutput.Append(new string('-', TermWidth) + "\r\n");

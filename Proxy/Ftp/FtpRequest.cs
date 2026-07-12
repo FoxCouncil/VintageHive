@@ -183,7 +183,7 @@ public sealed class FtpRequest : Request
 
         newRequest.Uri = new Uri(url);
 
-        await newRequest.SendResponse(FtpResponseCode.ServiceReadyForNewUser, $"{newRequest.Uri.Host}'s VintageHive FTP Server");
+        await newRequest.SendResponse(FtpResponseCode.ServiceReadyForNewUser, $"{newRequest.Uri.Host}'s {Mind.ProductName} FTP Server");
 
         proxyRequest = await newRequest.FetchCommand();
 

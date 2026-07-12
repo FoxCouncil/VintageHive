@@ -7,7 +7,7 @@ namespace VintageHive.Proxy.Yahoo;
 // A single YMSG packet: a fixed 20-byte big-endian header followed by a flat body of
 // key\xC0\x80 value\xC0\x80 pairs, where each key is an ASCII decimal field number and each value is
 // raw (usually UTF-8) bytes. Reference: libyahoo2 / Wireshark packet-ymsg.c.
-internal sealed class YmsgPacket
+public sealed class YmsgPacket
 {
     public const int HeaderSize = 20;
 

@@ -6,7 +6,7 @@ using VintageHive.Network;
 
 namespace VintageHive.Proxy.Imap;
 
-internal partial class ImapProxy : Listener
+public partial class ImapProxy : Listener
 {
     private const string EOL = "\r\n";
     private const string SessionKey = "imap_session";
@@ -24,7 +24,7 @@ internal partial class ImapProxy : Listener
 
         connection.DataBag[SessionKey] = new ImapSession();
 
-        return BuildResponse($"* OK VintageHive IMAP4rev1 server ready{EOL}");
+        return BuildResponse($"* OK {Mind.ProductName} IMAP4rev1 server ready{EOL}");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -157,7 +157,7 @@ internal partial class ImapProxy : Listener
 
         var sb = new StringBuilder();
 
-        sb.Append($"* BYE VintageHive IMAP4rev1 server logging out{EOL}");
+        sb.Append($"* BYE {Mind.ProductName} IMAP4rev1 server logging out{EOL}");
         sb.Append($"{tag} OK LOGOUT completed{EOL}");
 
         return BuildResponse(sb.ToString());

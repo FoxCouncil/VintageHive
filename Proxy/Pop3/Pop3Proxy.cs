@@ -4,7 +4,7 @@ using VintageHive.Network;
 
 namespace VintageHive.Proxy.Pop3;
 
-internal class Pop3Proxy : Listener
+public class Pop3Proxy : Listener
 {
     private const string EOL = "\r\n";
 
@@ -321,7 +321,7 @@ internal class Pop3Proxy : Listener
 
                 connection.IsKeepAlive = false;
 
-                return await SendResponse(true, $"VintageHive POP3 proxy signing off");
+                return await SendResponse(true, $"{Mind.ProductName} POP3 proxy signing off");
             }
         }
 

@@ -358,7 +358,7 @@ internal class GopherServer : Listener
             }
             else
             {
-                var header = $"HTTP/1.0 200 OK\r\nServer: VintageHive\r\nContent-Type: {GetHttpContentType(type, selector)}\r\nConnection: close\r\n\r\n";
+                var header = $"HTTP/1.0 200 OK\r\nServer: {Mind.ProductName}\r\nContent-Type: {GetHttpContentType(type, selector)}\r\nConnection: close\r\n\r\n";
 
                 progress.Started = true;
 
@@ -541,7 +541,7 @@ internal class GopherServer : Listener
 
     static async Task WriteHttpResponseAsync(ListenerSocket connection, string status, string contentType, byte[] body, CancellationToken cancellationToken)
     {
-        var header = $"HTTP/1.0 {status}\r\nServer: VintageHive\r\nContent-Type: {contentType}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n";
+        var header = $"HTTP/1.0 {status}\r\nServer: {Mind.ProductName}\r\nContent-Type: {contentType}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n";
 
         await connection.Stream.WriteAsync(Encoding.Latin1.GetBytes(header), cancellationToken);
         await connection.Stream.WriteAsync(body, cancellationToken);
@@ -883,7 +883,7 @@ internal class GopherServer : Listener
             sb.Append("\r\n");
         }
 
-        sb.Append("</pre>\r\n<hr>\r\n<i>VintageHive Gopher Service</i>\r\n</body></html>");
+        sb.Append($"</pre>\r\n<hr>\r\n<i>{Mind.ProductName} Gopher Service</i>\r\n</body></html>");
 
         return sb.ToString();
     }
@@ -997,7 +997,7 @@ internal class GopherServer : Listener
         var sb = new StringBuilder();
 
         AppendInfo(sb, "=========================================");
-        AppendInfo(sb, "        VintageHive Gopher Server");
+        AppendInfo(sb, $"        {Mind.ProductName} Gopher Server");
         AppendInfo(sb, "        Serving the hive since 1996");
         AppendInfo(sb, "=========================================");
         AppendInfo(sb, "");
@@ -1122,9 +1122,9 @@ internal class GopherServer : Listener
     {
         var sb = new StringBuilder();
 
-        sb.Append("VintageHive Gopher Server\n");
+        sb.Append($"{Mind.ProductName} Gopher Server\n");
         sb.Append($"{new string('-', 50)}\n\n");
-        sb.Append("This is the gopher face of your VintageHive box.\n\n");
+        sb.Append($"This is the gopher face of your {Mind.ProductName} box.\n\n");
         sb.Append("The root menu serves hive content: news headlines,\n");
         sb.Append("the local weather report and who is online.\n\n");
         sb.Append("The Live Gopherspace menu relays real gopher servers\n");
@@ -1145,7 +1145,7 @@ internal class GopherServer : Listener
         AppendInfo(sb, "Live Gopherspace");
         AppendInfo(sb, "");
         AppendInfo(sb, "These are real gopher servers, alive on today's");
-        AppendInfo(sb, "internet, relayed through your VintageHive.");
+        AppendInfo(sb, $"internet, relayed through your {Mind.ProductName}.");
         AppendInfo(sb, "");
         AppendProxiedItem(sb, '1', "Floodgap Systems", "gopher.floodgap.com", 70, "", host, port);
         AppendProxiedItem(sb, '7', "Veronica-2 Search", "gopher.floodgap.com", 70, "/v2/vs", host, port);
@@ -1164,12 +1164,12 @@ internal class GopherServer : Listener
 
     static string BuildHtmlError(string status, string message)
     {
-        return $"<html><head><title>{HtmlEncode(status)}</title></head><body><h1>{HtmlEncode(status)}</h1><p>{message}</p><hr><i>VintageHive Gopher Service</i></body></html>";
+        return $"<html><head><title>{HtmlEncode(status)}</title></head><body><h1>{HtmlEncode(status)}</h1><p>{message}</p><hr><i>{Mind.ProductName} Gopher Service</i></body></html>";
     }
 
     static string BuildSearchPrompt(string requestUrl)
     {
-        return $"<html><head><title>Gopher Search</title></head><body><h2>Gopher Search: {HtmlEncode(requestUrl)}</h2><hr><isindex prompt=\"Search terms: \"><hr><i>VintageHive Gopher Service</i></body></html>";
+        return $"<html><head><title>Gopher Search</title></head><body><h2>Gopher Search: {HtmlEncode(requestUrl)}</h2><hr><isindex prompt=\"Search terms: \"><hr><i>{Mind.ProductName} Gopher Service</i></body></html>";
     }
 
     internal static string GetHttpContentType(char type, string selector)

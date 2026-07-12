@@ -122,7 +122,7 @@ internal static class RadioMmshStreaming
     /// </summary>
     private static byte[] BuildMmshMetadataChunk(int playlistGenId, string title = null, string author = null)
     {
-        var branding = $"VintageHive/{Mind.ApplicationVersion}";
+        var branding = $"{Mind.ProductName}/{Mind.ProductVersion}";
 
         var header = $"playlist-gen-id={playlistGenId}, broadcast-id=1, features=\"broadcast\"";
 

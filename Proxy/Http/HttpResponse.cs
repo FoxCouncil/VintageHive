@@ -254,7 +254,7 @@ public sealed class HttpResponse
 
         outputBuilder.Append($"{HttpHeaderName.XTraceId}: {Request.ListenerSocket.TraceId}{HttpSeperator}"); // Tracing
 
-        outputBuilder.Append($"{HttpHeaderName.Server}: VintageHive/{Mind.ApplicationVersion}"); // Fuck them
+        outputBuilder.Append($"{HttpHeaderName.Server}: {Mind.ProductName}/{Mind.ProductVersion}"); // Fuck them
 
 
         outputBuilder.Append(HttpBodySeperator);

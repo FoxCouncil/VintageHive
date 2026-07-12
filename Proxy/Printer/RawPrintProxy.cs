@@ -9,7 +9,7 @@ namespace VintageHive.Proxy.Printer;
 /// The simplest possible protocol: client connects, sends raw print data, closes.
 /// No handshake, no metadata, just bytes.
 /// </summary>
-internal class RawPrintProxy : Listener
+public class RawPrintProxy : Listener
 {
     // Raw 9100 has no length framing, so bound the in-memory accumulation (unauth LAN memory-exhaustion guard)
     const int MAX_JOB_SIZE = 64 * 1024 * 1024;

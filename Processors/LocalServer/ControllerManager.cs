@@ -100,6 +100,7 @@ internal static class ControllerManager
         controller.Response.Context.SetValue("serverip", endpoint);
         controller.Response.Context.SetValue("serverport", endpointPort);
         controller.Response.Context.SetValue("appversion", Mind.ApplicationVersion);
+        controller.Response.Context.SetValue("productname", Mind.ProductName);
         controller.Response.Context.SetValue("traceid", request.ListenerSocket.TraceId.ToString());
 
         var clientInfo = parser.Parse(request.UserAgent);

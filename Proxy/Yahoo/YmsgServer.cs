@@ -10,7 +10,7 @@ namespace VintageHive.Proxy.Yahoo;
 // VintageHive is the whole auth server (same trust model as OSCAR), so the v9/v10 challenge/response
 // crypt is not reproduced; we mint a challenge, then accept any response for a username that exists in
 // the shared user table. See the login handler for the exact stance.
-internal sealed class YmsgServer : Listener
+public sealed class YmsgServer : Listener
 {
     public static readonly ConcurrentDictionary<uint, YmsgSession> Sessions = new();
 

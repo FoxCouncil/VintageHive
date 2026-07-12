@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace VintageHive.Proxy.Dns;
 
-internal class DnsProxy
+public class DnsProxy
 {
     private const int DNS_HEADER_SIZE = 12;
     private const ushort QTYPE_A = 1;

@@ -100,6 +100,30 @@ public static class ConfigNames
 
     public const string ServiceMsn = "servicemsn";
 
+    public const string ServiceHttp = "servicehttp";
+
+    public const string ServiceHttps = "servicehttps";
+
+    public const string ServiceFtp = "serviceftp";
+
+    public const string ServiceTelnet = "servicetelnet";
+
+    public const string ServiceSocks = "servicesocks";
+
+    public const string ServiceOscar = "serviceoscar";
+
+    public const string ServiceMms = "servicemms";
+
+    public const string ServicePna = "servicepna";
+
+    // When true, refuse to boot if any outward-reaching service is enabled (a provable no-forward posture).
+    public const string ServiceWalledGarden = "servicewalledgarden";
+
+    // Whitelabel: product name/version emitted in banners and page chrome; default to VintageHive's own.
+    public const string ProductName = "productname";
+
+    public const string ProductVersion = "productversion";
+
     public const string DownloadRepos = "downloadrepos";
 
     public const string Location = "location";

@@ -10,7 +10,7 @@ namespace VintageHive.Proxy.Msn;
 // (MD5 challenge auth, no Passport), presence, and 1:1 IM. The Notification Server and Switchboard roles
 // share one port (1863); a connection's opening verb decides its role (VER = NS, USR/ANS = SB), and the
 // ring that invites a callee is delivered in-process over the callee's own NS connection.
-internal sealed class MsnServer : Listener
+public sealed class MsnServer : Listener
 {
     // Authenticated notification-server sessions, keyed by lowercased account.
     public static readonly ConcurrentDictionary<string, MsnSession> NsSessions = new();

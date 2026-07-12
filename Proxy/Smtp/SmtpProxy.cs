@@ -7,7 +7,7 @@ using static VintageHive.Proxy.Smtp.SmtpEnums.SmtpResponseCodes;
 
 namespace VintageHive.Proxy.Smtp;
 
-internal partial class SmtpProxy : Listener
+public partial class SmtpProxy : Listener
 {
     private const string Username = "username";
     private const string Password = "password";
@@ -38,7 +38,7 @@ internal partial class SmtpProxy : Listener
     {
     }
 
-    internal void StartPostmaster()
+    public void StartPostmaster()
     {
         if (postmasterThread != null)
         {
@@ -47,7 +47,7 @@ internal partial class SmtpProxy : Listener
 
         postmasterThread = new Thread(new ThreadStart(PostmasterRun))
         {
-            Name = "VintageHive Postmaster General",
+            Name = $"{Mind.ProductName} Postmaster General",
             IsBackground = true
         };
 
@@ -219,7 +219,7 @@ internal partial class SmtpProxy : Listener
 
             case SmtpCommands.HELP:
             {
-                return await SendResponse(SmtpResponseCodes.CommandNotImplemented, $"VintageHive SMTP server. For help, visit http://{HiveDomains.Intranet}/help/email.html");
+                return await SendResponse(SmtpResponseCodes.CommandNotImplemented, $"{Mind.ProductName} SMTP server. For help, visit http://{HiveDomains.Intranet}/help/email.html");
             }
 
             case SmtpCommands.VRFY:

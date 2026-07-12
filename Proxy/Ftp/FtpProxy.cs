@@ -27,7 +27,7 @@ public class FtpProxy : Listener
     {
         await Task.Delay(0);
 
-        return Encoding.ASCII.GetBytes("220 VintageHive FTP Proxy!\n");
+        return Encoding.ASCII.GetBytes($"220 {Mind.ProductName} FTP Proxy!\n");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)

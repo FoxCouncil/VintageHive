@@ -32,6 +32,28 @@ public static class Mind
 {
     public static readonly string ApplicationVersion = "0.4.0-alpha";
 
+    // Whitelabel product identity emitted in banners and page chrome. Config-overridable, falling back to
+    // VintageHive's own name/version so default output is unchanged and pre-DB (test) contexts stay safe.
+    public static string ProductName
+    {
+        get
+        {
+            var configured = Db?.ConfigGet<string>(ConfigNames.ProductName);
+
+            return string.IsNullOrEmpty(configured) ? "VintageHive" : configured;
+        }
+    }
+
+    public static string ProductVersion
+    {
+        get
+        {
+            var configured = Db?.ConfigGet<string>(ConfigNames.ProductVersion);
+
+            return string.IsNullOrEmpty(configured) ? ApplicationVersion : configured;
+        }
+    }
+
     static DnsProxy dnsProxy;
 
     static IlsServer ilsServer;
@@ -112,8 +134,22 @@ public static class Mind
 
     public static SynchronizationContext MainThread { get; } = SynchronizationContext.Current;
 
-    public static async Task Init()
+    // Network-free initialization: text encodings, resources/VFS, the database contexts, and the periodic
+    // maintenance sweep. Split out from Init so an external composition root can bring up the data layer
+    // without the outward warmups or the built-in service set. Idempotent.
+    public static void Bootstrap()
     {
+        if (Db != null)
+        {
+            return;
+        }
+
+        // Codepage + Mac text encodings the archive/codepage paths resolve at runtime. MacEncodingProvider
+        // is internal, so an embedding host cannot register it itself; do it here.
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        Encoding.RegisterProvider(new MacEncodingProvider());
+        Encoding.GetEncoding("ISO-8859-1");
+
         // Files
         Resources.Initialize();
         VFS.Init();
@@ -125,13 +161,19 @@ public static class Mind
         PrinterDb = new();
         IrcDb = new();
 
-        // Services
+        // Services (network-free construction; RadioBrowser.Init in WarmUp is the outward part)
         Geonames = new();
         RadioBrowserDB = new();
         RadioBrowser = new();
 
-        // These reach out to the network; an offline or degraded-internet start must NOT crash the process
-        // before any service comes up. Log-and-continue - the affected feature degrades, the rest still runs.
+        // Periodic DB maintenance - sweep expired cache/log/request/session rows and checkpoint the WAL
+        _ = Task.Run(MaintenanceLoop);
+    }
+
+    // Outward network warmups. Separate from Bootstrap so a walled or offline host can skip them; each is
+    // log-and-continue so degraded internet never crashes startup.
+    public static async Task WarmUp()
+    {
         try
         {
             await RadioBrowser.Init();
@@ -158,9 +200,48 @@ public static class Mind
         {
             Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"ProtoWeb sitelist fetch failed (offline?): {ex.Message}", "");
         }
+    }
 
-        // Periodic DB maintenance - sweep expired cache/log/request/session rows and checkpoint the WAL
-        _ = Task.Run(MaintenanceLoop);
+    // Refuses to boot when walled-garden mode is on and any outward-reaching service is enabled, giving a
+    // provable no-forward posture. Public so an embedding composition root can assert its own config too.
+    public static void AssertWalledGarden()
+    {
+        if (!Db.ConfigGet<bool>(ConfigNames.ServiceWalledGarden))
+        {
+            return;
+        }
+
+        string[] egress =
+        {
+            ConfigNames.ServiceHttp,     // HelperProcessor forwards a hardcoded external allowlist
+            ConfigNames.ServiceProtoWeb,
+            ConfigNames.ServiceInternetArchive,
+            ConfigNames.ServiceDialnine,
+            ConfigNames.ServiceSocks,
+            ConfigNames.ServiceMms,
+            ConfigNames.ServicePna,
+            ConfigNames.ServiceGopher,   // live gopherspace relay
+        };
+
+        var enabled = egress.Where(k => Db.ConfigGet<bool>(k)).ToArray();
+
+        if (enabled.Length > 0)
+        {
+            throw new InvalidOperationException($"Walled-garden mode is enabled but these outward-reaching services are on: {string.Join(", ", enabled)}. Disable them to boot.");
+        }
+    }
+
+    public static async Task Init()
+    {
+        Bootstrap();
+
+        AssertWalledGarden();
+
+        // Outward warmups are skipped in walled mode; AssertWalledGarden guarantees no egress service is on.
+        if (!Db.ConfigGet<bool>(ConfigNames.ServiceWalledGarden))
+        {
+            await WarmUp();
+        }
 
         // Proxies
         var ipAddressString = Db.ConfigGet<string>(ConfigNames.IpAddress);
@@ -303,24 +384,24 @@ public static class Mind
 
     public static void Start()
     {
-        // Core services - the web proxy and always-on protocol servers.
-        httpProxy.Start();
+        // Every service is gated on its config flag; changes apply on next restart. All default to on, so
+        // default behavior is unchanged.
+        StartService(ConfigNames.ServiceHttp, "HTTP Web Proxy", () => httpProxy.Start());
 
-        httpsProxy.Start();
+        StartService(ConfigNames.ServiceHttps, "HTTPS Proxy", () => httpsProxy.Start());
 
-        ftpProxy.Start();
+        StartService(ConfigNames.ServiceFtp, "FTP Proxy", () => ftpProxy.Start());
 
-        telnetServer.Start();
+        StartService(ConfigNames.ServiceTelnet, "Telnet", () => telnetServer.Start());
 
-        socksProxy.Start();
+        StartService(ConfigNames.ServiceSocks, "SOCKS", () => socksProxy.Start());
 
-        oscarServer.Start();
+        StartService(ConfigNames.ServiceOscar, "OSCAR (AIM/ICQ)", () => oscarServer.Start());
 
-        mmsServer.Start();
+        StartService(ConfigNames.ServiceMms, "MMS", () => mmsServer.Start());
 
-        pnaServer.Start();
+        StartService(ConfigNames.ServicePna, "PNA", () => pnaServer.Start());
 
-        // Toggleable services - gated on their config flag. Changes apply on next restart.
         StartService(ConfigNames.ServiceIrc, "IRC", () => IrcServer.Start());
 
         StartService(ConfigNames.ServicePrinter, "Printer (IPP/LPD/Raw)", () =>

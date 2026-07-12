@@ -5,7 +5,7 @@ using VintageHive.Proxy.Presence;
 namespace VintageHive.Proxy.Msn;
 
 // Projects authenticated MSN notification-server sessions into the shared PresenceRegistry.
-internal sealed class MsnPresenceProvider : IPresenceProvider
+public sealed class MsnPresenceProvider : IPresenceProvider
 {
     public string Network => "MSN";
 

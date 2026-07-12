@@ -5,7 +5,7 @@ namespace VintageHive.Proxy.Msn;
 // MSNP is CRLF-delimited command lines, except payload commands (MSG) end with a byte count and are
 // followed by exactly that many raw bytes. A shared buffered reader is required so bytes over-read while
 // scanning for a line-ending are handed to the subsequent fixed-length payload read.
-internal sealed class MsnStreamReader
+public sealed class MsnStreamReader
 {
     const int MaxLineBytes = 16 * 1024;
 
