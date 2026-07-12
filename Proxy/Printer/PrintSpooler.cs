@@ -118,9 +118,7 @@ public static class PrintSpooler
 
                     case PrintDataFormat.Pcl:
                     {
-                        // PCL: GhostScript can handle PCL if the PCL interpreter is available
-                        // For now, try treating it as PostScript (GhostScript will auto-detect)
-                        await ProcessPostScript(job, jobName);
+                        await ProcessPcl(job, jobName);
                     }
                     break;
 
@@ -209,6 +207,29 @@ public static class PrintSpooler
 
         VFS.FileDelete(tempInputPath);
         VFS.FileDelete(tempOutputPath);
+
+        if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Completed))
+        {
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrintSpooler), $"Failed to set job state to completed; {job.Id}", "");
+        }
+    }
+
+    static async Task ProcessPcl(PrinterJob job, string jobName)
+    {
+        // Stock GhostScript cannot interpret PCL (that needs GhostPCL/pcl6, which we do not ship), so rather
+        // than feed it to the PostScript path and abort the job, preserve the raw PCL for the user to retrieve.
+        Log.WriteLine(Log.LEVEL_INFO, nameof(PrintSpooler), $"Job {job.Id} is PCL; no PCL interpreter available, saving raw data");
+
+        if (!Mind.PrinterDb.SetJobPrintData(job.Id, job.DocData, "application/vnd.hp-pcl"))
+        {
+            Log.WriteLine(Log.LEVEL_ERROR, nameof(PrintSpooler), $"Failed to set job print data; {job.Id}", "");
+            return;
+        }
+
+        using var rawOutputFile = VFS.FileWrite($"{_depotPath}{job.Id}_{SanitizeFileName(jobName)}.pcl");
+
+        await rawOutputFile.WriteAsync(job.DocData);
+        await rawOutputFile.FlushAsync();
 
         if (!Mind.PrinterDb.SetJobState(job.Id, PrinterJobState.Completed))
         {
