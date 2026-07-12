@@ -20,7 +20,9 @@ internal class CookBitWriter
 
     public void Write(uint value, int numBits)
     {
-        if (numBits <= 0 || _bitPos + numBits > _totalBits)
+        // Widen the sum: _bitPos + numBits overflows a signed int for a huge numBits and wraps
+        // negative, bypassing this guard and driving the write loop out of the buffer.
+        if (numBits <= 0 || (long)_bitPos + numBits > _totalBits)
         {
             return;
         }
