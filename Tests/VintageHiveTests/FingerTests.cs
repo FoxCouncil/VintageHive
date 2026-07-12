@@ -453,6 +453,24 @@ public class FingerUserListTests
             Assert.IsTrue(output.Contains("RealUser"), output);
         });
     }
+
+    [TestMethod]
+    public void BuildUserList_SkipsInvisibleSessions()
+    {
+        WithSessions(add =>
+        {
+            add(new OscarSession { ScreenName = "Lurker", Status = OscarSessionOnlineStatus.Invisible });
+            add(new OscarSession { ScreenName = "RealUser", Status = OscarSessionOnlineStatus.Online });
+
+            var output = FingerServer.BuildUserList();
+
+            Assert.IsFalse(output.Contains("Lurker"), output);
+            Assert.IsTrue(output.Contains("RealUser"), output);
+
+            // The single-user query must treat them as offline too (profile fallback, no live status).
+            Assert.IsNull(PresenceRegistry.Find("Lurker"), "Invisible users must not be exposed via the presence registry");
+        });
+    }
 }
 
 #pragma warning restore MSTEST0025

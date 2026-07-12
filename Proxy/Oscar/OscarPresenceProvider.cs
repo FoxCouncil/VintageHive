@@ -14,8 +14,10 @@ public sealed class OscarPresenceProvider : IPresenceProvider
     {
         foreach (var session in OscarServer.Sessions.Values.ToArray())
         {
-            // Pre-auth sessions have no screen name; skip them so the registry never shows ghosts.
-            if (string.IsNullOrEmpty(session.ScreenName))
+            // Pre-auth sessions have no screen name; skip them so the registry never shows ghosts. An
+            // invisible user chose to be hidden, so the public Finger surface must not list them (same
+            // policy as the Yahoo/MSN providers), even though OSCAR buddies still receive their status.
+            if (string.IsNullOrEmpty(session.ScreenName) || session.Status == OscarSessionOnlineStatus.Invisible)
             {
                 continue;
             }
@@ -28,7 +30,14 @@ public sealed class OscarPresenceProvider : IPresenceProvider
     {
         var session = OscarServer.Sessions.GetByScreenName(username);
 
-        return session == null ? null : Project(session);
+        // Mirror Online(): invisible users must look offline to cross-protocol consumers, which Finger
+        // renders as "Not currently logged in" with the stored profile fallback.
+        if (session == null || session.Status == OscarSessionOnlineStatus.Invisible)
+        {
+            return null;
+        }
+
+        return Project(session);
     }
 
     static PresenceEntry Project(OscarSession session)
