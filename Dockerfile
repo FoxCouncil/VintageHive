@@ -1,12 +1,9 @@
 #See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
-# libgs-dev: PostScript/PCL print-to-PDF. ffmpeg: radio stream transcoding (MP3/WMA/RealAudio).
+# libgs-dev: PostScript print-to-PDF (PCL is preserved raw). ffmpeg: radio stream transcoding (MP3/WMA/RealAudio).
 RUN apt-get update && apt-get install -y --no-install-recommends libgs-dev ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-# FTP PASSIVE MODE
-EXPOSE 1900-1910
 
 # FTP
 EXPOSE 1971

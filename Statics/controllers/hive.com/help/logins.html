@@ -30,7 +30,7 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p>VintageHive user accounts are created through the <b>Admin Panel</b>.</p>
+                <p>{{ productname }} user accounts are created through the <b>Admin Panel</b>.</p>
 
                 <ol>
                     <li>Open <font color="cyan">http://admin.hive.com</font> in your browser</li>
@@ -46,7 +46,7 @@
                     <li>Usernames are <b>case-insensitive</b> (Fox and fox are the same account)</li>
                 </ul>
 
-                <p>Your username is used across all VintageHive services that require
+                <p>Your username is used across all {{ productname }} services that require
                 authentication. Your e-mail address will be
                 <font color="cyan">username@hive.com</font>.</p>
             </td>
@@ -97,6 +97,16 @@
                         <td>AIM / ICQ (OSCAR)</td>
                         <td><b>Yes</b></td>
                         <td>Account must exist before logging in with AIM or ICQ client</td>
+                    </tr>
+                    <tr>
+                        <td>Yahoo! Messenger</td>
+                        <td><b>Yes</b></td>
+                        <td>Account must exist before logging in with a Yahoo! Messenger client</td>
+                    </tr>
+                    <tr>
+                        <td>MSN Messenger</td>
+                        <td><b>Yes</b></td>
+                        <td>Account and matching password required (MD5 challenge auth)</td>
                     </tr>
                     <tr>
                         <td>Telnet BBS</td>

@@ -38,9 +38,9 @@
 
     <hr>
 
-    <p><i>VintageHive's FTP server does not require authentication.
+    <p><i>{{ productname }}'s FTP server does not require authentication.
     Connect using any FTP client with the settings above.
-    Passive mode is supported on ports 1900&ndash;1910.</i></p>
+    Passive mode is supported; the data connection uses an OS-assigned port.</i></p>
 
     <hr>
 
@@ -63,7 +63,7 @@
                             </tr>
                             <tr>
                                 <td>Profile Name</td>
-                                <td><font color="cyan">VintageHive</font></td>
+                                <td><font color="cyan">{{ productname }}</font></td>
                             </tr>
                             <tr>
                                 <td>Host Name/Address</td>
@@ -109,7 +109,7 @@
                             </tr>
                             <tr>
                                 <td>Label</td>
-                                <td><font color="cyan">VintageHive</font></td>
+                                <td><font color="cyan">{{ productname }}</font></td>
                             </tr>
                             <tr>
                                 <td>FTP Host Address</td>
@@ -134,7 +134,7 @@
 
                 <p><b>Enabling Passive Mode:</b></p>
                 <ol>
-                    <li>In Site Manager, select the VintageHive entry</li>
+                    <li>In Site Manager, select the {{ productname }} entry</li>
                     <li>Click <b>Edit</b></li>
                     <li>Check <b>Use PASV mode</b> (or under the Advanced tab)</li>
                     <li>Click <b>OK</b></li>
@@ -229,14 +229,14 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p>VintageHive can proxy archived FTP sites from the
+                <p>{{ productname }} can proxy archived FTP sites from the
                 <a href="http://www.protoweb.org">ProtoWeb</a> project.
-                When you connect to an FTP host through VintageHive's proxy,
+                When you connect to an FTP host through {{ productname }}'s proxy,
                 it checks if that site is available in the ProtoWeb FTP archive
                 and serves the archived content.</p>
 
                 <p>To browse ProtoWeb FTP archives, configure your browser's
-                FTP proxy to point at VintageHive (see <a href="client">Client Settings</a>),
+                FTP proxy to point at {{ productname }} (see <a href="client">Client Settings</a>),
                 then visit FTP URLs directly in your browser, e.g.:</p>
 
                 <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
@@ -250,7 +250,7 @@
                 </table>
 
                 <p>You can also browse the full list of available ProtoWeb sites
-                from the <a href="http://hive.com">VintageHive intranet portal</a>
+                from the <a href="http://hive.com">{{ productname }} intranet portal</a>
                 under the <b>ProtoWeb Browser</b> section.</p>
 
                 <p><i>Note: The list of available FTP sites is fetched from ProtoWeb

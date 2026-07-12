@@ -196,7 +196,7 @@ internal static class HiveHelpGenerator
             "  Server:  VintageHive's IP address\r\n" +
             "  Port:    FTP port (see admin panel)\r\n" +
             "  Login:   Anonymous (no credentials required)\r\n" +
-            "  Passive mode ports: 1900-1910\r\n" +
+            "  Passive mode: PASV (data connection on an OS-assigned port)\r\n" +
             "\r\n" +
             "WS_FTP / CuteFTP:\r\n" +
             "  1. Create a new connection profile\r\n" +
@@ -469,7 +469,7 @@ internal static class HiveHelpGenerator
             "certificate eliminates browser security warnings.\r\n" +
             "\r\n" +
             "DOWNLOAD THE CERTIFICATE:\r\n" +
-            "  http://admin.hive.com/ca.crt\r\n" +
+            "  http://hive.com/api/download/dialnineca.crt\r\n" +
             "\r\n" +
             "INTERNET EXPLORER:\r\n" +
             "  1. Download ca.crt and double-click it\r\n" +
@@ -477,7 +477,7 @@ internal static class HiveHelpGenerator
             "  3. Place in 'Trusted Root Certification Authorities'\r\n" +
             "\r\n" +
             "NETSCAPE NAVIGATOR 4.x:\r\n" +
-            "  1. Navigate to http://admin.hive.com/ca.crt\r\n" +
+            "  1. Navigate to http://hive.com/api/download/dialnineca.crt\r\n" +
             "  2. Netscape will prompt to accept the certificate\r\n" +
             "  3. Check all trust options and click OK\r\n" +
             "\r\n" +

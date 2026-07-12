@@ -59,21 +59,21 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p>VintageHive includes a DNS server that intercepts all domain name
-                lookups and resolves them to the VintageHive server's IP address.
-                This allows vintage computers to connect to VintageHive services
+                <p>{{ productname }} includes a DNS server that intercepts all domain name
+                lookups and resolves them to the {{ productname }} server's IP address.
+                This allows vintage computers to connect to {{ productname }} services
                 by hostname without needing a real DNS server or hosts file entries.</p>
 
                 <p><b>How it works:</b> Every A record query (hostname &rarr; IP address)
-                returns VintageHive's IP. The vintage computer then connects to
-                VintageHive, which proxies the request to the appropriate service
+                returns {{ productname }}'s IP. The vintage computer then connects to
+                {{ productname }}, which proxies the request to the appropriate service
                 (web proxy, FTP, IRC, etc.).</p>
 
-                <p><b>Non-standard port:</b> VintageHive's DNS server listens on
+                <p><b>Non-standard port:</b> {{ productname }}'s DNS server listens on
                 port <font color="cyan">{{ port_dns }}</font> by default instead of
                 the standard port 53. Some operating systems allow you to specify
                 a custom DNS port, while others require port 53. If your OS requires
-                port 53, you can change VintageHive's DNS port in the admin panel,
+                port 53, you can change {{ productname }}'s DNS port in the admin panel,
                 or set up port forwarding.</p>
 
                 <p><i>Note: AAAA (IPv6), MX, CNAME, and all other query types
@@ -106,9 +106,9 @@
                     <li>Click <b>OK</b>, then <b>OK</b> again. Restart if prompted.</li>
                 </ol>
 
-                <p><i>Windows 9x uses standard port 53 for DNS. If VintageHive's
+                <p><i>Windows 9x uses standard port 53 for DNS. If {{ productname }}'s
                 DNS port is not 53, you will need to configure port forwarding on
-                your network, or change the DNS port to 53 in VintageHive's admin panel.</i></p>
+                your network, or change the DNS port to 53 in {{ productname }}'s admin panel.</i></p>
             </td>
         </tr>
     </table>
@@ -209,14 +209,14 @@
                     </td></tr>
                 </table>
 
-                <p>Replace any existing <b>nameserver</b> lines with VintageHive's
+                <p>Replace any existing <b>nameserver</b> lines with {{ productname }}'s
                 IP address. On some Linux distributions, NetworkManager or
                 systemd-resolved may overwrite this file. Check your distribution's
                 documentation for making DNS changes permanent.</p>
 
-                <p><i>Standard resolv.conf uses port 53 only. If VintageHive's
+                <p><i>Standard resolv.conf uses port 53 only. If {{ productname }}'s
                 DNS port is non-standard, use port forwarding (e.g., iptables)
-                or configure the DNS port to 53 in VintageHive.</i></p>
+                or configure the DNS port to 53 in {{ productname }}.</i></p>
             </td>
         </tr>
     </table>
@@ -259,9 +259,9 @@
                     </td></tr>
                 </table>
 
-                <p>If both commands return VintageHive's IP address, DNS is
+                <p>If both commands return {{ productname }}'s IP address, DNS is
                 working correctly. All domain names should resolve to the same
-                IP &mdash; this is by design, as VintageHive intercepts all
+                IP &mdash; this is by design, as {{ productname }} intercepts all
                 traffic and routes it through its proxy services.</p>
             </td>
         </tr>

@@ -61,7 +61,7 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p>DOS applications print to LPT ports. Redirect LPT1 to VintageHive's Raw TCP port:</p>
+                <p>DOS applications print to LPT ports. Redirect LPT1 to {{ productname }}'s Raw TCP port:</p>
 
                 <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
                     <tr><td>
@@ -105,7 +105,7 @@
                     <li>Click <b>Add</b> and select a PostScript or ESC/P compatible driver
                         (e.g. <b>Apple LaserWriter</b> for PostScript, <b>Epson FX-80</b> for dot matrix)</li>
                     <li>Set the port to <b>LPT1:</b></li>
-                    <li>From a DOS prompt, redirect LPT1 to VintageHive:</li>
+                    <li>From a DOS prompt, redirect LPT1 to {{ productname }}:</li>
                 </ol>
 
                 <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
@@ -133,7 +133,7 @@
                     <li>Open <b>Start &gt; Settings &gt; Printers</b></li>
                     <li>Run <b>Add Printer</b> wizard, choose <b>Network printer</b></li>
                     <li>For the network path, enter: <font color="cyan">\\{{ serverip }}\PRINTER</font></li>
-                    <li>Select a printer driver &mdash; <b>HP LaserJet 4</b> (PCL) or
+                    <li>Select a printer driver &mdash; <b>HP LaserJet 4</b> (PCL, saved as a raw file) or
                         <b>Apple LaserWriter</b> (PostScript) work well</li>
                 </ol>
 
@@ -252,7 +252,7 @@
                 <table bgcolor="#000000" border="1" cellpadding="8" width="100%">
                     <tr><td>
                         <font face="Courier New" color="lime">
-                        $ lpadmin -p VintageHive -E \<br>
+                        $ lpadmin -p {{ productname }} -E \<br>
                         &nbsp;&nbsp;-v ipp://{{ serverip }}:{{ port_ipp }}/ipp/print \<br>
                         &nbsp;&nbsp;-m everywhere<br>
                         </font>
@@ -319,8 +319,8 @@
                     </tr>
                 </table>
 
-                <p>VintageHive automatically detects the print data format (PostScript, ESC/P,
-                IBM ProPrinter, PCL, or plain text) and converts it to PDF.</p>
+                <p>{{ productname }} automatically detects the print data format (PostScript, ESC/P,
+                IBM ProPrinter, or plain text) and converts it to PDF; PCL jobs are saved as raw files.</p>
             </td>
         </tr>
     </table>

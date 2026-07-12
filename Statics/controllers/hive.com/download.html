@@ -9,10 +9,10 @@
     <table width="100%">
         <tr>
             <td width="120"><img src="/img/header.gif"></td>
-            <td width="240"><font size="5">Download Palace</font><br>A VintageHive Service</td>
+            <td width="240"><font size="5">Download Palace</font><br>A {{ productname }} Service</td>
             <td>
                 {% if repos == empty %}
-                <h1><font color="red">There is no repos defined! Make a DOWNLOAD folder in VintageHive's root directory.</font></h1>
+                <h1><font color="red">There is no repos defined! Make a DOWNLOAD folder in {{ productname }}'s root directory.</font></h1>
                 {% else %}
 
                 {% for repo in repos %}

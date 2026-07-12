@@ -123,11 +123,11 @@ A text-mode BBS accessible from any Telnet client:
 - Serves ProtoWeb FTP archives
 - Local file hosting via the virtual filesystem
 - Full FTP command support (LIST, RETR, STOR, CWD, MKD, DELE, PASV, etc.)
-- Passive mode on ports 1900-1910
+- Passive mode (PASV; the data connection uses an OS-assigned port)
 
 ### DNS Proxy - port 1953
 
-A local DNS proxy that resolves `*.hive.com` domains to the VintageHive host, forwarding all other queries upstream. Allows vintage machines to use VintageHive as their DNS server so intranet domains resolve without hosts file editing.
+A local DNS proxy that answers every lookup with the VintageHive host address (there is no upstream forwarding). Allows vintage machines to use VintageHive as their DNS server so intranet domains resolve without hosts file editing.
 
 ### Usenet / NNTP Server - port 1986
 
@@ -201,7 +201,7 @@ These services are functional but considered experimental:
    execstack -c libcrypto.so libssl.so
    cd ..
 
-   # Optional: GhostScript for PostScript/PCL print-to-PDF (printing works without it, but PS jobs are saved as raw files)
+   # Optional: GhostScript for PostScript print-to-PDF (printing works without it; PS jobs are then saved raw, and PCL jobs are always preserved raw)
    sudo apt install libgs-dev
    ```
 3. Extract the archive:
@@ -256,7 +256,6 @@ On first run, VintageHive will:
 Visit `http://admin.hive.com:1990` to:
 - Monitor proxy activity
 - Configure services
-- Manage certificates
 - View system status
 
 # Service Ports
@@ -266,7 +265,6 @@ Visit `http://admin.hive.com:1990` to:
 | HTTP Proxy | 1990 | TCP | Stable |
 | HTTPS Proxy | 9999 | TCP (SSL) | Experimental |
 | FTP Server | 1971 | TCP | Stable |
-| FTP Passive Range | 1900-1910 | TCP | Stable |
 | Telnet Server | 1969 | TCP | Stable |
 | OSCAR (AIM/ICQ) | 5190 | TCP | Stable |
 | Yahoo! Messenger | 5050 | TCP | Experimental |
@@ -365,7 +363,7 @@ Visit `http://admin.hive.com:1990` to:
   - Opera 3+: SSL support varies by version
 
 - **Certificate Installation**:
-  1. Visit `http://admin.hive.com:1990/ca.crt` in your browser
+  1. Visit `http://hive.com/api/download/dialnineca.crt` in your browser
   2. For Netscape: Select `Accept this Certificate Authority for Certifying network sites`
   3. For IE: Click `Install Certificate` and follow the wizard
   4. For Opera: Save the file and import via `File > Preferences > Security > Certificates`
@@ -393,7 +391,6 @@ docker run -d \
   -p 79:79 \
   -p 70:70 \
   -p 1996:1996 \
-  -p 1900-1910:1900-1910 \
   -p 1953:1953/udp \
   -p 1755:1755 \
   -p 7070:7070 \
@@ -502,7 +499,7 @@ Key configuration options:
 **A:** Check your host's firewall settings. Make sure both the guest and host are on the same network and subnet. On Windows, allow VintageHive through Windows Defender Firewall.
 
 ### Q: HTTPS sites don't work or show certificate errors
-**A:** HTTPS support is experimental. Visit `http://admin.hive.com:1990/ca.crt` to download and install VintageHive's CA certificate in your browser. Note that some very old browsers have limited or no SSL support.
+**A:** HTTPS support is experimental. Visit `http://hive.com/api/download/dialnineca.crt` to download and install VintageHive's CA certificate in your browser. Note that some very old browsers have limited or no SSL support.
 
 ### Q: How do I change the Internet Archive year?
 **A:** Log in to the admin panel at `http://admin.hive.com:1990` and change the Internet Archive year setting. Valid years are 1997-2021.

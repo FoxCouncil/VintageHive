@@ -32,20 +32,20 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p>VintageHive uses the <b>Internet Archive Wayback Machine</b> to serve
+                <p>{{ productname }} uses the <b>Internet Archive Wayback Machine</b> to serve
                 archived versions of websites. When you visit a URL through the proxy,
-                VintageHive looks up that page in the Wayback Machine and returns the
+                {{ productname }} looks up that page in the Wayback Machine and returns the
                 archived version.</p>
 
                 <p><b>How it works:</b></p>
                 <ol>
                     <li>Configure your browser's proxy settings (see <a href="client">Client Settings</a>)</li>
                     <li>Browse to any website URL as you normally would</li>
-                    <li>VintageHive checks ProtoWeb first, then falls back to the Internet Archive</li>
+                    <li>{{ productname }} checks ProtoWeb first, then falls back to the Internet Archive</li>
                     <li>The archived page is cleaned up and served to your vintage browser</li>
                 </ol>
 
-                <p><b>Target Year:</b> By default, VintageHive fetches pages from <b>1999</b>.
+                <p><b>Target Year:</b> By default, {{ productname }} fetches pages from <b>1999</b>.
                 The target year can be changed (1997&ndash;2021) through the Admin Panel at
                 <font color="cyan">http://admin.hive.com</font>.</p>
 
@@ -69,13 +69,13 @@
         <tr>
             <td bgcolor="#111111">
                 <p><a href="http://www.protoweb.org">ProtoWeb</a> is a community project
-                that maintains high-quality archives of classic websites. VintageHive checks
+                that maintains high-quality archives of classic websites. {{ productname }} checks
                 ProtoWeb <b>before</b> the Internet Archive, so ProtoWeb sites load with
                 better fidelity and accuracy.</p>
 
                 <p><b>How it works:</b></p>
                 <ul>
-                    <li>VintageHive maintains a list of all sites available on ProtoWeb</li>
+                    <li>{{ productname }} maintains a list of all sites available on ProtoWeb</li>
                     <li>When you visit a URL, it checks if that domain exists on ProtoWeb</li>
                     <li>If found, the page is served from ProtoWeb's archive</li>
                     <li>If not found, it falls through to the Internet Archive</li>
@@ -83,7 +83,7 @@
 
                 <p><b>Browsing ProtoWeb sites:</b></p>
                 <p>You can browse the full catalog of available ProtoWeb sites from the
-                VintageHive intranet portal at <font color="cyan">http://hive.com</font>
+                {{ productname }} intranet portal at <font color="cyan">http://hive.com</font>
                 under the <b>ProtoWeb Browser</b> section. This includes both HTTP websites
                 and FTP archives.</p>
 
@@ -113,14 +113,14 @@
         </tr>
         <tr>
             <td bgcolor="#111111">
-                <p>DialNine is VintageHive's HTTPS/SSL proxy. It allows vintage browsers
+                <p>DialNine is {{ productname }}'s HTTPS/SSL proxy. It allows vintage browsers
                 to access HTTPS websites that would otherwise be unreachable due to
                 modern TLS requirements.</p>
 
                 <p><b>How it works:</b></p>
                 <ul>
-                    <li>Your browser sends the HTTPS request to VintageHive's HTTPS proxy port</li>
-                    <li>VintageHive connects to the target site using modern TLS on your behalf</li>
+                    <li>Your browser sends the HTTPS request to {{ productname }}'s HTTPS proxy port</li>
+                    <li>{{ productname }} connects to the target site using modern TLS on your behalf</li>
                     <li>The content is relayed back to your browser over a legacy SSL connection
                         that older browsers can understand</li>
                 </ul>
@@ -129,13 +129,13 @@
                 <ol>
                     <li>In your browser's proxy settings, set the <b>Secure / HTTPS proxy</b>
                         to: <font color="cyan">{{ serverip }}:{{ port_https }}</font></li>
-                    <li>Install VintageHive's CA certificate (see <a href="client#tips">Client Settings &gt; Compatibility Tips</a>)</li>
+                    <li>Install {{ productname }}'s CA certificate (see <a href="client#tips">Client Settings &gt; Compatibility Tips</a>)</li>
                     <li>Browse HTTPS sites normally &mdash; the proxy handles the rest</li>
                 </ol>
 
                 <p><b>Certificate Installation:</b></p>
                 <ol>
-                    <li>Visit <font color="cyan">http://admin.hive.com/ca.crt</font> in your browser</li>
+                    <li>Visit <font color="cyan">http://hive.com/api/download/dialnineca.crt</font> in your browser</li>
                     <li>Install the certificate when prompted (see <a href="client#tips">Client Settings</a> for per-browser instructions)</li>
                 </ol>
 
@@ -190,7 +190,7 @@
                     <li><b>Search the web:</b> Use the search bar on
                         <font color="cyan">http://hive.com</font> &mdash; it uses DuckDuckGo
                         and returns results optimized for vintage browsers</li>
-                    <li><b>Article reader:</b> VintageHive includes a built-in article reader
+                    <li><b>Article reader:</b> {{ productname }} includes a built-in article reader
                         that strips modern web clutter and renders clean HTML</li>
                     <li><b>Change the year:</b> If a site looks wrong, try changing the
                         Internet Archive target year through the Admin Panel</li>
