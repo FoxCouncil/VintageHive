@@ -63,6 +63,13 @@ internal class OscarIcqService : IOscarService
             {
                 var icqMetaReq = new IcqUserMetaRequest(snac);
 
+                if (!icqMetaReq.IsValid)
+                {
+                    Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcqService), "Discarding malformed ICQ meta request", session.Client.TraceId.ToString());
+
+                    break;
+                }
+
                 switch (icqMetaReq.RequestType)
                 {
                     case CLI_META_INFO_REQ:
