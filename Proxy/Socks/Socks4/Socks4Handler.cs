@@ -51,8 +51,14 @@ internal static class Socks4Handler
         var ipBytes = header[3..7];
         var destAddress = new IPAddress(ipBytes);
 
-        // Read userid (null-terminated)
-        await ReadNullTerminatedAsync(stream, ct);
+        // Read userid (null-terminated). A half-close mid-userid means the request was never completed,
+        // so drop it rather than falling through to an outbound dial for a truncated request.
+        var useridBytes = await ReadNullTerminatedAsync(stream, ct);
+
+        if (useridBytes == null)
+        {
+            return;
+        }
 
         // SOCKS4a: if IP is 0.0.0.x (x != 0), a domain name follows
         string destHost = null;
@@ -147,6 +153,10 @@ internal static class Socks4Handler
 
     private static async Task<byte[]> ReadNullTerminatedAsync(Stream stream, CancellationToken ct)
     {
+        // A real SOCKS4 userid / SOCKS4a hostname is tiny; cap the field so a client that never sends the
+        // 0x00 terminator cannot grow this list without bound (memory-exhaustion DoS).
+        const int MaxFieldBytes = 4096;
+
         var result = new List<byte>();
         var buf = new byte[1];
 
@@ -162,6 +172,12 @@ internal static class Socks4Handler
             if (buf[0] == 0x00)
             {
                 return result.ToArray();
+            }
+
+            if (result.Count >= MaxFieldBytes)
+            {
+                // Runaway field with no terminator; treat as a protocol error.
+                return null;
             }
 
             result.Add(buf[0]);

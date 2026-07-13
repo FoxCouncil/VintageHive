@@ -308,8 +308,18 @@ public partial class SmtpProxy : Listener
                 }
                 else if (bag.ContainsKey(RequestingUsername) && !bag.ContainsKey(RequestingPassword))
                 {
+                    // RFC 4954: a bare '*' cancels AUTH, and any non-base64 line is a protocol error.
+                    // Either way, abort cleanly instead of letting Convert.FromBase64String throw and
+                    // tear the session down.
+                    if (Message == "*" || !TryDecodeBase64(Message, out var decodedUsername))
+                    {
+                        bag.Remove(RequestingUsername);
+
+                        return await SendResponse(SyntaxError, "Authentication aborted");
+                    }
+
                     // got username
-                    bag[Username] = Convert.FromBase64String(Message).ToASCII();
+                    bag[Username] = decodedUsername;
 
                     bag.Remove(RequestingUsername);
                     bag.Add(RequestingPassword, true);
@@ -319,8 +329,15 @@ public partial class SmtpProxy : Listener
                 }
                 else if (!bag.ContainsKey(RequestingUsername) && bag.ContainsKey(RequestingPassword))
                 {
+                    if (Message == "*" || !TryDecodeBase64(Message, out var decodedPassword))
+                    {
+                        bag.Remove(RequestingPassword);
+
+                        return await SendResponse(SyntaxError, "Authentication aborted");
+                    }
+
                     // Got password
-                    bag[Password] = Convert.FromBase64String(Message).ToASCII();
+                    bag[Password] = decodedPassword;
 
                     bag.Remove(RequestingPassword);
 
@@ -339,6 +356,13 @@ public partial class SmtpProxy : Listener
                     {
                         return await SendResponse(AuthenticationFailed, "Invalid Username and/or Password.");
                     }
+                }
+
+                // An unrecognized but non-empty command must get a 500 (RFC 5321 4.2.1), else a conformant
+                // client hangs waiting for a reply that never comes. Empty/whitespace lines stay ignored.
+                if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    return await SendResponse(SyntaxError, "Syntax error, command unrecognized");
                 }
 
                 return null;
@@ -412,6 +436,23 @@ public partial class SmtpProxy : Listener
         }
 
         return data.Replace("\r\n..", "\r\n.");
+    }
+
+    // Decode a base64 AUTH LOGIN line without throwing on malformed input (a hostile or aborting client).
+    private static bool TryDecodeBase64(string value, out string decoded)
+    {
+        try
+        {
+            decoded = Convert.FromBase64String(value).ToASCII();
+
+            return true;
+        }
+        catch (FormatException)
+        {
+            decoded = null;
+
+            return false;
+        }
     }
 
     private void PostmasterRun()
