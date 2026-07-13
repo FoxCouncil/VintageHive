@@ -1,0 +1,67 @@
+# VintageHive - bridge-network deployment (works on Linux and Docker Desktop).
+#
+# FTP passive mode: after the first boot, open the admin panel (admin.hive.com) and set, under
+# "FTP Passive Mode (NAT / Docker)":
+#     Passive Address = this host's LAN IP (e.g. 192.168.1.50)
+#     Port Min / Max  = 21000 / 21010   (must match the published range below)
+# Those values persist in the vfs volume, so you only set them once.
+#
+# On a pure-Linux host you can instead delete the ports/sysctls blocks and use `network_mode: host`,
+# which also fixes passive FTP - but that does NOT work on Docker Desktop (Mac/Windows), which is the
+# whole reason the passive-address/range settings exist.
+
+services:
+  vintagehive:
+    build: .
+    container_name: vintagehive
+    restart: unless-stopped
+
+    # The image runs as a non-root user. This namespaced sysctl lets it bind the low service ports
+    # (Finger 79, Gopher 70, LPD 515, IPP 631) without root. Remove it and those four just self-disable.
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0
+
+    volumes:
+      # All persistent state (SQLite config + DBs, mail, print jobs, hosted sites, downloads) lives here.
+      # Named volume, so it inherits the image's pre-chowned ownership. To add downloadable files, copy
+      # them in with:  docker cp ./MyClient.exe vintagehive:/app/vfs/downloads/
+      - vintagehive-data:/app/vfs
+
+    ports:
+      # --- Web / proxy ---
+      - "1990:1990"                 # HTTP proxy
+      - "9999:9999"                 # HTTPS proxy
+      - "1996:1996"                 # SOCKS5
+      # --- File / terminal ---
+      - "1971:1971"                 # FTP control
+      - "21000-21010:21000-21010"   # FTP passive data range (set the same range in the admin panel)
+      - "1969:1969"                 # Telnet BBS
+      # --- Mail / news ---
+      - "1980:1980"                 # SMTP
+      - "1984:1984"                 # POP3
+      - "1985:1985"                 # IMAP
+      - "1986:1986"                 # NNTP (Usenet)
+      # --- Chat / messengers ---
+      - "1988:1988"                 # IRC
+      - "5190:5190"                 # OSCAR (AIM/ICQ)
+      - "1863:1863"                 # MSN Messenger
+      - "5050:5050"                 # Yahoo! Messenger
+      # --- Directory / naming ---
+      - "1953:1953/udp"             # DNS
+      - "79:79"                     # Finger
+      - "70:70"                     # Gopher
+      # --- Printing ---
+      - "631:631"                   # IPP
+      - "515:515"                   # LPD
+      - "9100:9100"                 # Raw print (JetDirect)
+      # --- NetMeeting / conferencing ---
+      - "1002:1002"                 # ILS directory
+      - "1719:1719/udp"             # H.225 RAS gatekeeper
+      - "1720:1720"                 # H.225 call signaling
+      - "1503:1503"                 # T.120 data conferencing
+      # --- Streaming ---
+      - "1755:1755"                 # MMS (Windows Media)
+      - "7070:7070"                 # PNA (RealPlayer)
+
+volumes:
+  vintagehive-data:
