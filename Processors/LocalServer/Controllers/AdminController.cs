@@ -310,6 +310,25 @@ internal partial class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
+    [Route("/api/selfregset")]
+    public async Task SelfRegistrationSet()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("enabled"))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        var enabled = string.Equals(Request.FormData["enabled"]?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+
+        Mind.Db.ConfigSet(ConfigNames.AllowSelfRegistration, enabled);
+
+        Response.SetJsonSuccess();
+    }
+
     [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
@@ -389,6 +408,7 @@ internal partial class AdminController : Controller
             ftpPassiveAddress = Mind.Db.ConfigGet<string>(ConfigNames.FtpPassiveAddress),
             ftpPassivePortMin = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMin),
             ftpPassivePortMax = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMax),
+            allowSelfRegistration = Mind.Db.ConfigGet<bool>(ConfigNames.AllowSelfRegistration),
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),
