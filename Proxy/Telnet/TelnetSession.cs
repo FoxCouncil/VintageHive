@@ -152,7 +152,7 @@ public class TelnetSession
     /// <remarks>This is special because it can pass arguments to added windows.</remarks>
     public void ForceAddWindow(string windowName, object args = null)
     {
-        if (_windowManager.TryAddWindow(windowName))
+        if (_windowManager.TryAddWindow(windowName, allowHidden: true))
         {
             _windowManager.GetTopWindow().OnAdd(this, args);
             return;

@@ -33,6 +33,13 @@ public class Flap
 
     public byte[] Encode()
     {
+        // The FLAP length is a 16-bit field; an oversized payload would truncate it (65536 -> 0) and
+        // desync the reader, so reject it loudly instead of shipping a frame that lies about its length.
+        if (Data.Length > ushort.MaxValue)
+        {
+            throw new ApplicationException($"FLAP payload {Data.Length} exceeds the 65535-byte length field");
+        }
+
         var bytes = new MemoryStream();
 
         bytes.Append((byte)'*');

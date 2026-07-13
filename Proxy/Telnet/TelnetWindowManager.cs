@@ -75,7 +75,7 @@ public class TelnetWindowManager
         }
     }
 
-    public bool TryAddWindow(string commandName)
+    public bool TryAddWindow(string commandName, bool allowHidden = false)
     {
         // Check if a window by that name exists and is not already loaded.
         if (_windowDict.ContainsKey(commandName))
@@ -98,6 +98,14 @@ public class TelnetWindowManager
                     var createdWindow = Activator.CreateInstance(type) as ITelnetWindow;
                     if (createdWindow.Title == commandName)
                     {
+                        // A hidden internal sub-window must not be routable by a user-typed command name;
+                        // it is only added programmatically (with its required args) via ForceAddWindow.
+                        // Otherwise typing e.g. "image_gallery" runs OnAdd with null args and crashes.
+                        if (createdWindow.HiddenCommand && !allowHidden)
+                        {
+                            return false;
+                        }
+
                         // Creates the window and adds it to list of active windows.
                         _activeWindows.Push(createdWindow);
                         return true;
