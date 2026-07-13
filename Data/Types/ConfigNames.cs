@@ -16,6 +16,15 @@ public static class ConfigNames
 
     public const string PortFtp = "portftp";
 
+    // FTP passive-mode data channel. Set the address to the host's LAN IP and the port range to a small
+    // published range so passive FTP works from behind NAT or inside a Docker bridge network. An empty
+    // address and a 0/0 range keep the original behavior (advertise the bound IP, OS-assigned data port).
+    public const string FtpPassiveAddress = "ftppassiveaddress";
+
+    public const string FtpPassivePortMin = "ftppassiveportmin";
+
+    public const string FtpPassivePortMax = "ftppassiveportmax";
+
     public const string PortTelnet = "porttelnet";
 
     public const string PortSocks5 = "portsocks5";

@@ -146,8 +146,15 @@ public static class LocalServerProcessor
 
             var isActive = true;
             var transferType = FtpTransferType.ASCII;
-            var dataListener = new TcpListener(IPAddress.Parse(req.ListenerSocket.LocalIP), 0);
 
+            // Passive data channel configuration. When a passive address / port range is set, advertise
+            // that address and bind data connections inside that range so passive FTP survives NAT and
+            // Docker bridge networking; otherwise fall back to the bound IP and an OS-assigned port.
+            var pasvAddress = Mind.Db.ConfigGet<string>(ConfigNames.FtpPassiveAddress);
+            var pasvPortMin = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMin);
+            var pasvPortMax = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMax);
+
+            TcpListener dataListener = null;
             TcpClient dataClient = null;
 
             var basePath = hostPath;
@@ -346,11 +353,13 @@ public static class LocalServerProcessor
 
                     case FtpCommand.PassiveMode:
                     {
-                        dataListener.Start();
+                        dataListener?.Stop();
+
+                        dataListener = CreatePassiveDataListener(IPAddress.Parse(req.ListenerSocket.LocalIP), pasvPortMin, pasvPortMax);
 
                         IPEndPoint endpoint = (IPEndPoint)dataListener.LocalEndpoint;
 
-                        var address = endpoint.Address.GetAddressBytes();
+                        var address = ResolvePassiveAddress(pasvAddress, endpoint.Address).GetAddressBytes();
                         var port = endpoint.Port;
 
                         resumeOffset = 0;
@@ -706,6 +715,50 @@ public static class LocalServerProcessor
         }
 
         return true;
+    }
+
+    // Bind a passive data listener to the first free port in [portMin, portMax], falling back to an
+    // OS-assigned port when no range is configured or the whole range is busy. Returns a started listener.
+    static TcpListener CreatePassiveDataListener(IPAddress address, int portMin, int portMax)
+    {
+        if (portMin > 0 && portMax >= portMin)
+        {
+            for (var port = portMin; port <= portMax; port++)
+            {
+                try
+                {
+                    var listener = new TcpListener(address, port);
+
+                    listener.Start();
+
+                    return listener;
+                }
+                catch (SocketException)
+                {
+                    // Port busy (another session or a lingering socket); try the next one in the range.
+                }
+            }
+
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(LocalServerProcessor), $"Passive port range {portMin}-{portMax} exhausted; falling back to an OS-assigned port", "");
+        }
+
+        var fallback = new TcpListener(address, 0);
+
+        fallback.Start();
+
+        return fallback;
+    }
+
+    // The address advertised in the PASV 227 reply. A configured passive address (the host's reachable LAN
+    // IP) overrides the bound address so a client behind NAT or a Docker bridge can reach the data port.
+    static IPAddress ResolvePassiveAddress(string configured, IPAddress bound)
+    {
+        if (!string.IsNullOrWhiteSpace(configured) && IPAddress.TryParse(configured.Trim(), out var parsed) && parsed.AddressFamily == AddressFamily.InterNetwork)
+        {
+            return parsed;
+        }
+
+        return bound;
     }
 
     static string PathCombine(string path1, string path2)
