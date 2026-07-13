@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Collections.Concurrent;
 using VintageHive.Proxy.Http;
 using VintageHive.Proxy.Security;
 
@@ -7,6 +8,17 @@ namespace VintageHive.Network;
 
 public abstract class Listener
 {
+    // Every started listener registers here so the admin dashboard can report live per-service activity.
+    private static readonly ConcurrentBag<Listener> Instances = new();
+
+    private int _activeConnections;
+
+    /// <summary>Connections this listener is handling right now.</summary>
+    public int ActiveConnections => Volatile.Read(ref _activeConnections);
+
+    /// <summary>All listeners that have been started and are currently listening.</summary>
+    public static IReadOnlyList<Listener> ActiveListeners => Instances.Where(l => l.IsListening).ToList();
+
     public bool IsSecure { get; }
 
     public SslContext SecurityContext { get; }
@@ -49,6 +61,8 @@ public abstract class Listener
 
     public void Start()
     {
+        Instances.Add(this);
+
         var name = GetType().Name;
 
         if (IsSecure)
@@ -118,6 +132,8 @@ public abstract class Listener
 
             _ = Task.Run(async () =>
             {
+                Interlocked.Increment(ref _activeConnections);
+
                 var reqBuffer = new byte[4096];
 
                 var networkStream = new NetworkStream(connection);
@@ -251,6 +267,8 @@ public abstract class Listener
                 }
                 finally
                 {
+                    Interlocked.Decrement(ref _activeConnections);
+
                     // The single deterministic teardown: SSL_free (frees the SSL handle + both BIOs), the stream, and the socket
                     sslStream?.Dispose();
 

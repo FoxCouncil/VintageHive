@@ -328,7 +328,17 @@ internal partial class AdminController : Controller
 
         var ircChannels = Mind.IrcServer?.GetChannelStats()?.Select(c => new { name = c.Name, members = c.MemberCount, topic = c.Topic }).ToList();
 
+        var listeners = Network.Listener.ActiveListeners
+            .Select(l => new { name = l.GetType().Name, port = l.Port, secure = l.IsSecure, active = l.ActiveConnections })
+            .OrderBy(l => l.name)
+            .ToList();
+
         var data = new {
+            uptimeSeconds = (long)Mind.TotalRuntime.TotalSeconds,
+            users = Mind.Db.UserList().Count,
+            mailQueue = Mind.PostOfficeDb.GetUndeliveredEmails().Count,
+            connectionsTotal = listeners.Sum(l => l.active),
+            listeners,
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),
