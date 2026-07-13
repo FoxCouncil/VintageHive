@@ -63,17 +63,65 @@ public sealed class FtpRequest : Request
     // commands are case-insensitive); everything after it is rejoined as the argument.
     internal static Tuple<string, string> ParseCommandLine(string rawResponse)
     {
-        var parsedResponse = rawResponse.SplitSpaces();
+        // Trim surrounding whitespace/CRLF, then split the verb at the first separator. The argument is
+        // kept verbatim so a path's internal spaces or tabs survive (collapsing them previously sent
+        // RETR/DELE/RNFR to the wrong target), while embedded CR/LF/FF - a smuggled second command -
+        // collapse to a single space so they cannot ride through as a distinct control line. Separators
+        // are the RFC/HTML ASCII set only, so exotic whitespace (vertical tab, NBSP, unicode spaces)
+        // stays part of the token exactly as it did before.
+        var trimmed = rawResponse.Trim();
 
-        if (parsedResponse == null || parsedResponse.Length == 0)
+        if (string.IsNullOrEmpty(trimmed))
         {
             throw new InvalidOperationException("client returned garbage");
         }
 
-        var command = parsedResponse[0].ToUpper();
-        var arguments = parsedResponse.Length >= 2 ? string.Join(' ', parsedResponse[1..]) : string.Empty;
+        static bool IsSeparator(char c) => c is ' ' or '\t' or '\r' or '\n' or '\f';
 
-        return new Tuple<string, string>(command, arguments);
+        var verbEnd = 0;
+
+        while (verbEnd < trimmed.Length && !IsSeparator(trimmed[verbEnd]))
+        {
+            verbEnd++;
+        }
+
+        var command = trimmed[..verbEnd].ToUpperInvariant();
+
+        if (verbEnd >= trimmed.Length)
+        {
+            return new Tuple<string, string>(command, string.Empty);
+        }
+
+        // Skip the separator run between the verb and the argument.
+        var argStart = verbEnd;
+
+        while (argStart < trimmed.Length && IsSeparator(trimmed[argStart]))
+        {
+            argStart++;
+        }
+
+        var builder = new StringBuilder();
+
+        for (var i = argStart; i < trimmed.Length;)
+        {
+            if (trimmed[i] is '\r' or '\n' or '\f')
+            {
+                while (i < trimmed.Length && trimmed[i] is '\r' or '\n' or '\f')
+                {
+                    i++;
+                }
+
+                builder.Append(' ');
+            }
+            else
+            {
+                builder.Append(trimmed[i]);
+
+                i++;
+            }
+        }
+
+        return new Tuple<string, string>(command, builder.ToString());
     }
 
     // RFC 959 4.2: a single-line reply is the 3-digit code, a space, then text, terminated by CRLF.

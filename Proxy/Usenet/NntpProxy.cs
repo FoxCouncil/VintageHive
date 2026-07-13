@@ -361,7 +361,12 @@ internal class NntpProxy : Listener
         {
             var parts = argument.Split('-', 2);
 
-            first = int.TryParse(parts[0], out var f) ? f : 1;
+            // Reject a malformed range with 501 instead of silently coercing it to a default and
+            // returning an overview for the wrong articles.
+            if (!int.TryParse(parts[0], out first))
+            {
+                return await SendResponse(NntpResponseCode.SyntaxError, "Syntax error in range");
+            }
 
             if (string.IsNullOrEmpty(parts[1]))
             {
@@ -369,14 +374,18 @@ internal class NntpProxy : Listener
 
                 last = group?.LastArticle ?? first;
             }
-            else
+            else if (!int.TryParse(parts[1], out last))
             {
-                last = int.TryParse(parts[1], out var l) ? l : first;
+                return await SendResponse(NntpResponseCode.SyntaxError, "Syntax error in range");
             }
         }
         else
         {
-            first = int.TryParse(argument, out var n) ? n : 1;
+            if (!int.TryParse(argument, out first))
+            {
+                return await SendResponse(NntpResponseCode.SyntaxError, "Syntax error in range");
+            }
+
             last = first;
         }
 

@@ -61,6 +61,12 @@ internal static class MmsCommand
     /// </summary>
     public static byte[] BuildTcpMessage(uint mid, ushort seq, double timeSent, byte[] commandFields)
     {
+        // Bound the body so the size/padding math below cannot overflow a 32-bit int into negative values.
+        if (commandFields.Length > MAX_COMMAND_BODY_SIZE)
+        {
+            throw new ArgumentException($"MMS command body {commandFields.Length} exceeds the {MAX_COMMAND_BODY_SIZE}-byte limit", nameof(commandFields));
+        }
+
         // MMS message = chunkLen(4) + MID(4) + commandFields, padded to 8-byte boundary
         int mmsBodyLen = 8 + commandFields.Length;
         int paddedMmsLen = (mmsBodyLen + 7) & ~7;
