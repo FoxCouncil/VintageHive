@@ -126,6 +126,23 @@ public class OscarAuthorizationService : IOscarService
                 var newScreenName = screenNameTlv.Value.ToASCII();
                 var newPassword = passwordTlv.Value.ToASCII();
 
+                // Gate in-client account creation behind a config toggle so an embedding host that
+                // provisions accounts externally can forbid clients minting them out of band. Login for
+                // already-provisioned users is unaffected; this only blocks self-registration.
+                if (!Mind.Db.ConfigGet<bool>(ConfigNames.AllowSelfRegistration))
+                {
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"Registration denied (self-registration disabled): {newScreenName}", traceId);
+
+                    var deniedSnac = snac.NewReply(Family, SRV_REGISTRATION_REPLY);
+
+                    deniedSnac.WriteTlv(new Tlv(Tlv.Type_ScreenName, newScreenName));
+                    deniedSnac.WriteTlv(new Tlv(Tlv.Type_ErrorSubCode, (ushort)OscarAuthError.IncorrectScreenNameOrPassword));
+
+                    await session.SendSnac(deniedSnac);
+
+                    return;
+                }
+
                 if (Mind.Db.UserExistsByUsername(newScreenName))
                 {
                     Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"Registration failed (user exists): {newScreenName}", traceId);

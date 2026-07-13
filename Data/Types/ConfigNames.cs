@@ -128,6 +128,10 @@ public static class ConfigNames
     // When true, refuse to boot if any outward-reaching service is enabled (a provable no-forward posture).
     public const string ServiceWalledGarden = "servicewalledgarden";
 
+    // When false, clients cannot self-register accounts in-band (e.g. the OSCAR/AIM registration flow);
+    // an embedding host that provisions accounts externally sets this off. Default true (today's behavior).
+    public const string AllowSelfRegistration = "allowselfregistration";
+
     // Whitelabel: product name/version emitted in banners and page chrome; default to VintageHive's own.
     public const string ProductName = "productname";
 

@@ -107,6 +107,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServiceMms, true },
         { ConfigNames.ServicePna, true },
         { ConfigNames.ServiceWalledGarden, false },
+        { ConfigNames.AllowSelfRegistration, true },
         { ConfigNames.ServiceSocks5RequireAuth, false },
         { ConfigNames.ServiceDns, true },
         { ConfigNames.ServiceIls, true },
