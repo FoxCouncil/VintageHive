@@ -7,6 +7,43 @@
 <body class="d-flex flex-column">
     {% include 'partials/header.html' %}
 
+    <h1 class="mt-3">System</h1>
+    <div class="row row-cols-2 row-cols-md-4 g-2 mb-3">
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body">
+                <div class="text-muted small text-uppercase">Uptime</div>
+                <div class="h4 mb-0" id="stat_uptime">-</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body">
+                <div class="text-muted small text-uppercase">Live Connections</div>
+                <div class="h4 mb-0" id="stat_connections">-</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body">
+                <div class="text-muted small text-uppercase">Users</div>
+                <div class="h4 mb-0" id="stat_users">-</div>
+            </div></div>
+        </div>
+        <div class="col">
+            <div class="card text-center h-100"><div class="card-body">
+                <div class="text-muted small text-uppercase">Mail Queue</div>
+                <div class="h4 mb-0" id="stat_mailqueue">-</div>
+            </div></div>
+        </div>
+    </div>
+
+    <h1 class="mt-4">Live Activity</h1>
+    <p class="text-muted mb-2">Connections each protocol listener is handling right now.</p>
+    <div class="table-responsive mb-3">
+        <table class="table table-sm table-striped align-middle">
+            <thead><tr><th>Service</th><th>Port</th><th class="text-end">Active</th></tr></thead>
+            <tbody id="listeners_body"></tbody>
+        </table>
+    </div>
+
     <h1 class="mt-3">HTTP Processors</h1>
 
     <div class="row mt-3">
@@ -132,6 +169,46 @@
             badge.classList.toggle("bg-success", isOn);
             badge.classList.toggle("bg-danger", !isOn);
         }
+        function formatUptime(sec) {
+            sec = Math.max(0, Math.floor(sec || 0));
+            const d = Math.floor(sec / 86400);
+            const h = Math.floor((sec % 86400) / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            const hms = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+            return d > 0 ? d + "d " + hms : hms;
+        }
+        function renderListeners(list) {
+            const body = gei("listeners_body");
+            body.innerHTML = "";
+            if (!list || list.length === 0) {
+                const tr = ce("tr");
+                const td = ce("td");
+                td.colSpan = 3;
+                td.className = "text-muted text-center";
+                td.innerText = "No active listeners";
+                tr.appendChild(td);
+                body.appendChild(tr);
+                return;
+            }
+            for (const l of list) {
+                const tr = ce("tr");
+                if (l.active > 0) {
+                    tr.className = "table-success";
+                }
+                const name = ce("td");
+                name.innerText = l.secure ? l.name + " [SSL]" : l.name;
+                const port = ce("td");
+                port.innerText = l.port;
+                const active = ce("td");
+                active.className = "text-end";
+                active.innerText = l.active;
+                tr.appendChild(name);
+                tr.appendChild(port);
+                tr.appendChild(active);
+                body.appendChild(tr);
+            }
+        }
         function renderServices(services) {
             if (!services) {
                 return;
@@ -164,6 +241,11 @@
         async function updateDashboard() {
             try {
                 const status = await callApi('status');
+                gei("stat_uptime").innerText = formatUptime(status.uptimeSeconds);
+                gei("stat_connections").innerText = status.connectionsTotal ?? 0;
+                gei("stat_users").innerText = status.users ?? 0;
+                gei("stat_mailqueue").innerText = status.mailQueue ?? 0;
+                renderListeners(status.listeners);
                 applyToggle(iaToggle, status.ia);
                 if (status.ia) {
                     iaYearSelect.removeAttribute("disabled");
@@ -180,7 +262,7 @@
             }
         }
         await updateDashboard();
-        // setInterval(async () => { await updateDashboard() }, 5000);
+        setInterval(async () => { await updateDashboard() }, 5000);
         iaToggle.addEventListener("click", async () => {
             await callApi("iatoggle");
             await updateDashboard();
