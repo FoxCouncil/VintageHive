@@ -189,24 +189,24 @@ public class FtpParseCommandLineTests
     }
 
     [TestMethod]
-    public void ParseCommandLine_MultiArgWithDoubleSpaces_CollapsesToSingleSpace()
+    public void ParseCommandLine_MultiArgWithDoubleSpaces_PreservedVerbatim()
     {
-        // This is the silent-data-loss defect: an argument that legitimately contains a run of
-        // spaces is rejoined with exactly one space, so "my  file.txt" becomes "my file.txt".
+        // The argument after the verb is now kept verbatim, so a pathname's internal spaces survive
+        // instead of collapsing to one (which sent RETR/DELE/RNFR to the wrong file).
         var result = FtpRequest.ParseCommandLine("RETR my  file.txt");
 
         Assert.AreEqual("RETR", result.Item1);
-        Assert.AreEqual("my file.txt", result.Item2);
+        Assert.AreEqual("my  file.txt", result.Item2);
     }
 
     [TestMethod]
-    public void ParseCommandLine_ArgumentEmbeddedTab_LostAsSpace()
+    public void ParseCommandLine_ArgumentEmbeddedTab_PreservedVerbatim()
     {
-        // A tab embedded inside a pathname is destroyed the same way (converted to a single space).
+        // A tab embedded inside a pathname is likewise preserved rather than converted to a space.
         var result = FtpRequest.ParseCommandLine("RETR a\tb.txt");
 
         Assert.AreEqual("RETR", result.Item1);
-        Assert.AreEqual("a b.txt", result.Item2);
+        Assert.AreEqual("a\tb.txt", result.Item2);
     }
 
     #endregion
@@ -263,12 +263,13 @@ public class FtpParseCommandLineTests
     }
 
     [TestMethod]
-    public void ParseCommandLine_SiteCommandWithSubArgs_Rejoined()
+    public void ParseCommandLine_SiteCommandWithSubArgs_PreservedVerbatim()
     {
+        // Only the verb/argument separator run is dropped; the argument's own internal spacing is kept.
         var result = FtpRequest.ParseCommandLine("SITE  CHMOD   777   file");
 
         Assert.AreEqual("SITE", result.Item1);
-        Assert.AreEqual("CHMOD 777 file", result.Item2);
+        Assert.AreEqual("CHMOD   777   file", result.Item2);
     }
 
     #endregion
