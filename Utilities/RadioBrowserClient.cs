@@ -104,44 +104,57 @@ public class RadioBrowserClient
 
     static string GetRadioBrowserApiUrl()
     {
-        var baseUrl = @"all.api.radio-browser.info";
+        // Best-effort selection of the fastest radio-browser mirror. This MUST NOT crash startup: DNS may
+        // be unavailable (offline / walled-garden), and Ping is not usable everywhere - a container without
+        // the ping utility throws PlatformNotSupportedException, not PingException, which previously escaped
+        // and killed Mind.Bootstrap. Any failure falls back to the default mirror.
+        const string defaultUrl = @"nl1.api.radio-browser.info";
 
-        var ips = Dns.GetHostAddresses(baseUrl, AddressFamily.InterNetwork);
-
-        var lastRoundTripTime = long.MaxValue;
-
-        var searchUrl = @"nl1.api.radio-browser.info";
-
-        foreach (var ipAddress in ips)
+        try
         {
-            try
-            {
-                var reply = new Ping().Send(ipAddress);
+            var ips = Dns.GetHostAddresses(@"all.api.radio-browser.info", AddressFamily.InterNetwork);
 
-                if (reply == null || reply.RoundtripTime >= lastRoundTripTime)
+            var lastRoundTripTime = long.MaxValue;
+
+            var searchUrl = defaultUrl;
+
+            foreach (var ipAddress in ips)
+            {
+                try
                 {
-                    continue;
+                    var reply = new Ping().Send(ipAddress, 1000);
+
+                    if (reply == null || reply.Status != IPStatus.Success || reply.RoundtripTime >= lastRoundTripTime)
+                    {
+                        continue;
+                    }
+
+                    lastRoundTripTime = reply.RoundtripTime;
+
+                    searchUrl = ipAddress.ToString();
                 }
-
-                lastRoundTripTime = reply.RoundtripTime;
-
-                searchUrl = ipAddress.ToString();
+                catch (Exception ex) when (ex is PingException or PlatformNotSupportedException or SocketException)
+                {
+                    // Ping unavailable or blocked for this address; keep the current best.
+                }
             }
-            catch (PingException)
+
+            // Get clean name
+            var hostEntry = Dns.GetHostEntry(searchUrl);
+
+            if (!string.IsNullOrEmpty(hostEntry.HostName))
             {
-                // NOOP
+                searchUrl = hostEntry.HostName;
             }
+
+            return searchUrl;
         }
-
-        // Get clean name
-        var hostEntry = Dns.GetHostEntry(searchUrl);
-
-        if (!string.IsNullOrEmpty(hostEntry.HostName))
+        catch (Exception ex)
         {
-            searchUrl = hostEntry.HostName;
-        }
+            Log.WriteLine(Log.LEVEL_WARN, nameof(RadioBrowserClient), $"Could not probe radio-browser mirrors, using the default: {ex.Message}", "");
 
-        return searchUrl;
+            return defaultUrl;
+        }
     }
 
     public JsonSerializerOptions GetJsonSerializerOptions()

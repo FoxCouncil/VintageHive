@@ -2,7 +2,7 @@
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
 # libgs-dev: PostScript print-to-PDF (PCL is preserved raw). ffmpeg: radio stream transcoding (MP3/WMA/RealAudio).
-RUN apt-get update && apt-get install -y --no-install-recommends libgs-dev ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libgs-dev ffmpeg iputils-ping && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # FTP
