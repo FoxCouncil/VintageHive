@@ -263,6 +263,53 @@ internal partial class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
+    [Route("/api/ftppassiveset")]
+    public async Task FtpPassiveSet()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("address") || !Request.FormData.ContainsKey("min") || !Request.FormData.ContainsKey("max"))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        var address = Request.FormData["address"]?.Trim() ?? string.Empty;
+
+        // Empty clears the override; a non-empty value must be a valid IPv4 address (PASV 227 is IPv4-only).
+        if (!string.IsNullOrEmpty(address) && (!IPAddress.TryParse(address, out var ip) || ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        if (!int.TryParse(Request.FormData["min"], out var min) || !int.TryParse(Request.FormData["max"], out var max))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        // 0/0 disables the range (OS-assigned port). Otherwise require a sane, ordered, non-privileged range.
+        if (min != 0 || max != 0)
+        {
+            if (min < 1024 || max > 65535 || max < min)
+            {
+                Response.SetJsonSuccess(false);
+
+                return;
+            }
+        }
+
+        Mind.Db.ConfigSet(ConfigNames.FtpPassiveAddress, address);
+        Mind.Db.ConfigSet(ConfigNames.FtpPassivePortMin, min);
+        Mind.Db.ConfigSet(ConfigNames.FtpPassivePortMax, max);
+
+        Response.SetJsonSuccess();
+    }
+
     [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
@@ -339,6 +386,9 @@ internal partial class AdminController : Controller
             mailQueue = Mind.PostOfficeDb.GetUndeliveredEmails().Count,
             connectionsTotal = listeners.Sum(l => l.active),
             listeners,
+            ftpPassiveAddress = Mind.Db.ConfigGet<string>(ConfigNames.FtpPassiveAddress),
+            ftpPassivePortMin = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMin),
+            ftpPassivePortMax = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMax),
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),

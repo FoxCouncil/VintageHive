@@ -128,6 +128,26 @@
     <p class="text-muted mb-2">Enable or disable protocol servers. Listener services apply the next time {{ productname }} restarts; the intranet portal applies immediately.</p>
     <div id="services_grid" class="row row-cols-2 row-cols-md-4 g-2 mb-3"></div>
 
+    <h1 class="mt-4">FTP Passive Mode (NAT / Docker)</h1>
+    <p class="text-muted mb-2">For passive FTP behind NAT or a Docker bridge network: advertise the host's LAN IP and bind data connections to a small published port range. Leave the address blank and the ports at 0 to keep the default (bound IP, OS-assigned port). Applies to new FTP sessions immediately.</p>
+    <div class="row g-2 mb-4 align-items-end">
+        <div class="col-sm-5">
+            <label class="form-label small mb-1">Passive Address (host LAN IP)</label>
+            <input type="text" id="ftp_passive_address" class="form-control" placeholder="192.168.1.50">
+        </div>
+        <div class="col-sm-2">
+            <label class="form-label small mb-1">Port Min</label>
+            <input type="number" id="ftp_passive_min" class="form-control" min="0" max="65535" placeholder="0">
+        </div>
+        <div class="col-sm-2">
+            <label class="form-label small mb-1">Port Max</label>
+            <input type="number" id="ftp_passive_max" class="form-control" min="0" max="65535" placeholder="0">
+        </div>
+        <div class="col-sm-3">
+            <button type="button" id="ftp_passive_save" class="btn btn-outline-primary w-100">Save</button>
+        </div>
+    </div>
+
     {% include 'partials/footer.html' %}
     <script type="module">
         const iaToggle = gei("ia_toggle");
@@ -168,6 +188,12 @@
             badge.innerText = onOrOff(isOn);
             badge.classList.toggle("bg-success", isOn);
             badge.classList.toggle("bg-danger", !isOn);
+        }
+        function setInputIfNotEditing(el, val) {
+            // Live polling must not clobber a field the operator is currently typing in.
+            if (el && document.activeElement !== el) {
+                el.value = val;
+            }
         }
         function formatUptime(sec) {
             sec = Math.max(0, Math.floor(sec || 0));
@@ -254,9 +280,12 @@
                 }
                 iaYearSelect.value = status.iayear;
                 applyToggle(iaWorkerToggle, status.iaworker);
-                iaWorkerUrl.value = status.iaworkerurl || "";
+                setInputIfNotEditing(iaWorkerUrl, status.iaworkerurl || "");
                 applyToggle(protowebToggle, status.protoweb);
                 renderServices(status.services);
+                setInputIfNotEditing(gei("ftp_passive_address"), status.ftpPassiveAddress || "");
+                setInputIfNotEditing(gei("ftp_passive_min"), status.ftpPassivePortMin ?? 0);
+                setInputIfNotEditing(gei("ftp_passive_max"), status.ftpPassivePortMax ?? 0);
             } catch (e) {
                 console.log(e)
             }
@@ -281,6 +310,14 @@
         });
         protowebToggle.addEventListener("click", async () => {
             await callApi("protowebtoggle");
+            await updateDashboard();
+        });
+        gei("ftp_passive_save").addEventListener("click", async () => {
+            await callApi("ftppassiveset", formData({
+                address: gei("ftp_passive_address").value.trim(),
+                min: gei("ftp_passive_min").value || "0",
+                max: gei("ftp_passive_max").value || "0",
+            }));
             await updateDashboard();
         });
     </script>
