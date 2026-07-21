@@ -45,15 +45,57 @@ public partial class EmailAddress
         return Full;
     }
 
-    public static EmailAddress ParseFromSmtp(string message)
+    public static bool TryParse(string email, out EmailAddress parsed)
     {
-        var match = RegexFullEmail().Match(message);
+        parsed = null;
+
+        if (string.IsNullOrEmpty(email))
+        {
+            return false;
+        }
+
+        var match = RegexEmail().Match(email);
 
         if (!match.Success)
+        {
+            return false;
+        }
+
+        parsed = new EmailAddress(match.Groups["user"].Value, match.Groups["domain"].Value);
+
+        return true;
+    }
+
+    public static EmailAddress ParseFromSmtp(string message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        if (!TryParseFromSmtp(message, out var parsed))
         {
             throw new FormatException("Invalid email format.");
         }
 
-        return new EmailAddress(match.Groups["user"].Value, match.Groups["domain"].Value);
+        return parsed;
+    }
+
+    public static bool TryParseFromSmtp(string message, out EmailAddress parsed)
+    {
+        parsed = null;
+
+        if (string.IsNullOrEmpty(message))
+        {
+            return false;
+        }
+
+        var match = RegexFullEmail().Match(message);
+
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        parsed = new EmailAddress(match.Groups["user"].Value, match.Groups["domain"].Value);
+
+        return true;
     }
 }

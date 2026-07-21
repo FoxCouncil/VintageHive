@@ -18,7 +18,6 @@ public static class HiveDomains
     public const string Api = "api." + Base;                    // api.hive.com
     public const string Ads = "ads." + Base;                    // ads.hive.com
     public const string Irc = "irc." + Base;                    // irc.hive.com
-    public const string Smtp = "smtp." + Base;                  // smtp.hive.com
     public const string Autoconfig = "autoconfig." + Base;      // autoconfig.hive.com
     public const string Autodiscover = "autodiscover." + Base;  // autodiscover.hive.com
 

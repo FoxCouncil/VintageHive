@@ -2,16 +2,18 @@
 
 using System.Net;
 using System.Text;
+using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Pop3;
 
 namespace Adversarial5.Pop3;
 
-// Adversarial coverage of the POP3 command grammar, auth gating, and CRLF line buffering.
-// Everything here stays on DB-free paths: greeting, USER (stores the name only), the auth-required
+// Adversarial coverage of the POP3 command grammar, auth gating, and CRLF line buffering:
+// greeting, USER (resolves an optional @domain against the hosted list), the auth-required
 // REJECTIONS for STAT/LIST/RETR/DELE/UIDL/TOP/RSET/NOOP issued before authentication, CAPA, QUIT,
 // unknown/malformed commands, blank lines, pipelining, split reads, and the 8KB line cap.
-// PASS is NEVER issued (it calls Mind.Db.UserFetch), so no authenticated state is ever reached.
+// PASS is NEVER issued (it calls Mind.Db.UserFetch), so no authenticated state is ever reached; the
+// only DB touched is the config read behind MailDomains, served by MailTestEnv's file-backed context.
 [TestClass]
 public class Pop3SessionAdversarialTests
 {
@@ -22,6 +24,9 @@ public class Pop3SessionAdversarialTests
     private static Pop3Proxy NewProxy()
     {
         // Constructor only stores address/port (base Listener with secure=false does no socket/SSL work).
+        // Banner identity and USER's hosted-domain check read MailDomains (config) at runtime.
+        Mail.MailTestEnv.Ensure();
+
         return new Pop3Proxy(IPAddress.Loopback, 0);
     }
 
@@ -71,7 +76,7 @@ public class Pop3SessionAdversarialTests
 
         var greeting = Text(await Guard(proxy.ProcessConnection(conn)));
 
-        Assert.AreEqual("+OK POP3 server ready\r\n", greeting);
+        Assert.AreEqual($"+OK pop3.{MailDomains.Primary} POP3 server ready\r\n", greeting);
     }
 
     [TestMethod]
@@ -113,14 +118,16 @@ public class Pop3SessionAdversarialTests
     }
 
     [TestMethod]
-    public async Task User_NoArgument_ReturnsOK_StoresEmpty()
+    public async Task User_NoArgument_Rejected_StoresNothing()
     {
         var proxy = NewProxy();
         var conn = await Connect(proxy);
 
         var text = Text(await Request(proxy, conn, "USER\r\n"));
 
-        Assert.AreEqual("+OK User name accepted, password please\r\n", text);
+        // USER requires a resolvable mailbox now that logins pass through the hosted-domain seam;
+        // the old lenient path (+OK, stage an empty name that PASS then fails) is gone.
+        StringAssert.StartsWith(text, "-ERR", text);
         Assert.AreEqual(string.Empty, conn.DataBag[UsernameKey].ToString());
     }
 

@@ -4,12 +4,11 @@
 // ImapSession.cs). These drive the real ProcessConnection/ProcessRequest surface WITHOUT a socket:
 // SendResponse just formats bytes, so no NetworkStream is required for command-grammar paths.
 //
-// Hard boundary: every exercised path stays DB-free. The DB (Mind.Db / Mind.PostOfficeDb) is only
-// reached AFTER argument validation on LOGIN (needs both a username and a password) and only from the
-// authenticated/selected states. All tests here either (a) run in the default NotAuthenticated state,
-// where SELECT/FETCH/etc are rejected before any DB call, or (b) hit LOGIN's missing-argument
-// rejection, which returns BAD before Mind.Db.UserFetch. A two-argument LOGIN would reach the DB, so
-// it is deliberately never sent.
+// Hard boundary: no test reaches Mind.Db.UserFetch or Mind.PostOfficeDb. All tests here either
+// (a) run in the default NotAuthenticated state, where SELECT/FETCH/etc are rejected before any DB
+// call, or (b) hit LOGIN's missing-argument rejection, which returns BAD before the user lookup.
+// A two-argument LOGIN would reach UserFetch, so it is deliberately never sent. The greeting's banner
+// identity reads MailDomains (config), served by MailTestEnv's file-backed context.
 
 using System.Net;
 using System.Text;
@@ -26,6 +25,9 @@ public class ImapSessionAdversarialTests
     // Fresh proxy + connection, greeting consumed so the per-connection DataBag (ImapSession) is live.
     private static async Task<(ImapProxy proxy, ListenerSocket conn, string greeting)> NewSessionAsync()
     {
+        // Banner identity and LOGIN's hosted-domain check read MailDomains (config) at runtime.
+        Mail.MailTestEnv.Ensure();
+
         var proxy = new ImapProxy(IPAddress.Loopback, 0);
         var conn = new ListenerSocket();
 
@@ -70,6 +72,140 @@ public class ImapSessionAdversarialTests
         Assert.IsTrue(greeting.StartsWith("* OK"), greeting);
         Assert.IsTrue(greeting.Contains("IMAP4rev1 server ready"), greeting);
         Assert.IsTrue(greeting.EndsWith("\r\n"), "greeting must be CRLF terminated");
+    }
+
+    #endregion
+
+    #region AUTHENTICATE exchange grammar (no UserFetch: every path here aborts or rejects before the password step completes)
+
+    private static string B64(string value)
+    {
+        return Convert.ToBase64String(Encoding.ASCII.GetBytes(value));
+    }
+
+    [TestMethod]
+    public async Task Authenticate_UnknownMechanism_TaggedNo()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        var text = await SendAsync(proxy, conn, "A1 AUTHENTICATE PLAIN\r\n");
+
+        Assert.IsNotNull(text);
+        Assert.IsTrue(text!.StartsWith("A1 NO"), text);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_MissingMechanism_TaggedBad()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        var text = await SendAsync(proxy, conn, "A1 AUTHENTICATE\r\n");
+
+        Assert.IsNotNull(text);
+        Assert.IsTrue(text!.StartsWith("A1 BAD"), text);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_InitialResponse_TaggedBad_SaslIrNotAdvertised()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        var text = await SendAsync(proxy, conn, $"A1 AUTHENTICATE LOGIN {B64("fred")}\r\n");
+
+        Assert.IsNotNull(text);
+        Assert.IsTrue(text!.StartsWith("A1 BAD"), text);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_Login_IssuesBase64UsernameChallenge()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        var text = await SendAsync(proxy, conn, "A1 AUTHENTICATE LOGIN\r\n");
+
+        Assert.AreEqual($"+ {B64("Username:")}\r\n", text);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_MidChallengeStar_AbortsCleanly_SessionStillUsable()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        await SendAsync(proxy, conn, "A1 AUTHENTICATE LOGIN\r\n");
+
+        // RFC 3501 6.2.2: a lone "*" cancels the exchange with a tagged BAD.
+        var abort = await SendAsync(proxy, conn, "*\r\n");
+
+        Assert.IsNotNull(abort);
+        Assert.IsTrue(abort!.StartsWith("A1 BAD"), abort);
+
+        // The exchange must be fully disarmed: the next line is a command again, not a SASL response.
+        var after = await SendAsync(proxy, conn, "A2 CAPABILITY\r\n");
+
+        Assert.IsNotNull(after);
+        Assert.IsTrue(after!.Contains("A2 OK CAPABILITY completed"), after);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_GarbageBase64AtUsernameStep_AbortsWithBadNotThrow()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        await SendAsync(proxy, conn, "A1 AUTHENTICATE LOGIN\r\n");
+
+        var abort = await SendAsync(proxy, conn, "!!!not-base64!!!\r\n");
+
+        Assert.IsNotNull(abort);
+        Assert.IsTrue(abort!.StartsWith("A1 BAD"), abort);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_GarbageBase64AtPasswordStep_AbortsWithBadNotThrow()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        await SendAsync(proxy, conn, "A1 AUTHENTICATE LOGIN\r\n");
+
+        var challenge = await SendAsync(proxy, conn, $"{B64("fred")}\r\n");
+
+        Assert.AreEqual($"+ {B64("Password:")}\r\n", challenge);
+
+        // Aborting at the password step never reaches UserFetch - the DB boundary holds.
+        var abort = await SendAsync(proxy, conn, "%%%\r\n");
+
+        Assert.IsNotNull(abort);
+        Assert.IsTrue(abort!.StartsWith("A1 BAD"), abort);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_PipelinedCommandDuringChallenge_TreatedAsResponseAndAborts()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        await SendAsync(proxy, conn, "A1 AUTHENTICATE LOGIN\r\n");
+
+        // A tagged command mid-exchange is a SASL response as far as the server is concerned; it is
+        // not base64, so the exchange aborts with the ARMED tag rather than executing NOOP.
+        var text = await SendAsync(proxy, conn, "A2 NOOP\r\n");
+
+        Assert.IsNotNull(text);
+        Assert.IsTrue(text!.StartsWith("A1 BAD"), text);
+    }
+
+    [TestMethod]
+    public async Task Authenticate_ForeignDomainUsername_RejectedBeforePasswordStep()
+    {
+        var (proxy, conn, _) = await NewSessionAsync();
+
+        await SendAsync(proxy, conn, "A1 AUTHENTICATE LOGIN\r\n");
+
+        // Default hosted list is hive.com; evil.com fails the domain seam at the USERNAME step, so no
+        // password is ever requested and UserFetch is never reached.
+        var text = await SendAsync(proxy, conn, $"{B64("fred@evil.com")}\r\n");
+
+        Assert.IsNotNull(text);
+        Assert.IsTrue(text!.StartsWith("A1 NO"), text);
+        Assert.IsTrue(text.Contains("not hosted"), text);
     }
 
     #endregion

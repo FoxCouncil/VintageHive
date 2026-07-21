@@ -108,6 +108,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServicePna, true },
         { ConfigNames.ServiceWalledGarden, false },
         { ConfigNames.AllowSelfRegistration, true },
+        { ConfigNames.ValidMailDomains, HiveDomains.Base },
         { ConfigNames.ServiceSocks5RequireAuth, false },
         { ConfigNames.ServiceDns, true },
         { ConfigNames.ServiceIls, true },

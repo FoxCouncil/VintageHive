@@ -17,10 +17,14 @@ internal class AutodiscoverController : Controller
 
         var serverIp = Request.ListenerSocket.LocalIP;
 
+        // The hosted mail-domain list is runtime config, not the compile-time intranet constant; a
+        // Thunderbird-lineage client matches its account's domain against these <domain> elements.
+        var domainElements = string.Join("\n    ", MailDomains.All.Select(domain => $"<domain>{domain}</domain>"));
+
         var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <clientConfig version=""1.1"">
-  <emailProvider id=""{HiveDomains.Base}"">
-    <domain>{HiveDomains.Base}</domain>
+  <emailProvider id=""{MailDomains.Primary}"">
+    {domainElements}
     <displayName>VintageHive Mail</displayName>
     <displayShortName>VintageHive</displayShortName>
     <incomingServer type=""imap"">

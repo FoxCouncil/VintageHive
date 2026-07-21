@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-// Adversarial SMTP command-grammar and sequencing tests. Everything here stays in the DB-free zone:
-// greeting, HELO/EHLO shape, MAIL/RCPT rejection BEFORE authentication (530), DATA before a
-// transaction (503), unknown/known-unimplemented verbs, line buffering, pipelining, CRLF/LF edges,
-// oversized lines, and the AUTH LOGIN handshake up to (never through) the DB user lookup. No test
-// completes AUTH, delivers DATA, or otherwise reaches Mind.Db / Mind.PostOfficeDb.
+// Adversarial SMTP command-grammar and sequencing tests: greeting, HELO/EHLO shape, MAIL/RCPT
+// rejection BEFORE authentication (530), DATA before a transaction (503), unknown/known-unimplemented
+// verbs, line buffering, pipelining, CRLF/LF edges, oversized lines, and the AUTH LOGIN handshake up
+// to (never through) the DB user lookup. No test completes AUTH or delivers DATA; the only DB the
+// paths here touch is the config read behind MailDomains (banner identity + hosted-domain checks),
+// served by MailTestEnv's file-backed context.
 
 using System.Net;
 using System.Text;
@@ -18,6 +19,9 @@ internal static class SmtpAdv
 {
     public static SmtpProxy NewProxy()
     {
+        // Banner identity and hosted-domain checks read MailDomains (config) on every call.
+        Mail.MailTestEnv.Ensure();
+
         return new SmtpProxy(IPAddress.Loopback, 0);
     }
 

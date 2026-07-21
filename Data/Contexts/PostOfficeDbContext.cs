@@ -694,7 +694,7 @@ public class PostOfficeDbContext : DbContextBase
         var emailDataBuilder = new StringBuilder();
         var subject = $"UNDELIVERABLE: {failedAddress} is not a valid user! Rejected!";
         var date = DateTimeOffset.Now;
-        var from = "postmaster@vintagehive";
+        var from = "postmaster@" + MailDomains.Primary;
 
         // Crafting the retro computer email humor message with appropriate headers
         emailDataBuilder.AppendLine("Date: " + date.ToRFC822String());

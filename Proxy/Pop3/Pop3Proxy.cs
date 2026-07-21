@@ -23,7 +23,7 @@ public class Pop3Proxy : Listener
         connection.DataBag[Username] = string.Empty;
         connection.DataBag[PendingDeletions] = new HashSet<int>();
 
-        return await SendResponse(true, "POP3 server ready");
+        return await SendResponse(true, $"pop3.{MailDomains.Primary} POP3 server ready");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -106,7 +106,16 @@ public class Pop3Proxy : Listener
         {
             case "USER":
             {
-                bag[Username] = Message;
+                // Real clients configured with the full email address send USER fred@domain. Resolve the
+                // domain against the hosted list and authenticate on the local part - the verbatim string
+                // used to miss the user table and surface as "Invalid password". A foreign or malformed
+                // domain is rejected here, as itself, not left to fail as a password error.
+                if (!MailDomains.TryResolveLogin(Message, out var localPart, out _))
+                {
+                    return await SendResponse(false, "Mailbox domain not hosted here");
+                }
+
+                bag[Username] = localPart;
 
                 return await SendResponse(true, "User name accepted, password please");
             }

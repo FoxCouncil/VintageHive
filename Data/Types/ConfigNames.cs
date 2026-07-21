@@ -132,6 +132,11 @@ public static class ConfigNames
     // an embedding host that provisions accounts externally sets this off. Default true (today's behavior).
     public const string AllowSelfRegistration = "allowselfregistration";
 
+    // Comma-separated list of mail domains this host serves; governs POP3/IMAP/SMTP login, MAIL FROM,
+    // RCPT TO, and postmaster routing. First entry is the primary domain (banner and postmaster identity).
+    // Every check re-reads it, so an embedding host's ConfigSet takes effect without restart.
+    public const string ValidMailDomains = "validmaildomains";
+
     // Whitelabel: product name/version emitted in banners and page chrome; default to VintageHive's own.
     public const string ProductName = "productname";
 

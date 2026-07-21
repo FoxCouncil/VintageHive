@@ -10,6 +10,15 @@ internal enum ImapState
     Logout
 }
 
+// Where a challenge-response AUTHENTICATE exchange stands; while not None, incoming lines are
+// SASL responses for the armed exchange, not tagged commands.
+internal enum ImapAuthExchange
+{
+    None,
+    WantUsername,
+    WantPassword
+}
+
 internal enum ImapResponseType
 {
     OK,

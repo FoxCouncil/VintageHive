@@ -13,8 +13,26 @@ public partial class ImapProxy : Listener
 
     private const string Capability = "IMAP4rev1 AUTH=LOGIN";
 
+    // Bound an APPEND literal so a hostile size can't exhaust memory (mirrors SMTP's DATA cap).
+    private const int MaxAppendBytes = 32 * 1024 * 1024;
+
     [GeneratedRegex(@"^(\S+)\s+(\S+)(?:\s+(.*))?$", RegexOptions.Compiled)]
     private static partial Regex CommandRegex();
+
+    // RFC 3501 6.3.11: mailbox [(flags)] [date-time] {size}. Anchored, and the size digit count is
+    // capped so a 19+ digit literal can't overflow the long parse downstream.
+    [GeneratedRegex(@"^(?<mailbox>""[^""]*""|[^\s(]+)(?:\s+\((?<flags>[^)]*)\))?(?:\s+(?<date>""[^""]*""))?\s+\{(?<size>\d{1,18})(?<nonsync>\+)?\}$", RegexOptions.Compiled)]
+    private static partial Regex AppendArgsRegex();
+
+    // Envelope-column lifts for APPEND (^ binds per-line under Multiline; value stops at the line end).
+    [GeneratedRegex(@"^From:[ \t]*(?<value>[^\r\n]*)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex FromHeaderRegex();
+
+    [GeneratedRegex(@"^To:[ \t]*(?<value>[^\r\n]*)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex ToHeaderRegex();
+
+    [GeneratedRegex(@"^Subject:[ \t]*(?<value>[^\r\n]*)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex SubjectHeaderRegex();
 
     public ImapProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp) { }
 
@@ -24,7 +42,7 @@ public partial class ImapProxy : Listener
 
         connection.DataBag[SessionKey] = new ImapSession();
 
-        return BuildResponse($"* OK {Mind.ProductName} IMAP4rev1 server ready{EOL}");
+        return BuildResponse($"* OK imap.{MailDomains.Primary} {Mind.ProductName} IMAP4rev1 server ready{EOL}");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -34,6 +52,8 @@ public partial class ImapProxy : Listener
         const string LineBufferKey = "_imap_linebuf";
         const int MaxLineBytes = 16 * 1024;
 
+        var session = connection.DataBag[SessionKey] as ImapSession;
+
         // Buffer to CRLF and loop so pipelined commands are all answered and a command split across TCP reads
         // is reassembled instead of misparsed (its tag would otherwise never be answered - the client stalls).
         var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
@@ -41,13 +61,39 @@ public partial class ImapProxy : Listener
 
         var responses = new List<byte>();
 
-        int start = 0, idx;
-
-        while ((idx = buffer.IndexOf('\n', start)) != -1)
+        while (buffer.Length > 0)
         {
-            var line = buffer[start..idx].TrimEnd('\r');
+            // An armed APPEND literal is byte-counted message data full of CRLFs - drain it here so
+            // it never reaches the line splitter below.
+            if (session.Append != null)
+            {
+                var take = Math.Min(session.Append.Remaining, buffer.Length);
 
-            start = idx + 1;
+                session.Append.Data.Append(buffer, 0, take);
+                session.Append.Remaining -= take;
+
+                buffer = buffer[take..];
+
+                if (session.Append.Remaining > 0)
+                {
+                    break;
+                }
+
+                responses.AddRange(FinalizeAppend(session));
+
+                continue;
+            }
+
+            var idx = buffer.IndexOf('\n');
+
+            if (idx == -1)
+            {
+                break;
+            }
+
+            var line = buffer[..idx].TrimEnd('\r');
+
+            buffer = buffer[(idx + 1)..];
 
             if (string.IsNullOrWhiteSpace(line))
             {
@@ -69,9 +115,7 @@ public partial class ImapProxy : Listener
             }
         }
 
-        var remainder = buffer[start..];
-
-        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+        connection.DataBag[LineBufferKey] = buffer.Length > MaxLineBytes ? string.Empty : buffer;
 
         return responses.Count > 0 ? responses.ToArray() : null;
     }
@@ -79,6 +123,13 @@ public partial class ImapProxy : Listener
     private byte[] ProcessCommandLine(ListenerSocket connection, string rawLine)
     {
         var session = connection.DataBag[SessionKey] as ImapSession;
+
+        // Mid-AUTHENTICATE, lines are SASL challenge responses (raw base64 or a lone "*"), not tagged
+        // commands - intercept before the command grammar gets a chance to misread them.
+        if (session.AuthExchange != ImapAuthExchange.None)
+        {
+            return HandleAuthenticateResponse(rawLine, session);
+        }
 
         var match = CommandRegex().Match(rawLine);
 
@@ -99,6 +150,7 @@ public partial class ImapProxy : Listener
             "NOOP" => HandleNoop(tag, session),
             "LOGOUT" => HandleLogout(tag, session, connection),
             "LOGIN" => HandleLogin(tag, args, session),
+            "AUTHENTICATE" => HandleAuthenticate(tag, args, session),
             "SELECT" => HandleSelect(tag, args, session, readOnly: false),
             "EXAMINE" => HandleSelect(tag, args, session, readOnly: true),
             "CREATE" => HandleCreate(tag, args, session),
@@ -181,7 +233,14 @@ public partial class ImapProxy : Listener
             return BuildResponse($"{tag} BAD Missing username or password{EOL}");
         }
 
-        var user = Mind.Db.UserFetch(username, password);
+        // Same seam as POP3 USER and SMTP AUTH: a qualified login resolves to its local part, a
+        // foreign or malformed domain is rejected as such instead of surfacing as a password failure.
+        if (!MailDomains.TryResolveLogin(username, out var localPart, out _))
+        {
+            return BuildResponse($"{tag} NO Mailbox domain not hosted here{EOL}");
+        }
+
+        var user = Mind.Db.UserFetch(localPart, password);
 
         if (user == null)
         {
@@ -194,6 +253,120 @@ public partial class ImapProxy : Listener
         Mind.PostOfficeDb.CreateDefaultMailboxes(session.Username);
 
         return BuildResponse($"{tag} OK LOGIN completed{EOL}");
+    }
+
+    // RFC 3501 6.2.2. CAPABILITY advertises AUTH=LOGIN, and SASL-preferring clients (curl among them)
+    // issue AUTHENTICATE before ever considering the plain LOGIN command - this used to fall through
+    // to "BAD Unknown command" and the client gave up without sending credentials.
+    private byte[] HandleAuthenticate(string tag, string args, ImapSession session)
+    {
+        if (session.State != ImapState.NotAuthenticated)
+        {
+            return BuildResponse($"{tag} BAD Already authenticated{EOL}");
+        }
+
+        var parts = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length == 0)
+        {
+            return BuildResponse($"{tag} BAD Missing authentication mechanism{EOL}");
+        }
+
+        // SASL-IR (RFC 4959) is not advertised, so an initial response argument is a protocol error.
+        if (parts.Length > 1)
+        {
+            return BuildResponse($"{tag} BAD Initial response not supported{EOL}");
+        }
+
+        if (parts[0].ToUpperInvariant() != "LOGIN")
+        {
+            return BuildResponse($"{tag} NO Unsupported authentication mechanism{EOL}");
+        }
+
+        session.AuthExchange = ImapAuthExchange.WantUsername;
+        session.AuthTag = tag;
+        session.AuthUsername = string.Empty;
+
+        return BuildResponse($"+ {ToBase64("Username:")}{EOL}");
+    }
+
+    private byte[] HandleAuthenticateResponse(string line, ImapSession session)
+    {
+        var tag = session.AuthTag;
+
+        // RFC 3501 6.2.2: a bare "*" cancels the exchange, and any non-base64 line is a protocol
+        // error. Abort cleanly either way (same hardening as the SMTP AUTH path) instead of letting
+        // Convert.FromBase64String throw and tear the session down.
+        if (line == "*" || !TryDecodeBase64(line, out var decoded))
+        {
+            ResetAuthExchange(session);
+
+            return BuildResponse($"{tag} BAD Authentication aborted{EOL}");
+        }
+
+        if (session.AuthExchange == ImapAuthExchange.WantUsername)
+        {
+            // Hosted-domain seam, same as LOGIN: fred@hosted resolves to fred, a foreign or malformed
+            // domain is rejected as such - never stripped, never surfaced as a password failure.
+            if (!MailDomains.TryResolveLogin(decoded, out var localPart, out _))
+            {
+                ResetAuthExchange(session);
+
+                return BuildResponse($"{tag} NO Mailbox domain not hosted here{EOL}");
+            }
+
+            session.AuthUsername = localPart;
+            session.AuthExchange = ImapAuthExchange.WantPassword;
+
+            return BuildResponse($"+ {ToBase64("Password:")}{EOL}");
+        }
+
+        var username = session.AuthUsername;
+
+        ResetAuthExchange(session);
+
+        var user = Mind.Db.UserFetch(username, decoded);
+
+        if (user == null)
+        {
+            return BuildResponse($"{tag} NO AUTHENTICATE failed{EOL}");
+        }
+
+        session.State = ImapState.Authenticated;
+        session.Username = user.Username;
+
+        Mind.PostOfficeDb.CreateDefaultMailboxes(session.Username);
+
+        return BuildResponse($"{tag} OK AUTHENTICATE completed{EOL}");
+    }
+
+    private static void ResetAuthExchange(ImapSession session)
+    {
+        session.AuthExchange = ImapAuthExchange.None;
+        session.AuthTag = string.Empty;
+        session.AuthUsername = string.Empty;
+    }
+
+    private static string ToBase64(string value)
+    {
+        return Convert.ToBase64String(Encoding.ASCII.GetBytes(value));
+    }
+
+    // Decode a base64 SASL response without throwing on malformed input (a hostile or aborting client).
+    private static bool TryDecodeBase64(string value, out string decoded)
+    {
+        try
+        {
+            decoded = Convert.FromBase64String(value).ToASCII();
+
+            return true;
+        }
+        catch (FormatException)
+        {
+            decoded = null;
+
+            return false;
+        }
     }
 
     #endregion
@@ -505,6 +678,8 @@ public partial class ImapProxy : Listener
         return BuildResponse(sb.ToString());
     }
 
+    // RFC 3501 6.3.11. Outlook Express uploads every sent message here ("Sent Items"), so the old
+    // "NO APPEND not supported" stub raised an 0x800CCCD2 error dialog on each send.
     private byte[] HandleAppend(string tag, string args, ImapSession session, ListenerSocket connection, byte[] data, int read)
     {
         if (session.State != ImapState.Authenticated && session.State != ImapState.Selected)
@@ -512,10 +687,141 @@ public partial class ImapProxy : Listener
             return BuildResponse($"{tag} NO Not authenticated{EOL}");
         }
 
-        // We don't implement APPEND literal handling. Reply NO (before the synchronizing-literal continuation, so
-        // a compliant client never sends the data) instead of OK - the old OK silently discarded the message,
-        // making Sent/Drafts server copies vanish. NO makes the client keep its local copy.
-        return BuildResponse($"{tag} NO APPEND not supported{EOL}");
+        var match = AppendArgsRegex().Match(args.Trim());
+
+        if (!match.Success)
+        {
+            return BuildResponse($"{tag} BAD Invalid APPEND arguments{EOL}");
+        }
+
+        var size = long.Parse(match.Groups["size"].Value);
+
+        if (size > MaxAppendBytes)
+        {
+            // Refused BEFORE the continuation, so a compliant client never sends the payload.
+            return BuildResponse($"{tag} NO Message exceeds the maximum allowed size{EOL}");
+        }
+
+        var mailboxName = UnquoteMailboxName(match.Groups["mailbox"].Value.Trim());
+
+        var mailbox = Mind.PostOfficeDb.GetMailboxByName(session.Username, mailboxName);
+
+        if (mailbox == null)
+        {
+            // TRYCREATE invites the client to CREATE the mailbox and retry the APPEND (OE does).
+            return BuildResponse($"{tag} NO [TRYCREATE] Mailbox does not exist{EOL}");
+        }
+
+        session.Append = new ImapAppendState
+        {
+            Tag = tag,
+            MailboxId = mailbox.Value.Id,
+            Flags = match.Groups["flags"].Success ? match.Groups["flags"].Value.Trim() : string.Empty,
+            InternalDate = ParseInternalDate(match.Groups["date"].Value) ?? DateTime.Now,
+            Remaining = (int)size
+        };
+
+        // {n+} is a LITERAL+ non-synchronizing literal: the client is already sending the payload
+        // and expects no continuation line.
+        if (match.Groups["nonsync"].Success)
+        {
+            return null;
+        }
+
+        return BuildResponse($"+ Ready for literal data{EOL}");
+    }
+
+    // Complete an APPEND whose literal has fully arrived. The envelope columns are lifted from the
+    // message headers, and MUST be stored as clean addr-specs - the PostOffice readers rehydrate
+    // them with the throwing EmailAddress constructor, so a raw "Name <a@b>" header would break
+    // every later read of the mailbox.
+    private byte[] FinalizeAppend(ImapSession session)
+    {
+        var append = session.Append;
+
+        session.Append = null;
+
+        var message = append.Data.ToString();
+
+        var from = ExtractAddressHeader(message, FromHeaderRegex());
+        var to = ExtractAddressHeader(message, ToHeaderRegex());
+
+        var subjectMatch = SubjectHeaderRegex().Match(message);
+        var subject = subjectMatch.Success ? subjectMatch.Groups["value"].Value.Trim() : string.Empty;
+
+        Mind.PostOfficeDb.AppendMessage(append.MailboxId, append.Flags, append.InternalDate, message, from, to, subject);
+
+        var sb = new StringBuilder();
+
+        // Appending into the currently selected mailbox must refresh the session cache and announce
+        // the new EXISTS count, or the client's view (and sequence numbers) go stale.
+        if (session.State == ImapState.Selected && session.SelectedMailboxId == append.MailboxId)
+        {
+            RefreshMessages(session);
+
+            var status = Mind.PostOfficeDb.GetMailboxStatus(append.MailboxId);
+
+            session.UidNext = status.UidNext;
+
+            sb.Append($"* {status.MessageCount} EXISTS{EOL}");
+        }
+
+        sb.Append($"{append.Tag} OK APPEND completed{EOL}");
+
+        return BuildResponse(sb.ToString());
+    }
+
+    private static string ExtractAddressHeader(string message, Regex headerRegex)
+    {
+        var match = headerRegex.Match(message);
+
+        if (match.Success)
+        {
+            var raw = match.Groups["value"].Value.Trim();
+
+            // "Fox <fox@hive.com>" first, then a bare addr-spec (taking the first of a comma list).
+            if (EmailAddress.TryParseFromSmtp(raw, out var bracketed))
+            {
+                return bracketed.Full;
+            }
+
+            if (EmailAddress.TryParse(raw.Split(',')[0].Trim(), out var bare))
+            {
+                return bare.Full;
+            }
+        }
+
+        return "unknown@" + MailDomains.Primary;
+    }
+
+    // IMAP internal date: "dd-MMM-yyyy HH:mm:ss +ZZZZ" (quoted, day possibly space-padded). Lenient:
+    // an unparseable date falls back to now rather than failing the whole APPEND.
+    private static DateTime? ParseInternalDate(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var text = raw.Trim().Trim('"').Trim();
+
+        // .NET's zzz specifier wants a colon in the offset; IMAP sends -0800.
+        if (text.Length > 5 && (text[^5] == '+' || text[^5] == '-') && char.IsAsciiDigit(text[^4]))
+        {
+            text = text[..^2] + ":" + text[^2..];
+        }
+
+        if (DateTimeOffset.TryParseExact(text, "d-MMM-yyyy HH:mm:ss zzz", CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var withZone))
+        {
+            return withZone.LocalDateTime;
+        }
+
+        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var loose))
+        {
+            return loose;
+        }
+
+        return null;
     }
 
     #endregion

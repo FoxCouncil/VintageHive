@@ -1,21 +1,18 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Text.RegularExpressions;
 using VintageHive.Network;
 using static VintageHive.Proxy.Smtp.SmtpEnums;
 using static VintageHive.Proxy.Smtp.SmtpEnums.SmtpResponseCodes;
 
 namespace VintageHive.Proxy.Smtp;
 
-public partial class SmtpProxy : Listener
+public class SmtpProxy : Listener
 {
     private const string Username = "username";
     private const string Password = "password";
 
     private const string MailTo = "mailto";
     private const string MailFrom = "mailfrom";
-    private const string MailFromUser = "mailfrom_user";
-    private const string MailFromDomain = "mailfrom_domain";
 
     private const string MailData = "mail_data";
 
@@ -27,9 +24,6 @@ public partial class SmtpProxy : Listener
     private const string RequestingData = "requesting_data";
 
     private const string Authenticated = "auth";
-
-    [GeneratedRegex(@"<(?<user>[^@]+)@(?<domain>[^>]+)>", RegexOptions.Compiled)]
-    private static partial Regex RegexEmail();
 
     private Thread postmasterThread;
     private bool postmasterThreadRunning = true;
@@ -58,7 +52,7 @@ public partial class SmtpProxy : Listener
     {
         connection.IsKeepAlive = true;
 
-        return await SendResponse(ServiceReady, $"{HiveDomains.Smtp} ESMTP ready");
+        return await SendResponse(ServiceReady, $"smtp.{MailDomains.Primary} ESMTP ready");
     }
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
@@ -145,14 +139,14 @@ public partial class SmtpProxy : Listener
             {
                 bag[Command.ToString()] = Message;
 
-                return await SendResponse(RequestedMailActionCompleted, $"Hello {Message}, pleased to meet you.");
+                return await SendResponse(RequestedMailActionCompleted, $"smtp.{MailDomains.Primary} Hello {Message}, pleased to meet you.");
             }
 
             case SmtpCommands.EHLO:
             {
                 bag[Command.ToString()] = Message;
 
-                var helloResponse = $"Hello {Message}, pleased to meet you. ESMTP features supported.";
+                var helloResponse = $"smtp.{MailDomains.Primary} Hello {Message}, pleased to meet you. ESMTP features supported.";
 
                 var responseArray = new string[] { helloResponse, "AUTH LOGIN" };
 
@@ -166,7 +160,19 @@ public partial class SmtpProxy : Listener
                     return await SendResponse(AuthenticationRequired, "Authentication required before sending mail.");
                 }
 
-                var email = EmailAddress.ParseFromSmtp(Message);
+                // An unparseable address must answer in-protocol - ParseFromSmtp's FormatException used
+                // to escape the handler and tear the session down instead (e.g. <a@b@c> abuse).
+                if (!EmailAddress.TryParseFromSmtp(Message, out var email))
+                {
+                    return await SendResponse(MailboxNameNotAllowed, "Invalid sender address syntax");
+                }
+
+                // The sender domain must be one we host - an authenticated user must not send as
+                // fred@paypal.com. Read fresh so a runtime domain removal takes effect mid-session.
+                if (!MailDomains.IsHosted(email.Domain))
+                {
+                    return await SendResponse(MailboxNameNotAllowed, "Sender domain not hosted here");
+                }
 
                 if (email.User != bag[Authenticated].ToString())
                 {
@@ -185,7 +191,18 @@ public partial class SmtpProxy : Listener
                     return await SendResponse(AuthenticationRequired, "Authentication required before sending mail.");
                 }
 
-                var email = EmailAddress.ParseFromSmtp(Message);
+                if (!EmailAddress.TryParseFromSmtp(Message, out var email))
+                {
+                    return await SendResponse(MailboxNameNotAllowed, "Invalid recipient address syntax");
+                }
+
+                // There is no outbound relay and the postmaster routes on the local part, so a foreign
+                // recipient domain must be refused HERE - accepting it would misdeliver fred@gmail.com
+                // into local user fred's inbox.
+                if (!MailDomains.IsHosted(email.Domain))
+                {
+                    return await SendResponse(MailboxUnavailable, "Relaying denied, recipient domain not hosted here");
+                }
 
                 if (!bag.ContainsKey(MailTo))
                 {
@@ -318,8 +335,17 @@ public partial class SmtpProxy : Listener
                         return await SendResponse(SyntaxError, "Authentication aborted");
                     }
 
-                    // got username
-                    bag[Username] = decodedUsername;
+                    // Got username. Same seam as POP3 USER and IMAP LOGIN: a qualified login resolves to
+                    // its local part, a foreign or malformed domain fails AUTH outright - never stripped,
+                    // never left to surface as a password failure.
+                    if (!MailDomains.TryResolveLogin(decodedUsername, out var authLocalPart, out _))
+                    {
+                        bag.Remove(RequestingUsername);
+
+                        return await SendResponse(AuthenticationFailed, "Mailbox domain not hosted here");
+                    }
+
+                    bag[Username] = authLocalPart;
 
                     bag.Remove(RequestingUsername);
                     bag.Add(RequestingPassword, true);
@@ -467,43 +493,7 @@ public partial class SmtpProxy : Listener
         {
           try
           {
-            var emailsToProcess = Mind.PostOfficeDb.GetUndeliveredEmails();
-
-            if (emailsToProcess.Count != 0) Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Detected {emailsToProcess.Count} undelivered emails to process.", "");
-
-            foreach (var email in emailsToProcess)
-            {
-                Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) <{email.FromAddress}> -> <{email.ToAddress}>", "");
-
-                var toUser = email.ToAddress.User;
-
-                if (Mind.Db.UserExistsByUsername(toUser))
-                {
-                    Mind.PostOfficeDb.MarkEmailAsDelivered(email.Id);
-
-                    var inbox = Mind.PostOfficeDb.GetMailboxByName(toUser, "INBOX");
-
-                    if (inbox == null)
-                    {
-                        Mind.PostOfficeDb.CreateDefaultMailboxes(toUser);
-                        inbox = Mind.PostOfficeDb.GetMailboxByName(toUser, "INBOX");
-                    }
-
-                    if (inbox != null)
-                    {
-                        Mind.PostOfficeDb.AssignMessageToMailbox(email.Id, inbox.Value.Id);
-                    }
-
-                    Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) SUCCESSFULLY DELIVERED!", "");
-                }
-                else
-                {
-                    Mind.PostOfficeDb.DeleteEmailById(email.Id);
-                    Mind.PostOfficeDb.InsertUndeliverableEmail(email.FromAddress.Full, email.ToAddress.Full);
-
-                    Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) User {email.ToAddress} not found, rejecting and sending bounce email!", "");
-                }
-            }
+            ProcessUndeliveredQueue(logName);
           }
           catch (Exception ex)
           {
@@ -515,5 +505,50 @@ public partial class SmtpProxy : Listener
         }
 
         Log.WriteLine(Log.LEVEL_INFO, logName, $"Exiting VintageHive Postmaster Thread", "");
+    }
+
+    // One pass over the undelivered queue. Internal so tests can drive a single pass without the thread.
+    internal void ProcessUndeliveredQueue(string logName)
+    {
+        var emailsToProcess = Mind.PostOfficeDb.GetUndeliveredEmails();
+
+        if (emailsToProcess.Count != 0) Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Detected {emailsToProcess.Count} undelivered emails to process.", "");
+
+        foreach (var email in emailsToProcess)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) <{email.FromAddress}> -> <{email.ToAddress}>", "");
+
+            var toUser = email.ToAddress.User;
+
+            // Route on local part + hosted domain, not local part alone - a queued foreign-domain
+            // recipient (mail accepted before the RCPT check existed, or a domain removed at runtime
+            // after acceptance) must bounce instead of landing in a same-named local mailbox.
+            if (MailDomains.IsHosted(email.ToAddress.Domain) && Mind.Db.UserExistsByUsername(toUser))
+            {
+                Mind.PostOfficeDb.MarkEmailAsDelivered(email.Id);
+
+                var inbox = Mind.PostOfficeDb.GetMailboxByName(toUser, "INBOX");
+
+                if (inbox == null)
+                {
+                    Mind.PostOfficeDb.CreateDefaultMailboxes(toUser);
+                    inbox = Mind.PostOfficeDb.GetMailboxByName(toUser, "INBOX");
+                }
+
+                if (inbox != null)
+                {
+                    Mind.PostOfficeDb.AssignMessageToMailbox(email.Id, inbox.Value.Id);
+                }
+
+                Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) SUCCESSFULLY DELIVERED!", "");
+            }
+            else
+            {
+                Mind.PostOfficeDb.DeleteEmailById(email.Id);
+                Mind.PostOfficeDb.InsertUndeliverableEmail(email.FromAddress.Full, email.ToAddress.Full);
+
+                Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) User {email.ToAddress} not found, rejecting and sending bounce email!", "");
+            }
+        }
     }
 }
