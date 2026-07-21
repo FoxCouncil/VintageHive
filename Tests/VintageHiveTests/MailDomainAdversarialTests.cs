@@ -9,9 +9,11 @@
 // DB cannot poison other suites (which pin banners against the default hive.com domain).
 
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Adversarial5.Smtp;
 using VintageHive;
+using VintageHive.Data.Contexts;
 using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Imap;
@@ -800,6 +802,84 @@ public class MailDomainAdversarialTests
         Mind.PostOfficeDb.DeleteEmailById(row.Id);
 
         return row.Data;
+    }
+
+    // True when the string is strict CRLF: stripping every CRLF pair leaves no stray \n or \r.
+    private static bool IsStrictCrlf(string text)
+    {
+        var stripped = text.Replace("\r\n", "");
+
+        return !stripped.Contains('\n') && !stripped.Contains('\r');
+    }
+
+    [TestMethod]
+    public void BounceLetter_PureBuilder_EmitsExplicitCrlfBytesOnAnyPlatform()
+    {
+        // The builder is a pure function, so this pins exact wire bytes regardless of what
+        // Environment.NewLine is on the machine running the suite.
+        var letter = PostOfficeDbContext.BuildUndeliverableLetter("a@example.com", "b@example.com", "SUBJ", "postmaster@example.com", new DateTimeOffset(1998, 1, 1, 0, 0, 0, TimeSpan.Zero), "Acme");
+
+        Assert.IsTrue(IsStrictCrlf(letter), $"bare line ending in synthesized letter: {letter.Replace("\r", "<CR>").Replace("\n", "<LF>")}");
+
+        StringAssert.Contains(letter, "\r\nFrom: postmaster@example.com\r\nTo: a@example.com\r\nSubject: SUBJ\r\n\r\nYour message reached the Acme Postmaster", letter);
+        Assert.IsTrue(letter.EndsWith("Helping lost bytes find their way home.\r\n"), letter);
+    }
+
+    [TestMethod]
+    public void Bounce_RawStoredData_IsStrictCrlfWithHeaderSeparator()
+    {
+        var letter = GenerateBounceLetter("crlf1@example.com");
+
+        Assert.IsTrue(IsStrictCrlf(letter), "stored bounce contains bare line endings");
+
+        // Headers must terminate with CRLFCRLF (the Subject line is the last header).
+        StringAssert.Contains(letter, "Rejected!\r\n\r\n", letter);
+    }
+
+    [TestMethod]
+    public void SynthesizedMail_SourceNeverUsesAppendLineOrEnvironmentNewLine()
+    {
+        // AppendLine is byte-identical to explicit CRLF on Windows, so no runtime assert can catch
+        // a regression here when the suite runs on Windows - lint the source instead.
+        var source = File.ReadAllText(Path.Combine(RepoRoot(), "Data", "Contexts", "PostOfficeDbContext.cs"));
+
+        Assert.IsFalse(source.Contains("AppendLine"), "synthesized mail must be built with explicit \\r\\n, not AppendLine (bare LF on Linux)");
+        Assert.IsFalse(source.Contains("Environment.NewLine"), "synthesized mail must be built with explicit \\r\\n, not Environment.NewLine");
+    }
+
+    private static string RepoRoot([CallerFilePath] string thisFile = "")
+    {
+        return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", ".."));
+    }
+
+    [TestMethod]
+    public async Task Bounce_Pop3Retr_EmitsStrictCrlf()
+    {
+        var user = "bnc4";
+
+        CreateUser(user);
+
+        try
+        {
+            Mind.PostOfficeDb.InsertUndeliverableEmail($"{user}@{HostedDomain}", "ghost@example.com");
+
+            SmtpAdv.NewProxy().ProcessUndeliveredQueue(nameof(Bounce_Pop3Retr_EmitsStrictCrlf));
+
+            var (pop3, conn) = await Pop3Session();
+
+            await Mail.MailTestEnv.Cmd(pop3, conn, $"USER {user}");
+            await Mail.MailTestEnv.Cmd(pop3, conn, $"PASS {TestPassword}");
+
+            var retr = await Mail.MailTestEnv.Cmd(pop3, conn, "RETR 1");
+
+            StringAssert.StartsWith(retr, "+OK", retr);
+            StringAssert.Contains(retr, "Subject: UNDELIVERABLE", retr);
+            Assert.IsTrue(IsStrictCrlf(retr), "POP3 RETR emitted bare line endings");
+        }
+        finally
+        {
+            DeleteUserAndMail(user);
+        }
     }
 
     [TestMethod]

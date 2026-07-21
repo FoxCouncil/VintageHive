@@ -688,35 +688,45 @@ public class PostOfficeDbContext : DbContextBase
 
     #endregion
 
+    // Synthesized mail is wire data: every line ends in explicit CRLF (RFC 5322). Never build it
+    // with the platform-newline helpers - on a Linux host those emit bare LF, and the CRLF-keyed
+    // header extraction then serves the message with no Subject/From at all (a lint test enforces
+    // this file-wide). Pure function (no config reads) so tests can pin the exact bytes anywhere.
+    internal static string BuildUndeliverableLetter(string toAddress, string failedAddress, string subject, string from, DateTimeOffset date, string productName)
+    {
+        // Crafting the retro computer email humor message with appropriate headers. ProductName may
+        // contain format/regex specials and must land in the letter verbatim - interpolation only.
+        var lines = new[]
+        {
+            "Date: " + date.ToRFC822String(),
+            "From: " + from,
+            "To: " + toAddress,
+            "Subject: " + subject,
+            "",
+            $"Your message reached the {productName} Postmaster but...",
+            $"ERROR: 404 - Recipient {failedAddress} not found in our system!",
+            "Your bytes are floating aimlessly in the void.",
+            "",
+            "",
+            "--",
+            $"{productName} Postmaster",
+            "Helping lost bytes find their way home.",
+            ""
+        };
+
+        return string.Join("\r\n", lines);
+    }
+
     // Messages
     public void InsertUndeliverableEmail(string toAddress, string failedAddress)
     {
-        var emailDataBuilder = new StringBuilder();
         var subject = $"UNDELIVERABLE: {failedAddress} is not a valid user! Rejected!";
         var date = DateTimeOffset.Now;
         var from = "postmaster@" + MailDomains.Primary;
 
-        // Whitelabel: every brand word comes from ProductName (read fresh per letter, so a runtime
-        // config change brands the very next bounce). Only interpolation here - ProductName may
-        // contain format/regex specials and must land in the letter verbatim.
-        var productName = Mind.ProductName;
-
-        // Crafting the retro computer email humor message with appropriate headers
-        emailDataBuilder.AppendLine("Date: " + date.ToRFC822String());
-        emailDataBuilder.AppendLine("From: " + from);
-        emailDataBuilder.AppendLine("To: " + toAddress);
-        emailDataBuilder.AppendLine("Subject: " + subject);
-        emailDataBuilder.AppendLine();
-        emailDataBuilder.AppendLine($"Your message reached the {productName} Postmaster but...");
-        emailDataBuilder.AppendLine($"ERROR: 404 - Recipient {failedAddress} not found in our system!");
-        emailDataBuilder.AppendLine("Your bytes are floating aimlessly in the void.");
-        emailDataBuilder.AppendLine();
-        emailDataBuilder.AppendLine();
-        emailDataBuilder.AppendLine("--");
-        emailDataBuilder.AppendLine($"{productName} Postmaster");
-        emailDataBuilder.AppendLine("Helping lost bytes find their way home.");
-
-        var emailData = emailDataBuilder.ToString();
+        // Whitelabel: ProductName is read fresh per letter, so a runtime config change brands the
+        // very next bounce.
+        var emailData = BuildUndeliverableLetter(toAddress, failedAddress, subject, from, date, Mind.ProductName);
 
         WithContext(context =>
         {

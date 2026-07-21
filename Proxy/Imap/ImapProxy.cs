@@ -1572,28 +1572,40 @@ public partial class ImapProxy : Listener
         return $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
     }
 
+    // Tolerate-read, emit-strict: legacy rows synthesized on a Linux host (pre-CRLF-fix bounces)
+    // are LF-only, which the CRLF-keyed extraction below would otherwise serve as headerless mush.
+    // Canonicalizing is byte-identical for well-formed CRLF messages.
+    private static string NormalizeCrlf(string data)
+    {
+        return data.Replace("\r\n", "\n").Replace("\n", "\r\n");
+    }
+
     private static string ExtractHeaders(string data)
     {
-        var idx = data.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        var normalized = NormalizeCrlf(data);
+
+        var idx = normalized.IndexOf("\r\n\r\n", StringComparison.Ordinal);
 
         if (idx == -1)
         {
-            return data + "\r\n";
+            return normalized + "\r\n";
         }
 
-        return data[..(idx + 4)];
+        return normalized[..(idx + 4)];
     }
 
     private static string ExtractBody(string data)
     {
-        var idx = data.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        var normalized = NormalizeCrlf(data);
+
+        var idx = normalized.IndexOf("\r\n\r\n", StringComparison.Ordinal);
 
         if (idx == -1)
         {
             return string.Empty;
         }
 
-        return data[(idx + 4)..];
+        return normalized[(idx + 4)..];
     }
 
     private static string ExtractSpecificHeaders(string data, string[] fieldNames)

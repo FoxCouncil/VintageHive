@@ -11,6 +11,7 @@ using System.Net;
 using VintageHive;
 using VintageHive.Network;
 using VintageHive.Proxy.Imap;
+using VintageHive.Proxy.Smtp;
 
 namespace Adversarial5.ImapFetchNaming;
 
@@ -212,6 +213,87 @@ public class ImapFetchNamingTests
             var afterFetch = Mind.PostOfficeDb.GetMessagesForMailbox(inboxId)[0].Flags;
 
             StringAssert.Contains(afterFetch, @"\Seen", $"non-PEEK BODY[] must set \\Seen: {afterFetch}");
+        }
+        finally
+        {
+            CleanupUser(user);
+        }
+    }
+
+    [TestMethod]
+    public async Task Fetch_BounceLetter_HeaderFieldsServeSubjectAndFrom()
+    {
+        var user = "fnam5";
+
+        CreateUser(user);
+
+        try
+        {
+            // Postmaster-delivered bounce under the default hosted domain (hive.com).
+            Mind.PostOfficeDb.InsertUndeliverableEmail($"{user}@hive.com", $"ghost@hive.com");
+
+            new SmtpProxy(IPAddress.Loopback, 0).ProcessUndeliveredQueue(nameof(Fetch_BounceLetter_HeaderFieldsServeSubjectAndFrom));
+
+            var proxy = new ImapProxy(IPAddress.Loopback, 0);
+            var conn = new ListenerSocket();
+
+            await proxy.ProcessConnection(conn);
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"a1 LOGIN {user} {TestPassword}");
+
+            var select = await Mail.MailTestEnv.Cmd(proxy, conn, "a2 SELECT INBOX");
+
+            StringAssert.Contains(select, "* 1 EXISTS", select);
+
+            // The live-deployment symptom: this returned an EMPTY literal for bounces because the
+            // letter was LF-only and extraction splits on CRLF.
+            var response = await Mail.MailTestEnv.Cmd(proxy, conn, "a3 FETCH 1 (BODY.PEEK[HEADER.FIELDS (Subject From)])");
+
+            var fields = AssertLiteral(response, "BODY[HEADER.FIELDS (Subject From)]");
+
+            StringAssert.Contains(fields, "Subject: UNDELIVERABLE", fields);
+            StringAssert.Contains(fields, "From: postmaster@hive.com", fields);
+        }
+        finally
+        {
+            CleanupUser(user);
+        }
+    }
+
+    [TestMethod]
+    public async Task Fetch_LegacyLfOnlyRow_HeadersToleratedAndEmittedAsCrlf()
+    {
+        var user = "fnam6";
+
+        CreateUser(user);
+
+        try
+        {
+            var proxy = new ImapProxy(IPAddress.Loopback, 0);
+            var conn = new ListenerSocket();
+
+            await proxy.ProcessConnection(conn);
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"a1 LOGIN {user} {TestPassword}");
+
+            // A pre-fix row synthesized on a Linux host: bare LF throughout.
+            var inbox = Mind.PostOfficeDb.GetMailboxByName(user, "INBOX");
+
+            Mind.PostOfficeDb.AppendMessage(inbox!.Value.Id, "", new DateTime(1998, 1, 1), $"From: postmaster@hive.com\nTo: {user}@hive.com\nSubject: legacy\n\nold body line\n", "postmaster@hive.com", $"{user}@hive.com", "legacy");
+
+            await Mail.MailTestEnv.Cmd(proxy, conn, "a2 SELECT INBOX");
+
+            // Tolerate-read: the fields come back populated; emit-strict: as CRLF, exactly framed.
+            var fields = AssertLiteral(await Mail.MailTestEnv.Cmd(proxy, conn, "a3 FETCH 1 (BODY.PEEK[HEADER.FIELDS (Subject From)])"), "BODY[HEADER.FIELDS (Subject From)]");
+
+            StringAssert.Contains(fields, "Subject: legacy\r\n", fields);
+            StringAssert.Contains(fields, "From: postmaster@hive.com\r\n", fields);
+
+            var headers = AssertLiteral(await Mail.MailTestEnv.Cmd(proxy, conn, "a4 FETCH 1 (BODY.PEEK[HEADER])"), "BODY[HEADER]");
+
+            Assert.IsFalse(headers.Replace("\r\n", "").Contains('\n'), $"BODY[HEADER] emitted bare LF for a legacy row: {headers}");
+
+            var text = AssertLiteral(await Mail.MailTestEnv.Cmd(proxy, conn, "a5 FETCH 1 (BODY.PEEK[TEXT])"), "BODY[TEXT]");
+
+            StringAssert.Contains(text, "old body line", text);
         }
         finally
         {
