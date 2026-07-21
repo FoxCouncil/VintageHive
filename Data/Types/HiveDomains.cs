@@ -4,7 +4,8 @@ namespace VintageHive.Data.Types;
 
 /// <summary>
 /// Single source of truth for VintageHive's virtual "*.hive.com" domain namespace. Every controller
-/// [Domain(...)], host check, generated URL, and email address derives from <see cref="Base"/>.
+/// [Domain(...)], host check, and generated URL derives from <see cref="Base"/>. Email and mail/IRC
+/// banner identity are runtime config instead: see <see cref="MailDomains"/> and the irc* configs.
 /// Note: controller static assets live in Statics/controllers/&lt;domain&gt;/, so changing the base
 /// domain also means renaming those directories.
 /// </summary>
@@ -23,5 +24,4 @@ public static class HiveDomains
 
     public const string Wildcard = "*." + Base;                 // *.hive.com (controller catch-all)
     public const string DotSuffix = "." + Base;                 // .hive.com (host.EndsWith checks)
-    public const string EmailSuffix = "@" + Base;               // @hive.com
 }

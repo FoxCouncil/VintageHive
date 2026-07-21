@@ -60,4 +60,21 @@ public class OscarWireFixupTests
 
         Assert.AreEqual("fox@example.com", OscarAuthorizationService.BuildAccountEmail("fox"), "auth email must follow the PRIMARY hosted domain");
     }
+
+    [TestMethod]
+    public void ProfileCreation_EmailFollowsConfiguredMailDomain()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, "example.com");
+
+        var screenName = "oswp1";
+
+        Mind.Db.OscarEnsureProfileExists(screenName);
+
+        var profile = Mind.Db.OscarGetProfile(screenName);
+
+        Assert.IsNotNull(profile);
+        Assert.AreEqual($"{screenName}@example.com", profile.Email, "profile email must follow the primary hosted domain");
+    }
 }

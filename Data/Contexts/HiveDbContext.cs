@@ -972,7 +972,7 @@ public class HiveDbContext : DbContextBase
             {
                 ScreenName = screenName,
                 Nickname = screenName,
-                Email = $"{screenName}{HiveDomains.EmailSuffix}"
+                Email = $"{screenName}@{MailDomains.Primary}"
             };
 
             OscarInsertOrUpdateProfile(profile);

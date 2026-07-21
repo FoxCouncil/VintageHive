@@ -27,9 +27,9 @@ internal class OscarUserLookupService : IOscarService
             {
                 var email = Encoding.ASCII.GetString(snac.RawData);
 
-                var username = email.Split(HiveDomains.EmailSuffix).FirstOrDefault();
-
-                if (Mind.Db.UserExistsByUsername(username))
+                // Same seam as the mail plane: local@<any hosted domain> resolves to the local
+                // part, a bare name is looked up as-is, and a foreign domain matches nothing.
+                if (MailDomains.TryResolveLogin(email, out var username, out _) && Mind.Db.UserExistsByUsername(username))
                 {
                     var replySnac = snac.NewReply(FAMILY_ID, SRV_SEARCH_RESPONSE);
 
