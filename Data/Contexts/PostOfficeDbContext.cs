@@ -21,7 +21,54 @@ public class PostOfficeDbContext : DbContextBase
         CreateTable(TABLE_MESSAGE_MAILBOX, "id INTEGER PRIMARY KEY AUTOINCREMENT, email_id INTEGER, mailbox_id INTEGER, uid INTEGER, flags TEXT DEFAULT '', FOREIGN KEY(email_id) REFERENCES emails(id), FOREIGN KEY(mailbox_id) REFERENCES mailboxes(id)");
     }
 
-    public void ProcessAndInsertEmail(EmailAddress from, HashSet<EmailAddress> toAddresses, string data)
+    /// <summary>
+    /// A recipient's storage usage: SUM of the size COLUMN over every store row addressed to their
+    /// local part (queued and delivered alike, any hosted domain). The column is authoritative for
+    /// quota decisions - a drifted data length never re-enters the math. Computed live on each call.
+    /// </summary>
+    public long GetMailboxUsage(string username)
+    {
+        return WithContext<long>(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT COALESCE(SUM(size), 0) FROM {TABLE_EMAILS} WHERE toAddress LIKE @toAddressPattern";
+
+            command.Parameters.Add(new SqliteParameter("@toAddressPattern", username + "@%"));
+
+            return Convert.ToInt64(command.ExecuteScalar());
+        });
+    }
+
+    // Quota gate for insertion into the store (>= semantics: usage AT the quota refuses the next
+    // message). Reads Mind.MailboxQuotaProvider live. Fail-open on every edge: no provider, a null
+    // quota, an unknown user, or a throwing provider all mean unlimited - a quota is a courtesy
+    // limit and must never block delivery by accident. Deletes are never gated anywhere; deleting
+    // mail is always the way out of over-quota. The check-then-insert pair is not transactional, so
+    // concurrent deliveries racing the same near-full mailbox may overshoot slightly - accepted.
+    public bool IsMailboxFull(string username)
+    {
+        try
+        {
+            var quota = Mind.MailboxQuotaProvider?.Invoke(username);
+
+            if (quota == null)
+            {
+                return false;
+            }
+
+            return GetMailboxUsage(username) >= quota.Value;
+        }
+        catch (Exception ex)
+        {
+            Log.WriteException(nameof(PostOfficeDbContext), ex, "");
+
+            return false;
+        }
+    }
+
+    /// <summary>Queues the message for each recipient, skipping full mailboxes. Returns the skipped recipients.</summary>
+    public List<EmailAddress> ProcessAndInsertEmail(EmailAddress from, HashSet<EmailAddress> toAddresses, string data)
     {
         var subject = Regex.Match(data, @"Subject: (.*?)\r\n", RegexOptions.IgnoreCase).Groups[1].Value;
         var rawDate = Regex.Match(data, @"Date: (.*?)\r\n", RegexOptions.IgnoreCase).Groups[1].Value;
@@ -32,9 +79,12 @@ public class PostOfficeDbContext : DbContextBase
             date = DateTime.UtcNow;
         }
 
+        var skipped = toAddresses.Where(to => IsMailboxFull(to.User)).ToList();
+        var deliverable = toAddresses.Where(to => !skipped.Contains(to)).ToList();
+
         WithContext(context =>
         {
-            foreach (var to in toAddresses)
+            foreach (var to in deliverable)
             {
                 using var insertCommand = context.CreateCommand();
 
@@ -51,6 +101,8 @@ public class PostOfficeDbContext : DbContextBase
                 insertCommand.ExecuteNonQuery();
             }
         });
+
+        return skipped;
     }
     public List<EmailMessage> GetDeliveredEmailsForUser(string toAddressStartsWith)
     {
@@ -720,6 +772,16 @@ public class PostOfficeDbContext : DbContextBase
     // Messages
     public void InsertUndeliverableEmail(string toAddress, string failedAddress)
     {
+        // A bounce aimed at a FULL mailbox is dropped outright: never queued, never re-bounced.
+        // Composes with the postmaster's bounce ping-pong guard - quota pressure must not turn
+        // postmaster mail into a loop or a crash.
+        if (EmailAddress.TryParse(toAddress, out var bounceRecipient) && IsMailboxFull(bounceRecipient.User))
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(PostOfficeDbContext), $"Bounce to <{toAddress}> dropped, mailbox is full.", "");
+
+            return;
+        }
+
         var subject = $"UNDELIVERABLE: {failedAddress} is not a valid user! Rejected!";
         var date = DateTimeOffset.Now;
         var from = "postmaster@" + MailDomains.Primary;

@@ -38,6 +38,8 @@ public static class SmtpEnums
         AuthenticationChallenge = 334,
         StartMailInput = 354,
 
+        InsufficientSystemStorage = 452,
+
         SyntaxError = 500,
         CommandNotImplemented = 502,
         BadSequenceOfCommands = 503,

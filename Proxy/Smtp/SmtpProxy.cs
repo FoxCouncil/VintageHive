@@ -316,10 +316,25 @@ public class SmtpProxy : Listener
                     bag.Remove(RequestingData);
                     bag.Remove(MailData);
 
-                    Mind.PostOfficeDb.ProcessAndInsertEmail(bag[MailFrom] as EmailAddress, bag[MailTo] as HashSet<EmailAddress>, message);
+                    var recipients = bag[MailTo] as HashSet<EmailAddress>;
+
+                    var skipped = Mind.PostOfficeDb.ProcessAndInsertEmail(bag[MailFrom] as EmailAddress, recipients, message);
 
                     bag.Remove(MailFrom);
                     bag.Remove(MailTo);
+
+                    // RFC 5321 4.2.3: 452 only when NO recipient could be stored. A mixed set
+                    // (some mailboxes full, some not) still succeeds for the deliverable ones;
+                    // the skips are reported in the log.
+                    if (skipped.Count > 0)
+                    {
+                        Log.WriteLine(Log.LEVEL_INFO, GetType().Name, $"Mailbox full, skipped delivery to: {string.Join(", ", skipped.Select(s => $"<{s.Full}>"))}", "");
+
+                        if (skipped.Count == recipients.Count)
+                        {
+                            return await SendResponse(InsufficientSystemStorage, "Requested action not taken: insufficient system storage");
+                        }
+                    }
 
                     return await SendResponse(RequestedMailActionCompleted, "Ok, message accepted for delivery");
                 }

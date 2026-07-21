@@ -122,6 +122,12 @@ public static class Mind
 
     public static PostOfficeDbContext PostOfficeDb { get; private set; }
 
+    // Host-injected mailbox quota (username -> quota in bytes; null = unlimited). Set from an
+    // embedding host's composition root; null provider = unlimited (today's behavior). Read live on
+    // every delivery decision - never cache the result in the mail path. Fail-open: a provider
+    // error must never block delivery.
+    public static Func<string, long?> MailboxQuotaProvider { get; set; }
+
     public static PrinterDbContext PrinterDb { get; private set; }
 
     public static RadioBrowserDbContext RadioBrowserDB { get; private set; }
