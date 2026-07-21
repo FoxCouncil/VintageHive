@@ -8,6 +8,7 @@
 using System.Buffers.Binary;
 using VintageHive;
 using VintageHive.Data.Types;
+using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Oscar.Services;
 
 namespace Adversarial5.OscarWire;
@@ -59,6 +60,84 @@ public class OscarWireFixupTests
         Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, "example.com,second.com");
 
         Assert.AreEqual("fox@example.com", OscarAuthorizationService.BuildAccountEmail("fox"), "auth email must follow the PRIMARY hosted domain");
+    }
+
+    private static void DeleteSsiItems(string screenName)
+    {
+        foreach (var item in Mind.Db.OscarGetSsiItems(screenName))
+        {
+            Mind.Db.OscarSsiDeleteItem(screenName, item.GroupId, item.ItemId, item.ItemType);
+        }
+    }
+
+    [TestMethod]
+    public void EmptyAccount_DefaultSsi_MasterGroupCarriesChildListTlv()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        var screenName = "sswp1";
+
+        DeleteSsiItems(screenName);
+
+        try
+        {
+            var items = new OscarSsiService(null).EnsureSsiItems(new OscarSession { ScreenName = screenName });
+
+            Assert.AreEqual(2, items.Count, "fresh account should have exactly root + Buddies groups");
+
+            // The master group (gid 0) MUST carry TLV 0x00C8 listing child group 1 even with zero
+            // buddies - its absence sent AIM 4.7 into a stack-exhausting tree walk.
+            var root = items.Single(i => i.GroupId == 0 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+
+            Assert.AreNotEqual(0, root.TlvData.Length, "master group shipped with empty TlvData");
+
+            var rootChildList = OscarUtils.DecodeTlvs(root.TlvData).GetTlv(0x00C8);
+
+            Assert.IsNotNull(rootChildList, "master group lacks TLV 0x00C8");
+            CollectionAssert.AreEqual(new byte[] { 0x00, 0x01 }, rootChildList.Value, "child list must name group id 1");
+
+            // The Buddies group carries an EMPTY 0x00C8 - present but zero members.
+            var buddies = items.Single(i => i.GroupId == 1 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+            var buddiesChildList = OscarUtils.DecodeTlvs(buddies.TlvData).GetTlv(0x00C8);
+
+            Assert.IsNotNull(buddiesChildList, "Buddies group lacks TLV 0x00C8");
+            Assert.AreEqual(0, buddiesChildList.Value.Length, "empty group's 0x00C8 must be empty");
+        }
+        finally
+        {
+            DeleteSsiItems(screenName);
+        }
+    }
+
+    [TestMethod]
+    public void PopulatedAccount_DefaultSsi_ChildAndMemberListsFilled()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        var screenName = "sswp2";
+
+        DeleteSsiItems(screenName);
+
+        try
+        {
+            var session = new OscarSession { ScreenName = screenName, Buddies = ["pal1", "pal2"] };
+
+            var items = new OscarSsiService(null).EnsureSsiItems(session);
+
+            Assert.AreEqual(4, items.Count, "root + Buddies + two migrated buddies");
+
+            var root = items.Single(i => i.GroupId == 0 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+
+            CollectionAssert.AreEqual(new byte[] { 0x00, 0x01 }, OscarUtils.DecodeTlvs(root.TlvData).GetTlv(0x00C8)!.Value);
+
+            var buddies = items.Single(i => i.GroupId == 1 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+
+            CollectionAssert.AreEqual(new byte[] { 0x00, 0x01, 0x00, 0x02 }, OscarUtils.DecodeTlvs(buddies.TlvData).GetTlv(0x00C8)!.Value, "member list must carry both migrated buddy item ids");
+        }
+        finally
+        {
+            DeleteSsiItems(screenName);
+        }
     }
 
     [TestMethod]

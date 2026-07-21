@@ -109,6 +109,31 @@ internal class OscarSsiService : IOscarService
 
     private async Task SendSsiList(OscarSession session, Snac snac)
     {
+        var items = EnsureSsiItems(session);
+
+        var reply = snac.NewReply(FAMILY_ID, SRV_SSI_LIST);
+
+        // SSI protocol version
+        reply.WriteUInt8(0x00);
+
+        // Item count
+        reply.WriteUInt16((ushort)items.Count);
+
+        foreach (var item in items)
+        {
+            reply.Write(item.Encode());
+        }
+
+        // Timestamp (last modification)
+        reply.WriteUInt32((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+        await session.SendSnac(reply);
+    }
+
+    // Loads the account's SSI items, creating the default tree on first contact. Internal so tests
+    // can drive the empty-account path without a socket.
+    internal List<OscarSsiItem> EnsureSsiItems(OscarSession session)
+    {
         var items = Mind.Db.OscarGetSsiItems(session.ScreenName);
 
         // If no SSI data exists, create a default root group
@@ -157,34 +182,19 @@ internal class OscarSsiService : IOscarService
 
                     Mind.Db.OscarSsiAddItem(buddyItem);
                 }
-
-                // Update the Buddies group with member item IDs
-                UpdateGroupMemberList(session.ScreenName, 1);
-
-                // Update the root group with group IDs
-                UpdateRootGroupList(session.ScreenName);
             }
+
+            // ALWAYS wire up the tree's child lists, buddies or not. AIM 4.x walks the tree from
+            // the master group's TLV 0x00C8; a root group without one sent 4.7.2480 into an
+            // unbounded walk that exhausted its stack (KERNEL32 page fault right after
+            // CLI_SSI_ACTIVATE on a fresh, empty account).
+            UpdateGroupMemberList(session.ScreenName, 1);
+            UpdateRootGroupList(session.ScreenName);
 
             items = Mind.Db.OscarGetSsiItems(session.ScreenName);
         }
 
-        var reply = snac.NewReply(FAMILY_ID, SRV_SSI_LIST);
-
-        // SSI protocol version
-        reply.WriteUInt8(0x00);
-
-        // Item count
-        reply.WriteUInt16((ushort)items.Count);
-
-        foreach (var item in items)
-        {
-            reply.Write(item.Encode());
-        }
-
-        // Timestamp (last modification)
-        reply.WriteUInt32((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-
-        await session.SendSnac(reply);
+        return items;
     }
 
     private async Task ProcessSsiModification(OscarSession session, Snac snac, SsiOperation operation)
@@ -348,11 +358,8 @@ internal class OscarSsiService : IOscarService
             memberIds.Write(OscarUtils.GetBytes(member.ItemId));
         }
 
-        if (memberIds.Length > 0)
-        {
-            var memberTlv = new Tlv(0x00C8, memberIds.ToArray());
-            tlvData.Write(memberTlv.Encode());
-        }
+        // An EMPTY 0x00C8 is valid and required - omitting the TLV entirely is what breaks AIM 4.x.
+        tlvData.Write(new Tlv(0x00C8, memberIds.ToArray()).Encode());
 
         var groupItem = items.FirstOrDefault(i => i.GroupId == groupId && i.ItemType == OscarSsiItem.TYPE_GROUP && i.ItemId == 0);
 
@@ -377,11 +384,8 @@ internal class OscarSsiService : IOscarService
 
         var tlvData = new MemoryStream();
 
-        if (memberIds.Length > 0)
-        {
-            var memberTlv = new Tlv(0x00C8, memberIds.ToArray());
-            tlvData.Write(memberTlv.Encode());
-        }
+        // An EMPTY 0x00C8 is valid and required - omitting the TLV entirely is what breaks AIM 4.x.
+        tlvData.Write(new Tlv(0x00C8, memberIds.ToArray()).Encode());
 
         var rootItem = items.FirstOrDefault(i => i.GroupId == 0 && i.ItemType == OscarSsiItem.TYPE_GROUP);
 
