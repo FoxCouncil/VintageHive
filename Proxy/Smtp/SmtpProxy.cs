@@ -545,9 +545,20 @@ public class SmtpProxy : Listener
             else
             {
                 Mind.PostOfficeDb.DeleteEmailById(email.Id);
-                Mind.PostOfficeDb.InsertUndeliverableEmail(email.FromAddress.Full, email.ToAddress.Full);
 
-                Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) User {email.ToAddress} not found, rejecting and sending bounce email!", "");
+                // Bounces queue as normal undelivered mail now, so an undeliverable BOUNCE (its
+                // recipient vanished before this pass) must be dropped, not re-bounced - a bounce
+                // of a bounce addressed to postmaster would ping-pong through this queue forever.
+                if (email.FromAddress.User.Equals("postmaster", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) Undeliverable bounce to {email.ToAddress} dropped.", "");
+                }
+                else
+                {
+                    Mind.PostOfficeDb.InsertUndeliverableEmail(email.FromAddress.Full, email.ToAddress.Full);
+
+                    Log.WriteLine(Log.LEVEL_DEBUG, logName, $"Processing {email.Id}: ({email.Size}) User {email.ToAddress} not found, rejecting and sending bounce email!", "");
+                }
             }
         }
     }

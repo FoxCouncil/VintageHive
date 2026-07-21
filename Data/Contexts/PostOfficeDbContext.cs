@@ -719,7 +719,10 @@ public class PostOfficeDbContext : DbContextBase
 
             insertCommand.CommandText = $"INSERT INTO {TABLE_EMAILS} (delivery, fromAddress, toAddress, subject, date, size, data) VALUES(@delivery, @from, @to, @subject, @date, @size, @data)";
 
-            insertCommand.Parameters.Add(new SqliteParameter("@delivery", value: 1));
+            // delivery = 0: the bounce goes through the postmaster's normal delivery pass, which
+            // creates the message_mailbox row (UID + \Recent). Inserting delivered=1 directly left
+            // bounces visible to POP3's flat toAddress query but permanently invisible to IMAP.
+            insertCommand.Parameters.Add(new SqliteParameter("@delivery", value: 0));
             insertCommand.Parameters.Add(new SqliteParameter("@from", from));
             insertCommand.Parameters.Add(new SqliteParameter("@to", toAddress));
             insertCommand.Parameters.Add(new SqliteParameter("@subject", subject));

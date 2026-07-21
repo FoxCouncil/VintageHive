@@ -1424,11 +1424,17 @@ public partial class ImapProxy : Listener
             {
                 results.Add($"ENVELOPE ({BuildEnvelope(msg)})");
             }
+            // RFC 3501 7.4.2: every response data-item below is named after the REQUEST item, with
+            // .PEEK stripped (BODY.PEEK is request-only syntax and must never appear in a response).
+            // Answering BODY[] with an RFC822 item made Outlook Express render populated folders as
+            // empty - it could not match the response to anything it asked for.
             else if (upperItem == "RFC822" || upperItem == "BODY[]" || upperItem.StartsWith("BODY.PEEK[]"))
             {
                 var bodyData = msg.Data ?? string.Empty;
 
-                results.Add($"RFC822 {{{bodyData.Length}}}{EOL}{bodyData}");
+                var responseName = upperItem == "RFC822" ? "RFC822" : "BODY[]";
+
+                results.Add($"{responseName} {{{bodyData.Length}}}{EOL}{bodyData}");
 
                 // Mark as seen unless PEEK
                 if (!upperItem.Contains("PEEK") && !session.SelectedReadOnly)
@@ -1440,13 +1446,17 @@ public partial class ImapProxy : Listener
             {
                 var headerData = ExtractHeaders(msg.Data ?? string.Empty);
 
-                results.Add($"BODY[HEADER] {{{headerData.Length}}}{EOL}{headerData}");
+                var responseName = upperItem == "RFC822.HEADER" ? "RFC822.HEADER" : "BODY[HEADER]";
+
+                results.Add($"{responseName} {{{headerData.Length}}}{EOL}{headerData}");
             }
-            else if (upperItem == "BODY[TEXT]" || upperItem.StartsWith("BODY.PEEK[TEXT]"))
+            else if (upperItem == "RFC822.TEXT" || upperItem == "BODY[TEXT]" || upperItem.StartsWith("BODY.PEEK[TEXT]"))
             {
                 var bodyText = ExtractBody(msg.Data ?? string.Empty);
 
-                results.Add($"BODY[TEXT] {{{bodyText.Length}}}{EOL}{bodyText}");
+                var responseName = upperItem == "RFC822.TEXT" ? "RFC822.TEXT" : "BODY[TEXT]";
+
+                results.Add($"{responseName} {{{bodyText.Length}}}{EOL}{bodyText}");
 
                 if (!upperItem.Contains("PEEK") && !session.SelectedReadOnly)
                 {
@@ -1463,7 +1473,11 @@ public partial class ImapProxy : Listener
                     var fieldNames = upperItem[(headerFieldsStart + 1)..headerFieldsEnd].Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     var headerData = ExtractSpecificHeaders(msg.Data ?? string.Empty, fieldNames);
 
-                    results.Add($"{item} {{{headerData.Length}}}{EOL}{headerData}");
+                    // Strip only the .PEEK; the client's original field-list casing is echoed back so
+                    // its request/response matcher gets a byte-identical item name.
+                    var responseName = upperItem.StartsWith("BODY.PEEK[") ? string.Concat("BODY[", item.AsSpan("BODY.PEEK[".Length)) : item;
+
+                    results.Add($"{responseName} {{{headerData.Length}}}{EOL}{headerData}");
                 }
             }
             else if (upperItem == "BODYSTRUCTURE" || upperItem == "BODY")

@@ -646,6 +646,170 @@ public class MailDomainAdversarialTests
     }
 
     [TestMethod]
+    public async Task Bounce_FullRoundTrip_VisibleOverPop3AndImap()
+    {
+        var user = "bnc1";
+
+        CreateUser(user);
+
+        try
+        {
+            // Real submission: authenticated sender mails a hosted-domain user that does not exist.
+            var (proxy, conn) = await AuthedSmtpSession(user);
+
+            await SmtpAdv.Send(proxy, conn, $"MAIL FROM:<{user}@{HostedDomain}>\r\n");
+            await SmtpAdv.Send(proxy, conn, "RCPT TO:<bnghost@example.com>\r\n");
+            await SmtpAdv.Send(proxy, conn, "DATA\r\n");
+
+            var accepted = await SmtpAdv.Send(proxy, conn, "Subject: hi ghost\r\nDate: Thu, 01 Jan 1998 00:00:00 +0000\r\n\r\nanyone home?\r\n.\r\n");
+
+            Assert.AreEqual("250", SmtpAdv.Code(accepted), accepted);
+
+            // Pass 1 bounces the unknown recipient (queuing the bounce), pass 2 delivers the bounce.
+            proxy.ProcessUndeliveredQueue(nameof(Bounce_FullRoundTrip_VisibleOverPop3AndImap));
+            proxy.ProcessUndeliveredQueue(nameof(Bounce_FullRoundTrip_VisibleOverPop3AndImap));
+
+            // POP3 view (flat toAddress query).
+            var pop3View = Mind.PostOfficeDb.GetDeliveredEmailsForUser(user);
+
+            Assert.AreEqual(1, pop3View.Count, "bounce not visible to POP3");
+            Assert.AreEqual($"postmaster@{HostedDomain}", pop3View[0].FromAddress.Full);
+            StringAssert.Contains(pop3View[0].Subject, "UNDELIVERABLE", pop3View[0].Subject);
+
+            // IMAP view (message_mailbox join): the row must exist with a UID and \Recent.
+            var inbox = Mind.PostOfficeDb.GetMailboxByName(user, "INBOX");
+
+            Assert.IsNotNull(inbox, "postmaster did not create default mailboxes for the sender");
+
+            var imapView = Mind.PostOfficeDb.GetMessagesForMailbox(inbox.Value.Id);
+
+            Assert.AreEqual(1, imapView.Count, "bounce has no message_mailbox row - invisible to IMAP");
+            Assert.IsTrue(imapView[0].Uid >= 1, $"bounce got no UID: {imapView[0].Uid}");
+            StringAssert.Contains(imapView[0].Flags, @"\Recent", imapView[0].Flags);
+
+            // And the full IMAP client path serves it.
+            var (imap, imapConn) = await ImapSession();
+
+            await Mail.MailTestEnv.Cmd(imap, imapConn, $"a1 LOGIN {user} {TestPassword}");
+
+            var select = await Mail.MailTestEnv.Cmd(imap, imapConn, "a2 SELECT INBOX");
+
+            StringAssert.Contains(select, "* 1 EXISTS", select);
+
+            var fetch = await Mail.MailTestEnv.Cmd(imap, imapConn, "a3 FETCH 1 (BODY.PEEK[])");
+
+            StringAssert.Contains(fetch, "UNDELIVERABLE", fetch);
+            StringAssert.Contains(fetch, "a3 OK", fetch);
+        }
+        finally
+        {
+            DeleteUserAndMail(user);
+        }
+    }
+
+    [TestMethod]
+    public void Bounce_UidSequence_CorrectWhenMixedWithNormalDeliveries()
+    {
+        var user = "bnc2";
+        var peer = "bnc2pal";
+
+        CreateUser(user);
+        CreateUser(peer);
+
+        try
+        {
+            var proxy = SmtpAdv.NewProxy();
+
+            // Normal delivery first, then a bounce, then another normal delivery.
+            Mind.PostOfficeDb.ProcessAndInsertEmail(new EmailAddress($"{peer}@{HostedDomain}"), [new EmailAddress($"{user}@{HostedDomain}")], "Subject: one\r\nDate: Thu, 01 Jan 1998 00:00:00 +0000\r\n\r\nfirst\r\n");
+            proxy.ProcessUndeliveredQueue(nameof(Bounce_UidSequence_CorrectWhenMixedWithNormalDeliveries));
+
+            Mind.PostOfficeDb.InsertUndeliverableEmail($"{user}@{HostedDomain}", "bnghost@example.com");
+            proxy.ProcessUndeliveredQueue(nameof(Bounce_UidSequence_CorrectWhenMixedWithNormalDeliveries));
+
+            Mind.PostOfficeDb.ProcessAndInsertEmail(new EmailAddress($"{peer}@{HostedDomain}"), [new EmailAddress($"{user}@{HostedDomain}")], "Subject: two\r\nDate: Thu, 01 Jan 1998 00:00:00 +0000\r\n\r\nsecond\r\n");
+            proxy.ProcessUndeliveredQueue(nameof(Bounce_UidSequence_CorrectWhenMixedWithNormalDeliveries));
+
+            var inbox = Mind.PostOfficeDb.GetMailboxByName(user, "INBOX");
+            var messages = Mind.PostOfficeDb.GetMessagesForMailbox(inbox!.Value.Id);
+
+            Assert.AreEqual(3, messages.Count);
+
+            var uids = messages.Select(m => m.Uid).ToList();
+
+            Assert.AreEqual(uids.Count, uids.Distinct().Count(), $"duplicate UIDs: {string.Join(",", uids)}");
+            CollectionAssert.AreEqual(uids.OrderBy(u => u).ToList(), uids, $"UIDs not ascending: {string.Join(",", uids)}");
+            Assert.IsTrue(messages.Any(m => m.Subject.Contains("UNDELIVERABLE")), "bounce missing from the sequence");
+        }
+        finally
+        {
+            DeleteUserAndMail(user);
+            DeleteUserAndMail(peer);
+        }
+    }
+
+    [TestMethod]
+    public async Task Bounce_DeletedViaPop3_LeavesNoOrphanForImap()
+    {
+        var user = "bnc3";
+
+        CreateUser(user);
+
+        try
+        {
+            var smtp = SmtpAdv.NewProxy();
+
+            Mind.PostOfficeDb.InsertUndeliverableEmail($"{user}@{HostedDomain}", "bnghost@example.com");
+
+            smtp.ProcessUndeliveredQueue(nameof(Bounce_DeletedViaPop3_LeavesNoOrphanForImap));
+
+            var inbox = Mind.PostOfficeDb.GetMailboxByName(user, "INBOX");
+
+            Assert.AreEqual(1, Mind.PostOfficeDb.GetMessagesForMailbox(inbox!.Value.Id).Count, "test setup: bounce not delivered");
+
+            // Delete it over POP3 (DELE marks, QUIT commits).
+            var (pop3, conn) = await Pop3Session();
+
+            await Mail.MailTestEnv.Cmd(pop3, conn, $"USER {user}");
+            await Mail.MailTestEnv.Cmd(pop3, conn, $"PASS {TestPassword}");
+
+            var dele = await Mail.MailTestEnv.Cmd(pop3, conn, "DELE 1");
+
+            StringAssert.StartsWith(dele, "+OK", dele);
+
+            await Mail.MailTestEnv.Cmd(pop3, conn, "QUIT");
+
+            // IMAP must not see a dangling message_mailbox row afterwards.
+            Assert.AreEqual(0, Mind.PostOfficeDb.GetMessagesForMailbox(inbox.Value.Id).Count, "POP3 delete left an orphaned message_mailbox row");
+            Assert.AreEqual(0, Mind.PostOfficeDb.GetDeliveredEmailsForUser(user).Count);
+        }
+        finally
+        {
+            DeleteUserAndMail(user);
+        }
+    }
+
+    [TestMethod]
+    public void Bounce_OfABounce_DroppedInsteadOfLoopingForever()
+    {
+        var proxy = SmtpAdv.NewProxy();
+
+        // A bounce addressed to a user that does not exist: the postmaster must drop it, not
+        // re-bounce it - a bounce of a bounce would ping-pong through the queue forever.
+        Mind.PostOfficeDb.InsertUndeliverableEmail("noone@example.com", "bnghost@example.com");
+
+        proxy.ProcessUndeliveredQueue(nameof(Bounce_OfABounce_DroppedInsteadOfLoopingForever));
+
+        Assert.IsFalse(Mind.PostOfficeDb.GetUndeliveredEmails().Any(e => e.FromAddress.User == "postmaster"), "undeliverable bounce was re-queued");
+
+        // A second pass must be a no-op, not another generation of bounces.
+        proxy.ProcessUndeliveredQueue(nameof(Bounce_OfABounce_DroppedInsteadOfLoopingForever));
+
+        Assert.IsFalse(Mind.PostOfficeDb.GetUndeliveredEmails().Any(e => e.FromAddress.User == "postmaster"));
+        Assert.AreEqual(0, Mind.PostOfficeDb.GetDeliveredEmailsForUser("noone").Count, "bounce delivered to a nonexistent user");
+    }
+
+    [TestMethod]
     public void Postmaster_QueuedForeignDomain_BouncesInsteadOfDeliveringLocally()
     {
         var user = "mdmd2";
@@ -661,7 +825,12 @@ public class MailDomainAdversarialTests
 
             Mind.PostOfficeDb.ProcessAndInsertEmail(from, to, $"Subject: bait\r\nDate: Thu, 01 Jan 1998 00:00:00 +0000\r\n\r\nshould bounce\r\n");
 
-            SmtpAdv.NewProxy().ProcessUndeliveredQueue(nameof(Postmaster_QueuedForeignDomain_BouncesInsteadOfDeliveringLocally));
+            // Two passes: the first bounces the foreign recipient (queuing the bounce as normal
+            // undelivered mail), the second delivers that bounce to the sender.
+            var proxy = SmtpAdv.NewProxy();
+
+            proxy.ProcessUndeliveredQueue(nameof(Postmaster_QueuedForeignDomain_BouncesInsteadOfDeliveringLocally));
+            proxy.ProcessUndeliveredQueue(nameof(Postmaster_QueuedForeignDomain_BouncesInsteadOfDeliveringLocally));
 
             // The queue entry is gone but did NOT deliver into the same-named local mailbox...
             Assert.IsFalse(Mind.PostOfficeDb.GetUndeliveredEmails().Any(e => e.ToAddress.User == user), "queue entry survived the postmaster pass");
