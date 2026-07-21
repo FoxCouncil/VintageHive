@@ -1541,8 +1541,9 @@ public class IrcProxy : Listener
 
         await RemoveUserFromAllChannels(user, message);
 
-        Users.TryRemove(connection.TraceId, out _);
-
+        // Cleanup ownership stays with ProcessDisconnection: removing the Users entry here made its
+        // guarded ReservedNicks release unreachable, so every graceful QUIT leaked the nick until
+        // restart. The channel removal above is idempotent; the disconnect pass re-runs it as a no-op.
         connection.IsKeepAlive = false;
 
         return Encoding.UTF8.GetBytes($"ERROR :Closing Link: {user.Hostname} (Quit: {message})\r\n");
