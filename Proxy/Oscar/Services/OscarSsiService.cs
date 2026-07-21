@@ -392,17 +392,43 @@ internal class OscarSsiService : IOscarService
         }
     }
 
-    private static byte[] BuildMaxItemCounts()
+    // One max-count slot per SSI item type 0x00-0x14. AIM 4.x indexes this array BY ITEM TYPE while
+    // building the buddy list, so a short array feeds it out-of-bounds garbage and the client
+    // page-faults during "Starting services" (reproduced: AIM 4.7.2480 on Win98, KERNEL32 fault
+    // ~3.5s after CLI_SSI_ACTIVATE). 21 big-endian ushorts = 42 bytes inside TLV 0x04.
+    internal static byte[] BuildMaxItemCounts()
     {
-        // Max counts for each SSI item type (pairs of type/count)
+        var counts = new ushort[]
+        {
+            200, // 0x00 buddies
+            30,  // 0x01 groups
+            100, // 0x02 permit
+            100, // 0x03 deny
+            1,   // 0x04 permit/deny settings
+            1,   // 0x05 presence info
+            100, // 0x06
+            100, // 0x07
+            100, // 0x08
+            100, // 0x09
+            100, // 0x0A
+            100, // 0x0B
+            100, // 0x0C
+            100, // 0x0D
+            100, // 0x0E
+            100, // 0x0F
+            100, // 0x10
+            100, // 0x11
+            100, // 0x12
+            100, // 0x13
+            1,   // 0x14 buddy icon
+        };
+
         var mem = new MemoryStream();
 
-        mem.Write(OscarUtils.GetBytes((ushort)200));  // Buddies
-        mem.Write(OscarUtils.GetBytes((ushort)30));   // Groups
-        mem.Write(OscarUtils.GetBytes((ushort)100));  // Permit
-        mem.Write(OscarUtils.GetBytes((ushort)100));  // Deny
-        mem.Write(OscarUtils.GetBytes((ushort)1));    // Permit/deny settings
-        mem.Write(OscarUtils.GetBytes((ushort)1));    // Presence info
+        foreach (var count in counts)
+        {
+            mem.Write(OscarUtils.GetBytes(count));
+        }
 
         return mem.ToArray();
     }

@@ -82,7 +82,7 @@ public class OscarAuthorizationService : IOscarService
                         new Tlv(Tlv.Type_ScreenName, session.ScreenName),
                         new Tlv(0x0005, $"{serverIP}:5190"),
                         new Tlv(0x0006, session.Cookie),
-                        new Tlv(0x0011, $"{session.ScreenName}{HiveDomains.EmailSuffix}"),
+                        new Tlv(0x0011, BuildAccountEmail(session.ScreenName)),
                     };
 
                     var authSuccessSnac = snac.NewReply(Family, SRV_LOGIN_REPLY);
@@ -196,6 +196,13 @@ public class OscarAuthorizationService : IOscarService
             }
             break;
         }
+    }
+
+    // The client shows this as the account's email identity; it follows the primary hosted mail
+    // domain (same source as the mail plane), which itself falls back to hive.com when unset.
+    internal static string BuildAccountEmail(string screenName)
+    {
+        return $"{screenName}@{MailDomains.Primary}";
     }
 
     private async Task FailAuth(OscarSession session, Snac snac)

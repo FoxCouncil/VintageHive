@@ -163,7 +163,8 @@ internal class OscarGenericServiceControls : IOscarService
                 {
                     new Tlv(0x01, OscarUtils.GetBytes(0)),
                     new Tlv(0x06, OscarUtils.GetBytes((uint)session.Status)),
-                    new Tlv(0x0F, OscarUtils.GetBytes((uint)session.SignOnTime.ToUnixTimeSeconds())),
+                    // 0x0F is session length in SECONDS ONLINE (0 at signon), not a Unix timestamp
+                    new Tlv(0x0F, OscarUtils.GetBytes((uint)Math.Max(0, (long)(DateTimeOffset.UtcNow - session.SignOnTime).TotalSeconds))),
                     new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds())),
                     new Tlv(0x1E, OscarUtils.GetBytes((uint)0)),
                     new Tlv(0x05, OscarUtils.GetBytes((uint)session.SignOnTime.ToUnixTimeSeconds()))
