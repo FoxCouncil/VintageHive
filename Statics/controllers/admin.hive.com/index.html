@@ -157,6 +157,15 @@
         <input class="form-check-input" type="checkbox" role="switch" id="irc_auth_toggle">
         <label class="form-check-label" for="irc_auth_toggle">Require login for IRC. Members connect with their screen name as the nickname and their account password as the server password; nick renames are disabled.</label>
     </div>
+    <div class="row g-2 mb-4 align-items-end">
+        <div class="col-sm-9">
+            <label class="form-label small mb-1">Custom IRC MOTD (one line per row; empty = built-in banner)</label>
+            <textarea id="irc_motd_text" class="form-control" rows="4"></textarea>
+        </div>
+        <div class="col-sm-3">
+            <button type="button" id="irc_motd_save" class="btn btn-outline-primary w-100">Save</button>
+        </div>
+    </div>
 
     {% include 'partials/footer.html' %}
     <script type="module">
@@ -303,6 +312,7 @@
                 setInputIfNotEditing(gei("ftp_passive_max"), status.ftpPassivePortMax ?? 0);
                 setCheckedIfNotEditing(gei("self_reg_toggle"), !!status.allowSelfRegistration);
                 setCheckedIfNotEditing(gei("irc_auth_toggle"), !!status.ircRequireAuthentication);
+                setInputIfNotEditing(gei("irc_motd_text"), status.ircMotd || "");
             } catch (e) {
                 console.log(e)
             }
@@ -343,6 +353,10 @@
         });
         gei("irc_auth_toggle").addEventListener("change", async (e) => {
             await callApi("ircauthset", formData({ enabled: e.target.checked ? "true" : "false" }));
+            await updateDashboard();
+        });
+        gei("irc_motd_save").addEventListener("click", async () => {
+            await callApi("ircmotdset", formData({ motd: gei("irc_motd_text").value }));
             await updateDashboard();
         });
     </script>

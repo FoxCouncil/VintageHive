@@ -1584,6 +1584,27 @@ public class IrcProxy : Listener
 
     private static List<(string, IrcServerReplyType, string, string[], string)> GetMOTD(string nick)
     {
+        // A host-configured MOTD blob replaces the built-in banner; the stored blob is pure text
+        // (one MOTD line per \n line, tolerant of CRLF) and the "- " prefix is added here.
+        var custom = Mind.Db.ConfigGet<string>(ConfigNames.IrcMotd);
+
+        if (!string.IsNullOrEmpty(custom))
+        {
+            var replies = new List<(string, IrcServerReplyType, string, string[], string)>
+            {
+                (IRCD_HOSTNAME, RPL_MOTDSTART, nick, null, $"- {IRCD_HOSTNAME} Message of the day -"),
+            };
+
+            foreach (var line in custom.Split('\n'))
+            {
+                replies.Add((IRCD_HOSTNAME, RPL_MOTD, nick, null, $"- {line.TrimEnd('\r')}"));
+            }
+
+            replies.Add((IRCD_HOSTNAME, RPL_ENDOFMOTD, nick, null, "End of /MOTD command."));
+
+            return replies;
+        }
+
         return new List<(string, IrcServerReplyType, string, string[], string)>
         {
             (IRCD_HOSTNAME, RPL_MOTDSTART, nick, null, $"- {IRCD_HOSTNAME} Message of the day -"),

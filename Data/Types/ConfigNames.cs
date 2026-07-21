@@ -136,6 +136,9 @@ public static class ConfigNames
     // name), and nick renames are refused. Default false (today's open behavior).
     public const string IrcRequireAuthentication = "ircrequireauthentication";
 
+    // Custom IRC MOTD text, one line per \n-separated line of the blob. Empty = built-in MOTD.
+    public const string IrcMotd = "ircmotd";
+
     // Comma-separated list of mail domains this host serves; governs POP3/IMAP/SMTP login, MAIL FROM,
     // RCPT TO, and postmaster routing. First entry is the primary domain (banner and postmaster identity).
     // Every check re-reads it, so an embedding host's ConfigSet takes effect without restart.

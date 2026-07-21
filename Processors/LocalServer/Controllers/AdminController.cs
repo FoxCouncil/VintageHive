@@ -348,6 +348,24 @@ internal partial class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
+    [Route("/api/ircmotdset")]
+    public async Task IrcMotdSet()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("motd"))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        // Stored verbatim; empty restores the built-in MOTD.
+        Mind.Db.ConfigSet(ConfigNames.IrcMotd, Request.FormData["motd"] ?? "");
+
+        Response.SetJsonSuccess();
+    }
+
     [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
@@ -429,6 +447,7 @@ internal partial class AdminController : Controller
             ftpPassivePortMax = Mind.Db.ConfigGet<int>(ConfigNames.FtpPassivePortMax),
             allowSelfRegistration = Mind.Db.ConfigGet<bool>(ConfigNames.AllowSelfRegistration),
             ircRequireAuthentication = Mind.Db.ConfigGet<bool>(ConfigNames.IrcRequireAuthentication),
+            ircMotd = Mind.Db.ConfigGet<string>(ConfigNames.IrcMotd),
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),

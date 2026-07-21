@@ -403,3 +403,75 @@ public class IrcRequireAuthenticationTests
         }
     }
 }
+
+// The ircmotd config blob: empty = built-in banner byte-for-byte, non-empty = one RPL_MOTD (372)
+// per blob line with the "- " prefix added by the proxy, MOTDSTART/ENDOFMOTD framing intact.
+[TestClass]
+public class IrcMotdTests
+{
+    [TestInitialize]
+    public void Init()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        Mind.Db.ConfigSet(ConfigNames.IrcMotd, "");
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        Mind.Db.ConfigSet(ConfigNames.IrcMotd, "");
+    }
+
+    private static async Task<string> RegisterAndGetBurst(string nick)
+    {
+        var proxy = new IrcProxy(IPAddress.Loopback, 0);
+        var conn = await IrcNickLifecycleTests.Connect(proxy);
+
+        await Mail.MailTestEnv.Cmd(proxy, conn, $"NICK {nick}");
+
+        return await Mail.MailTestEnv.Cmd(proxy, conn, $"USER {nick} 0 * :Test User");
+    }
+
+    [TestMethod]
+    public async Task EmptyConfig_BuiltInMotdUnchanged()
+    {
+        var burst = await RegisterAndGetBurst("motd1");
+
+        StringAssert.Contains(burst, " 375 ", burst);
+        StringAssert.Contains(burst, "Message of the day", burst);
+        StringAssert.Contains(burst, "- Rules: Be excellent to each other.", burst);
+        StringAssert.Contains(burst, "- Default channels: #hive, #vintage", burst);
+        StringAssert.Contains(burst, " 376 ", burst);
+        StringAssert.Contains(burst, "End of /MOTD command.", burst);
+    }
+
+    [TestMethod]
+    public async Task CustomBlob_LfLines_EachPrefixedAndFramed()
+    {
+        Mind.Db.ConfigSet(ConfigNames.IrcMotd, "Welcome to the club\nSecond line here");
+
+        var burst = await RegisterAndGetBurst("motd2");
+
+        StringAssert.Contains(burst, " 375 ", burst);
+        StringAssert.Contains(burst, "- Welcome to the club", burst);
+        StringAssert.Contains(burst, "- Second line here", burst);
+        StringAssert.Contains(burst, " 376 ", burst);
+
+        Assert.IsFalse(burst.Contains("Be excellent"), $"built-in MOTD leaked alongside the custom blob: {burst}");
+    }
+
+    [TestMethod]
+    public async Task CustomBlob_CrlfLines_NoStrayCarriageReturns()
+    {
+        Mind.Db.ConfigSet(ConfigNames.IrcMotd, "alpha\r\nbravo\r\ncharlie");
+
+        var burst = await RegisterAndGetBurst("motd3");
+
+        StringAssert.Contains(burst, "- alpha\r\n", burst);
+        StringAssert.Contains(burst, "- bravo\r\n", burst);
+        StringAssert.Contains(burst, "- charlie", burst);
+
+        Assert.IsFalse(burst.Contains("\r\r"), "CRLF blob left a stray CR inside a reply line");
+    }
+}
