@@ -153,6 +153,10 @@
         <input class="form-check-input" type="checkbox" role="switch" id="self_reg_toggle">
         <label class="form-check-label" for="self_reg_toggle">Allow in-client account self-registration (e.g. AIM/ICQ). Turn off when accounts are provisioned externally; already-registered users can still log in.</label>
     </div>
+    <div class="form-check form-switch mb-4">
+        <input class="form-check-input" type="checkbox" role="switch" id="irc_auth_toggle">
+        <label class="form-check-label" for="irc_auth_toggle">Require login for IRC. Members connect with their screen name as the nickname and their account password as the server password; nick renames are disabled.</label>
+    </div>
 
     {% include 'partials/footer.html' %}
     <script type="module">
@@ -298,6 +302,7 @@
                 setInputIfNotEditing(gei("ftp_passive_min"), status.ftpPassivePortMin ?? 0);
                 setInputIfNotEditing(gei("ftp_passive_max"), status.ftpPassivePortMax ?? 0);
                 setCheckedIfNotEditing(gei("self_reg_toggle"), !!status.allowSelfRegistration);
+                setCheckedIfNotEditing(gei("irc_auth_toggle"), !!status.ircRequireAuthentication);
             } catch (e) {
                 console.log(e)
             }
@@ -334,6 +339,10 @@
         });
         gei("self_reg_toggle").addEventListener("change", async (e) => {
             await callApi("selfregset", formData({ enabled: e.target.checked ? "true" : "false" }));
+            await updateDashboard();
+        });
+        gei("irc_auth_toggle").addEventListener("change", async (e) => {
+            await callApi("ircauthset", formData({ enabled: e.target.checked ? "true" : "false" }));
             await updateDashboard();
         });
     </script>

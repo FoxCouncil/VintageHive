@@ -132,6 +132,10 @@ public static class ConfigNames
     // an embedding host that provisions accounts externally sets this off. Default true (today's behavior).
     public const string AllowSelfRegistration = "allowselfregistration";
 
+    // When true, IRC registration requires PASS with valid account credentials (nickname = screen
+    // name), and nick renames are refused. Default false (today's open behavior).
+    public const string IrcRequireAuthentication = "ircrequireauthentication";
+
     // Comma-separated list of mail domains this host serves; governs POP3/IMAP/SMTP login, MAIL FROM,
     // RCPT TO, and postmaster routing. First entry is the primary domain (banner and postmaster identity).
     // Every check re-reads it, so an embedding host's ConfigSet takes effect without restart.

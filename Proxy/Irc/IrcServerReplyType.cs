@@ -81,6 +81,7 @@ public enum IrcServerReplyType
     ERR_BANLISTFULL = 478,
     ERR_NOPRIVILEGES = 481,
     ERR_CHANOPRIVSNEEDED = 482,
+    ERR_RESTRICTED = 484,
 
     // Custom entries
     STR_NOTICE = 900,

@@ -11,6 +11,7 @@
 using System.Net;
 using System.Net.Sockets;
 using VintageHive;
+using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Irc;
 
@@ -29,7 +30,8 @@ public class IrcNickLifecycleTests
         return new IrcProxy(IPAddress.Loopback, 0);
     }
 
-    private static async Task<ListenerSocket> Connect(IrcProxy proxy)
+    // Shared with IrcRequireAuthenticationTests below.
+    internal static async Task<ListenerSocket> Connect(IrcProxy proxy)
     {
         // Registration reads connection.RemoteIP, so the harness backs each session with a real
         // connected loopback socket pair (unlike the mail suites, whose handlers never touch it).
@@ -262,5 +264,142 @@ public class IrcNickLifecycleTests
         await proxy.ProcessDisconnection(conn);
 
         StringAssert.Contains(await Register(proxy, await Connect(proxy), "qn9"), " 001 ", "double disconnection wedged the nick");
+    }
+}
+
+// The ircrequireauthentication flag: registration without PASS is a hard 464, renames are 484,
+// valid credentials still get the welcome burst. Flag off (the default) is covered by every other
+// IRC test in the assembly; teardown resets the flag so suites don't bleed.
+[TestClass]
+public class IrcRequireAuthenticationTests
+{
+    private const string TestPassword = "hunter2";
+
+    [TestInitialize]
+    public void Init()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        Mind.Db.ConfigSet(ConfigNames.IrcRequireAuthentication, true);
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        Mind.Db.ConfigSet(ConfigNames.IrcRequireAuthentication, false);
+    }
+
+    private static void CreateUser(string username)
+    {
+        if (!Mind.Db.UserExistsByUsername(username))
+        {
+            Assert.IsTrue(Mind.Db.UserCreate(username, TestPassword), $"could not create test user {username}");
+        }
+    }
+
+    private static async Task<ListenerSocket> Connect(IrcProxy proxy)
+    {
+        return await IrcNickLifecycleTests.Connect(proxy);
+    }
+
+    [TestMethod]
+    public async Task NoPass_RegistrationRejected464_AndDisconnected()
+    {
+        var proxy = new IrcProxy(IPAddress.Loopback, 0);
+        var conn = await Connect(proxy);
+
+        await Mail.MailTestEnv.Cmd(proxy, conn, "NICK anyone");
+
+        var reply = await Mail.MailTestEnv.Cmd(proxy, conn, "USER anyone 0 * :Test User");
+
+        StringAssert.Contains(reply, " 464 ", reply);
+        StringAssert.Contains(reply, "requires a login", reply);
+        Assert.IsFalse(conn.IsKeepAlive, "no-PASS registration must disconnect");
+
+        await proxy.ProcessDisconnection(conn);
+    }
+
+    [TestMethod]
+    public async Task Pass_ValidCredentials_Welcome()
+    {
+        var nick = "ircauth1";
+
+        CreateUser(nick);
+
+        try
+        {
+            var proxy = new IrcProxy(IPAddress.Loopback, 0);
+            var conn = await Connect(proxy);
+
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"PASS {TestPassword}");
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"NICK {nick}");
+
+            var reply = await Mail.MailTestEnv.Cmd(proxy, conn, $"USER {nick} 0 * :Test User");
+
+            StringAssert.Contains(reply, " 001 ", reply);
+        }
+        finally
+        {
+            Mind.Db.UserDelete(nick);
+        }
+    }
+
+    [TestMethod]
+    public async Task Pass_WrongCredentials_464AndDisconnected()
+    {
+        var nick = "ircauth2";
+
+        CreateUser(nick);
+
+        try
+        {
+            var proxy = new IrcProxy(IPAddress.Loopback, 0);
+            var conn = await Connect(proxy);
+
+            await Mail.MailTestEnv.Cmd(proxy, conn, "PASS wrongpw");
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"NICK {nick}");
+
+            var reply = await Mail.MailTestEnv.Cmd(proxy, conn, $"USER {nick} 0 * :Test User");
+
+            StringAssert.Contains(reply, " 464 ", reply);
+            Assert.IsFalse(conn.IsKeepAlive);
+        }
+        finally
+        {
+            Mind.Db.UserDelete(nick);
+        }
+    }
+
+    [TestMethod]
+    public async Task Authenticated_NickChange_Rejected484_SameNickNoOpStays()
+    {
+        var nick = "ircauth3";
+
+        CreateUser(nick);
+
+        try
+        {
+            var proxy = new IrcProxy(IPAddress.Loopback, 0);
+            var conn = await Connect(proxy);
+
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"PASS {TestPassword}");
+            await Mail.MailTestEnv.Cmd(proxy, conn, $"NICK {nick}");
+
+            StringAssert.Contains(await Mail.MailTestEnv.Cmd(proxy, conn, $"USER {nick} 0 * :Test User"), " 001 ", "test setup: login failed");
+
+            var rename = await Mail.MailTestEnv.Cmd(proxy, conn, "NICK somebodyelse");
+
+            StringAssert.Contains(rename, " 484 ", rename);
+            StringAssert.Contains(rename, "Your nickname is your screen name", rename);
+
+            // Case-insensitive same-nick no-op is preserved in members-only mode.
+            var sameNick = await Mail.MailTestEnv.Cmd(proxy, conn, $"NICK {nick.ToUpperInvariant()}");
+
+            Assert.AreEqual(string.Empty, sameNick, "same-nick no-op regressed under the flag");
+        }
+        finally
+        {
+            Mind.Db.UserDelete(nick);
+        }
     }
 }

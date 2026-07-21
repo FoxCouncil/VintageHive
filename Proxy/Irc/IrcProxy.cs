@@ -479,6 +479,15 @@ public class IrcProxy : Listener
         }
         else
         {
+            // Members-only mode: no PASS at all is a hard 464. RFC 1459 clients send PASS before
+            // NICK/USER, so rejecting at registration completion is safe.
+            if (Mind.Db.ConfigGet<bool>(ConfigNames.IrcRequireAuthentication))
+            {
+                var authReply = SendIrcReply(IRCD_HOSTNAME, ERR_PASSWDMISMATCH, nick, null, $"This server requires a login. Use your {Mind.ProductName} screen name as your nickname and your account password as the server password, then reconnect.");
+                connection.IsKeepAlive = false;
+                return authReply;
+            }
+
             // No PASS: check if nick is registered - if so, reject
             if (Mind.Db.UserExistsByUsername(nick))
             {
@@ -1464,6 +1473,12 @@ public class IrcProxy : Listener
         if (newNick.Equals(user.Nick, StringComparison.OrdinalIgnoreCase))
         {
             return null;
+        }
+
+        // Members-only mode: the nickname IS the account identity, no renames.
+        if (Mind.Db.ConfigGet<bool>(ConfigNames.IrcRequireAuthentication))
+        {
+            return SendIrcReply(IRCD_HOSTNAME, ERR_RESTRICTED, user.Nick, null, "Your nickname is your screen name");
         }
 
         // Check if nick is registered to someone else (before claiming, so a failure here doesn't leak the claim)
