@@ -139,6 +139,11 @@ public static class ConfigNames
     // Custom IRC MOTD text, one line per \n-separated line of the blob. Empty = built-in MOTD.
     public const string IrcMotd = "ircmotd";
 
+    // IRC server identity: reply-prefix hostname and the version string in 002/004. Empty = built-ins.
+    public const string IrcHostname = "irchostname";
+
+    public const string IrcVersion = "ircversion";
+
     // Comma-separated list of mail domains this host serves; governs POP3/IMAP/SMTP login, MAIL FROM,
     // RCPT TO, and postmaster routing. First entry is the primary domain (banner and postmaster identity).
     // Every check re-reads it, so an embedding host's ConfigSet takes effect without restart.

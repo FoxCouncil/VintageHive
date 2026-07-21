@@ -475,3 +475,71 @@ public class IrcMotdTests
         Assert.IsFalse(burst.Contains("\r\r"), "CRLF blob left a stray CR inside a reply line");
     }
 }
+
+// The irchostname/ircversion config pair: empty = the historical irc.hive.com / VintageHiveIRCd
+// identity byte-for-byte, non-empty = every reply prefix and the 002/004 version follow the config.
+[TestClass]
+public class IrcIdentityTests
+{
+    [TestInitialize]
+    public void Init()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        ResetIdentity();
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        ResetIdentity();
+    }
+
+    private static void ResetIdentity()
+    {
+        Mind.Db.ConfigSet(ConfigNames.IrcHostname, "");
+        Mind.Db.ConfigSet(ConfigNames.IrcVersion, "");
+    }
+
+    private static async Task<(IrcProxy proxy, ListenerSocket conn, string burst)> RegisterFresh(string nick)
+    {
+        var proxy = new IrcProxy(IPAddress.Loopback, 0);
+        var conn = await IrcNickLifecycleTests.Connect(proxy);
+
+        await Mail.MailTestEnv.Cmd(proxy, conn, $"NICK {nick}");
+
+        var burst = await Mail.MailTestEnv.Cmd(proxy, conn, $"USER {nick} 0 * :Test User");
+
+        return (proxy, conn, burst);
+    }
+
+    [TestMethod]
+    public async Task Defaults_WirePrefixAndVersion_Unchanged()
+    {
+        var (_, _, burst) = await RegisterFresh("ident1");
+
+        StringAssert.Contains(burst, ":irc.hive.com 001 ", burst);
+        StringAssert.Contains(burst, "VintageHiveIRCd", burst);
+    }
+
+    [TestMethod]
+    public async Task Configured_EveryPrefixAndVersionFollow()
+    {
+        Mind.Db.ConfigSet(ConfigNames.IrcHostname, "irc.example.net");
+        Mind.Db.ConfigSet(ConfigNames.IrcVersion, "TestIRCd9");
+
+        var (proxy, conn, burst) = await RegisterFresh("ident2");
+
+        // Welcome numerics, 002/004 version, and the MOTD header all carry the configured identity.
+        StringAssert.Contains(burst, ":irc.example.net 001 ", burst);
+        StringAssert.Contains(burst, "TestIRCd9", burst);
+        StringAssert.Contains(burst, ":irc.example.net 375 ", burst);
+        Assert.IsFalse(burst.Contains("irc.hive.com"), $"built-in hostname leaked: {burst}");
+        Assert.IsFalse(burst.Contains("VintageHiveIRCd"), $"built-in version leaked: {burst}");
+
+        // PONG sources from the configured hostname too.
+        var pong = await Mail.MailTestEnv.Cmd(proxy, conn, "PING :token123");
+
+        StringAssert.Contains(pong, ":irc.example.net PONG", pong);
+    }
+}

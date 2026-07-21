@@ -166,6 +166,19 @@
             <button type="button" id="irc_motd_save" class="btn btn-outline-primary w-100">Save</button>
         </div>
     </div>
+    <div class="row g-2 mb-4 align-items-end">
+        <div class="col-sm-5">
+            <label class="form-label small mb-1">IRC server hostname (empty = irc.hive.com)</label>
+            <input type="text" id="irc_hostname" class="form-control" placeholder="irc.hive.com">
+        </div>
+        <div class="col-sm-4">
+            <label class="form-label small mb-1">IRC version string (empty = VintageHiveIRCd)</label>
+            <input type="text" id="irc_version" class="form-control" placeholder="VintageHiveIRCd">
+        </div>
+        <div class="col-sm-3">
+            <button type="button" id="irc_identity_save" class="btn btn-outline-primary w-100">Save</button>
+        </div>
+    </div>
 
     {% include 'partials/footer.html' %}
     <script type="module">
@@ -313,6 +326,8 @@
                 setCheckedIfNotEditing(gei("self_reg_toggle"), !!status.allowSelfRegistration);
                 setCheckedIfNotEditing(gei("irc_auth_toggle"), !!status.ircRequireAuthentication);
                 setInputIfNotEditing(gei("irc_motd_text"), status.ircMotd || "");
+                setInputIfNotEditing(gei("irc_hostname"), status.ircHostname || "");
+                setInputIfNotEditing(gei("irc_version"), status.ircVersion || "");
             } catch (e) {
                 console.log(e)
             }
@@ -357,6 +372,13 @@
         });
         gei("irc_motd_save").addEventListener("click", async () => {
             await callApi("ircmotdset", formData({ motd: gei("irc_motd_text").value }));
+            await updateDashboard();
+        });
+        gei("irc_identity_save").addEventListener("click", async () => {
+            await callApi("ircidentityset", formData({
+                hostname: gei("irc_hostname").value.trim(),
+                version: gei("irc_version").value.trim(),
+            }));
             await updateDashboard();
         });
     </script>

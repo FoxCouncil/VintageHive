@@ -366,6 +366,25 @@ internal partial class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
+    [Route("/api/ircidentityset")]
+    public async Task IrcIdentitySet()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("hostname") || !Request.FormData.ContainsKey("version"))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        // Empty restores the built-in identity.
+        Mind.Db.ConfigSet(ConfigNames.IrcHostname, Request.FormData["hostname"]?.Trim() ?? "");
+        Mind.Db.ConfigSet(ConfigNames.IrcVersion, Request.FormData["version"]?.Trim() ?? "");
+
+        Response.SetJsonSuccess();
+    }
+
     [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
@@ -448,6 +467,8 @@ internal partial class AdminController : Controller
             allowSelfRegistration = Mind.Db.ConfigGet<bool>(ConfigNames.AllowSelfRegistration),
             ircRequireAuthentication = Mind.Db.ConfigGet<bool>(ConfigNames.IrcRequireAuthentication),
             ircMotd = Mind.Db.ConfigGet<string>(ConfigNames.IrcMotd),
+            ircHostname = Mind.Db.ConfigGet<string>(ConfigNames.IrcHostname),
+            ircVersion = Mind.Db.ConfigGet<string>(ConfigNames.IrcVersion),
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),

@@ -12,8 +12,11 @@ public class IrcProxy : Listener
 {
     #region Constants & Fields
 
-    private const string IRCD_HOSTNAME = HiveDomains.Irc;
-    private const string IRCD_VERSION = "VintageHiveIRCd";
+    // Server identity is runtime config with the historical values as fallback; every usage is
+    // reply building at call time, so a config change applies to the next reply without restart.
+    private static string IRCD_HOSTNAME => Mind.Db.ConfigGet<string>(ConfigNames.IrcHostname) is { Length: > 0 } host ? host : HiveDomains.Irc;
+
+    private static string IRCD_VERSION => Mind.Db.ConfigGet<string>(ConfigNames.IrcVersion) is { Length: > 0 } version ? version : "VintageHiveIRCd";
     private const int FLOOD_MAX_MESSAGES = 5;
     private static readonly TimeSpan FloodWindow = TimeSpan.FromSeconds(2);
 
