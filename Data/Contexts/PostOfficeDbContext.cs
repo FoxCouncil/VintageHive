@@ -696,20 +696,25 @@ public class PostOfficeDbContext : DbContextBase
         var date = DateTimeOffset.Now;
         var from = "postmaster@" + MailDomains.Primary;
 
+        // Whitelabel: every brand word comes from ProductName (read fresh per letter, so a runtime
+        // config change brands the very next bounce). Only interpolation here - ProductName may
+        // contain format/regex specials and must land in the letter verbatim.
+        var productName = Mind.ProductName;
+
         // Crafting the retro computer email humor message with appropriate headers
         emailDataBuilder.AppendLine("Date: " + date.ToRFC822String());
         emailDataBuilder.AppendLine("From: " + from);
         emailDataBuilder.AppendLine("To: " + toAddress);
         emailDataBuilder.AppendLine("Subject: " + subject);
         emailDataBuilder.AppendLine();
-        emailDataBuilder.AppendLine("Your message reached the VintageHive Postmaster but...");
-        emailDataBuilder.AppendLine($"ERROR: 404 - Recipient {failedAddress} not found in our Hive!");
+        emailDataBuilder.AppendLine($"Your message reached the {productName} Postmaster but...");
+        emailDataBuilder.AppendLine($"ERROR: 404 - Recipient {failedAddress} not found in our system!");
         emailDataBuilder.AppendLine("Your bytes are floating aimlessly in the void.");
         emailDataBuilder.AppendLine();
         emailDataBuilder.AppendLine();
         emailDataBuilder.AppendLine("--");
-        emailDataBuilder.AppendLine("VintageHive Postmaster");
-        emailDataBuilder.AppendLine("Helping your data find its home since 1982.");
+        emailDataBuilder.AppendLine($"{productName} Postmaster");
+        emailDataBuilder.AppendLine("Helping lost bytes find their way home.");
 
         var emailData = emailDataBuilder.ToString();
 

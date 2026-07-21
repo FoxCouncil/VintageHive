@@ -789,6 +789,91 @@ public class MailDomainAdversarialTests
         }
     }
 
+    // Generates one bounce letter under the CURRENT config and returns its full raw message
+    // (headers + body), cleaning the row up immediately. Unique recipients keep calls unambiguous.
+    private static string GenerateBounceLetter(string recipient)
+    {
+        Mind.PostOfficeDb.InsertUndeliverableEmail(recipient, "ghost@example.com");
+
+        var row = Mind.PostOfficeDb.GetUndeliveredEmails().Last(e => e.ToAddress.Full == recipient);
+
+        Mind.PostOfficeDb.DeleteEmailById(row.Id);
+
+        return row.Data;
+    }
+
+    [TestMethod]
+    public void Bounce_WhitelabeledProductName_NoBrandStringsLeak()
+    {
+        try
+        {
+            Mind.Db.ConfigSet(ConfigNames.ProductName, "Acme");
+
+            var letter = GenerateBounceLetter("wl1@example.com");
+
+            StringAssert.Contains(letter, "Acme Postmaster", letter);
+
+            // NOWHERE means headers included - the hosted list is example.com here, so any "hive"
+            // hit is a leaked brand string ("hive" also covers "VintageHive").
+            Assert.IsFalse(letter.Contains("hive", StringComparison.OrdinalIgnoreCase), $"brand string leaked into a whitelabeled bounce: {letter}");
+        }
+        finally
+        {
+            Mind.Db.ConfigSet<string>(ConfigNames.ProductName, null);
+        }
+    }
+
+    [TestMethod]
+    public void Bounce_DefaultProductName_ReadsCorrectly()
+    {
+        Mind.Db.ConfigSet<string>(ConfigNames.ProductName, null);
+
+        var letter = GenerateBounceLetter("wl2@example.com");
+
+        StringAssert.Contains(letter, "VintageHive Postmaster", letter);
+        StringAssert.Contains(letter, "ERROR: 404", letter);
+        StringAssert.Contains(letter, "postmaster@example.com", letter);
+    }
+
+    [TestMethod]
+    public void Bounce_ProductNameChangedAtRuntime_BrandsTheNextLetter()
+    {
+        try
+        {
+            Mind.Db.ConfigSet(ConfigNames.ProductName, "Acme");
+
+            StringAssert.Contains(GenerateBounceLetter("wl3@example.com"), "Acme Postmaster", "first letter");
+
+            Mind.Db.ConfigSet(ConfigNames.ProductName, "Zorp");
+
+            var second = GenerateBounceLetter("wl4@example.com");
+
+            StringAssert.Contains(second, "Zorp Postmaster", second);
+            Assert.IsFalse(second.Contains("Acme"), $"stale brand in a post-change letter: {second}");
+        }
+        finally
+        {
+            Mind.Db.ConfigSet<string>(ConfigNames.ProductName, null);
+        }
+    }
+
+    [TestMethod]
+    public void Bounce_ProductNameWithFormatAndRegexSpecials_LandsVerbatim()
+    {
+        try
+        {
+            Mind.Db.ConfigSet(ConfigNames.ProductName, "Acme {0} & Co.");
+
+            var letter = GenerateBounceLetter("wl5@example.com");
+
+            StringAssert.Contains(letter, "Acme {0} & Co. Postmaster", letter);
+        }
+        finally
+        {
+            Mind.Db.ConfigSet<string>(ConfigNames.ProductName, null);
+        }
+    }
+
     [TestMethod]
     public void Bounce_OfABounce_DroppedInsteadOfLoopingForever()
     {

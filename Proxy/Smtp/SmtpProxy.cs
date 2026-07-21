@@ -487,7 +487,7 @@ public class SmtpProxy : Listener
 
         Thread.Sleep(5000);
 
-        Log.WriteLine(Log.LEVEL_INFO, logName, $"Starting VintageHive Postmaster Thread", "");
+        Log.WriteLine(Log.LEVEL_INFO, logName, $"Starting {Mind.ProductName} Postmaster Thread", "");
 
         while (postmasterThreadRunning)
         {
@@ -504,7 +504,7 @@ public class SmtpProxy : Listener
             Thread.Sleep(1000);
         }
 
-        Log.WriteLine(Log.LEVEL_INFO, logName, $"Exiting VintageHive Postmaster Thread", "");
+        Log.WriteLine(Log.LEVEL_INFO, logName, $"Exiting {Mind.ProductName} Postmaster Thread", "");
     }
 
     // One pass over the undelivered queue. Internal so tests can drive a single pass without the thread.
