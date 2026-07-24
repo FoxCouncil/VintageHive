@@ -156,4 +156,113 @@ public class OscarWireFixupTests
         Assert.IsNotNull(profile);
         Assert.AreEqual($"{screenName}@example.com", profile.Email, "profile email must follow the primary hosted domain");
     }
+
+    [TestMethod]
+    public void StaleProfileEmail_ReDerivedFromCurrentMailDomainOnRead()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var screenName = "oswp2";
+
+        Mind.Db.OscarEnsureProfileExists(screenName);
+
+        Assert.AreEqual($"{screenName}@{HiveDomains.Base}", Mind.Db.OscarGetProfile(screenName).Email);
+
+        // The hosted domain is configured AFTER the row was stamped, which is the real-world order:
+        // the stored address now names a domain this host does not serve.
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, "example.com");
+
+        Assert.AreEqual($"{screenName}@example.com", Mind.Db.OscarGetProfile(screenName).Email, "a profile created before the domain was configured must still follow it");
+    }
+
+    [TestMethod]
+    public void UserSetProfileEmail_SurvivesMailDomainChange()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var screenName = "oswp3";
+
+        Mind.Db.OscarEnsureProfileExists(screenName);
+
+        var profile = Mind.Db.OscarGetProfile(screenName);
+
+        profile.Email = "someone.else@aol.com";
+
+        Mind.Db.OscarInsertOrUpdateProfile(profile);
+
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, "example.com");
+
+        Assert.AreEqual("someone.else@aol.com", Mind.Db.OscarGetProfile(screenName).Email, "an address the user set is not the auto-stamped default and must not be rewritten");
+    }
+
+    [TestMethod]
+    public void LegacySsiTree_MissingChildLists_RepairedOnLoad()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        var screenName = "sswp3";
+
+        DeleteSsiItems(screenName);
+
+        try
+        {
+            // Exactly what the pre-fix code persisted: a complete tree with no child-list TLV on any
+            // group. Creating the tree is the only path that ever wired those lists, so these rows
+            // kept page-faulting AIM 4.7 on every sign-on.
+            Mind.Db.OscarSsiAddItem(new OscarSsiItem { ScreenName = screenName, Name = string.Empty, GroupId = 0, ItemId = 0, ItemType = OscarSsiItem.TYPE_GROUP, TlvData = Array.Empty<byte>() });
+            Mind.Db.OscarSsiAddItem(new OscarSsiItem { ScreenName = screenName, Name = "Buddies", GroupId = 1, ItemId = 0, ItemType = OscarSsiItem.TYPE_GROUP, TlvData = Array.Empty<byte>() });
+            Mind.Db.OscarSsiAddItem(new OscarSsiItem { ScreenName = screenName, Name = "pal1", GroupId = 1, ItemId = 1, ItemType = OscarSsiItem.TYPE_BUDDY, TlvData = Array.Empty<byte>() });
+
+            var items = new OscarSsiService(null).EnsureSsiItems(new OscarSession { ScreenName = screenName });
+
+            Assert.AreEqual(3, items.Count, "repair must not add or drop rows");
+
+            var root = items.Single(i => i.GroupId == 0 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+
+            CollectionAssert.AreEqual(new byte[] { 0x00, 0x01 }, OscarUtils.DecodeTlvs(root.TlvData).GetTlv(0x00C8)!.Value, "master group child list must be backfilled on load");
+
+            var buddies = items.Single(i => i.GroupId == 1 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+
+            CollectionAssert.AreEqual(new byte[] { 0x00, 0x01 }, OscarUtils.DecodeTlvs(buddies.TlvData).GetTlv(0x00C8)!.Value, "group member list must be backfilled from the persisted buddy rows");
+        }
+        finally
+        {
+            DeleteSsiItems(screenName);
+        }
+    }
+
+    [TestMethod]
+    public void HealthySsiTree_ClientOrderedChildList_LeftAlone()
+    {
+        Mail.MailTestEnv.Ensure();
+
+        var screenName = "sswp4";
+
+        DeleteSsiItems(screenName);
+
+        try
+        {
+            // A client-managed tree whose master group lists its groups in an order the server would
+            // not have chosen. Repair must not touch a group that already carries a child list.
+            var clientOrder = new Tlv(0x00C8, new byte[] { 0x00, 0x02, 0x00, 0x01 }).Encode();
+
+            Mind.Db.OscarSsiAddItem(new OscarSsiItem { ScreenName = screenName, Name = string.Empty, GroupId = 0, ItemId = 0, ItemType = OscarSsiItem.TYPE_GROUP, TlvData = clientOrder });
+            Mind.Db.OscarSsiAddItem(new OscarSsiItem { ScreenName = screenName, Name = "Buddies", GroupId = 1, ItemId = 0, ItemType = OscarSsiItem.TYPE_GROUP, TlvData = new Tlv(0x00C8, Array.Empty<byte>()).Encode() });
+            Mind.Db.OscarSsiAddItem(new OscarSsiItem { ScreenName = screenName, Name = "Work", GroupId = 2, ItemId = 0, ItemType = OscarSsiItem.TYPE_GROUP, TlvData = new Tlv(0x00C8, Array.Empty<byte>()).Encode() });
+
+            var items = new OscarSsiService(null).EnsureSsiItems(new OscarSession { ScreenName = screenName });
+
+            var root = items.Single(i => i.GroupId == 0 && i.ItemType == OscarSsiItem.TYPE_GROUP);
+
+            CollectionAssert.AreEqual(new byte[] { 0x00, 0x02, 0x00, 0x01 }, OscarUtils.DecodeTlvs(root.TlvData).GetTlv(0x00C8)!.Value, "an existing child list must keep the client's ordering");
+        }
+        finally
+        {
+            DeleteSsiItems(screenName);
+        }
+    }
 }

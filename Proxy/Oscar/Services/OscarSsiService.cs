@@ -193,8 +193,64 @@ internal class OscarSsiService : IOscarService
 
             items = Mind.Db.OscarGetSsiItems(session.ScreenName);
         }
+        else if (RepairMissingChildLists(session.ScreenName, items))
+        {
+            items = Mind.Db.OscarGetSsiItems(session.ScreenName);
+        }
 
         return items;
+    }
+
+    // Wiring the child lists only when the tree is CREATED leaves every account that already has a
+    // persisted tree unfixed - anyone who signed on while the default tree was written without TLV
+    // 0x00C8 keeps a group row that has no child list, and keeps page-faulting AIM 4.7 on every
+    // sign-on. Reconcile on load too: any group row missing the TLV gets its list rebuilt from the
+    // rows that already exist. Groups that already carry one are untouched, so a client-managed
+    // tree keeps its own ordering.
+    private bool RepairMissingChildLists(string screenName, List<OscarSsiItem> items)
+    {
+        var repaired = false;
+
+        foreach (var group in items.Where(i => i.ItemType == OscarSsiItem.TYPE_GROUP && i.ItemId == 0).ToList())
+        {
+            if (HasChildList(group.TlvData))
+            {
+                continue;
+            }
+
+            if (group.GroupId == 0)
+            {
+                UpdateRootGroupList(screenName);
+            }
+            else
+            {
+                UpdateGroupMemberList(screenName, group.GroupId);
+            }
+
+            repaired = true;
+        }
+
+        return repaired;
+    }
+
+    // DecodeTlvs throws on a short or truncated blob, and this runs on the sign-on path - a single
+    // malformed persisted row must not take the whole SSI list down. Undecodable counts as missing,
+    // which puts the row back into a shape AIM 4.x can walk.
+    private static bool HasChildList(byte[] tlvData)
+    {
+        if (tlvData == null || tlvData.Length < 4)
+        {
+            return false;
+        }
+
+        try
+        {
+            return OscarUtils.DecodeTlvs(tlvData).GetTlv(0x00C8) != null;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private async Task ProcessSsiModification(OscarSession session, Snac snac, SsiOperation operation)

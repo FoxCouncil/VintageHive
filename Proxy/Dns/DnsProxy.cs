@@ -151,7 +151,14 @@ public class DnsProxy
         response[6] = 0x00;
         response[7] = 0x01;
 
-        // NSCOUNT = 0, ARCOUNT = 0 (already zeroed)
+        // NSCOUNT = 0, ARCOUNT = 0. These are NOT already zeroed - the header above was copied
+        // verbatim from the query, so an EDNS0 client's ARCOUNT=1 (its OPT record) survives the copy
+        // and promises an additional RR the response never writes. Omitting OPT entirely is a valid
+        // non-EDNS answer (RFC 6891); the counts just have to tell the truth about it.
+        response[8] = 0x00;
+        response[9] = 0x00;
+        response[10] = 0x00;
+        response[11] = 0x00;
 
         // -- Answer RR --------------------------------------------------
         var pos = questionEnd;
@@ -197,7 +204,15 @@ public class DnsProxy
         response[2] = 0x81;
         response[3] = 0x80;
 
-        // QDCOUNT = 1 (already set), ANCOUNT = 0, NSCOUNT = 0, ARCOUNT = 0
+        // QDCOUNT = 1 (already set from query). ANCOUNT/NSCOUNT/ARCOUNT must be cleared, not
+        // assumed zero - the copied header still carries the query's counts, including an EDNS0
+        // client's ARCOUNT=1 for an OPT record this response deliberately drops.
+        response[6] = 0x00;
+        response[7] = 0x00;
+        response[8] = 0x00;
+        response[9] = 0x00;
+        response[10] = 0x00;
+        response[11] = 0x00;
 
         return response;
     }

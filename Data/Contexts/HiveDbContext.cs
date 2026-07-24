@@ -889,8 +889,46 @@ public class HiveDbContext : DbContextBase
                 return default;
             }
 
-            return new OscarUserProfile(reader);
+            var profile = new OscarUserProfile(reader);
+
+            ReconcileProfileEmail(profile);
+
+            return profile;
         });
+    }
+
+    // The mail address is stamped into the row at profile creation, so an account made before
+    // validmaildomains was configured would carry the dead domain forever - and every consumer
+    // (finger, SNAC(02,0C) location info, ICQ user lookup) reads this same stored field, so it went
+    // stale everywhere at once. Reconcile on read instead: an address of the form
+    // <screenname>@<domain we no longer host> is the auto-stamped default, not something the user
+    // chose, so re-point it at the current primary domain. An address the user actually set (any
+    // other local part) is left alone, as is anything already on a hosted domain.
+    private static void ReconcileProfileEmail(OscarUserProfile profile)
+    {
+        if (string.IsNullOrEmpty(profile.Email))
+        {
+            profile.Email = $"{profile.ScreenName}@{MailDomains.Primary}";
+
+            return;
+        }
+
+        var atIdx = profile.Email.LastIndexOf('@');
+
+        if (atIdx <= 0)
+        {
+            return;
+        }
+
+        var localPart = profile.Email[..atIdx];
+        var domain = profile.Email[(atIdx + 1)..];
+
+        if (MailDomains.IsHosted(domain) || !localPart.Equals(profile.ScreenName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        profile.Email = $"{profile.ScreenName}@{MailDomains.Primary}";
     }
 
     public void OscarInsertOrUpdateProfile(OscarUserProfile profile)

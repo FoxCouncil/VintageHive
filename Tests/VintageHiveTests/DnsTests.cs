@@ -54,6 +54,29 @@ internal static class DnsPacketBuilder
     }
 
     /// <summary>
+    /// Builds a DNS query carrying an EDNS0 OPT record in the additional section (what dig sends by
+    /// default). ARCOUNT is 1, so a response that copies the query header verbatim inherits it.
+    /// </summary>
+    public static byte[] BuildEdns0Query(ushort transactionId, string domainName, ushort qtype = 1, ushort qclass = 1)
+    {
+        var baseQuery = BuildQuery(transactionId, domainName, qtype, qclass);
+
+        // OPT RR: root name (1) + type 41 (2) + class = UDP payload size (2) + TTL (4) + RDLEN (2)
+        var opt = new byte[] { 0x00, 0x00, 0x29, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+        var packet = new byte[baseQuery.Length + opt.Length];
+
+        Buffer.BlockCopy(baseQuery, 0, packet, 0, baseQuery.Length);
+        Buffer.BlockCopy(opt, 0, packet, baseQuery.Length, opt.Length);
+
+        // ARCOUNT = 1
+        packet[10] = 0x00;
+        packet[11] = 0x01;
+
+        return packet;
+    }
+
+    /// <summary>
     /// Encodes a domain name into DNS label format (e.g., "www.yahoo.com" -> [3]www[5]yahoo[3]com[0]).
     /// </summary>
     public static byte[] EncodeDomainName(string name)
@@ -675,6 +698,90 @@ public class DnsProxyIntegrationTests
 
             Assert.AreEqual(0xC0, raw[answerStart], "Answer name should start with compression pointer 0xC0");
             Assert.AreEqual(0x0C, raw[answerStart + 1], "Compression pointer should reference offset 12 (0x0C)");
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Edns0Query_AResponse_DeclaresNoAdditionalRecords()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            // The response header is copied from the query, so the client's ARCOUNT=1 (its OPT
+            // record) used to survive into a response that never wrote an additional RR - dig
+            // reported "malformed message packet" on every lookup.
+            var query = DnsPacketBuilder.BuildEdns0Query(0xE0E0, "www.example.com");
+
+            await client.SendAsync(query, query.Length, server);
+
+            using var cts = new CancellationTokenSource(3000);
+
+            var result = await client.ReceiveAsync(cts.Token);
+            var raw = result.Buffer;
+            var response = DnsResponse.Parse(raw);
+
+            Assert.AreEqual(1, (int)response.AnswerCount, "A answer should still be served to an EDNS0 client");
+            Assert.AreEqual(ServerIp, response.AnswerAddress);
+            Assert.AreEqual(0, (int)response.AuthorityCount, "NSCOUNT must be zeroed, not inherited from the query");
+            Assert.AreEqual(0, (int)response.AdditionalCount, "ARCOUNT must be zeroed - no OPT record is written back");
+
+            // Question section only (OPT dropped) + 16-byte answer RR
+            var expectedLen = query.Length - 11 + 16;
+
+            Assert.AreEqual(expectedLen, raw.Length, "response should carry exactly the question plus one answer RR");
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task Edns0Query_EmptyResponse_DeclaresNoAdditionalRecords()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            // AAAA = qtype 28, so this takes the empty-response builder - same copied header, same bug.
+            var query = DnsPacketBuilder.BuildEdns0Query(0xE1E1, "www.example.com", qtype: 28);
+
+            await client.SendAsync(query, query.Length, server);
+
+            using var cts = new CancellationTokenSource(3000);
+
+            var result = await client.ReceiveAsync(cts.Token);
+            var response = DnsResponse.Parse(result.Buffer);
+
+            Assert.AreEqual(0, (int)response.AnswerCount, "AAAA gets no answers");
+            Assert.AreEqual(0, (int)response.AuthorityCount, "NSCOUNT must be zeroed");
+            Assert.AreEqual(0, (int)response.AdditionalCount, "ARCOUNT must be zeroed");
+            Assert.AreEqual(query.Length - 11, result.Buffer.Length, "empty response is the question section alone");
         }
         finally
         {
