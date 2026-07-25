@@ -753,6 +753,81 @@ public class DnsProxyIntegrationTests
 
     [TestMethod]
     [Timeout(10000)]
+    public async Task BogusQueryHeaderCounts_AResponse_DeclaresOnlyWhatItWrote()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            var query = DnsPacketBuilder.BuildQuery(0xB0B0, "www.example.com");
+
+            // A query claiming records it never sent. Whatever the client puts in these fields, the
+            // response must describe the response - the counts are not the client's to dictate.
+            query[6] = 0x00; query[7] = 0x05;  // ANCOUNT = 5
+            query[8] = 0x00; query[9] = 0x07;  // NSCOUNT = 7
+            query[10] = 0x00; query[11] = 0x09; // ARCOUNT = 9
+
+            var response = await QueryAsync(client, server, query);
+
+            Assert.AreEqual(1, (int)response.AnswerCount, "ANCOUNT must describe the one answer written");
+            Assert.AreEqual(0, (int)response.AuthorityCount, "NSCOUNT must not be inherited from the query");
+            Assert.AreEqual(0, (int)response.AdditionalCount, "ARCOUNT must not be inherited from the query");
+            Assert.AreEqual(ServerIp, response.AnswerAddress);
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task BogusQueryHeaderCounts_EmptyResponse_DeclaresOnlyWhatItWrote()
+    {
+        var port = GetFreePort();
+        var proxy = new DnsProxy(IPAddress.Loopback, port, ServerIp);
+
+        proxy.Start();
+
+        var server = new IPEndPoint(IPAddress.Loopback, port);
+
+        await WaitForProxyAsync(server);
+
+        try
+        {
+            using var client = new UdpClient();
+
+            // SRV = qtype 33, so the empty builder handles it - it copies the same header and must
+            // clear ANCOUNT too, since it appends no answer at all.
+            var query = DnsPacketBuilder.BuildQuery(0xB1B1, "_sip._tcp.example.com", qtype: 33);
+
+            query[6] = 0xFF; query[7] = 0xFF;   // ANCOUNT = 65535
+            query[8] = 0x00; query[9] = 0x03;   // NSCOUNT = 3
+            query[10] = 0x00; query[11] = 0x01; // ARCOUNT = 1
+
+            var response = await QueryAsync(client, server, query);
+
+            Assert.AreEqual(0, (int)response.AnswerCount, "ANCOUNT must be cleared - the empty builder writes no answer");
+            Assert.AreEqual(0, (int)response.AuthorityCount, "NSCOUNT must be cleared");
+            Assert.AreEqual(0, (int)response.AdditionalCount, "ARCOUNT must be cleared");
+        }
+        finally
+        {
+            proxy.Stop();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(10000)]
     public async Task Edns0Query_EmptyResponse_DeclaresNoAdditionalRecords()
     {
         var port = GetFreePort();
