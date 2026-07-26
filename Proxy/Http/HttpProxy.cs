@@ -98,10 +98,22 @@ public class HttpProxy : Listener
                 return httpResponse.GetResponseEncodedData();
             }
 
-            if (!handled || (handled && httpResponse.StatusCode == HttpStatusCode.NotFound))
+            // Only substitute the built-in 404 when the handler produced nothing. A processor that answers 404
+            // WITH a page has already said what it meant to say; replacing it discards a deliberate response.
+            var hasOwnBody = httpResponse.Body != null || httpResponse.Stream != null;
+
+            if (!handled || (handled && httpResponse.StatusCode == HttpStatusCode.NotFound && !hasOwnBody))
             {
                 // TODO: Add Error Handling...
                 handled = ProcessErrorResponse(httpRequest, httpResponse, HttpStatusCode.NotFound);
+            }
+
+            // A 404 is never cacheable, whoever authored it. Before the guard above, every 404 went through
+            // ProcessErrorResponse, which clears Cache; a handler-authored body now skips that path, and a
+            // cached miss keeps a published page "missing" for the full TTL.
+            if (httpResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                httpResponse.Cache = false;
             }
 
             if (connection == null)
@@ -255,7 +267,10 @@ public class HttpProxy : Listener
         }
 
         body = body.Replace("||REQUEST||", requestUrl);
-        body = body.Replace("||VERSION||", Mind.ApplicationVersion);
+        // Read per request, not at load: ErrorPages is static readonly and would freeze the name at startup,
+        // diverging from any runtime ConfigSet - and from an embedder that brands after Mind.Bootstrap().
+        body = body.Replace("||PRODUCT||", Mind.ProductName);
+        body = body.Replace("||VERSION||", Mind.ProductVersion);
         body = body.Replace("||ERROR_MESSAGE||", httpResponse.ErrorMessage);
         body = body.Replace("||HOST||", $"{endpoint}:{endpointPort}");
         body = body.Replace("||DATE||", date);
