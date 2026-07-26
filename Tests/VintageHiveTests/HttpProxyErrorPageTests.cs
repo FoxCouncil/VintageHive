@@ -432,10 +432,13 @@ public class HttpProxyWhitelabelTests
         // which HttpResponse builds from the same pair, so it would pass even if the page itself were unbranded.
         StringAssert.Contains(response, $">{Product}/{Version} - <b>");
 
-        // The ||ERROR|| substitution embeds a real stack trace, which legitimately names VintageHive types -
-        // so only the chrome is asserted branding-clean here, not the whole page.
+        // The ||ERROR|| substitution embeds a real stack trace, which legitimately names VintageHive types AND
+        // carries the build machine's source paths - so only the chrome is asserted branding-clean here, not the
+        // whole page. Every negative below must stay anchored to markup: a bare "VintageHive/" matched the CI
+        // checkout path /home/runner/work/VintageHive/VintageHive/... and failed on Linux while passing on
+        // Windows, where the same path is backslash-separated.
         Assert.IsFalse(response.Contains("VintageHive - 500"), "The built-in 500 title still leaks VintageHive branding.");
-        Assert.IsFalse(response.Contains("VintageHive/"), "The built-in 500 footer still leaks VintageHive branding.");
+        Assert.IsFalse(response.Contains(">VintageHive/"), "The built-in 500 footer still leaks VintageHive branding.");
         Assert.IsFalse(response.Contains("a VintageHive internal issue"), "The built-in 500 body text still leaks VintageHive branding.");
     }
 
