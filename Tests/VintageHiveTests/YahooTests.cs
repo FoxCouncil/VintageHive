@@ -17,6 +17,9 @@ internal static class YmsgTestEnv
     private static readonly object Gate = new();
     private static bool _ready;
 
+    // The password the seeded test accounts are created with. Logins must now actually prove knowledge of it.
+    public const string Password = "secret";
+
     public static void Ensure()
     {
         lock (Gate)
@@ -38,7 +41,7 @@ internal static class YmsgTestEnv
             {
                 if (!Mind.Db!.UserExistsByUsername(user))
                 {
-                    Mind.Db.UserCreate(user, "secret");
+                    Mind.Db.UserCreate(user, Password);
                 }
             }
 
@@ -126,16 +129,27 @@ internal sealed class YmsgConn : IDisposable
         }
     }
 
-    // Runs the VERIFY/AUTH/AUTHRESP handshake and drains the resulting LIST + initial LOGON.
-    public async Task LoginAsync(string username)
+    // Runs the VERIFY/AUTH/AUTHRESP handshake and drains the resulting LIST + initial LOGON. The AUTHRESP is a
+    // real crypt response computed from the server's own challenge, the way a period client would answer - the
+    // server verifies it now, so junk placeholders no longer get in.
+    public async Task LoginAsync(string username, string password = YmsgTestEnv.Password)
     {
         await SendAsync(new YmsgPacket(YmsgService.Verify, 0, 0));
         await ReadAsync(); // VERIFY echo
 
         await SendAsync(new YmsgPacket(YmsgService.Auth, 0, 0).Add(1, username));
-        await ReadAsync(); // AUTH challenge
 
-        await SendAsync(new YmsgPacket(YmsgService.AuthResp, 0, 0).Add(0, username).Add(6, "x").Add(96, "y"));
+        var challenge = await ReadAsync();
+
+        var seed = challenge.Get(94);
+
+        Assert.IsFalse(string.IsNullOrEmpty(seed), "Server did not send a challenge seed in field 94");
+
+        var response = YmsgCrypt.ComputeAuthResponse(seed, password);
+
+        Assert.IsNotNull(response, $"Server issued a challenge a real client could not process: {seed}");
+
+        await SendAsync(new YmsgPacket(YmsgService.AuthResp, 0, 0).Add(0, username).Add(6, response.Resp6).Add(96, response.Resp96));
 
         var list = await ReadAsync();
 

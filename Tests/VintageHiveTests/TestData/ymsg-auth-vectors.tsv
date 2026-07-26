@@ -1,0 +1,37 @@
+# Known-answer vectors for the YMSG v9 "0x0b" auth crypt, consumed by YmsgCryptTests.
+#
+# These are NOT outputs of VintageHive's own code. They were produced by compiling the reference C
+# implementation - yahoo_process_auth_0x0b() in bitlbee 1.2.4 protocols/yahoo/libyahoo2.c, plus that tree's
+# md5.c, sha1.c, crypt.c, base64.c and yahoo_fn.c - into a small harness and running it. That code is GPL and
+# VintageHive is MIT, so it is deliberately NOT vendored here; only these generated values are, and the port in
+# Proxy/Yahoo/YmsgCrypt.cs is original code checked against them.
+#
+# To regenerate: fetch those files from the bitlbee 1.2.4 tree, wrap ymsg_auth_0x0b(seed, password) so it prints
+# resp_6 and resp_96, and run it over the seeds below. Two things must hold for a seed to be usable as a vector,
+# and both were verified for every row here:
+#   1. the decode fills all 20 comparison bytes, and
+#   2. it never reads past the parsed seed data
+# A seed failing either makes the reference read uninitialised stack, so its output is not a stable answer to
+# pin. Screening for this is why the seeds look arbitrary rather than tidy.
+#
+# seed	password	resp6	resp96	magic_key	depth	table	j
+n*a&w|y*t&j+2&o+1&l|i|1/1%n+z/5*c+w/4+c^e|	hunter2	S=jf;p=on,T=Cb;U=nb;M=bk;P=e1,L=95;B=Eb,U=dj,w=ge;	D=f9,G=lh;I=Ca,X=m4,Y=dc,M=Bn;W=Bf,E=io;Z=9d,w=Dp,	02c30040	0	0	5
+n*a&w|y*t&j+2&o+1&l|i|1/1%n+z/5*c+w/4+c^e|	TOTALLY-WRONG-PASSWORD	M=fe,N=4c,X=94,h=h0,U=le;G=CC;A=8E;W=BC,U=Ea,r=AC;	G=4F;B=bE;h=3A;C=B6;P=lD,O=8d,p=8e,F=8c;p=og;h=mo,	02c30040	0	0	5
+n*a&w|y*t&j+2&o+1&l|i|1/1%n+z/5*c+w/4+c^e|	a	P=Bi,w=fA;D=8g;Y=n1,L=dm;U=h3,O=bB,m=Cc;p=kg,T=2B,	F=bC;Z=50,J=5e,M=0l;Q=le;U=7B,S=b4;I=6B,K=mk,w=Cl;	02c30040	0	0	5
+n*a&w|y*t&j+2&o+1&l|i|1/1%n+z/5*c+w/4+c^e|	correct horse battery staple	I=li,A=d7,X=7e,m=af,E=dC;h=g2,W=F6;X=m8;A=5e,Y=CD,	Y=eF,O=1a,R=bh;J=kj;V=8k,F=nn,M=hB;T=D3,Y=2h,L=bj,	02c30040	0	0	5
+n*a&w|y*t&j+2&o+1&l|i|1/1%n+z/5*c+w/4+c^e|	p@ss w0rd!#$	A=h0;T=l5;P=88;P=mb,C=bf,w=hg;N=je;B=63;I=lk,N=23;	h=C5,O=oo,D=e9,w=48,w=F1,m=9o;L=do,A=7h,M=3m;T=2C;	02c30040	0	0	5
+f%4|w|w+y%x|4&a^k&y%h+j&c+c^3/g|p/o/z|j%	hunter2	N=86,r=l6,P=fF;P=1d,B=Ei;p=n9;F=B2,G=7E;L=F6,R=cn,	O=gl,r=ee;F=FC;B=f7,L=bj;S=pe;T=bh,Q=i9,X=2B,p=26;	693d001b	0	0	5
+f%4|w|w+y%x|4&a^k&y%h+j&c+c^3/g|p/o/z|j%	TOTALLY-WRONG-PASSWORD	p=mB,w=e5;G=eD,G=bd,w=00,E=2p;R=a0,M=5E;L=Dg,M=fc,	m=41;Y=d1;B=F9;L=9m;O=nm;p=bg;O=ci;H=bd;V=a8;H=pD;	693d001b	0	0	5
+f%4|w|w+y%x|4&a^k&y%h+j&c+c^3/g|p/o/z|j%	a	X=gh,V=j5;G=aA;M=i3;h=8B,H=4d,S=dB;N=36;F=h0;W=ki,	Q=5c,W=iF;O=jl;N=43;H=4D,L=0p,h=D6,h=p2;H=l4,O=8o,	693d001b	0	0	5
+f%4|w|w+y%x|4&a^k&y%h+j&c+c^3/g|p/o/z|j%	correct horse battery staple	M=5n;w=lj,M=gB;p=a8,S=0m;r=2a;H=Dp,Q=56;B=36,U=on,	C=7i;R=1d,Q=63,w=6k,A=64;X=ig,w=ej;R=if,Y=9e;H=bm;	693d001b	0	0	5
+f%4|w|w+y%x|4&a^k&y%h+j&c+c^3/g|p/o/z|j%	p@ss w0rd!#$	P=60,F=8i;C=bA,L=mk,H=8j,S=5p;L=17,K=3e;U=5g;D=5k;	C=eo,S=E5,P=oA;k=d2;K=9l;S=jm,Y=li,k=Ef,E=bn,S=d6;	693d001b	0	0	5
+2|r*g*x|b%k-r&w-5^2^h^5*r|1&b/i|8*a/c/v|c^o-q/g&	hunter2	m=lA;M=37,A=Cf;m=9o;r=h8;h=4f,h=02,E=o9;F=k0;P=kp,	k=bF;F=4l;Z=9B;K=cg;L=8i,Y=pe,H=F4;U=lF,Z=Fd,E=3F;	00100100	0	0	5
+2|r*g*x|b%k-r&w-5^2^h^5*r|1&b/i|8*a/c/v|c^o-q/g&	TOTALLY-WRONG-PASSWORD	p=o4,T=7c,k=d2,H=9d,K=jo;Y=6a;E=A8;N=8a;m=0k,G=AB;	B=Bg,P=kn;O=hp,I=d8;C=k5,N=1B;G=C4,J=jd;E=kl,Z=C6;	00100100	0	0	5
+2|r*g*x|b%k-r&w-5^2^h^5*r|1&b/i|8*a/c/v|c^o-q/g&	a	A=g9;J=93,h=m8;G=lA,I=0m,P=4A;K=c6,m=jE,K=h8,O=35;	N=2g,O=kk,F=jB;U=Cm;F=im;T=o1,W=Aj,C=m8;w=c4;B=93,	00100100	0	0	5
+2|r*g*x|b%k-r&w-5^2^h^5*r|1&b/i|8*a/c/v|c^o-q/g&	correct horse battery staple	h=l2;G=4b;R=Co,P=f6,A=EF,I=A9,B=pC,m=F8,A=dp;h=bc;	J=9m;w=B9,L=e5,A=o6,A=fB;F=b1,U=oE;D=o2;A=36;H=59,	00100100	0	0	5
+2|r*g*x|b%k-r&w-5^2^h^5*r|1&b/i|8*a/c/v|c^o-q/g&	p@ss w0rd!#$	k=AA,J=np;Q=ol,W=k4;X=96;G=ch,F=kd,B=pa;L=B0;J=Do,	O=ih;A=kD;U=EA,J=DA;H=e0;Q=f8,K=c0,O=l0,G=1m,O=37;	00100100	0	0	5
+v-n+1%x|y^v*t|8/e/x&h^r|8+u%r&v/e|f%3+h%n+b*	hunter2	J=cn;R=i0;A=hd,A=2o;K=ph,J=kB;H=bg,W=gi,F=07,P=A8,	Q=Ah,G=ab;B=C2;w=9n,T=Af,Y=CF,I=Dk,k=ih,S=9b,K=gp;	06ebecd3	0	0	5
+v-n+1%x|y^v*t|8/e/x&h^r|8+u%r&v/e|f%3+h%n+b*	TOTALLY-WRONG-PASSWORD	Y=El,V=F0,C=5i;B=Fn;R=24;R=cD;p=fl;D=Ac;V=80;Y=1C;	M=ka,m=a6,T=dC;L=DA,I=cD,m=2D,E=FA,P=9o,J=74,N=e9,	06ebecd3	0	0	5
+v-n+1%x|y^v*t|8/e/x&h^r|8+u%r&v/e|f%3+h%n+b*	a	U=k9;h=1f,D=3l,N=9D,F=3a,E=4g;H=8B;M=j5;Z=54;I=e4,	A=8j;B=ck,Y=ii;L=BB,m=2c,Q=bk;H=Fk;Y=13,B=6g;G=E7,	06ebecd3	0	0	5
+v-n+1%x|y^v*t|8/e/x&h^r|8+u%r&v/e|f%3+h%n+b*	correct horse battery staple	w=4i,E=mF,F=96;r=5m;N=22,G=19;L=d4,w=jb;U=mn,L=c7;	E=DD;Y=nn,r=C3;p=48,G=DD;Y=0B,F=d0,N=A7;Z=Ek,p=9E;	06ebecd3	0	0	5
+v-n+1%x|y^v*t|8/e/x&h^r|8+u%r&v/e|f%3+h%n+b*	p@ss w0rd!#$	N=2b;w=0g,H=Co,S=11;r=4g;G=bd,w=3h,m=DD;C=3e,W=pE,	A=hk,B=0a;Z=39;r=6e;N=ef,U=0E;J=70,p=Ak;R=EE;h=4E;	06ebecd3	0	0	5

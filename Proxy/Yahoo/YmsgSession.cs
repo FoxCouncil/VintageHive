@@ -26,6 +26,13 @@ public sealed class YmsgSession
 
     public bool IsAuthenticated { get; set; }
 
+    // The challenge issued to this connection, and everything derivable from it. Held so AUTHRESP verifies
+    // against the seed this session actually sent rather than recomputing one, and so the costly derivation
+    // happens once per connection instead of once per login attempt.
+    internal string ChallengeSeed { get; set; }
+
+    internal YmsgCrypt.ChallengeState Challenge { get; set; }
+
     // Echo the client's protocol version back so it stays happy across YM 5.x builds.
     public ushort Version { get; set; } = 0x0009;
 

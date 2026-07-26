@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using VintageHive.Network;
 using VintageHive.Proxy.Presence;
 
 namespace VintageHive.Proxy.Yahoo;
 
 // A self-hosted Yahoo! Messenger (YMSG) server for period YM 5.x clients: login, presence, and 1:1 IM.
-// VintageHive is the whole auth server (same trust model as OSCAR), so the v9/v10 challenge/response
-// crypt is not reproduced; we mint a challenge, then accept any response for a username that exists in
-// the shared user table. See the login handler for the exact stance.
+// VintageHive is the whole auth server, so it mints the challenge and verifies the client's answer to it
+// against the stored password - see YmsgCrypt for the v9 "0x0b" crypt and the login handler for the checks.
 public sealed class YmsgServer : Listener
 {
     public static readonly ConcurrentDictionary<uint, YmsgSession> Sessions = new();
@@ -245,11 +245,17 @@ public sealed class YmsgServer : Listener
 
         session.Username = username;
 
-        // Send the auth challenge. We never validate the client's crypt response, so the challenge content
-        // is immaterial; the client only needs a non-empty seed in field 94.
+        // Field 13 = "1" tells the client to answer with the v9 "0x0b" crypt, which we verify in AUTHRESP - so
+        // the seed's content is now load-bearing. It must be drawn from the crypt's own lookup alphabets: a
+        // client fed anything else spins forever, because its parser does not advance on an unknown character.
+        var seed = MakeChallenge();
+
+        session.ChallengeSeed = seed;
+        session.Challenge = YmsgCrypt.PrepareChallenge(seed);
+
         var response = new YmsgPacket(YmsgService.Auth, 0, session.SessionId)
             .Add(1, username)
-            .Add(94, MakeChallenge(session.SessionId))
+            .Add(94, seed)
             .Add(13, "1");
 
         await session.SendAsync(response);
@@ -259,12 +265,24 @@ public sealed class YmsgServer : Listener
     {
         var username = packet.Get(0) ?? packet.Get(1) ?? session.Username;
 
-        // We are the auth server and cannot reproduce Yahoo's crypt, so we gate on the account existing in
-        // the shared user table and accept any response for it (self-host trust model, same as OSCAR).
         if (string.IsNullOrEmpty(username) || Mind.Db?.UserExistsByUsername(username) != true)
         {
             var error = new YmsgPacket(YmsgService.AuthResp, YmsgStatus.LoginError, session.SessionId)
                 .Add(66, "3"); // 3 = bad username
+
+            await session.SendAsync(error);
+
+            return;
+        }
+
+        // Verify the crypt response against the stored password. This used to accept ANY response for a known
+        // account, which meant anyone who could reach the port could sign in as any member - OSCAR was cited as
+        // the precedent for skipping it, but OscarServer.ProcessChannelOneAuth has always compared the roasted
+        // password, so it was the counter-example rather than the precedent.
+        if (!IsAuthResponseValid(session, packet, username, traceId))
+        {
+            var error = new YmsgPacket(YmsgService.AuthResp, YmsgStatus.LoginError, session.SessionId)
+                .Add(66, "13"); // 13 = bad password
 
             await session.SendAsync(error);
 
@@ -662,10 +680,63 @@ public sealed class YmsgServer : Listener
         return $"Hive:{string.Join(",", list)}\n";
     }
 
-    internal static string MakeChallenge(uint sessionId)
+    internal static string MakeChallenge()
     {
-        // A deterministic non-empty seed; content is irrelevant because we do not validate the crypt response.
-        return $"c={sessionId:X8}$vintagehive$";
+        return YmsgCrypt.MakeChallenge();
+    }
+
+    // True only when the client's fields 6 and 96 match what the stored password produces for this session's
+    // challenge. Every other outcome - no challenge issued, an unusable challenge, a missing field, an unknown
+    // account - is a refusal. There is deliberately no branch here that accepts something it could not check.
+    static bool IsAuthResponseValid(YmsgSession session, YmsgPacket packet, string username, string traceId)
+    {
+        if (session.Challenge == null)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (no challenge issued): {username}", traceId);
+
+            return false;
+        }
+
+        var resp6 = packet.Get(6);
+        var resp96 = packet.Get(96);
+
+        if (string.IsNullOrEmpty(resp6) || string.IsNullOrEmpty(resp96))
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (no crypt response): {username}", traceId);
+
+            return false;
+        }
+
+        var user = Mind.Db?.UserFetch(username);
+
+        if (user == null || string.IsNullOrEmpty(user.Password))
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (no stored password): {username}", traceId);
+
+            return false;
+        }
+
+        var expected = YmsgCrypt.ComputeResponses(session.Challenge, user.Password);
+
+        if (expected == null)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (challenge not verifiable): {username}", traceId);
+
+            return false;
+        }
+
+        // Fixed-time compare so a wrong password cannot be narrowed down by timing the reply.
+        var match = CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected.Resp6), Encoding.UTF8.GetBytes(resp6))
+            & CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected.Resp96), Encoding.UTF8.GetBytes(resp96));
+
+        if (!match)
+        {
+            Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (bad password): {username}", traceId);
+
+            return false;
+        }
+
+        return true;
     }
 
     internal static PresenceStatus MapToPresenceStatus(uint yahooStatus)
