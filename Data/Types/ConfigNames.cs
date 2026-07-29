@@ -107,6 +107,8 @@ public static class ConfigNames
 
     public const string ServiceYahoo = "serviceyahoo";
 
+    public const string ServiceYahooPager = "serviceyahoopager";
+
     public const string ServiceMsn = "servicemsn";
 
     public const string ServiceHttp = "servicehttp";

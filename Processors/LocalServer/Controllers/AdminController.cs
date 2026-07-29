@@ -32,6 +32,8 @@ internal partial class AdminController : Controller
         { "finger", ConfigNames.ServiceFinger },
         { "gopher", ConfigNames.ServiceGopher },
         { "yahoo", ConfigNames.ServiceYahoo },
+        // Rides the HTTP proxy rather than its own listener, so this toggle applies immediately.
+        { "yahoopager", ConfigNames.ServiceYahooPager },
         { "msn", ConfigNames.ServiceMsn },
         { "socks5auth", ConfigNames.ServiceSocks5RequireAuth },
     };

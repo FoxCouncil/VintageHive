@@ -97,6 +97,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServiceFinger, true },
         { ConfigNames.ServiceGopher, true },
         { ConfigNames.ServiceYahoo, true },
+        { ConfigNames.ServiceYahooPager, true },
         { ConfigNames.ServiceMsn, true },
         { ConfigNames.ServiceHttp, true },
         { ConfigNames.ServiceHttps, true },

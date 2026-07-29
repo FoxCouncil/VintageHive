@@ -261,6 +261,9 @@ public static class Mind
         httpProxy
             .Use(HelperProcessor.ProcessHttpRequest)
             .Use(LocalServerProcessor.ProcessHttpRequest)
+            // Claims the Yahoo! Pager's compiled-in hostnames ahead of the outward-reaching processors, so a
+            // sign-on is answered here instead of being looked up in the archive.
+            .Use(YahooPagerProcessor.ProcessHttpRequest)
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessHttpRequest);
 
