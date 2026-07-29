@@ -10,45 +10,19 @@ namespace VintageHive.Proxy.Yahoo;
 // A self-hosted Yahoo! Messenger (YMSG) server for period YM 5.x clients: login, presence, and 1:1 IM.
 // VintageHive is the whole auth server, so it mints the challenge and verifies the client's answer to it
 // against the stored password - see YmsgCrypt for the v9 "0x0b" crypt and the login handler for the checks.
+//
+// This class owns the YMSG wire only. Who is signed on, who supersedes whom, and where a message goes are
+// YahooSessionRegistry's, shared with every other Yahoo! transport.
 public sealed class YmsgServer : Listener
 {
-    public static readonly ConcurrentDictionary<uint, YmsgSession> Sessions = new();
-
-    // Serializes the duplicate-login supersede decision. Without it, two simultaneous logins for the same
-    // account can each mark themselves authenticated, then each see the OTHER as the ghost and mutually
-    // kick, leaving zero survivors.
-    static readonly SemaphoreSlim AuthGate = new(1, 1);
+    // The shared table, exposed under its historical name. Not a YMSG-private table: an HTTP Pager session
+    // for the same account lands in here too, and supersedes this one.
+    public static ConcurrentDictionary<uint, YahooSession> Sessions => YahooSessionRegistry.Sessions;
 
     const int MaxBodyBytes = 65535;
 
     // Cap relayed IM text so an encoded packet body cannot exceed the 16-bit YMSG length field.
     const int MaxMessageChars = 16000;
-
-    const int BroadcastWriteTimeoutMs = 5000;
-
-    // Sends to one peer with a bounded timeout; returns false when the peer is gone or stalled so the
-    // caller can fall back (offline storage) instead of letting the failure take down its own session.
-    static async Task<bool> TrySendAsync(YmsgSession target, YmsgPacket packet)
-    {
-        try
-        {
-            using var cts = new CancellationTokenSource(BroadcastWriteTimeoutMs);
-
-            await target.SendAsync(packet, cts.Token);
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    // Sends to one peer with a bounded timeout, swallowing failures so a dead/slow peer cannot break a broadcast.
-    static async Task SafeSendAsync(YmsgSession target, YmsgPacket packet)
-    {
-        await TrySendAsync(target, packet);
-    }
 
     public YmsgServer(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, false) { }
 
@@ -61,7 +35,7 @@ public sealed class YmsgServer : Listener
 
         var session = new YmsgSession(connection);
 
-        Sessions[session.SessionId] = session;
+        YahooSessionRegistry.Add(session);
 
         try
         {
@@ -85,15 +59,15 @@ public sealed class YmsgServer : Listener
         }
         finally
         {
-            Sessions.TryRemove(session.SessionId, out _);
+            YahooSessionRegistry.Remove(session);
 
             if (session.IsAuthenticated)
             {
-                // A superseding duplicate login may already own this username; announcing a logoff then
-                // would tell peers the (still-online) user left.
-                if (GetByUsername(session.Username) == null)
+                // A superseding duplicate login may already own this username - possibly on another
+                // transport; announcing a logoff then would tell peers the (still-online) user left.
+                if (YahooSessionRegistry.GetByUsername(session.Username) == null)
                 {
-                    await BroadcastLogoffAsync(session);
+                    await YahooSessionRegistry.BroadcastLogoffAsync(session);
                 }
 
                 Mind.Db?.RequestsTrack(connection, "N/A", "YMSG", $"logoff {session.Username}", nameof(YmsgServer));
@@ -289,58 +263,27 @@ public sealed class YmsgServer : Listener
             return;
         }
 
-        session.Username = username;
+        // A duplicate login supersedes the prior session (mirrors MsnServer), and "prior session" spans
+        // transports: an HTTP Pager sign-on for this account is evicted here exactly like another YMSG socket.
+        // Marking this session authenticated and evicting the ghost happen atomically inside the registry, and
+        // the (bounded) notify/close sends run after the gate releases so a stalled ghost never blocks other
+        // logins. The evicted session's teardown then sees a live owner for the username and skips its
+        // logoff broadcast.
+        var superseded = await YahooSessionRegistry.ClaimIdentityAsync(session, username);
 
-        // A duplicate login supersedes the prior connection (mirrors MsnServer): notify it with a
-        // duplicate-status logoff and close it so it doesn't linger as a ghost that eats relayed messages.
-        // Marking this session authenticated and evicting the ghost happen atomically under AuthGate, and
-        // the (bounded) notify/close sends run after release so the gate never blocks other logins on a
-        // stalled ghost socket. The evicted session's teardown then sees a live owner for the username and
-        // skips its logoff broadcast.
-        var superseded = new List<YmsgSession>();
-
-        await AuthGate.WaitAsync();
-
-        try
-        {
-            session.IsAuthenticated = true;
-
-            foreach (var other in Sessions.Values.ToArray())
-            {
-                if (other.SessionId != session.SessionId && other.IsAuthenticated && string.Equals(other.Username, username, StringComparison.OrdinalIgnoreCase))
-                {
-                    Sessions.TryRemove(other.SessionId, out _);
-
-                    superseded.Add(other);
-                }
-            }
-        }
-        finally
-        {
-            AuthGate.Release();
-        }
-
-        foreach (var other in superseded)
-        {
-            await TrySendAsync(other, new YmsgPacket(YmsgService.Logoff, YmsgStatus.Duplicate, other.SessionId).Add(0, other.Username));
-
-            // Shutdown(Send) flushes the notice and FINs first; a bare Close with the old handler's read
-            // still pending is an abortive reset that discards the notice in flight.
-            try { other.Client.RawSocket.Shutdown(SocketShutdown.Send); } catch { }
-            try { other.Client.RawSocket.Close(); } catch { }
-        }
+        await YahooSessionRegistry.SupersedeAllAsync(superseded);
 
         Mind.Db?.RequestsTrack(session.Client, "N/A", "YMSG", $"logon {username}", nameof(YmsgServer));
 
         await SendListAsync(session);
         await SendInitialPresenceAsync(session);
-        await BroadcastPresenceAsync(session);
+        await YahooSessionRegistry.BroadcastPresenceAsync(session);
         await DeliverOfflineMessagesAsync(session);
     }
 
     async Task SendListAsync(YmsgSession session)
     {
-        var others = OtherUsernames(session.Username);
+        var others = YahooSessionRegistry.OtherUsernames(session.Username);
 
         var list = new YmsgPacket(YmsgService.List, 0, session.SessionId)
             .Add(87, BuildRosterField(others))
@@ -354,7 +297,7 @@ public sealed class YmsgServer : Listener
 
     async Task SendInitialPresenceAsync(YmsgSession session)
     {
-        var online = Sessions.Values.Where(s => s.IsAuthenticated && s.SessionId != session.SessionId && !IsInvisibleTo(s, session)).ToList();
+        var online = YahooSessionRegistry.Peers(session).Where(s => !YahooSessionRegistry.IsInvisibleTo(s, session)).ToList();
 
         var presence = new YmsgPacket(YmsgService.Logon, 0, session.SessionId)
             .Add(0, session.Username)
@@ -369,57 +312,6 @@ public sealed class YmsgServer : Listener
         }
 
         await session.SendAsync(presence);
-    }
-
-    async Task BroadcastPresenceAsync(YmsgSession session)
-    {
-        foreach (var other in Sessions.Values.ToArray())
-        {
-            if (!other.IsAuthenticated || other.SessionId == session.SessionId)
-            {
-                continue;
-            }
-
-            if (IsInvisibleTo(session, other))
-            {
-                continue;
-            }
-
-            var presence = new YmsgPacket(YmsgService.Logon, 0, other.SessionId)
-                .Add(0, other.Username)
-                .Add(7, session.Username)
-                .Add(10, session.YahooStatus.ToString())
-                .Add(11, session.SessionId.ToString("X"))
-                .Add(13, "1");
-
-            if (session.YahooStatus == YmsgStatus.Custom && !string.IsNullOrEmpty(session.CustomStatusMessage))
-            {
-                presence.Add(19, session.CustomStatusMessage);
-                presence.Add(47, "1");
-            }
-
-            await SafeSendAsync(other, presence);
-        }
-    }
-
-    async Task BroadcastLogoffAsync(YmsgSession session)
-    {
-        foreach (var other in Sessions.Values.ToArray())
-        {
-            if (!other.IsAuthenticated || other.SessionId == session.SessionId)
-            {
-                continue;
-            }
-
-            var logoff = new YmsgPacket(YmsgService.Logoff, 0, other.SessionId)
-                .Add(0, other.Username)
-                .Add(7, session.Username)
-                .Add(10, YmsgStatus.Available.ToString())
-                .Add(11, session.SessionId.ToString("X"))
-                .Add(13, "0");
-
-            await SafeSendAsync(other, logoff);
-        }
     }
 
     async Task HandleStatusChangeAsync(YmsgSession session, YmsgPacket packet)
@@ -448,11 +340,11 @@ public sealed class YmsgServer : Listener
         // so a plain presence broadcast would leave them showing the user as still online.
         if (session.YahooStatus == YmsgStatus.Invisible)
         {
-            await BroadcastLogoffAsync(session);
+            await YahooSessionRegistry.BroadcastLogoffAsync(session);
         }
         else
         {
-            await BroadcastPresenceAsync(session);
+            await YahooSessionRegistry.BroadcastPresenceAsync(session);
         }
     }
 
@@ -478,55 +370,14 @@ public sealed class YmsgServer : Listener
 
         Mind.Db?.RequestsTrack(session.Client, "N/A", "YMSG", $"msg {session.Username} -> {to}", nameof(YmsgServer));
 
-        var target = GetByUsername(to);
-
-        if (target == null)
-        {
-            StoreOfflineMessage(session.Username, to, text, traceId);
-
-            return;
-        }
-
-        // A dead or stalled recipient must not kill (or indefinitely hang) the SENDER's session; on a
-        // failed relay the message falls back to offline storage for the recipient's next login.
-        if (await TrySendAsync(target, BuildImDelivery(target, session.Username, text)))
+        // The relay finds the recipient on whatever transport they are signed on with, and reports failure
+        // instead of throwing, so an unreachable peer costs the sender nothing but a queued message.
+        if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text))
         {
             return;
-        }
-
-        // The failed (possibly cancelled mid-frame) write may have left the recipient's length-prefixed
-        // stream misframed; close it so the client reconnects cleanly instead of lingering as a ghost
-        // that parses every subsequent packet as garbage.
-        try { target.Client.RawSocket.Close(); } catch { }
-
-        // The recipient may have been superseded by a fresh login mid-send; retry once against the current
-        // live session before deferring the message to a future login.
-        var retry = GetByUsername(to);
-
-        if (retry != null && retry.SessionId != target.SessionId)
-        {
-            if (await TrySendAsync(retry, BuildImDelivery(retry, session.Username, text)))
-            {
-                return;
-            }
-
-            try { retry.Client.RawSocket.Close(); } catch { }
         }
 
         StoreOfflineMessage(session.Username, to, text, traceId);
-    }
-
-    // Real server-to-client Message packets carry 4 (from), 5 (to), 14 (text), 15 (timestamp), 97 (utf8).
-    // Fields 0/1 must NOT be present: libyahoo2-lineage clients treat the FIRST of key 1 or 4 as the
-    // sender, so a leading field 1 would attribute the message to the recipient themselves.
-    static YmsgPacket BuildImDelivery(YmsgSession target, string from, string text)
-    {
-        return new YmsgPacket(YmsgService.Message, 0, target.SessionId)
-            .Add(4, from)
-            .Add(5, target.Username)
-            .Add(14, text)
-            .Add(15, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
-            .Add(97, "1");
     }
 
     // Queues a message for a real account's next login; a typo'd recipient must not accrete DB rows.
@@ -548,6 +399,10 @@ public sealed class YmsgServer : Listener
     // OfflineMessage (5) marks them as offline-delivered IMs. Deletion is by the ids actually flushed and
     // only after all sends succeed: a mid-flush disconnect leaves them queued for redelivery rather than
     // lost, and a message stored concurrently (a failed live relay falling back mid-flush) is untouched.
+    //
+    // Deliberately NOT routed through DeliverMessageAsync: this is the login flush, and it must let a write
+    // failure propagate so the rows stay queued. The Deliver* path reports failure instead of throwing,
+    // which here would look like a successful flush and delete messages nobody received.
     async Task DeliverOfflineMessagesAsync(YmsgSession session)
     {
         var messages = Mind.Db?.YahooGetOfflineMessages(session.Username);
@@ -588,20 +443,7 @@ public sealed class YmsgServer : Listener
             return;
         }
 
-        var target = GetByUsername(to);
-
-        if (target == null)
-        {
-            return;
-        }
-
-        var notify = new YmsgPacket(YmsgService.Notify, packet.Status, target.SessionId)
-            .Add(4, session.Username)
-            .Add(5, target.Username)
-            .Add(49, packet.Get(49) ?? "TYPING")
-            .Add(13, packet.Get(13) ?? "1");
-
-        await SafeSendAsync(target, notify);
+        await YahooSessionRegistry.RelayTypingAsync(session, to, packet.Get(49) ?? "TYPING", packet.Get(13) ?? "1", packet.Status);
     }
 
     // The hive roster is server-built (every account is everyone's buddy), so add/remove are acknowledged
@@ -628,42 +470,6 @@ public sealed class YmsgServer : Listener
             .Add(66, "0");
 
         await session.SendAsync(ack);
-    }
-
-    static bool IsInvisibleTo(YmsgSession subject, YmsgSession observer)
-    {
-        // Invisible users are hidden from everyone; extend here if per-buddy privacy is added later.
-        _ = observer;
-
-        return subject.YahooStatus == YmsgStatus.Invisible;
-    }
-
-    static YmsgSession GetByUsername(string username)
-    {
-        if (string.IsNullOrEmpty(username))
-        {
-            return null;
-        }
-
-        foreach (var session in Sessions.Values.ToArray())
-        {
-            if (session.IsAuthenticated && string.Equals(session.Username, username, StringComparison.OrdinalIgnoreCase))
-            {
-                return session;
-            }
-        }
-
-        return null;
-    }
-
-    static List<string> OtherUsernames(string username)
-    {
-        var users = Mind.Db?.UserList() ?? new List<Data.Types.HiveUser>();
-
-        return users
-            .Select(u => u.Username)
-            .Where(u => !string.Equals(u, username, StringComparison.OrdinalIgnoreCase))
-            .ToList();
     }
 
     // The YMSG buddy roster is one string: "Group:buddy1,buddy2\nGroup2:buddy3\n". For the hive we put every

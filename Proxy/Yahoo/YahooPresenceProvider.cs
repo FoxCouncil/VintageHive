@@ -4,15 +4,16 @@ using VintageHive.Proxy.Presence;
 
 namespace VintageHive.Proxy.Yahoo;
 
-// Projects live YmsgServer.Sessions into the shared PresenceRegistry so Finger and the dashboard see
-// Yahoo! users alongside AIM/ICQ.
+// Projects the shared Yahoo! session registry into the shared PresenceRegistry so Finger and the dashboard
+// see Yahoo! users alongside AIM/ICQ. Registry-wide on purpose: a member signed on over the HTTP Pager is
+// as present as one on YMSG, and must look it to every cross-protocol consumer.
 public sealed class YahooPresenceProvider : IPresenceProvider
 {
     public string Network => "Yahoo";
 
     public IEnumerable<PresenceEntry> Online()
     {
-        foreach (var session in YmsgServer.Sessions.Values.ToArray())
+        foreach (var session in YahooSessionRegistry.Sessions.Values.ToArray())
         {
             // An invisible user was announced to peers as signed-off; the registry (and so Finger's
             // public list) must not contradict that.
@@ -32,7 +33,7 @@ public sealed class YahooPresenceProvider : IPresenceProvider
             return null;
         }
 
-        foreach (var session in YmsgServer.Sessions.Values.ToArray())
+        foreach (var session in YahooSessionRegistry.Sessions.Values.ToArray())
         {
             // Mirror Online(): invisible users must look offline to cross-protocol consumers too.
             if (!session.IsAuthenticated || session.YahooStatus == YmsgStatus.Invisible)
@@ -49,7 +50,7 @@ public sealed class YahooPresenceProvider : IPresenceProvider
         return null;
     }
 
-    static PresenceEntry Project(YmsgSession session)
+    static PresenceEntry Project(YahooSession session)
     {
         return new PresenceEntry
         {
