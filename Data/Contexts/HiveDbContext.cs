@@ -530,6 +530,12 @@ public class HiveDbContext : DbContextBase
     #region Request Methods
     public void RequestsTrack(ListenerSocket socket, string useragent, string type, string requestUrl, string processor)
     {
+        // Credentials never reach the requests table. Period clients sign in over plain GETs with the password
+        // in the query string (the pre-YMSG Yahoo Pager's /config/ncclogin is the live example), and this row
+        // is durable and rendered in the admin panel. Scrubbing here rather than at each caller means every
+        // protocol that tracks a URL - including ones added later - inherits it.
+        requestUrl = UrlRedactor.Redact(requestUrl);
+
         if (requestUrl.StartsWith("http://web.archive.org/web/"))
         {
             // Strip the "/web/<timestamp><type>_/" prefix by matching the "_/" marker explicitly. The old

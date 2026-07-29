@@ -53,7 +53,9 @@ public class HttpProxy : Listener
         {
             // Unsupported/unparseable request (e.g. legacy clients like RealPlayer polling with malformed query strings).
             // Log the request line only - not the whole header dump - at WARN, tagged with the connection trace id.
-            var requestLine = Encoding.GetString(data[..read]).Split('\n')[0].Trim();
+            // Redacted: an unparseable request line is still a request line, and a client that fumbles its
+            // sign-on GET would otherwise write its password straight into the log table.
+            var requestLine = UrlRedactor.Redact(Encoding.GetString(data[..read]).Split('\n')[0].Trim());
 
             Log.WriteLine(Log.LEVEL_WARN, nameof(HttpProxy), $"Unsupported request: {requestLine}", connection?.TraceId.ToString() ?? "");
 
@@ -62,9 +64,13 @@ public class HttpProxy : Listener
 
         var httpResponse = new HttpResponse(httpRequest);
 
-        var key = $"HPC-{httpRequest.Method}-{httpRequest.Uri}";
+        // A credential-bearing URL is never cached, in either direction. The key is the raw URL, so caching a
+        // sign-on GET would persist the plaintext password into the cache database as a key that outlives the
+        // process - and, worse, two members signing in to the same endpoint share that key, so one would be
+        // served the other's login response. Redacting the key does not fix the second problem; not caching does.
+        var key = UrlRedactor.ContainsCredentials(httpRequest.Uri.ToString()) ? null : $"HPC-{httpRequest.Method}-{httpRequest.Uri}";
 
-        var cachedResponse = Mind.Cache.GetHttpProxy(key);
+        var cachedResponse = key == null ? null : Mind.Cache.GetHttpProxy(key);
 
         if (cachedResponse == null)
         {
@@ -153,7 +159,7 @@ public class HttpProxy : Listener
                         Mind.Db.WebSessionSet(httpResponse.SessionId, httpResponse.Session);
                     }
 
-                    if (httpResponse.Cache)
+                    if (httpResponse.Cache && key != null)
                     {
                         Mind.Cache.SetHttpProxy(key, httpResponse.CacheTtl, Convert.ToBase64String(buffer));
                     }
@@ -236,11 +242,11 @@ public class HttpProxy : Listener
         // A 404 is an expected miss (no capture / not proxied), not a system fault - keep it out of the ERROR stream.
         var level = statusCode == HttpStatusCode.NotFound ? Log.LEVEL_WARN : Log.LEVEL_ERROR;
 
-        Log.WriteLine(level, nameof(HttpProxy), $"{(int)statusCode} {statusCode}: {httpRequest.Uri}", httpRequest.ListenerSocket.TraceId.ToString());
+        Log.WriteLine(level, nameof(HttpProxy), $"{(int)statusCode} {statusCode}: {UrlRedactor.Redact(httpRequest.Uri.ToString())}", httpRequest.ListenerSocket.TraceId.ToString());
 
         if (!ErrorPages.ContainsKey(statusCode))
         {
-            var plainBody = $"{(int)statusCode} {statusCode}\n\n{httpRequest.Uri}\n\n{date}{string.Join("", Enumerable.Repeat("\n" + string.Join("", Enumerable.Repeat(" ", 80)), 20))}";
+            var plainBody = $"{(int)statusCode} {statusCode}\n\n{UrlRedactor.Redact(httpRequest.Uri?.ToString())}\n\n{date}{string.Join("", Enumerable.Repeat("\n" + string.Join("", Enumerable.Repeat(" ", 80)), 20))}";
 
             httpResponse.SetBodyString(plainBody, HttpContentTypeMimeType.Text.Plain);
 
@@ -257,7 +263,9 @@ public class HttpProxy : Listener
         var endpoint = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Address.MapToIPv4();
         var endpointPort = ((IPEndPoint)httpRequest.ListenerSocket.RawSocket.LocalEndPoint).Port;
 
-        var requestUrl = httpRequest.Uri?.ToString();
+        // The error page echoes the request back. That goes to the client that already knows its own password,
+        // but the page is the thing a user screenshots into a bug report, so it gets the same treatment.
+        var requestUrl = UrlRedactor.Redact(httpRequest.Uri?.ToString());
 
         var length = 12;
 
