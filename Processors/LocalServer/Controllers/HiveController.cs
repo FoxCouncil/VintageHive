@@ -559,7 +559,16 @@ internal class HiveController : Controller
     {
         await Task.Delay(0);
 
-        var cert = Mind.Db.CertGet(CertificateAuthority.Name); // Get's CA
+        // Asks the authority rather than the store directly: the root is no longer keyed by its own subject
+        // name, so there is no name to look it up by from out here.
+        var cert = CertificateAuthority.GetRootCertificate();
+
+        if (cert == null)
+        {
+            Response.SetNotFound();
+
+            return;
+        }
 
         Response.SetBodyString(cert.Certificate, "application/x-x509-ca-cert");
     }

@@ -156,6 +156,9 @@ public static class ConfigNames
 
     public const string ProductVersion = "productversion";
 
+    // Key size for newly generated TLS certificates. Global, not per host - see CertificateAuthority.KeySize.
+    public const string CertificateKeySize = "certificatekeysize";
+
     public const string DownloadRepos = "downloadrepos";
 
     public const string Location = "location";
