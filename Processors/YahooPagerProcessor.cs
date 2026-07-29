@@ -24,17 +24,29 @@ namespace VintageHive.Processors;
 /// </para>
 ///
 /// <para>
-/// SCOPE. Sign-on and the version check only. The polled message transport (/notify/) is deliberately not
-/// implemented here: nothing in the reference pins the wire dialect THIS client build speaks, so it answers
-/// 503 until a capture with request bodies settles it. The transport, when it lands, shares
-/// <see cref="YahooSessionRegistry"/> with YMSG - one identity, one presence, one delivery path.
+/// SCOPE. All three surfaces: sign-on (/config/ncclogin), the version check (/clients.html) and the polled
+/// message transport (/notify/). The transport's protocol lives in <see cref="PagerTransport"/>; this class is
+/// only the HTTP shell around it. It shares <see cref="YahooSessionRegistry"/> with YMSG, so a Pager member
+/// and a YMSG member are one population: one identity, one presence, one delivery path, and a sign-on on
+/// either wire supersedes the other.
+/// </para>
+///
+/// <para>
+/// CONFIDENCE. The wire dialect is libyahoo's YPNS2.0 rather than anything observed from the captured client,
+/// whose request BODIES were never recorded. The two things a differing client would most likely disagree
+/// about are isolated in one named constant each: <see cref="YpnsPacket.ClientVersion"/> /
+/// <see cref="YpnsPacket.ServerVersion"/> for the version string, and
+/// <see cref="PagerSession.StatusRecord"/> for the status-record layout.
 /// </para>
 /// </summary>
 public static class YahooPagerProcessor
 {
-    // The reference client reads the body a line at a time and deletes non-printables, so CRLF and bare LF are
-    // both safe for it. CRLF is what a period HTTP server would have sent, so that is the default - but it is
-    // one constant precisely because no capture of the real response exists to settle it.
+    // UNVERIFIED, NOT DERIVED. No capture of a real ncclogin response exists, so nothing settles which line
+    // ending Yahoo! actually sent. CRLF is a coin-flip pick on the grounds that it is what a period HTTP server
+    // would have used; it is not read off the reference. The reference client tolerates either (it reads a line
+    // at a time and deletes non-printables, so a stray CR is removed rather than kept), which is why the choice
+    // is safe to make arbitrarily. It lives in one named constant so that whoever finds a real capture flips
+    // this line instead of re-deriving why it was chosen.
     const string LineEnding = "\r\n";
 
     const string InvalidLogin = "ERROR: Invalid NCC Login";
@@ -44,8 +56,6 @@ public static class YahooPagerProcessor
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
-        await Task.Delay(0);
-
         var host = req.Host;
 
         if (!PagerHosts.IsPagerHost(host))
@@ -85,7 +95,7 @@ public static class YahooPagerProcessor
         }
 
         // Everything left is the transport host.
-        return HandleNotify(req, res);
+        return await HandleNotify(req, res, path);
     }
 
     // GET /config/ncclogin?.src=bl&login=<user>&passwd=<plaintext>&n=1&t=1
@@ -197,22 +207,57 @@ public static class YahooPagerProcessor
         return true;
     }
 
-    // POST /notify/ - the polled message transport, not implemented yet.
+    // POST /notify/ - the polled message transport. One YPNS packet up, whatever the server has queued back
+    // down. The protocol itself lives in PagerTransport; this is only the HTTP shell around it.
     //
     // Answered here rather than left to fall through on purpose. These hostnames are claimed by VintageHive, so
     // letting the request reach the archive processor would send a lookup outward for a host the archive cannot
     // possibly have a useful capture of - which is both pointless and the wrong posture for a walled plane.
-    static bool HandleNotify(HttpRequest req, HttpResponse res)
+    static async Task<bool> HandleNotify(HttpRequest req, HttpResponse res, string path)
     {
         res.Cache = false;
 
-        res.ErrorMessage = "The Yahoo! Pager message transport is not implemented yet; sign-on and the version check are.";
+        // The captured client posts to /notify/, libyahoo to /notify. Same endpoint.
+        if (!path.Equals("/notify", StringComparison.OrdinalIgnoreCase) && !path.Equals("/notify/", StringComparison.OrdinalIgnoreCase))
+        {
+            return NotHandledHere(req, res, "unknown transport endpoint");
+        }
 
-        res.SetStatusCode(HttpStatusCode.ServiceUnavailable);
+        var traceId = req.ListenerSocket.TraceId.ToString();
 
-        Log.WriteLine(Log.LEVEL_DEBUG, nameof(YahooPagerProcessor), $"Pager transport not implemented: {req.Method} {req.Uri.AbsolutePath}", req.ListenerSocket.TraceId.ToString());
+        var result = await PagerTransport.HandleAsync(req.BodyData, TokenFromCookie(req), traceId, what => Mind.Db?.RequestsTrack(req.ListenerSocket, req.UserAgent, "PAGER", what, nameof(YahooPagerProcessor)));
 
-        return true;
+        switch (result.Outcome)
+        {
+            case PagerTransport.Outcome.Unauthenticated:
+            {
+                // No verified way exists to tell this client why, at the wire level, so nothing is invented:
+                // it gets an HTTP refusal and an empty body. In practice its token was revoked by a newer
+                // sign-on - possibly one that arrived over YMSG - or its session was reaped as idle.
+                res.ErrorMessage = "This Yahoo! Pager session is no longer signed in.";
+
+                res.SetStatusCode(HttpStatusCode.Unauthorized).SetBodyData(Array.Empty<byte>(), HttpContentTypeMimeType.Application.OctetStream);
+
+                return true;
+            }
+
+            case PagerTransport.Outcome.BadRequest:
+            {
+                res.ErrorMessage = "Malformed Yahoo! Pager packet.";
+
+                res.SetStatusCode(HttpStatusCode.BadRequest).SetBodyData(Array.Empty<byte>(), HttpContentTypeMimeType.Application.OctetStream);
+
+                return true;
+            }
+
+            default:
+            {
+                // An empty body is the normal answer to a poll with nothing waiting, and is not an error.
+                res.SetBodyData(result.Body, HttpContentTypeMimeType.Application.OctetStream);
+
+                return true;
+            }
+        }
     }
 
     // A claimed host with an unclaimed path. Answered as a 404 here rather than returned false, so the request

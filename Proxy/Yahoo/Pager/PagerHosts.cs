@@ -20,7 +20,7 @@ public static class PagerHosts
     /// <summary>Client version check. HEAD then GET of /clients.html.</summary>
     public const string Update = "update.pager.yahoo.com";
 
-    /// <summary>The polled message transport: repeated POSTs to /notify/.</summary>
+    /// <summary>The polled message transport: repeated POSTs to /notify/. See <see cref="PagerTransport"/>.</summary>
     public const string Notify = "http.messenger.yahoo.com";
 
     /// <summary>

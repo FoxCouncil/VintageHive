@@ -91,6 +91,89 @@ internal static class PagerEnv
 
     public static Task<string> Get(string url) => Send("GET", url);
 
+    // The transport's bodies are binary in both directions, so they cannot go through the string path above:
+    // decoding a packet as UTF-8 and re-encoding it mangles every byte over 0x7F and every embedded NUL.
+    public static async Task<(int Status, byte[] Body)> SendRaw(string method, string url, byte[] body)
+    {
+        Http.HttpErrorPageEnv.EnsureContexts();
+        YmsgTestEnv.Ensure();
+
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+
+        listener.Start();
+
+        try
+        {
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+            using var client = new TcpClient();
+
+            await client.ConnectAsync(IPAddress.Loopback, port);
+
+            using var serverSocket = await listener.AcceptSocketAsync();
+
+            var connection = new ListenerSocket
+            {
+                RawSocket = serverSocket,
+                Stream = new NetworkStream(serverSocket),
+            };
+
+            var proxy = new HttpProxy(IPAddress.Loopback, 0, false);
+
+            proxy.Use(YahooPagerProcessor.ProcessHttpRequest);
+
+            var uri = new Uri(url);
+
+            var head = new StringBuilder();
+
+            head.Append($"{method} {uri.PathAndQuery} HTTP/1.1\r\n");
+            head.Append($"Host: {uri.Host}\r\n");
+            head.Append("User-Agent: Mozilla/4.01 [en] (Win95; I)\r\n");
+
+            if (Cookie != null)
+            {
+                head.Append($"Cookie: {Cookie}\r\n");
+            }
+
+            head.Append($"Content-Length: {body?.Length ?? 0}\r\n");
+            head.Append("\r\n");
+
+            var raw = Encoding.ASCII.GetBytes(head.ToString()).Concat(body ?? Array.Empty<byte>()).ToArray();
+
+            var result = await proxy.ProcessRequest(connection, raw, raw.Length) ?? Array.Empty<byte>();
+
+            return (StatusOf(result), SplitBody(result));
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    static int StatusOf(byte[] response)
+    {
+        var line = Encoding.ASCII.GetString(response, 0, Math.Min(response.Length, 64));
+
+        var parts = line.Split(' ');
+
+        return parts.Length > 1 && int.TryParse(parts[1], out var code) ? code : 0;
+    }
+
+    static byte[] SplitBody(byte[] response)
+    {
+        var separator = "\r\n\r\n"u8.ToArray();
+
+        for (var i = 0; i + separator.Length <= response.Length; i++)
+        {
+            if (response.AsSpan(i, separator.Length).SequenceEqual(separator))
+            {
+                return response[(i + separator.Length)..];
+            }
+        }
+
+        return Array.Empty<byte>();
+    }
+
     // Every URL is unique per run: the HTTP proxy cache is real on-disk SQLite that outlives the process, and
     // ProcessRequest consults it before any handler runs.
     public static string LoginUrl(string user, string password)
@@ -423,11 +506,10 @@ public class YahooPagerUpdateCheckTests
     }
 }
 
-// The transport is not implemented yet: it waits on a capture with request bodies, since nothing in the
-// reference pins which wire dialect this client build speaks. What IS pinned is that the request stops here
-// rather than being sent outward to the archive.
+// The HTTP shell around the transport. The protocol itself is covered in YahooPagerWireTests; these pin that
+// both transport hostnames are claimed locally and never leak outward to the archive.
 [TestClass]
-public class YahooPagerTransportTests
+public class YahooPagerTransportHostTests
 {
     [TestInitialize]
     public void Setup()
@@ -440,23 +522,29 @@ public class YahooPagerTransportTests
         Mind.Db!.ConfigSet(ConfigNames.ServiceYahooPager, true);
     }
 
+    // libyahoo targets http.pager.yahoo.com for the same service; the captured client uses
+    // http.messenger.yahoo.com on /notify/ with a trailing slash. All four combinations are the same endpoint.
     [TestMethod]
-    public async Task NotifyPost_IsAnsweredLocallyAndNotForwarded()
+    public async Task BothTransportHostnamesAndBothPathSpellings_AreClaimed()
     {
-        var response = await PagerEnv.Send("POST", $"http://{PagerHosts.Notify}/notify/", "YPNS2.0");
+        foreach (var host in new[] { PagerHosts.Notify, PagerHosts.NotifyAlternate })
+        {
+            foreach (var path in new[] { "/notify", "/notify/" })
+            {
+                // No session, so the transport refuses it - but it refuses it HERE, which is the point.
+                var (status, _) = await PagerEnv.SendRaw("POST", $"http://{host}{path}", new byte[YpnsPacket.HeaderSize]);
 
-        StringAssert.Contains(response, "503 ServiceUnavailable");
-        Assert.IsFalse(response.Contains(PagerEnv.BuiltIn404Marker), "The transport request fell through to the rest of the chain.");
+                Assert.AreEqual(401, status, $"{host}{path} was not answered by the Pager transport.");
+            }
+        }
     }
 
-    // libyahoo targets http.pager.yahoo.com for the same service; the captured client uses
-    // http.messenger.yahoo.com. Both are claimed so neither leaks outward.
     [TestMethod]
-    public async Task TheAlternateTransportHostname_IsClaimedToo()
+    public async Task AnUnknownPathOnATransportHost_IsAnsweredHereNotPassedDownstream()
     {
-        var response = await PagerEnv.Send("POST", $"http://{PagerHosts.NotifyAlternate}/notify", "YPNS2.0");
+        var response = await PagerEnv.Send("POST", $"http://{PagerHosts.Notify}/something-else?nonce={Guid.NewGuid():N}", "junk");
 
-        StringAssert.Contains(response, "503 ServiceUnavailable");
+        StringAssert.Contains(response, "404 NotFound");
     }
 }
 
