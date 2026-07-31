@@ -20,6 +20,12 @@ public static class PagerHosts
     /// <summary>Client version check. HEAD then GET of /clients.html.</summary>
     public const string Update = "update.pager.yahoo.com";
 
+    /// <summary>
+    /// The Messenger 5.x-and-later version check: GET of /msgrcli.html, or /msgrcliNN.html from later builds.
+    /// Observed from a real Messenger 5.5.0.1244; the older Pager generation asks <see cref="Update"/> instead.
+    /// </summary>
+    public const string UpdateMessenger = "update.messenger.yahoo.com";
+
     /// <summary>The polled message transport: repeated POSTs to /notify/. See <see cref="PagerTransport"/>.</summary>
     public const string Notify = "http.messenger.yahoo.com";
 
@@ -33,6 +39,7 @@ public static class PagerHosts
     {
         return string.Equals(host, Auth, StringComparison.OrdinalIgnoreCase)
             || string.Equals(host, Update, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, UpdateMessenger, StringComparison.OrdinalIgnoreCase)
             || string.Equals(host, Notify, StringComparison.OrdinalIgnoreCase)
             || string.Equals(host, NotifyAlternate, StringComparison.OrdinalIgnoreCase);
     }

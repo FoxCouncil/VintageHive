@@ -94,6 +94,11 @@ public static class YahooPagerProcessor
             return HandleClientsList(req, res, path);
         }
 
+        if (string.Equals(host, PagerHosts.UpdateMessenger, StringComparison.OrdinalIgnoreCase))
+        {
+            return HandleMessengerClientConfig(req, res, path);
+        }
+
         // Everything left is the transport host.
         return await HandleNotify(req, res, path);
     }
@@ -203,6 +208,79 @@ public static class YahooPagerProcessor
         }
 
         res.SetBodyData(bytes, HttpContentTypeMimeType.Text.Html);
+
+        return true;
+    }
+
+    // GET (or HEAD) of /msgrcli.html on update.messenger.yahoo.com - the Messenger 5.x self-update check; later
+    // builds ask for /msgrcliNN.html on the same host.
+    //
+    // Unlike clients.html on the older Pager host, the real document IS recoverable: the Wayback Machine holds
+    // update.messenger.yahoo.com/msgrcli115.html (capture 20130303015835, with msgrcli8 and msgrcli9 captures
+    // carrying the identical content digest), and despite the extension it is not HTML at all - it is a bare
+    // LF-terminated key=value block naming two download folders plus network tuning numbers, with no version
+    // advertised anywhere. Version discovery happens through fetches under those folders, so the archived
+    // document is served verbatim with its folders left on this same claimed host: any follow-up fetch lands
+    // back here and 404s cleanly, and the client concludes there is nothing to update - which the CDX record
+    // shows is exactly what the real host's folder URLs did too.
+    static bool HandleMessengerClientConfig(HttpRequest req, HttpResponse res, string path)
+    {
+        if (!IsMessengerClientConfigPath(path))
+        {
+            return NotHandledHere(req, res, "unknown update endpoint");
+        }
+
+        // Byte-for-byte the 20130303015835 capture, including the bare \n line endings.
+        var body = "AUTOUPDATER-FOLDER=http://update.messenger.yahoo.com/yupdater/autoupdater/download115/\n"
+            + "PAGER-FOLDER=http://update.messenger.yahoo.com/yupdater/pgdownload11/\n"
+            + "IPAddrLookup=216.136.173.161,216.136.173.162\n"
+            + "Threshold=8000\n"
+            + "Delay=10000\n"
+            + "MinReadBuffer=4000\n"
+            + "MaxReadBuffer=65536\n"
+            + "BwCalcCount=20\n";
+
+        var bytes = Encoding.UTF8.GetBytes(body);
+
+        // The same stable-resource posture as HandleClientsList: fixed stamps so a conditional or diffing
+        // update check sees a document that never changes. The real host served this as text/html, extension
+        // and content notwithstanding, so that is what goes on the wire.
+        res.Headers.AddOrUpdate("Last-Modified", new DateTime(1999, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("R"));
+        res.Headers.AddOrUpdate("ETag", "\"pager-msgrcli-1\"");
+
+        if (req.Method == HttpMethodName.Head)
+        {
+            res.SetBodyData(Array.Empty<byte>(), HttpContentTypeMimeType.Text.Html);
+
+            res.Headers.AddOrUpdate(HttpHeaderName.ContentLength, bytes.Length.ToString());
+
+            return true;
+        }
+
+        res.SetBodyData(bytes, HttpContentTypeMimeType.Text.Html);
+
+        return true;
+    }
+
+    // Accepts /msgrcli.html and /msgrcliNN.html - anything between the two fixed halves must be digits. Both
+    // halves are checked before slicing, and no string shorter than the two of them can satisfy both checks.
+    static bool IsMessengerClientConfigPath(string path)
+    {
+        const string Prefix = "/msgrcli";
+        const string Suffix = ".html";
+
+        if (!path.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) || !path.EndsWith(Suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        foreach (var c in path[Prefix.Length..^Suffix.Length])
+        {
+            if (c < '0' || c > '9')
+            {
+                return false;
+            }
+        }
 
         return true;
     }

@@ -506,6 +506,78 @@ public class YahooPagerUpdateCheckTests
     }
 }
 
+// The Messenger 5.x generation version-checks update.messenger.yahoo.com/msgrcli.html instead of the older
+// Pager host's clients.html - observed from a real 5.5.0.1244, which previously landed as unknown-host. The
+// served document is the real one (Wayback capture of msgrcli115.html), a bare key=value block whose download
+// folders point back at this same claimed host so follow-up fetches 404 here instead of leaking outward.
+[TestClass]
+public class YahooPagerMessengerUpdateCheckTests
+{
+    // Unique per run for the same reason as ClientsUrl above: the on-disk proxy cache outlives the process.
+    static string MsgrCliUrl(string name = "msgrcli.html") => $"http://{PagerHosts.UpdateMessenger}/{name}?nonce={Guid.NewGuid():N}";
+
+    [TestInitialize]
+    public void Setup()
+    {
+        Http.HttpErrorPageEnv.EnsureContexts();
+        YmsgTestEnv.Ensure();
+
+        PagerEnv.Cookie = null;
+
+        Mind.Db!.ConfigSet(ConfigNames.ServiceYahooPager, true);
+    }
+
+    [TestMethod]
+    public async Task Get_IsAnsweredWithTheArchivedConfigDocument()
+    {
+        var response = await PagerEnv.Send("GET", MsgrCliUrl());
+
+        StringAssert.Contains(response, "200 OK");
+        StringAssert.Contains(response, "PAGER-FOLDER=http://update.messenger.yahoo.com/yupdater/pgdownload11/");
+        StringAssert.Contains(response, "BwCalcCount=20");
+        Assert.IsFalse(response.Contains(PagerEnv.BuiltIn404Marker));
+    }
+
+    // Later 5.x/6.x builds request /msgrcliNN.html on the same host; anything non-numeric in that slot is not
+    // this endpoint.
+    [TestMethod]
+    public async Task NumberedVariants_AreTheSameDocument_AndNonNumericOnesAreNot()
+    {
+        var numbered = await PagerEnv.Send("GET", MsgrCliUrl("msgrcli115.html"));
+
+        StringAssert.Contains(numbered, "200 OK");
+        Assert.AreEqual(PagerEnv.BodyOf(await PagerEnv.Send("GET", MsgrCliUrl())), PagerEnv.BodyOf(numbered));
+
+        StringAssert.Contains(await PagerEnv.Send("GET", MsgrCliUrl("msgrclix.html")), "404 NotFound");
+    }
+
+    [TestMethod]
+    public async Task Head_MatchesTheGetsMetadataAndCarriesNoBody()
+    {
+        var head = await PagerEnv.Send("HEAD", MsgrCliUrl());
+        var get = await PagerEnv.Send("GET", MsgrCliUrl());
+
+        StringAssert.Contains(head, "200 OK");
+
+        Assert.AreEqual(PagerEnv.HeaderValue(get, "Content-Length"), PagerEnv.HeaderValue(head, "Content-Length"), "HEAD advertised a different length than GET delivers.");
+        Assert.AreEqual(PagerEnv.HeaderValue(get, "ETag"), PagerEnv.HeaderValue(head, "ETag"));
+        Assert.AreEqual(PagerEnv.HeaderValue(get, "Last-Modified"), PagerEnv.HeaderValue(head, "Last-Modified"));
+
+        Assert.AreEqual(string.Empty, PagerEnv.BodyOf(head), "A HEAD response carried a body, which desynchronises a keep-alive connection.");
+        Assert.AreNotEqual(string.Empty, PagerEnv.BodyOf(get), "The GET returned nothing, so the comparison above proves nothing.");
+    }
+
+    // The document names its own download folders on this host; those fetches must 404 here, not fall through
+    // to the outward-reaching processors.
+    [TestMethod]
+    public async Task TheAdvertisedDownloadFolders_AreAnsweredHereNotPassedDownstream()
+    {
+        var response = await PagerEnv.Send("GET", $"http://{PagerHosts.UpdateMessenger}/yupdater/pgdownload11/?nonce={Guid.NewGuid():N}");
+
+        StringAssert.Contains(response, "404 NotFound");
+    }
+}
+
 // The HTTP shell around the transport. The protocol itself is covered in YahooPagerWireTests; these pin that
 // both transport hostnames are claimed locally and never leak outward to the archive.
 [TestClass]
