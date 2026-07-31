@@ -379,6 +379,33 @@ public class YmsgServerTests
         Assert.IsNull(delivered.Get(1), "Field 1 must be absent or period clients attribute the message to the recipient");
         Assert.AreEqual("bob", delivered.Get(5));
         Assert.AreEqual("hello bob", delivered.Get(14));
+        Assert.AreEqual(";0", delivered.Get(63), "Delivery must carry the IMVironment name even when the sender omitted it");
+        Assert.AreEqual("0", delivered.Get(64), "Delivery must carry the IMVironment flag even when the sender omitted it");
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Message_RelayEchoesTheSendersImvironmentPair()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var alice = new YmsgConn(server);
+
+        await alice.LoginAsync("alice");
+
+        using var bob = new YmsgConn(server);
+
+        await bob.LoginAsync("bob");
+
+        await alice.ReadAsync(); // drain bob's arrival LOGON
+
+        await alice.SendAsync(new YmsgPacket(YmsgService.Message, 0, 0).Add(1, "alice").Add(5, "bob").Add(14, "doodle with me").Add(97, "1").Add(63, "doodle;11").Add(64, "1"));
+
+        var delivered = await bob.ReadAsync();
+
+        Assert.AreEqual(YmsgService.Message, delivered.Service);
+        Assert.AreEqual("doodle;11", delivered.Get(63), "The sender's IMVironment name must be relayed, not replaced with the plain-window default");
+        Assert.AreEqual("1", delivered.Get(64), "The sender's IMVironment flag must be relayed, not replaced with the plain-window default");
     }
 
     [TestMethod]
@@ -454,6 +481,8 @@ public class YmsgServerTests
         Assert.AreEqual("alice", delivered.Get(4), "Sender must be in field 4");
         Assert.IsNull(delivered.Get(1), "Field 1 must be absent or period clients attribute the message to the recipient");
         Assert.AreEqual("read this later", delivered.Get(14));
+        Assert.AreEqual(";0", delivered.Get(63), "The offline flush must carry the IMVironment pair too");
+        Assert.AreEqual("0", delivered.Get(64), "The offline flush must carry the IMVironment pair too");
 
         // The server deletes the queue AFTER the send we just read, so synchronize on a ping round-trip
         // (the handler loop is sequential) before asserting the flush committed.

@@ -50,17 +50,24 @@ public sealed class YmsgSession : YahooSession
         }
     }
 
-    // Real server-to-client Message packets carry 4 (from), 5 (to), 14 (text), 15 (timestamp), 97 (utf8).
+    // Real server-to-client Message packets carry 4 (from), 5 (to), 14 (text), 15 (timestamp), 97 (utf8)
+    // and the IMVironment pair 63/64. Clients stamp 63/64 on every IM they compose (";0"/"0" for a plain
+    // window; libyahoo2.c:4038 does the same) and the real servers relayed the pair through, so it is echoed
+    // here when the originator supplied one and defaulted to the plain-window values otherwise. A capture
+    // of YM 5.5.0.1244 showed it silently discarding well-formed deliveries that lacked the pair, and the
+    // missing pair is the prime suspect for that drop.
     // Fields 0/1 must NOT be present: libyahoo2-lineage clients treat the FIRST of key 1 or 4 as the
     // sender, so a leading field 1 would attribute the message to the recipient themselves.
-    public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline)
+    public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline, string imvironment = null, string imvironmentFlag = null)
     {
         var delivery = new YmsgPacket(YmsgService.Message, offline ? YmsgStatus.OfflineMessage : 0, SessionId)
             .Add(4, from)
             .Add(5, Username)
             .Add(14, text)
             .Add(15, timestamp.ToString())
-            .Add(97, "1");
+            .Add(97, "1")
+            .Add(63, imvironment ?? ";0")
+            .Add(64, imvironmentFlag ?? "0");
 
         return GuardedAsync(ct => SendAsync(delivery, ct));
     }

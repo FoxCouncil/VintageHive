@@ -148,7 +148,7 @@ public static class YahooSessionRegistry
     /// Delivers an IM to whichever session currently owns <paramref name="to"/>, on whatever transport, and
     /// reports whether it landed. False means the caller should queue it for the recipient's next login.
     /// </summary>
-    public static async Task<bool> RelayMessageAsync(string from, string to, string text)
+    public static async Task<bool> RelayMessageAsync(string from, string to, string text, string imvironment = null, string imvironmentFlag = null)
     {
         var target = GetByUsername(to);
 
@@ -160,7 +160,7 @@ public static class YahooSessionRegistry
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         // A dead or stalled recipient must not kill (or indefinitely hang) the SENDER's session.
-        if (await target.DeliverMessageAsync(from, text, timestamp, offline: false))
+        if (await target.DeliverMessageAsync(from, text, timestamp, offline: false, imvironment, imvironmentFlag))
         {
             return true;
         }
@@ -175,7 +175,7 @@ public static class YahooSessionRegistry
 
         if (retry != null && retry.SessionId != target.SessionId)
         {
-            if (await retry.DeliverMessageAsync(from, text, timestamp, offline: false))
+            if (await retry.DeliverMessageAsync(from, text, timestamp, offline: false, imvironment, imvironmentFlag))
             {
                 return true;
             }

@@ -361,6 +361,11 @@ public sealed class YmsgServer : Listener
         var to = packet.Get(5);
         var text = packet.Get(14) ?? string.Empty;
 
+        // The IMVironment pair the client stamped on this message (";0"/"0" for a plain IM window), carried
+        // through delivery the way the real servers did rather than being regenerated server-side.
+        var imvironment = packet.Get(63);
+        var imvironmentFlag = packet.Get(64);
+
         if (string.IsNullOrEmpty(to))
         {
             return;
@@ -377,7 +382,7 @@ public sealed class YmsgServer : Listener
 
         // The relay finds the recipient on whatever transport they are signed on with, and reports failure
         // instead of throwing, so an unreachable peer costs the sender nothing but a queued message.
-        if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text))
+        if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text, imvironment, imvironmentFlag))
         {
             return;
         }
@@ -390,9 +395,10 @@ public sealed class YmsgServer : Listener
         {
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
+            // Replies echo the asker's own IMVironment pair so they land in the window the question came from.
             foreach (var line in serviceReplies)
             {
-                await session.DeliverMessageAsync(to, line, timestamp, offline: false);
+                await session.DeliverMessageAsync(to, line, timestamp, offline: false, imvironment, imvironmentFlag);
             }
 
             return;
@@ -436,12 +442,17 @@ public sealed class YmsgServer : Listener
 
         foreach (var message in messages)
         {
+            // Offline storage does not keep the sender's IMVironment pair, so the flush carries the
+            // plain-window values; a Message packet without 63/64 is the shape a YM 5.5 capture showed
+            // the client silently discarding.
             var delivery = new YmsgPacket(YmsgService.Message, YmsgStatus.OfflineMessage, session.SessionId)
                 .Add(4, message.FromUsername)
                 .Add(5, session.Username)
                 .Add(14, message.Message)
                 .Add(15, message.Timestamp.ToString())
-                .Add(97, "1");
+                .Add(97, "1")
+                .Add(63, ";0")
+                .Add(64, "0");
 
             await session.SendAsync(delivery);
         }

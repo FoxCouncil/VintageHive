@@ -110,7 +110,8 @@ public class ChatServiceYmsgTests
 
         await alice.LoginAsync("alice");
 
-        await alice.SendAsync(new YmsgPacket(YmsgService.Message, 0, 0).Add(1, "alice").Add(5, "yahoohelper").Add(14, "help"));
+        // The IMVironment pair (63/64) matches what a real 5.x client stamps on every IM it composes.
+        await alice.SendAsync(new YmsgPacket(YmsgService.Message, 0, 0).Add(1, "alice").Add(5, "yahoohelper").Add(14, "help").Add(97, "1").Add(63, ";0").Add(64, "0"));
 
         var first = await alice.ReadAsync();
 
@@ -118,6 +119,8 @@ public class ChatServiceYmsgTests
         Assert.AreEqual("yahoohelper", first.Get(4), "The reply must carry the name as the client sent it, or the IM window may not thread it.");
         Assert.AreEqual("alice", first.Get(5));
         Assert.AreEqual("you said: help", first.Get(14));
+        Assert.AreEqual(";0", first.Get(63), "Replies must echo the asker's IMVironment pair; a delivery without it is what the 5.5 capture showed being discarded.");
+        Assert.AreEqual("0", first.Get(64), "Replies must echo the asker's IMVironment pair; a delivery without it is what the 5.5 capture showed being discarded.");
 
         var second = await alice.ReadAsync();
 

@@ -32,7 +32,7 @@ internal sealed class FakeTransportSession : YahooSession
     // Runs at the moment a delivery is attempted, so a test can land a competing login inside that window.
     public Action OnDeliverAttempt { get; set; }
 
-    public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline)
+    public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline, string imvironment = null, string imvironmentFlag = null)
     {
         return Record($"msg:{from}:{text}:{(offline ? "offline" : "live")}");
     }

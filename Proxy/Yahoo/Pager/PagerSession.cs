@@ -75,7 +75,10 @@ public sealed class PagerSession : YahooSession
     //
     // Offline IM: "6,6,<to>,<from>,<timestamp>,<text>". The first two numbers are ignored by the parser, the
     // timestamp is carried as free text, and the message is again everything after the last delimiter.
-    public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline)
+    //
+    // The IMVironment pair is accepted and dropped: the reference parser ends the message field at \x06 and
+    // nothing verifiable reads what follows, so no imvironment suffix is invented for this wire.
+    public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline, string imvironment = null, string imvironmentFlag = null)
     {
         var body = SanitiseMessageText(text);
 

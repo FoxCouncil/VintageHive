@@ -57,8 +57,14 @@ public abstract class YahooSession
     /// <summary>
     /// Delivers an instant message to this session. Returns false when the peer is gone or stalled, so the
     /// caller can fall back to offline storage instead of letting the failure take down the sender.
+    /// <para>
+    /// <paramref name="imvironment"/> and <paramref name="imvironmentFlag"/> are the originating message's
+    /// IMVironment pair (YMSG fields 63/64), carried through the relay the way the real servers did. Null
+    /// means the originator supplied none; a transport whose wire wants the pair substitutes the plain-IM
+    /// values, and a transport whose wire has no such fields ignores them.
+    /// </para>
     /// </summary>
-    public abstract Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline);
+    public abstract Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline, string imvironment = null, string imvironmentFlag = null);
 
     /// <summary>Tells this session that <paramref name="subject"/> is online, or changed status.</summary>
     public abstract Task<bool> DeliverPresenceAsync(YahooSession subject);
