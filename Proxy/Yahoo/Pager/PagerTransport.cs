@@ -241,6 +241,8 @@ public static class PagerTransport
 
         track?.Invoke($"msg {session.Username} -> {to}");
 
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(PagerTransport), $"msg {session.Username} -> {to} ({text.Length} chars)", traceId);
+
         // Same relay every other transport uses, so a Pager member messaging a YMSG member just works.
         if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text))
         {
@@ -265,7 +267,8 @@ public static class PagerTransport
 
         if (Mind.Db?.UserExistsByUsername(to) != true)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, nameof(PagerTransport), $"Message to unknown user {to} dropped", traceId);
+            // WARN, not DEBUG: this silently discards a member-visible message.
+            Log.WriteLine(Log.LEVEL_WARN, nameof(PagerTransport), $"Message from {session.Username} to unknown user {to} dropped", traceId);
 
             return;
         }

@@ -373,6 +373,8 @@ public sealed class YmsgServer : Listener
 
         Mind.Db?.RequestsTrack(session.Client, "N/A", "YMSG", $"msg {session.Username} -> {to}", nameof(YmsgServer));
 
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(YmsgServer), $"msg {session.Username} -> {to} ({text.Length} chars)", traceId);
+
         // The relay finds the recipient on whatever transport they are signed on with, and reports failure
         // instead of throwing, so an unreachable peer costs the sender nothing but a queued message.
         if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text))
@@ -404,7 +406,8 @@ public sealed class YmsgServer : Listener
     {
         if (Mind.Db?.UserExistsByUsername(to) != true)
         {
-            Log.WriteLine(Log.LEVEL_DEBUG, nameof(YmsgServer), $"Message to unknown user {to} dropped", traceId);
+            // WARN, not DEBUG: this silently discards a member-visible message.
+            Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Message from {from} to unknown user {to} dropped", traceId);
 
             return;
         }
