@@ -87,20 +87,24 @@ internal static class YmsgCrypt
 
         Array.Copy(comparison, magicKey, 4);
 
-        // The client brute-forces the (depth, table) pair whose MD5 matches the tail of the comparison block. Our
-        // seeds are random over the challenge alphabet, so no pair matches and both sides land on depth 0 /
-        // table 0 / j 5 - which is what makes this verifiable at all without shipping yahoo_fn.c's lookup tables.
+        // The client brute-forces the (depth, table) pair whose MD5 matches the tail of the comparison block.
+        // That match is not a checksum nicety: it is how a real server told the client which yahoo_fn.c transform
+        // to run on the key, and a real client refuses to answer a seed whose search never matches. Our crafted
+        // seeds embed (depth 0, table 0), so the search succeeds on the client's very first candidate.
         var (depth, table, jFinal, found) = SearchTransformTable(magicKey, comparison);
 
-        if (found)
+        if (found && depth != 0)
         {
-            // yahoo_xfrm() would now permute the key through a 4600-line table we deliberately do not carry. This
-            // needs a seed whose trailing 16 bytes are a valid MD5 of the leading 4 plus the pair, which has odds
-            // around 2^-108 for a random seed. Fail closed if it ever happens rather than compute a wrong answer.
+            // A nonzero depth would send the key through yahoo_fn.c's 4600-line permutation table, which we
+            // deliberately do not carry. Our own seeds always encode depth 0, so reaching this means either a
+            // truncated-MD5 collision (odds around 2^-108) or someone replaying a captured real-server seed at
+            // us. Fail closed rather than compute an answer the client will not.
             return null;
         }
 
         // depth == 0 makes yahoo_xfrm() an identity function (its loop body never runs), so the key is unchanged.
+        // The not-found fallthrough (depth 0 / table 0 / j 5) is kept for the legacy random seeds the pinned
+        // vectors cover - the reference computes exactly that when nothing matches.
         return new ChallengeState(magicKey, depth, table, jFinal);
     }
 
@@ -133,30 +137,118 @@ internal static class YmsgCrypt
         return ComputeResponses(PrepareChallenge(seed), password);
     }
 
-    // Builds a challenge a real client can actually process: characters drawn only from the two lookup tables,
-    // and long enough that the decode fills a whole 20-byte block. Anything else either spins the client forever
-    // or leaves the two sides deriving keys from different data, so the candidate is verified before it is used.
+    // Builds a challenge exactly the way a real Yahoo server did, because a real client refuses anything else.
+    // The 20-byte block the client decodes out of the seed is structured, not random: bytes 0-3 are the magic key
+    // and bytes 4-19 are MD5(key || depth || table), which the client brute-forces back out to learn which
+    // yahoo_fn.c transform to run on the key. The old version of this method emitted seeds random over the lookup
+    // alphabets - a grammar this parser accepted but whose search never matches - and Messenger 5.x answers those
+    // with EMPTY fields 6 and 96, failing every real-client login. We always encode depth 0 and table 0: depth 0
+    // keeps yahoo_xfrm() an identity in every client lineage (its loop body never runs), and table 0 keeps the
+    // loop-exit j at 1 so the SHA-1 length poke stays off - the one spot where the RE'd lineages disagree
+    // (bitlbee pokes when j >= 3, jYMSG never does; at table 0 they and the real client all agree).
     internal static string MakeChallenge()
     {
-        for (var attempt = 0; attempt < 64; attempt++)
+        var comparison = new byte[ComparisonLength];
+
+        RandomNumberGenerator.Fill(comparison.AsSpan(0, 4));
+
+        // The searched preimage is key || depth as 16-bit little-endian || table - all zero bytes for our pair.
+        var pair = new byte[7];
+
+        Array.Copy(comparison, pair, 4);
+
+        MD5.HashData(pair, comparison.AsSpan(4));
+
+        // Phase-3 inverse: pack the ten 16-bit values the way the client's UTF-8-shaped decoder unpacks them.
+        var packed = new List<byte>
         {
-            var builder = new StringBuilder();
+            // magic[0]: the decoder starts reading at index 1, so this byte only feeds the phase-2 stir.
+            (byte)RandomNumberGenerator.GetInt32(256)
+        };
 
-            for (var i = 0; i < 24; i++)
+        for (var i = 0; i < ComparisonLength; i += 2)
+        {
+            var value = (comparison[i] << 8) | comparison[i + 1];
+
+            if (value < 0x80)
             {
-                builder.Append(ChallengeLookup[RandomNumberGenerator.GetInt32(ChallengeLookup.Length)]);
-                builder.Append(OperandLookup[RandomNumberGenerator.GetInt32(OperandLookup.Length)]);
+                packed.Add((byte)value);
             }
-
-            var candidate = builder.ToString();
-
-            if (PrepareChallenge(candidate) != null)
+            else if (value < 0x800)
             {
-                return candidate;
+                packed.Add((byte)(0xC0 | (value >> 6)));
+                packed.Add((byte)(0x80 | (value & 0x3F)));
+            }
+            else
+            {
+                packed.Add((byte)(0xE0 | (value >> 12)));
+                packed.Add((byte)(0x80 | ((value >> 6) & 0x3F)));
+                packed.Add((byte)(0x80 | (value & 0x3F)));
             }
         }
 
-        return null;
+        // The decoder peeks one byte past each lead byte before using it, so when the final value packs into a
+        // single byte it needs a spare byte to peek at. Always supplying one is harmless in every other case.
+        packed.Add((byte)RandomNumberGenerator.GetInt32(256));
+
+        // Phase-2 inverse, run forward: the client stirs magic[k] into (magic[k-1] * 0xcd) ^ magic[k] using the
+        // raw values, so the raw stream falls out of the packed one in one pass.
+        var raw = new byte[packed.Count];
+
+        raw[0] = packed[0];
+
+        for (var k = 1; k < raw.Length; k++)
+        {
+            raw[k] = (byte)(packed[k] ^ (byte)(raw[k - 1] * 0xcd));
+        }
+
+        // Phase-1 inverse: each byte becomes an operand character (high five bits) and an operator (low three).
+        // The parentheses are decoration - every client parser skips them - but real seeds wore them to look like
+        // arithmetic, so ours do too, and the string ends on a dangling operand the parser never folds.
+        var builder = new StringBuilder();
+
+        var open = 0;
+
+        foreach (var b in raw)
+        {
+            if (open < 3 && RandomNumberGenerator.GetInt32(5) == 0)
+            {
+                builder.Append('(');
+
+                open++;
+            }
+
+            builder.Append(ChallengeLookup[b >> 3]);
+
+            if (open > 0 && RandomNumberGenerator.GetInt32(5) == 0)
+            {
+                builder.Append(')');
+
+                open--;
+            }
+
+            builder.Append(OperandLookup[b & 7]);
+        }
+
+        builder.Append(ChallengeLookup[RandomNumberGenerator.GetInt32(ChallengeLookup.Length)]);
+
+        while (open-- > 0)
+        {
+            builder.Append(')');
+        }
+
+        var candidate = builder.ToString();
+
+        // The construction is deterministic, but nothing downstream can recover from a seed the two sides read
+        // differently - so prove the whole round trip, including the embedded pair, before handing it out.
+        var state = PrepareChallenge(candidate);
+
+        if (state == null || state.Depth != 0 || state.Table != 0 || state.JFinal != 1)
+        {
+            return null;
+        }
+
+        return candidate;
     }
 
     // Phase 1: fold the seed into a byte per operator. Returns null on any character the reference cannot handle -

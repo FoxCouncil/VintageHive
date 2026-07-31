@@ -220,8 +220,10 @@ public sealed class YmsgServer : Listener
         session.Username = username;
 
         // Field 13 = "1" tells the client to answer with the v9 "0x0b" crypt, which we verify in AUTHRESP - so
-        // the seed's content is now load-bearing. It must be drawn from the crypt's own lookup alphabets: a
-        // client fed anything else spins forever, because its parser does not advance on an unknown character.
+        // the seed's content is load-bearing twice over. It must be drawn from the crypt's lookup alphabets (a
+        // client fed anything else spins forever, because its parser does not advance on an unknown character),
+        // and it must embed a (depth, table) pair the client's MD5 search actually finds - a real Messenger 5.x
+        // answers a seed that fails that search with empty crypt fields, which reads here as a bad password.
         var seed = MakeChallenge();
 
         session.ChallengeSeed = seed;

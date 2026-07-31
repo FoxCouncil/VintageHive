@@ -207,8 +207,10 @@ public class YmsgAuthTests
 
             foreach (var c in seed)
             {
+                // Parentheses are the one thing outside the lookup alphabets a client accepts: its parser skips
+                // them explicitly, and real server seeds carried them to look like arithmetic.
                 Assert.IsTrue(
-                    YmsgCrypt.ChallengeLookup.Contains(c) || YmsgCrypt.OperandLookup.Contains(c),
+                    YmsgCrypt.ChallengeLookup.Contains(c) || YmsgCrypt.OperandLookup.Contains(c) || c == '(' || c == ')',
                     $"Challenge contains '{c}', which is outside both client lookup alphabets and would hang the client");
             }
 

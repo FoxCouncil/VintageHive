@@ -114,6 +114,34 @@ public class YmsgCryptTests
         Assert.AreNotEqual(a.Resp96, b.Resp96);
     }
 
+    // MakeChallenge must emit what a real server emitted: a seed whose embedded (depth, table) pair the client's
+    // brute-force search actually finds. A real Messenger 5.5 answers a seed whose search never matches with
+    // EMPTY fields 6 and 96 - no login can ever succeed - so the found-at-first-candidate shape is the fix for
+    // that, not a nicety. Depth 0 / table 0 / loop-exit j 1 is the one combination every client lineage computes
+    // identically (no yahoo_xfrm, no SHA-1 length poke).
+    [TestMethod]
+    public void MakeChallenge_EmbedsTransformPairTheClientSearchFinds()
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var seed = YmsgCrypt.MakeChallenge();
+
+            Assert.IsNotNull(seed, "MakeChallenge failed its own round-trip check");
+
+            var state = YmsgCrypt.PrepareChallenge(seed);
+
+            Assert.IsNotNull(state);
+            Assert.AreEqual(0, state.Depth);
+            Assert.AreEqual(0, state.Table);
+            Assert.AreEqual(1, state.JFinal, "loop-exit j must be 1: the search has to match on the client's very first candidate");
+
+            foreach (var c in seed)
+            {
+                Assert.IsTrue(YmsgCrypt.ChallengeLookup.Contains(c) || YmsgCrypt.OperandLookup.Contains(c) || c == '(' || c == ')', $"character '{c}' in seed '{seed}' is outside the client's alphabets");
+            }
+        }
+    }
+
     // A seed carrying anything outside the challenge and operand alphabets makes the reference client spin
     // forever, because it does not advance its read pointer on an unknown character. We refuse instead.
     [TestMethod]
