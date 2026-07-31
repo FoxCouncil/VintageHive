@@ -1,5 +1,8 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Text.RegularExpressions;
+using VintageHive.Proxy.Chat;
+
 namespace VintageHive.Proxy.Oscar.Services;
 
 internal class OscarIcbmService : IOscarService
@@ -79,8 +82,33 @@ internal class OscarIcbmService : IOscarService
 
                 if (userSession == null)
                 {
+                    // An embedder-registered service name answers here, before the unknown-recipient handling.
+                    // Channel 1 only: there is nothing to rendezvous with. Replies are attributed to the name
+                    // as the CLIENT wrote it so its IM window threads them.
+                    var serviceReplies = msgChannel == 1
+                        ? await ChatServiceRegistry.TryHandleAsync(screenName, "OSCAR", session.ScreenName, ExtractPlainText(tlvs))
+                        : null;
+
+                    if (serviceReplies != null)
+                    {
+                        // ACK the send like a normal delivery so the sender's client considers it sent.
+                        var serviceAckSnac = new Snac(Family, SRV_MSG_ACK);
+
+                        serviceAckSnac.WriteUInt64(msgIdCookie);
+                        serviceAckSnac.WriteUInt16(msgChannel);
+
+                        serviceAckSnac.WriteUInt8((byte)screenName.Length);
+                        serviceAckSnac.WriteString(screenName);
+
+                        await session.SendSnac(serviceAckSnac);
+
+                        foreach (var line in serviceReplies)
+                        {
+                            await SendServiceReply(session, screenName, line);
+                        }
+                    }
                     // User is offline - store for offline delivery (channel 1 only)
-                    if (msgChannel == 1 && Mind.Db.UserExistsByUsername(screenName))
+                    else if (msgChannel == 1 && Mind.Db.UserExistsByUsername(screenName))
                     {
                         // Store the message TLVs for later delivery
                         var messageTlv = tlvs.GetTlv(0x02);
@@ -226,6 +254,123 @@ internal class OscarIcbmService : IOscarService
             }
             break;
         }
+    }
+
+    // Keeps a service reply's message fragment within the ICBM budget this server advertises (8000-byte max
+    // SNAC size), with headroom for the header and sender TLVs. Also what keeps the fragment's 16-bit length
+    // field honest for any text the embedder hands back.
+    private const int MaxServiceReplyChars = 2000;
+
+    // Delivers one service reply line to the sender as a fresh channel-1 ICBM from the service name,
+    // mirroring the live-relay delivery shape above (and the offline flush in OscarGenericServiceControls).
+    private static async Task SendServiceReply(OscarSession session, string fromName, string text)
+    {
+        if (text.Length > MaxServiceReplyChars)
+        {
+            text = text[..MaxServiceReplyChars];
+        }
+
+        var replySnac = new Snac(FAMILY_ID, SRV_CLIENT_ICBM);
+
+        replySnac.WriteUInt64((ulong)Random.Shared.NextInt64());
+        replySnac.WriteUInt16(1); // Channel 1: plain IM
+
+        replySnac.WriteUInt8((byte)fromName.Length);
+        replySnac.WriteString(fromName);
+
+        replySnac.WriteUInt16(0); // Warning level
+
+        var senderTlvs = new List<Tlv>
+        {
+            new Tlv(0x01, OscarUtils.GetBytes(0)),
+            new Tlv(0x06, OscarUtils.GetBytes((uint)OscarSessionOnlineStatus.Online)),
+            new Tlv(0x0F, OscarUtils.GetBytes((uint)0)),
+            new Tlv(0x03, OscarUtils.GetBytes((uint)OscarServer.ServerTime.ToUnixTimeSeconds()))
+        };
+
+        replySnac.WriteUInt16((ushort)senderTlvs.Count);
+
+        foreach (Tlv tlv in senderTlvs)
+        {
+            replySnac.Write(tlv.Encode());
+        }
+
+        replySnac.WriteTlv(BuildMessageBlockTlv(text));
+
+        await session.SendSnac(replySnac);
+    }
+
+    // The channel-1 message TLV (0x02) is a run of fragments: id(1) + version(1) + length(2, BE) + payload.
+    // Fragment 0x05 carries capabilities, fragment 0x01 the message block: charset(2) + subset(2) + text.
+    private static Tlv BuildMessageBlockTlv(string text)
+    {
+        var isAscii = text.All(c => c < 0x80);
+
+        // Charset 0 (ASCII) when possible, UCS-2BE (charset 2) otherwise - period clients handle both.
+        var charset = (ushort)(isAscii ? 0 : 2);
+        var textBytes = isAscii ? Encoding.ASCII.GetBytes(text) : Encoding.BigEndianUnicode.GetBytes(text);
+
+        using var value = new MemoryStream();
+
+        // Fragment 0x05 v1: the bare "plain text" capability.
+        value.Write(new byte[] { 0x05, 0x01, 0x00, 0x01, 0x01 });
+
+        var blockLength = (ushort)(4 + textBytes.Length);
+
+        value.Write(new byte[] { 0x01, 0x01, (byte)(blockLength >> 8), (byte)blockLength });
+        value.Write(new byte[] { (byte)(charset >> 8), (byte)charset, 0x00, 0x00 });
+        value.Write(textBytes);
+
+        return new Tlv(0x02, value.ToArray());
+    }
+
+    // What the member actually typed, out of the fragment structure and stripped of the HTML wrapper AIM
+    // clients put around every message - a service handler should compare against "help", not
+    // "<HTML><BODY>help</BODY></HTML>".
+    internal static string ExtractPlainText(Tlv[] tlvs)
+    {
+        var messageTlv = tlvs.GetTlv(0x02);
+
+        if (messageTlv == null)
+        {
+            return string.Empty;
+        }
+
+        var block = messageTlv.Value;
+        var text = new StringBuilder();
+
+        var offset = 0;
+
+        while (offset + 4 <= block.Length)
+        {
+            var fragmentId = block[offset];
+            var fragmentLength = OscarUtils.ToUInt16(block[(offset + 2)..(offset + 4)]);
+
+            offset += 4;
+
+            if (offset + fragmentLength > block.Length)
+            {
+                break;
+            }
+
+            if (fragmentId == 0x01 && fragmentLength >= 4)
+            {
+                var charset = OscarUtils.ToUInt16(block[offset..(offset + 2)]);
+                var textBytes = block[(offset + 4)..(offset + fragmentLength)];
+
+                // 0 = ASCII (decoded as UTF-8, a safe superset), 2 = UCS-2BE, 3 = ISO-8859-1.
+                text.Append(charset switch
+                {
+                    2 => Encoding.BigEndianUnicode.GetString(textBytes),
+                    3 => Encoding.Latin1.GetString(textBytes),
+                    _ => Encoding.UTF8.GetString(textBytes),
+                });
+            }
+
+            offset += fragmentLength;
+        }
+
+        return WebUtility.HtmlDecode(Regex.Replace(text.ToString(), "<[^>]*>", string.Empty));
     }
 
     private async Task ProcessWarning(OscarSession session, Snac snac)

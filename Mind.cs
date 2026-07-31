@@ -14,6 +14,7 @@ using VintageHive.Proxy.NetMeeting.H225;
 using VintageHive.Proxy.NetMeeting.ILS;
 using VintageHive.Proxy.NetMeeting.T120;
 using VintageHive.Proxy.Oscar;
+using VintageHive.Proxy.Chat;
 using VintageHive.Proxy.Finger;
 using VintageHive.Proxy.Presence;
 using VintageHive.Proxy.Pna;
@@ -127,6 +128,14 @@ public static class Mind
     // every delivery decision - never cache the result in the mail path. Fail-open: a provider
     // error must never block delivery.
     public static Func<string, long?> MailboxQuotaProvider { get; set; }
+
+    // Host-injected chat service names ("YahooHelper"), answered by the embedder instead of a member. Call
+    // from the composition root, any time before or after Init; the message paths consult the registry per
+    // message. NOT a user row on purpose - see ChatServiceRegistry for the exclusion rationale.
+    public static void RegisterChatService(string name, Func<ChatServiceMessage, Task<IReadOnlyList<string>>> handler)
+    {
+        ChatServiceRegistry.Register(name, handler);
+    }
 
     public static PrinterDbContext PrinterDb { get; private set; }
 

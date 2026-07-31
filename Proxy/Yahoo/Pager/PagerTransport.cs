@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using VintageHive.Proxy.Chat;
+
 namespace VintageHive.Proxy.Yahoo.Pager;
 
 /// <summary>
@@ -242,6 +244,22 @@ public static class PagerTransport
         // Same relay every other transport uses, so a Pager member messaging a YMSG member just works.
         if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text))
         {
+            return;
+        }
+
+        // Same interception every other message path does: an embedder-registered service name answers here,
+        // before the unknown-recipient handling, attributed as the client wrote it.
+        var serviceReplies = await ChatServiceRegistry.TryHandleAsync(to, "Yahoo", session.Username, text);
+
+        if (serviceReplies != null)
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            foreach (var line in serviceReplies)
+            {
+                await session.DeliverMessageAsync(to, line, timestamp, offline: false);
+            }
+
             return;
         }
 

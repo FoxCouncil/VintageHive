@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using VintageHive.Network;
+using VintageHive.Proxy.Chat;
 using static VintageHive.Proxy.Irc.IrcCommand;
 using static VintageHive.Proxy.Irc.IrcServerReplyType;
 
@@ -845,6 +846,26 @@ public class IrcProxy : Listener
 
             if (toUser == null)
             {
+                // An embedder-registered service name ("YahooHelper") answers here, before "no such nick".
+                // PRIVMSG only: RFC 1459 forbids automatic replies to NOTICE, so a NOTICE falls through.
+                // One PRIVMSG per reply line, prefixed with the name as the CLIENT wrote it.
+                if (!isNotice)
+                {
+                    var serviceReplies = await ChatServiceRegistry.TryHandleAsync(target, "IRC", user.Nick, message);
+
+                    if (serviceReplies != null)
+                    {
+                        if (serviceReplies.Count == 0)
+                        {
+                            return null;
+                        }
+
+                        var servicePrefix = $"{target}!{target}@{IRCD_HOSTNAME}";
+
+                        return SendIrcReply(serviceReplies.Select(line => (servicePrefix, STR_PRIVMSG, user.Nick, (string[])null, line)).ToList());
+                    }
+                }
+
                 return SendIrcReply(IRCD_HOSTNAME, ERR_NOSUCHNICK, user.Nick, new[] { target }, "No such nick/channel");
             }
 

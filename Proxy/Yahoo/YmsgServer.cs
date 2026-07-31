@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using VintageHive.Network;
+using VintageHive.Proxy.Chat;
 using VintageHive.Proxy.Presence;
 
 namespace VintageHive.Proxy.Yahoo;
@@ -376,6 +377,22 @@ public sealed class YmsgServer : Listener
         // instead of throwing, so an unreachable peer costs the sender nothing but a queued message.
         if (await YahooSessionRegistry.RelayMessageAsync(session.Username, to, text))
         {
+            return;
+        }
+
+        // An embedder-registered service name ("YahooHelper") answers here, before the unknown-recipient
+        // handling. Replies are attributed to the name as the CLIENT wrote it so its IM window threads them.
+        var serviceReplies = await ChatServiceRegistry.TryHandleAsync(to, "Yahoo", session.Username, text);
+
+        if (serviceReplies != null)
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            foreach (var line in serviceReplies)
+            {
+                await session.DeliverMessageAsync(to, line, timestamp, offline: false);
+            }
+
             return;
         }
 
