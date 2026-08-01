@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 
@@ -6,8 +6,11 @@ namespace VintageHive.Proxy.Pna;
 
 internal class PnaServer : Listener
 {
-    public PnaServer(IPAddress listenAddress)
-        : base(listenAddress, 7070, SocketType.Stream, ProtocolType.Tcp, false)
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
+    public PnaServer(IPAddress listenAddress, int port)
+        : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, false)
     {
     }
 

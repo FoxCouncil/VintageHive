@@ -208,16 +208,30 @@ internal static class MmsCommand
         {
             // Data packet - first 8 bytes already contain full data header
             // LocationId(4) + incarnation(1) + AFFlags(1) + PacketSize(2)
+            //
+            // PacketSize is the TOTAL packet size INCLUDING this 8-byte header, per MS-MMSP and per
+            // BuildDataPacket's own comment in this file. Treating it as payload-only meant reading eight
+            // bytes too many for every client-sent data packet - a packet-pair probe was enough - which
+            // permanently desynchronised the command stream and killed the session.
             ushort packetSize = BitConverter.ToUInt16(peek, 6);
-            var payload = new byte[packetSize];
-            if (packetSize > 0 && !await ReadExactAsync(stream, payload, 0, packetSize, ct))
+
+            var payloadLength = packetSize - 8;
+
+            if (payloadLength < 0 || payloadLength > MAX_COMMAND_BODY_SIZE)
             {
                 return (false, null);
             }
 
-            var fullPacket = new byte[8 + packetSize];
+            var payload = new byte[payloadLength];
+
+            if (payloadLength > 0 && !await ReadExactAsync(stream, payload, 0, payloadLength, ct))
+            {
+                return (false, null);
+            }
+
+            var fullPacket = new byte[8 + payloadLength];
             Buffer.BlockCopy(peek, 0, fullPacket, 0, 8);
-            Buffer.BlockCopy(payload, 0, fullPacket, 8, packetSize);
+            Buffer.BlockCopy(payload, 0, fullPacket, 8, payloadLength);
 
             return (false, fullPacket);
         }

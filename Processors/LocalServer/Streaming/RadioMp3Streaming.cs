@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
 
@@ -37,9 +37,24 @@ internal static class RadioMp3Streaming
     // Winamp streaming - /stream/winamp?id={id}
     // ===================================================================
 
-    public static async Task HandleWinampStream(HttpRequest request, HttpResponse response)
+    // ===================================================================
+    // Shared upstream -> client pipeline
+    // ===================================================================
+
+    /// <summary>
+    /// Fetches an upstream radio stream and writes it to the client, transcoding to MP3 when needed.
+    /// </summary>
+    /// <remarks>
+    /// This body used to exist three times over - once each for the Winamp, browser and Shoutcast entry points -
+    /// differing only in how the station was looked up and, by drift, in which headers they sent and how they
+    /// compared the codec string. That drift was load-bearing: two of the three advertised
+    /// "Transfer-Encoding: chunked" over an unframed byte stream and the third did not, so the same audio was
+    /// broken for spec-compliant clients on two paths and fine on the other. The entry points now only resolve
+    /// a station and hand the answer here, so there is one place for a protocol fix to land.
+    /// </remarks>
+    private static async Task StreamStation(HttpRequest request, HttpResponse response, string stationName, string codec, string streamUrl, string logContext)
     {
-        var info = await RadioStationResolver.ResolveStation(request.QueryParams["id"]);
+        var isMp3 = string.Equals(codec, "MP3", StringComparison.OrdinalIgnoreCase);
 
         using var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
         {
@@ -53,21 +68,21 @@ internal static class RadioMp3Streaming
             httpClient.DefaultRequestHeaders.Add(HttpHeaderName.UserAgent, request.Headers[HttpHeaderName.UserAgent]);
         }
 
-        if (info.Codec == "MP3" && request.Headers.ContainsKey(HttpHeaderName.IcyMetadata))
+        if (isMp3 && request.Headers.ContainsKey(HttpHeaderName.IcyMetadata))
         {
             httpClient.DefaultRequestHeaders.Add(HttpHeaderName.IcyMetadata, "1");
         }
 
-        using var client = await httpClient.GetAsync(info.StreamUrl, HttpCompletionOption.ResponseHeadersRead);
+        using var client = await httpClient.GetAsync(streamUrl, HttpCompletionOption.ResponseHeadersRead);
 
         using var clientStream = await client.Content.ReadAsStreamAsync();
 
-        if (info.Codec != "MP3")
+        if (!isMp3)
         {
             using var process = CreateFfmpegProcess();
 
             response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
-            response.Headers.Add("Icy-Name", info.Name + $" [Codec:{info.Codec}]");
+            response.Headers.Add("Icy-Name", stationName + $" [Codec:{codec}]");
 
             process.Start();
             _ = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
@@ -90,36 +105,51 @@ internal static class RadioMp3Streaming
             }
 
             response.Handled = true;
+
+            return;
         }
-        else
+
+        foreach (var header in client.Headers)
         {
-            foreach (var header in client.Headers)
+            if (header.Key.ToLower().StartsWith("icy"))
             {
-                if (header.Key.ToLower().StartsWith("icy"))
-                {
-                    response.Headers.Add(header.Key, header.Value.First());
-                }
+                response.Headers.Add(header.Key, header.Value.First());
             }
+        }
 
-            response.Headers.Add(HttpHeaderName.ContentDisposition, "inline");
-            response.Headers.Add("Transfer-Encoding", "chunked");
-            response.Headers.Add("Connection", "keep-alive");
-            response.Headers.Add("Accept-Ranges", "bytes");
+        response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
+        response.Headers.Add(HttpHeaderName.ContentDisposition, "inline");
+        // Deliberately NOT chunked: the audio below is written raw with no chunk-size framing anywhere, so
+        // advertising chunked makes a spec-compliant HTTP/1.1 client read MP3 bytes as hex chunk-size lines
+        // and abort immediately.
+        response.Headers.Add("Connection", "keep-alive");
+        response.Headers.Add("Accept-Ranges", "bytes");
 
-            try
-            {
-                // Stream straight to the socket and mark the response handled. Previously this ALSO called
-                // SetBodyStream without setting Handled, so HttpProxy re-sent the headers and re-copied the
-                // already-consumed (and disposed) stream, injecting stray header bytes into the audio.
-                response.Handled = true;
+        try
+        {
+            // Own the copy here rather than handing the stream to HttpProxy via SetBodyStream: that deferred
+            // the copy until after this method - and its using-scoped httpClient and response - had been
+            // disposed, closing the stream out from under the copy and leaking the HttpClient. Setting
+            // Handled also stops HttpProxy re-sending the headers into the middle of the audio.
+            response.Handled = true;
 
-                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
+            await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
 
-                await clientStream.CopyToAsync(request.ListenerSocket.Stream);
-            }
-            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"ICY stream write failed: {ex.Message}", ""); }
+            await clientStream.CopyToAsync(request.ListenerSocket.Stream);
+        }
+        catch (Exception ex)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"{logContext} stream write failed: {ex.Message}", "");
         }
     }
+
+    public static async Task HandleWinampStream(HttpRequest request, HttpResponse response)
+    {
+        var info = await RadioStationResolver.ResolveStation(request.QueryParams["id"]);
+
+        await StreamStation(request, response, info.Name, info.Codec, info.StreamUrl, "Winamp");
+    }
+
 
     // ===================================================================
     // WMP MP3 fallback - /stream/wmp/{id}.mp3
@@ -211,174 +241,20 @@ internal static class RadioMp3Streaming
     {
         var station = await Mind.RadioBrowser.StationGetAsync(request.QueryParams["id"]);
 
-        using var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
-        {
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 3,
-            PlaintextStreamFilter = (filterContext, ct) => new ValueTask<Stream>(new HttpFixerDelegatingStream(filterContext.PlaintextStream))
-        });
-
-        if (request.Headers.ContainsKey(HttpHeaderName.UserAgent))
-        {
-            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.UserAgent, request.Headers[HttpHeaderName.UserAgent]);
-        }
-
-        if (station.Codec.ToLower() == "mp3" && request.Headers.ContainsKey(HttpHeaderName.IcyMetadata))
-        {
-            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.IcyMetadata, "1");
-        }
-
-        using var client = await httpClient.GetAsync(station.UrlResolved, HttpCompletionOption.ResponseHeadersRead);
-
-        using var clientStream = await client.Content.ReadAsStreamAsync();
-
-        if (!station.Codec.Equals("mp3", StringComparison.CurrentCultureIgnoreCase))
-        {
-            using var process = CreateFfmpegProcess();
-
-            response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
-            response.Headers.Add("Icy-Name", station.Name + $" [Codec:{station.Codec}]");
-
-            process.Start();
-            _ = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
-
-            try
-            {
-                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
-
-                // await (not Task.WaitAny) so we don't block a thread-pool thread for the whole stream.
-                await Task.WhenAny(
-                    clientStream.CopyToAsync(process.StandardInput.BaseStream),
-                    process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
-                );
-            }
-            catch (IOException) { }
-            finally
-            {
-                // Always tear down the ffmpeg process tree - a non-IOException escaping the try used to orphan it.
-                try { process.Kill(true); } catch { }
-            }
-
-            response.Handled = true;
-        }
-        else
-        {
-            foreach (var header in client.Headers)
-            {
-                if (header.Key.ToLower().StartsWith("icy"))
-                {
-                    response.Headers.Add(header.Key, header.Value.First());
-                }
-            }
-
-            response.Headers.Add(HttpHeaderName.ContentDisposition, "inline");
-            response.Headers.Add("Transfer-Encoding", "chunked");
-            response.Headers.Add("Connection", "keep-alive");
-            response.Headers.Add("Accept-Ranges", "bytes");
-
-            try
-            {
-                // Stream straight to the socket and mark the response handled (see the ICY branch above - calling
-                // SetBodyStream here as well made HttpProxy re-emit headers and re-copy the disposed stream).
-                response.Handled = true;
-
-                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
-
-                await clientStream.CopyToAsync(request.ListenerSocket.Stream);
-            }
-            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"Browser stream write failed: {ex.Message}", ""); }
-        }
+        await StreamStation(request, response, station.Name, station.Codec, station.UrlResolved.ToString(), "ICY");
     }
 
     // ===================================================================
-    // Legacy shoutcast MP3 - /shoutcast.mp3?id={id}
+    // Shoutcast directory play - /play/shoutcast
     // ===================================================================
 
     public static async Task HandleShoutcastPlay(HttpRequest request, HttpResponse response)
     {
         var station = await GetStationById(request.QueryParams["id"]);
 
-        using var httpClient = HttpClientUtils.GetHttpClientWithSocketHandler(null, new SocketsHttpHandler
-        {
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 3,
-            PlaintextStreamFilter = (filterContext, ct) => new ValueTask<Stream>(new HttpFixerDelegatingStream(filterContext.PlaintextStream))
-        });
-
-        if (request.Headers.ContainsKey(HttpHeaderName.UserAgent))
-        {
-            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.UserAgent, request.Headers[HttpHeaderName.UserAgent]);
-        }
-
         var details = station.Item1;
 
-        var stationCodec = GetFormatString(details.Mt);
-
-        if (stationCodec == "MP3" && request.Headers.ContainsKey(HttpHeaderName.IcyMetadata))
-        {
-            httpClient.DefaultRequestHeaders.Add(HttpHeaderName.IcyMetadata, "1");
-        }
-
-        using var client = await httpClient.GetAsync(station.Item2, HttpCompletionOption.ResponseHeadersRead);
-
-        using var clientStream = await client.Content.ReadAsStreamAsync();
-
-        if (stationCodec != "MP3")
-        {
-            using var process = CreateFfmpegProcess();
-
-            response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
-            response.Headers.Add("Icy-Name", details.Name + $" [Codec:{stationCodec}]");
-
-            process.Start();
-            _ = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
-
-            try
-            {
-                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
-
-                // await (not Task.WaitAny) so we don't block a thread-pool thread for the whole stream.
-                await Task.WhenAny(
-                    clientStream.CopyToAsync(process.StandardInput.BaseStream),
-                    process.StandardOutput.BaseStream.CopyToAsync(request.ListenerSocket.Stream)
-                );
-            }
-            catch (IOException) { }
-            finally
-            {
-                // Always tear down the ffmpeg process tree - a non-IOException escaping the try used to orphan it.
-                try { process.Kill(true); } catch { }
-            }
-
-            response.Handled = true;
-        }
-        else
-        {
-            foreach (var header in client.Headers)
-            {
-                if (header.Key.ToLower().StartsWith("icy"))
-                {
-                    response.Headers.Add(header.Key, header.Value.First());
-                }
-            }
-
-            response.Headers.Add(HttpHeaderName.ContentType, HttpContentTypeMimeType.Audio.Mpeg);
-            response.Headers.Add(HttpHeaderName.ContentDisposition, "inline");
-            response.Headers.Add("Connection", "keep-alive");
-            response.Headers.Add("Accept-Ranges", "bytes");
-
-            try
-            {
-                // Stream directly (was SetBodyStream, which deferred the copy to HttpProxy AFTER this handler - and
-                // its httpClient/response - was disposed, closing the stream out from under the copy and leaking the
-                // HttpClient). Owning the copy here lets the using-scoped httpClient/client/clientStream dispose safely.
-                response.Handled = true;
-
-                await request.ListenerSocket.Stream.WriteAsync(response.GetResponseEncodedData());
-
-                await clientStream.CopyToAsync(request.ListenerSocket.Stream);
-            }
-            catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(RadioMp3Streaming), $"Shoutcast stream write failed: {ex.Message}", ""); }
-        }
+        await StreamStation(request, response, details.Name, GetFormatString(details.Mt), station.Item2.ToString(), "Shoutcast");
     }
+
 }

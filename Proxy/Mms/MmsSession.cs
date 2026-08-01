@@ -213,7 +213,22 @@ internal class MmsSession
         }
 
         _liveSession = await RadioMmshStreaming.GetOrCreateSessionAsync(_stationId);
-        _liveSession.AddClient(_stationId);
+
+        // A false return means the cleanup timer disposed the session between the lookup and here, so this
+        // would have attached to a dead one and streamed nothing. Respawn and try once more.
+        if (!_liveSession.AddClient(_stationId))
+        {
+            _liveSession = await RadioMmshStreaming.GetOrCreateSessionAsync(_stationId);
+
+            if (!_liveSession.AddClient(_stationId))
+            {
+                Log.WriteLine(Log.LEVEL_ERROR, LogSys, $"Could not attach to a live session for {_stationId}", _traceId);
+
+                _connection.RawSocket.Close();
+
+                return;
+            }
+        }
 
         _openFileId = 1;
         _incarnation = 1;
@@ -233,6 +248,16 @@ internal class MmsSession
 
     private async Task HandleReadBlock(byte[] fields)
     {
+        // OpenFile is what populates the ASF header and the live session. A client that sends ReadBlock as its
+        // very first command - a prober will - used to pass a null header into SendAsfHeader and die on an
+        // unhandled NullReferenceException logged as a session error.
+        if (_mmsAsfHeader == null || _liveSession == null)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "ReadBlock arrived before OpenFile; ignoring", _traceId);
+
+            return;
+        }
+
         _readBlockIncarnation = fields.Length >= 44 ? BitConverter.ToUInt32(fields, 40) : _incarnation;
         var playSequence = fields.Length >= 48 ? BitConverter.ToUInt32(fields, 44) : 0u;
 
@@ -259,6 +284,16 @@ internal class MmsSession
 
     private async Task HandleStartPlaying(byte[] fields)
     {
+        // Entering the streaming state without a live session sends the connection into StreamingLoop, whose
+        // very first line dereferences _liveSession. Refuse rather than transition, so a client that plays
+        // before opening a file gets nothing instead of killing the session with an NRE.
+        if (_liveSession == null)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "StartPlaying arrived before OpenFile; ignoring", _traceId);
+
+            return;
+        }
+
         _playIncarnation = fields.Length >= 32 ? BitConverter.ToUInt32(fields, 28) : 1u;
 
         Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"StartPlaying incarnation=0x{_playIncarnation:X2}", _traceId);
@@ -419,7 +454,9 @@ internal class MmsSession
                         // Inject TEXT script command after audio packet
                         if (_pendingScriptCommand != null && lastSendTime > 0)
                         {
-                            var scriptTitle = $"{_pendingScriptCommand} [#{scriptObjectNumber} t={lastSendTime}]";
+                            // The bare track name, as the MMSH sibling sends it. This carried a debug suffix
+                            // ("[#3 t=182340]") that every WMP user on MMS/TCP saw in their Now Playing.
+                            var scriptTitle = _pendingScriptCommand;
                             _pendingScriptCommand = null;
                             packetsSinceLastText = 0;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 // Cook encoder - file encoding helpers (FFmpeg-based WAV/audio -> .rm conversion)
 
 using VintageHive.Utilities;
@@ -85,15 +85,23 @@ internal partial class CookEncoder
         using var process = System.Diagnostics.Process.Start(psi);
         using var stdout = process.StandardOutput.BaseStream;
 
+        // stderr must be drained CONCURRENTLY with stdout, not after WaitForExit. ffmpeg writes progress
+        // stats to stderr throughout the encode; on a long input those fill the stderr pipe buffer, ffmpeg
+        // blocks writing to it, stdout therefore never reaches EOF, and the CopyTo below waits forever on a
+        // process that is itself waiting on us. Classic pipe-buffer deadlock, and the reason this only ever
+        // showed up on large files.
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
         // Read all PCM data from stdout
         using var pcmStream = new MemoryStream();
         stdout.CopyTo(pcmStream);
         process.WaitForExit();
 
+        var stderrText = stderrTask.GetAwaiter().GetResult();
+
         if (process.ExitCode != 0)
         {
-            var stderr = process.StandardError.ReadToEnd();
-            throw new InvalidOperationException($"FFmpeg failed (exit {process.ExitCode}): {stderr}");
+            throw new InvalidOperationException($"FFmpeg failed (exit {process.ExitCode}): {stderrText}");
         }
 
         var pcm = pcmStream.ToArray();
@@ -154,14 +162,19 @@ internal partial class CookEncoder
         using var process = System.Diagnostics.Process.Start(psi);
         using var stdout = process.StandardOutput.BaseStream;
 
+        // Drained concurrently for the same reason as the sibling above: a full stderr pipe blocks ffmpeg,
+        // which stops stdout ever reaching EOF, which deadlocks the CopyTo below.
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
         using var pcmStream = new MemoryStream();
         stdout.CopyTo(pcmStream);
         process.WaitForExit();
 
+        var stderrText = stderrTask.GetAwaiter().GetResult();
+
         if (process.ExitCode != 0)
         {
-            var stderr = process.StandardError.ReadToEnd();
-            throw new InvalidOperationException($"FFmpeg failed (exit {process.ExitCode}): {stderr}");
+            throw new InvalidOperationException($"FFmpeg failed (exit {process.ExitCode}): {stderrText}");
         }
 
         var pcm = pcmStream.ToArray();

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Buffers.Binary;
 using VintageHive.Network;
@@ -9,6 +9,9 @@ namespace VintageHive.Proxy.Pna;
 internal class PnaSession
 {
     private const string LogSys = "PNA";
+
+    /// <summary>How long to wait for more of a client hello before giving up on the rest of it.</summary>
+    private static readonly TimeSpan HelloReadTimeout = TimeSpan.FromSeconds(5);
 
     private readonly ListenerSocket _connection;
     private readonly NetworkStream _stream;
@@ -31,9 +34,47 @@ internal class PnaSession
         {
             Log.WriteLine(Log.LEVEL_INFO, LogSys, "New PNA connection", _traceId);
 
-            // Step 1: Read client hello
+            // Step 1: Read client hello.
+            //
+            // The hello carries no total-length field, and this used to parse whatever a SINGLE ReadAsync
+            // happened to return. A hello split across TCP segments - routine for the dial-up and serial-line
+            // clients this stack exists for - truncated before the path chunk, so stationId came back null and
+            // the connection was dropped as malformed. Keep reading while the parse has not yielded a path
+            // yet, bounded by the buffer and a short idle gap so a silent peer cannot hold the session open.
             var buffer = new byte[4096];
-            int read = await _stream.ReadAsync(buffer.AsMemory(0, buffer.Length));
+            var read = 0;
+
+            PnaCommand.ClientRequest request = null;
+
+            while (read < buffer.Length)
+            {
+                int got;
+
+                try
+                {
+                    using var helloTimeout = new CancellationTokenSource(HelloReadTimeout);
+
+                    got = await _stream.ReadAsync(buffer.AsMemory(read, buffer.Length - read), helloTimeout.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                if (got == 0)
+                {
+                    break;
+                }
+
+                read += got;
+
+                request = PnaCommand.ParseClientRequest(buffer, read);
+
+                if (!string.IsNullOrEmpty(request.PathRequest))
+                {
+                    break;
+                }
+            }
 
             if (read == 0)
             {
@@ -45,7 +86,7 @@ internal class PnaSession
             Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"Client hello:\n{PnaCommand.HexDump(buffer, 0, read)}", _traceId);
 
             // Step 2: Parse client request
-            var request = PnaCommand.ParseClientRequest(buffer, read);
+            request ??= PnaCommand.ParseClientRequest(buffer, read);
 
             Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Client: \"{request.ClientString}\" Path: \"{request.PathRequest}\" BW: {request.Bandwidth} PNA v{request.PnaVersion:X2}", _traceId);
 
@@ -73,7 +114,20 @@ internal class PnaSession
             try
             {
                 _liveSession = await RadioPnaStreaming.GetOrCreateSessionAsync(stationId, profile);
-                _liveSession.AddClient(_sessionKey);
+
+                // A false return means the idle cleanup disposed the session between the lookup and here, so
+                // this would attach to a dead session and stream nothing. Respawn and try once more.
+                if (!_liveSession.AddClient(_sessionKey))
+                {
+                    _liveSession = await RadioPnaStreaming.GetOrCreateSessionAsync(stationId, profile);
+
+                    if (!_liveSession.AddClient(_sessionKey))
+                    {
+                        Log.WriteLine(Log.LEVEL_ERROR, LogSys, $"Could not attach to a live session for {stationId}", _traceId);
+
+                        return;
+                    }
+                }
                 Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Live session ready: \"{_liveSession.Station.Name}\"", _traceId);
             }
             catch (Exception ex)

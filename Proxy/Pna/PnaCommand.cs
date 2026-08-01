@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Buffers.Binary;
 
@@ -249,12 +249,18 @@ internal static class PnaCommand
             if (chunkId != CHUNK_BANDWIDTH) continue;
 
             int chunkLen = (data[i + 2] << 8) | data[i + 3];
+
+            // Only stop scanning once a chunk actually VALIDATES. Breaking on the first ID match regardless
+            // meant a stray 0x00 0x05 pair inside the GUID or challenge payload consumed the search, the real
+            // bandwidth chunk was never found, and the client silently got the wrong codec profile - a 44k
+            // stereo cook stream handed to a 14.4 modem, say.
             if (chunkLen >= 4 && i + 4 + chunkLen <= length)
             {
                 result.Bandwidth = BinaryPrimitives.ReadUInt32BigEndian(
                     data.AsSpan(i + 4, 4));
+
+                break;
             }
-            break;
         }
 
         // Scan for CHALLENGE chunk (2-byte ID = 0x0004)
@@ -264,12 +270,15 @@ internal static class PnaCommand
             if (chunkId != CHUNK_CLIENT_CHALLANGE) continue;
 
             int chunkLen = (data[i + 2] << 8) | data[i + 3];
+
+            // Same rule as the bandwidth scan: a match that fails validation is not a match.
             if (chunkLen > 0 && chunkLen <= 256 && i + 4 + chunkLen <= length)
             {
                 result.Challenge = new byte[chunkLen];
                 Buffer.BlockCopy(data, i + 4, result.Challenge, 0, chunkLen);
+
+                break;
             }
-            break;
         }
 
         return result;

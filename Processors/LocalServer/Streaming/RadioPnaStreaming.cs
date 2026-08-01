@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -13,7 +13,12 @@ internal static class RadioPnaStreaming
     private const string LogSys = "PNA-STREAM";
 
     private static readonly ConcurrentDictionary<string, PnaLiveSession> _liveSessions = new();
-    private static readonly SemaphoreSlim _sessionCreateLock = new(1, 1);
+    // Keyed per session (station + codec profile). A single global semaphore let one unresponsive station
+    // block session creation for every other station, because the RM header read happens under this lock.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _sessionCreateLocks = new();
+
+    /// <summary>How long ffmpeg has to emit RM container headers before the session is abandoned.</summary>
+    private static readonly TimeSpan Ra144HeaderTimeout = TimeSpan.FromSeconds(20);
 
     // ===================================================================
     // FFmpeg process creation
@@ -339,18 +344,43 @@ internal static class RadioPnaStreaming
             await waitTask.WaitAsync(_cts.Token);
         }
 
-        public void AddClient(string sessionKey)
+        // Returns false if the session was already disposed (lost the race with the idle cleanup) so the caller
+        // can fall back to creating a fresh one. This mirrors MmshLiveSession.AddClient deliberately: the PNA
+        // copy of this machinery was written from the same original but never received the fix, so it kept the
+        // race the MMSH side had already closed. _activeClients, _cleanupCts and the dispose decision are all
+        // guarded by _lock, so a client can never register on a session that cleanup is concurrently killing.
+        public bool AddClient(string sessionKey)
         {
-            var count = Interlocked.Increment(ref _activeClients);
-            _cleanupCts?.Cancel();
-            _cleanupCts = null;
+            int count;
+
+            lock (_lock)
+            {
+                if (_disposed)
+                {
+                    return false;
+                }
+
+                count = ++_activeClients;
+                _cleanupCts?.Cancel();
+                _cleanupCts = null;
+            }
+
             Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey}: client connected ({count} active)");
+
+            return true;
         }
 
         public void RemoveClient(string sessionKey)
         {
-            var count = Interlocked.Decrement(ref _activeClients);
+            int count;
+
+            lock (_lock)
+            {
+                count = --_activeClients;
+            }
+
             Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey}: client disconnected ({count} active)");
+
             if (count <= 0)
             {
                 Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey}: last client left, cleanup in 30s");
@@ -358,23 +388,53 @@ internal static class RadioPnaStreaming
             }
         }
 
-        private void ScheduleCleanup(string sessionKey)
+        // Idempotent, and a no-op when a client is present or the session is already gone.
+        public void ScheduleCleanup(string sessionKey)
         {
-            var cts = new CancellationTokenSource();
-            _cleanupCts = cts;
+            CancellationTokenSource cts;
+
+            lock (_lock)
+            {
+                if (_disposed || _activeClients > 0)
+                {
+                    return;
+                }
+
+                _cleanupCts?.Cancel();
+                cts = new CancellationTokenSource();
+                _cleanupCts = cts;
+            }
+
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(30), cts.Token);
-                    if (_activeClients <= 0)
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                var reaped = false;
+
+                lock (_lock)
+                {
+                    // Re-checked under the lock: a client may have registered during the delay, or another path
+                    // may have disposed us. Disposing inside the lock stops an AddClient slipping in between
+                    // the decision and the kill.
+                    if (_activeClients <= 0 && !_disposed)
                     {
                         _liveSessions.TryRemove(sessionKey, out _);
                         Dispose();
-                        Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey} cleaned up (no clients for 30s)");
+                        reaped = true;
                     }
                 }
-                catch (OperationCanceledException) { }
+
+                if (reaped)
+                {
+                    Log.WriteLine(Log.LEVEL_INFO, LogSys, $"Session {sessionKey} cleaned up (no clients for 30s)");
+                }
             });
         }
 
@@ -411,7 +471,12 @@ internal static class RadioPnaStreaming
             return session;
         }
 
-        await _sessionCreateLock.WaitAsync();
+        // Per-session-key, not global. A single shared semaphore meant one station that connects but never
+        // emits RM headers blocked session creation for EVERY station, because the header read below happens
+        // while the lock is held. The MMSH sibling already keys its create lock per station; this copy did not.
+        var createLock = _sessionCreateLocks.GetOrAdd(sessionKey, _ => new SemaphoreSlim(1, 1));
+
+        await createLock.WaitAsync();
         try
         {
             if (_liveSessions.TryGetValue(sessionKey, out session) && session.IsAlive)
@@ -457,13 +522,30 @@ internal static class RadioPnaStreaming
 
             PnaLiveSession newSession;
 
-            if (profile.CodecType == RealCodecType.Ra144)
+            try
             {
-                newSession = await CreateRa144Session(httpClient, upstreamResponse, upstreamStream, info, profile, icyStream);
+                if (profile.CodecType == RealCodecType.Ra144)
+                {
+                    newSession = await CreateRa144Session(httpClient, upstreamResponse, upstreamStream, info, profile, icyStream);
+                }
+                else
+                {
+                    newSession = await CreateCookSession(httpClient, upstreamResponse, upstreamStream, info, profile, icyStream);
+                }
             }
-            else
+            catch
             {
-                newSession = await CreateCookSession(httpClient, upstreamResponse, upstreamStream, info, profile, icyStream);
+                // The old finally released the lock and nothing else, so a throw in here - a station ffmpeg
+                // cannot mux to RM, or a profile the CookEncoder rejects - left the started ffmpeg process,
+                // the HttpClient and the upstream response all alive with no owner. One orphaned ffmpeg and
+                // one held-open upstream socket per failed attempt, forever. The MMSH sibling already had
+                // this catch.
+                try { icyStream?.Dispose(); } catch { }
+                try { upstreamStream?.Dispose(); } catch { }
+                try { upstreamResponse?.Dispose(); } catch { }
+                try { httpClient?.Dispose(); } catch { }
+
+                throw;
             }
 
             if (_liveSessions.TryGetValue(sessionKey, out var old))
@@ -476,7 +558,7 @@ internal static class RadioPnaStreaming
         }
         finally
         {
-            _sessionCreateLock.Release();
+            createLock.Release();
         }
     }
 
@@ -539,9 +621,20 @@ internal static class RadioPnaStreaming
         using var pnaHeaderMs = new MemoryStream();
         using var httpHeaderMs = new MemoryStream();
 
+        // Bounded. This loop runs while the session-create lock is held, so a station that connects but never
+        // produces RM headers used to hang here forever - and with the old single global create lock, that
+        // took every other station's session creation down with it. The MMSH sibling has had a 20s header
+        // deadline for exactly this; the PNA copy never got one.
+        using var headerCts = new CancellationTokenSource(Ra144HeaderTimeout);
+
         while (true)
         {
-            var (tag, chunk) = await PnaCommand.ReadRmChunkAsync(ffmpegOut);
+            if (headerCts.IsCancellationRequested)
+            {
+                throw new InvalidOperationException($"FFmpeg ra_144: no RM headers within {Ra144HeaderTimeout.TotalSeconds:0}s");
+            }
+
+            var (tag, chunk) = await PnaCommand.ReadRmChunkAsync(ffmpegOut).WaitAsync(headerCts.Token);
             if (tag == 0 || chunk == null)
             {
                 throw new InvalidOperationException("FFmpeg ra_144: failed to read RM header chunks");
@@ -589,7 +682,19 @@ internal static class RadioPnaStreaming
             var profile = RealCodecProfile.CookStereo11k;
             session = await GetOrCreateSessionAsync(stationId, profile);
             sessionKey = $"{stationId}:{profile.Key}";
-            session.AddClient(sessionKey);
+
+            // A false return means the idle cleanup disposed the session between the lookup and here.
+            if (!session.AddClient(sessionKey))
+            {
+                session = await GetOrCreateSessionAsync(stationId, profile);
+
+                if (!session.AddClient(sessionKey))
+                {
+                    Log.WriteLine(Log.LEVEL_ERROR, LogSys, $"Could not attach to a live session for {stationId}");
+
+                    return;
+                }
+            }
 
             // Mark handled immediately - we're writing directly to the socket.
             response.Handled = true;

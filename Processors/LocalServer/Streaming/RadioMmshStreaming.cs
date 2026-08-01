@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -916,7 +916,11 @@ internal static class RadioMmshStreaming
                 {
                     int read = await ReadExactAsync(ffmpegOut, buf, 0, packetSize);
                     if (read == 0) break;
-                    if (read < packetSize) Array.Clear(buf, read, packetSize - read);
+
+                    // A short read means ffmpeg died mid-packet. Zero-filling and publishing it anyway sent
+                    // every connected client one corrupt half-silent ASF packet as the last thing they heard;
+                    // stopping here just ends the stream cleanly, which is what actually happened.
+                    if (read < packetSize) break;
 
                     var now = Stopwatch.GetTimestamp();
                     var gapMs = (now - lastPacketTime) * 1000.0 / Stopwatch.Frequency;
@@ -1388,7 +1392,21 @@ internal static class RadioMmshStreaming
 
                 Log.WriteLine(Log.LEVEL_DEBUG, LogSys, $"WMP6: streaming from seq={readPos} live={session.LivePosition}", traceId);
 
-                session.AddClient(stationId);
+                // AddClient returns false when it lost the race with the cleanup timer and the session was
+                // already disposed. Ignoring it meant registering on a dead session and handing the client an
+                // instantly-finished stream; respawn instead, which is exactly what the bool exists for.
+                if (!session.AddClient(stationId))
+                {
+                    session = await GetOrCreateSessionAsync(stationId);
+
+                    if (!session.AddClient(stationId))
+                    {
+                        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Could not attach to a live session after a respawn; giving up on this client", traceId);
+
+                        return;
+                    }
+                }
+
                 try
                 {
                     while (session.IsAlive)
@@ -1667,7 +1685,21 @@ internal static class RadioMmshStreaming
                 const uint TextResendInterval = 50; // re-send TEXT every N audio packets
                 byte scriptObjectNumber = 0; // media object number for TEXT stream - must increment per script command
 
-                session.AddClient(stationId);
+                // AddClient returns false when it lost the race with the cleanup timer and the session was
+                // already disposed. Ignoring it meant registering on a dead session and handing the client an
+                // instantly-finished stream; respawn instead, which is exactly what the bool exists for.
+                if (!session.AddClient(stationId))
+                {
+                    session = await GetOrCreateSessionAsync(stationId);
+
+                    if (!session.AddClient(stationId))
+                    {
+                        Log.WriteLine(Log.LEVEL_DEBUG, LogSys, "Could not attach to a live session after a respawn; giving up on this client", traceId);
+
+                        return;
+                    }
+                }
+
                 try
                 {
                     while (session.IsAlive)
