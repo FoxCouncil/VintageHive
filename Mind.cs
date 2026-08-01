@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Diagnostics;
 using VintageHive.Data.Contexts;
@@ -299,14 +299,14 @@ public static class Mind
 
         telnetServer = new(ipAddress, telnetPort);
 
-        oscarServer = new(ipAddress);
+        oscarServer = new(ipAddress, Db.ConfigGet<int>(ConfigNames.PortOscar));
 
         // Feed OSCAR presence into the shared registry so Finger (and any future consumer) sees AIM/ICQ users.
         PresenceRegistry.Register(new OscarPresenceProvider());
 
-        mmsServer = new(ipAddress);
+        mmsServer = new(ipAddress, Db.ConfigGet<int>(ConfigNames.PortMms));
 
-        pnaServer = new(ipAddress);
+        pnaServer = new(ipAddress, Db.ConfigGet<int>(ConfigNames.PortPna));
 
         var ircProxyPort = Db.ConfigGet<int>(ConfigNames.PortIrc);
 
@@ -465,6 +465,31 @@ public static class Mind
         resetEvent.WaitOne();
 
         IsRunning = false;
+
+        // Reached only via Stop(). Before that existed nothing ever signalled resetEvent, so this line was
+        // unreachable, MaintenanceLoop's while (IsRunning) could never terminate, and every TCP listener could
+        // only die with the process.
+        foreach (var listener in Network.Listener.ActiveListeners)
+        {
+            try
+            {
+                listener.Stop();
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine(Log.LEVEL_WARN, nameof(Mind), $"Listener {listener.GetType().Name} did not stop cleanly: {ex.Message}", "");
+            }
+        }
+
+        Log.WriteLine(Log.LEVEL_INFO, nameof(Mind), "Shutdown complete.", "");
+    }
+
+    /// <summary>Signals <see cref="Start"/> to stop every listener and return.</summary>
+    public static void Stop()
+    {
+        IsRunning = false;
+
+        resetEvent.Set();
     }
 
     static async Task MaintenanceLoop()

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Data.Types;
 
@@ -62,6 +62,12 @@ public static class ConfigNames
     public const string PortYahoo = "portyahoo";
 
     public const string PortMsn = "portmsn";
+
+    public const string PortOscar = "portoscar";
+
+    public const string PortMms = "portmms";
+
+    public const string PortPna = "portpna";
 
     public const string ServiceDns = "servicedns";
 
@@ -163,6 +169,10 @@ public static class ConfigNames
 
     public const string Location = "location";
 
+    // The stored key is misspelled ("tempratureunits"). Deliberately NOT corrected: it is the actual column
+    // value in every deployed database, so renaming it without a migration would orphan every member's saved
+    // preference and silently reset them all to the default. The constant is the single point everything
+    // reads through, so the misspelling is contained here. Fix it WITH a migration or not at all.
     public const string TemperatureUnits = "tempratureunits";
 
     public const string DistanceUnits = "distanceunits";
