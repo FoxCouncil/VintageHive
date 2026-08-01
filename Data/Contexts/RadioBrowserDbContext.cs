@@ -12,7 +12,10 @@ public class RadioBrowserDbContext : DbContextBase
 
     public RadioBrowserDbContext() : base()
     {
-        CreateTable(TABLE_COUNTRIES, "iso TXT UNIQUE, name TEXT, count INTEGER");
+        // "TXT" was a typo for TEXT, which gave the column NUMERIC affinity instead of TEXT. Harmless for
+        // alpha-2 codes (they never convert to a number, so they are stored as text either way), but it
+        // diverged from every sibling table.
+        CreateTable(TABLE_COUNTRIES, "iso TEXT UNIQUE, name TEXT, count INTEGER");
 
         CreateTable(TABLE_TAGS, "name TEXT UNIQUE, count INTEGER");
     }

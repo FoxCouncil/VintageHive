@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Microsoft.Data.Sqlite;
 using System.Data;
@@ -29,10 +29,6 @@ public class HiveDbContext : DbContextBase
     private const string TABLE_VQD = "vqd";
 
     private const string TABLE_USER = "user";
-
-    private const string TABLE_MAIL = "mail";
-
-    private const string TABLE_USENET = "usenet";
 
     private const string TABLE_OSCARSESSION = "oscar_session";
 
@@ -75,6 +71,9 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.PortGopher, 70 },
         { ConfigNames.PortYahoo, 5050 },
         { ConfigNames.PortMsn, 1863 },
+        { ConfigNames.PortOscar, 5190 },
+        { ConfigNames.PortMms, 1755 },
+        { ConfigNames.PortPna, 7070 },
 
         // System Display Settings
         { ConfigNames.TemperatureUnits, WeatherUtils.TemperatureUnits.Celsius },
@@ -155,7 +154,11 @@ public class HiveDbContext : DbContextBase
 
         // Global Top Links
         CreateTable(TABLE_LINKS, "name TEXT UNIQUE, link TEXT");
-        CreateTable(TABLE_LINKSLOCAL, "address text, name TEXT UNIQUE, link TEXT");
+        // UNIQUE(address, name), not a global UNIQUE on name. links_local is per-address by design, so a
+        // global constraint would reject the second address's copy of any link name the first already
+        // used. The table has no accessors yet, which is the only reason this never bit; CREATE TABLE IF
+        // NOT EXISTS leaves databases already in the field on the old constraint until it is first used.
+        CreateTable(TABLE_LINKSLOCAL, "address text, name TEXT, link TEXT, UNIQUE(address, name)");
 
         if (IsNewDb)
         {
@@ -221,7 +224,10 @@ public class HiveDbContext : DbContextBase
 
             var command = context.CreateCommand();
 
-            command.CommandText = $"SELECT * FROM {TABLE_LOGS} ORDER BY timestamp DESC LIMIT @limit OFFSET @offset";
+            // Named columns rather than *, and traceid is now actually read. WriteLog stores it on every row
+            // but this only ever materialised columns 0-3, so the admin log view silently lost per-connection
+            // trace correlation even though the data was sitting right there.
+            command.CommandText = $"SELECT timestamp, level, sys, msg, traceid FROM {TABLE_LOGS} ORDER BY timestamp DESC LIMIT @limit OFFSET @offset";
 
             command.Parameters.Add(new SqliteParameter("@limit", pageSize));
             command.Parameters.Add(new SqliteParameter("@offset", (page - 1) * pageSize));
@@ -235,7 +241,8 @@ public class HiveDbContext : DbContextBase
                     Timestamp = DateTimeOffset.Parse(reader.GetString(0)),
                     Level = reader.GetString(1),
                     System = reader.GetString(2),
-                    Message = reader.GetString(3)
+                    Message = reader.GetString(3),
+                    TraceId = reader.IsDBNull(4) ? Guid.Empty.ToString() : reader.GetString(4)
                 });
             }
 
@@ -370,6 +377,14 @@ public class HiveDbContext : DbContextBase
 
                     return val;
                 }
+
+                // No stored row AND no registered default. Silently returning default(T) means an unregistered
+                // int key reads as 0 and a bool key reads as false, which for a Service* or Port* flag looks
+                // exactly like a deliberate "off" or "port zero" - a whole service quietly not starting with
+                // nothing anywhere to say why. The five currently default-less keys (ProductName,
+                // ProductVersion, CertificateKeySize, Location, DownloadRepos) are all handled defensively at
+                // their call sites, so this logs rather than throws, but the next one added will be visible.
+                Log.WriteLine(Log.LEVEL_WARN, nameof(HiveDbContext), $"Config key '{key}' has no stored value and no registered default; returning {typeof(T).Name} default", "");
 
                 return default;
             }
@@ -524,6 +539,11 @@ public class HiveDbContext : DbContextBase
         DeleteOlderThan(TABLE_LOGS, "timestamp", TimeSpan.FromDays(7));
         DeleteOlderThan(TABLE_REQUESTS, "timestamp", TimeSpan.FromDays(30));
         DeleteOlderThan(TABLE_WEBSESSION, "ttl", TimeSpan.FromDays(7));
+
+        // oscar_session is insert-only - one row per AIM/ICQ sign-on cookie, with no DELETE anywhere in the
+        // codebase - so it grew forever. A sign-on cookie has no value once it is well past any plausible
+        // session, and the lookups that read this table want the newest row anyway.
+        DeleteOlderThan(TABLE_OSCARSESSION, "timestamp", TimeSpan.FromDays(30));
 
         Checkpoint();
     }
@@ -702,6 +722,26 @@ public class HiveDbContext : DbContextBase
 
     #region User Methods
 
+    /// <summary>Alphanumeric only - the rule the admin panel always meant to enforce but never did, because its
+    /// regex was used unanchored and so passed anything containing at least one alphanumeric character.</summary>
+    public static bool IsValidUsername(string username)
+    {
+        if (string.IsNullOrEmpty(username))
+        {
+            return false;
+        }
+
+        foreach (var character in username)
+        {
+            if (!char.IsAsciiLetterOrDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public bool UserCreate(string username, string password)
     {
         if (username == null || password == null)
@@ -710,6 +750,16 @@ public class HiveDbContext : DbContextBase
         }
 
         if (username.Length is < 3 or > 8 || password.Length is < 3 or > 8)
+        {
+            return false;
+        }
+
+        // Length was the ONLY thing checked here, which let a name through that the mail store then used to
+        // build a LIKE pattern: "a_b" or "jo%" matched other people's addresses. The mailbox queries escape
+        // their pattern now, but the name also becomes the local part of an email address and is echoed into
+        // several protocols, so it is worth pinning at the single point every registration path goes through
+        // (the admin panel, the intranet signup page, and OSCAR in-band registration all land here).
+        if (!IsValidUsername(username))
         {
             return false;
         }
@@ -728,7 +778,18 @@ public class HiveDbContext : DbContextBase
             command.Parameters.Add(new SqliteParameter("@username", username));
             command.Parameters.Add(new SqliteParameter("@password", password));
 
-            return Convert.ToBoolean(command.ExecuteNonQuery());
+            try
+            {
+                return Convert.ToBoolean(command.ExecuteNonQuery());
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+            {
+                // UNIQUE constraint. The existence check above is check-then-insert, so two racing
+                // registrations for the same name (the signup page and an OSCAR client, say) both passed it
+                // and one then crashed its caller with an unhandled exception. "Already taken" is the honest
+                // answer for the loser, and it is the same answer the check above would have given.
+                return false;
+            }
         });
     }
 
@@ -1323,7 +1384,10 @@ public class HiveDbContext : DbContextBase
         {
             var command = context.CreateCommand();
 
-            command.CommandText = $"SELECT * FROM {TABLE_OSCARSESSION} WHERE screenname = @screenname AND clientip = @clientip";
+            // Newest first. Without the ORDER BY this returned whatever row SQLite happened to hand back
+            // first, which for an append-only table is the OLDEST sign-on - so the duplicate-login path
+            // adopted a stale session's cookie and state instead of the live one's.
+            command.CommandText = $"SELECT * FROM {TABLE_OSCARSESSION} WHERE screenname = @screenname AND clientip = @clientip ORDER BY timestamp DESC, rowid DESC";
 
             command.Parameters.Add(new SqliteParameter("@screenname", username));
             command.Parameters.Add(new SqliteParameter("@clientip", remoteIpAddress));

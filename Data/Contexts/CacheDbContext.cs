@@ -31,6 +31,9 @@ public class CacheDbContext : DbContextBase
         CreateTable(CacheTableNames.Usenet, "key TEXT UNIQUE, ttl TEXT, value TEXT");
     }
 
+    /// <summary>How many availability answers to keep. Generous: this is a small four-column row.</summary>
+    private const int WaybackAvailabilityRowCap = 50_000;
+
     // Delete expired rows from every TTL-based cache table (they were skipped on read but never removed), then checkpoint
     public void RunMaintenance()
     {
@@ -48,6 +51,12 @@ public class CacheDbContext : DbContextBase
         {
             DeleteExpiredByTtl(table);
         }
+
+        // WaybackAvailability is the one cache table with no ttl column, so it was excluded from the sweep
+        // above and grew without bound - exactly the disease the sweep was added to cure. It has no timestamp
+        // either, so bound it by row count instead; that needs no schema change and so no migration for
+        // databases already in the field. A negative availability answer is cheap to re-fetch.
+        DeleteBeyondRowCap(CacheTableNames.WaybackAvailability, WaybackAvailabilityRowCap);
 
         Checkpoint();
     }

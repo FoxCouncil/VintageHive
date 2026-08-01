@@ -8,7 +8,15 @@ namespace VintageHive.Data;
 public class DbContextBase
 {
     const string FilenameStringFormat = "{0}.db";
-    const string ConnectionStringFormat = "Data Source={0};Cache=Shared";
+
+    // NOT Cache=Shared. Shared-cache mode makes connections in one process contend on in-process TABLE locks
+    // whose failure surfaces as SQLITE_LOCKED, and busy_timeout does NOT retry SQLITE_LOCKED - only
+    // SQLITE_BUSY. So under real concurrency (a POP3 fetch racing an SMTP insert on postoffice.db) an
+    // operation threw "database table is locked" immediately, straight out of a protocol handler, despite the
+    // 5000 ms busy timeout set on every connection. Shared cache also defeats the concurrent-reader guarantee
+    // WAL exists to provide. Private cache plus WAL plus busy_timeout is the combination that actually gives
+    // readers and one writer at the same time, which is this application's exact access pattern.
+    const string ConnectionStringFormat = "Data Source={0}";
 
     readonly string connectionString = string.Empty;
 
@@ -200,6 +208,27 @@ public class DbContextBase
 
             command.CommandText = $"DELETE FROM {table} WHERE {column} < @cutoff";
             command.Parameters.Add(new SqliteParameter("@cutoff", DateTime.UtcNow - age));
+
+            return command.ExecuteNonQuery();
+        });
+    }
+
+    /// <summary>
+    /// Keeps only the newest <paramref name="keepRows"/> rows, dropping the oldest by insertion order.
+    /// </summary>
+    /// <remarks>
+    /// For tables with no TTL or timestamp column to sweep on. rowid is implicit in every ordinary SQLite
+    /// table and increases with insertion, so this needs no schema change and therefore no migration for
+    /// databases already in the field.
+    /// </remarks>
+    protected int DeleteBeyondRowCap(string table, int keepRows)
+    {
+        return WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {table} WHERE rowid NOT IN (SELECT rowid FROM {table} ORDER BY rowid DESC LIMIT @keep)";
+            command.Parameters.Add(new SqliteParameter("@keep", keepRows));
 
             return command.ExecuteNonQuery();
         });
