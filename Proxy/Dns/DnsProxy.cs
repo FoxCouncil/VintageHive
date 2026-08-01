@@ -1,136 +1,77 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
-using System.Net.Sockets;
+using VintageHive.Network;
 
 namespace VintageHive.Proxy.Dns;
 
-public class DnsProxy
+/// <summary>
+/// Minimal authoritative DNS responder: answers every A query with one configured address.
+/// </summary>
+/// <remarks>
+/// Derives from <see cref="UdpListener"/> rather than hand-rolling a Thread + UdpClient receive loop, which is
+/// exactly what that base class documents itself as existing for. Beyond removing the duplicate loop, this is
+/// what puts DNS into the admin dashboard's live-listeners grid: that panel is built from the listener
+/// registries, so a service outside them was invisible no matter how much traffic it was serving.
+/// </remarks>
+public class DnsProxy : UdpListener
 {
     private const int DNS_HEADER_SIZE = 12;
     private const ushort QTYPE_A = 1;
     private const ushort QCLASS_IN = 1;
     private static readonly uint TTL_SECONDS = 300;
 
-    private readonly IPAddress _listenAddress;
-    private readonly int _port;
     private readonly IPAddress _responseAddress;
 
-    private Thread _thread;
-    private volatile bool _running;
-
-    public DnsProxy(IPAddress listenAddress, int port, IPAddress responseAddress)
+    public DnsProxy(IPAddress listenAddress, int port, IPAddress responseAddress) : base(listenAddress, port)
     {
-        _listenAddress = listenAddress;
-        _port = port;
         _responseAddress = responseAddress;
     }
 
-    public void Start()
+    public override Task<byte[]> ProcessDatagram(IPEndPoint remoteEndPoint, byte[] data, int length)
     {
-        _running = true;
+        var query = data;
 
-        _thread = new Thread(Run)
+        if (length < DNS_HEADER_SIZE)
         {
-            Name = nameof(DnsProxy)
-        };
-
-        _thread.Start();
-    }
-
-    public void Stop()
-    {
-        _running = false;
-    }
-
-    private async void Run()
-    {
-        using var udp = new UdpClient(new IPEndPoint(_listenAddress, _port));
-
-        Log.WriteLine(Log.LEVEL_INFO, nameof(DnsProxy), $"Starting DNS Proxy...{_listenAddress}:{_port}", "");
-
-        while (_running)
-        {
-            UdpReceiveResult result;
-
-            try
-            {
-                result = await udp.ReceiveAsync();
-            }
-            catch (SocketException) when (!_running)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteException(nameof(DnsProxy), ex, "");
-
-                continue;
-            }
-
-            var query = result.Buffer;
-            var remote = result.RemoteEndPoint;
-
-            if (query.Length < DNS_HEADER_SIZE)
-            {
-                continue;
-            }
-
-            // -- Parse header -----------------------------------------------
-            var transactionId = (ushort)((query[0] << 8) | query[1]);
-            var questionCount = (ushort)((query[4] << 8) | query[5]);
-
-            if (questionCount == 0)
-            {
-                continue;
-            }
-
-            // -- Parse first question ---------------------------------------
-            var offset = DNS_HEADER_SIZE;
-            var domainName = ParseDomainName(query, ref offset);
-
-            if (domainName == null || offset + 4 > query.Length)
-            {
-                continue;
-            }
-
-            var qtype = (ushort)((query[offset] << 8) | query[offset + 1]);
-            var qclass = (ushort)((query[offset + 2] << 8) | query[offset + 3]);
-
-            offset += 4;
-
-            Log.WriteLine(Log.LEVEL_DEBUG, nameof(DnsProxy), $"Query: {domainName} type={qtype} class={qclass} from {remote}", "");
-
-            // -- Build response ---------------------------------------------
-            // Copy original question section (header through end of question)
-            var questionSection = query[..offset];
-
-            byte[] response;
-
-            if (qtype == QTYPE_A && qclass == QCLASS_IN)
-            {
-                response = BuildAResponse(transactionId, questionSection, offset);
-            }
-            else
-            {
-                // Non-A query: return NOERROR with zero answers
-                response = BuildEmptyResponse(transactionId, questionSection, offset);
-            }
-
-            try
-            {
-                await udp.SendAsync(response, response.Length, remote);
-            }
-            catch (Exception ex)
-            {
-                Log.WriteLine(Log.LEVEL_DEBUG, nameof(DnsProxy), $"Failed to send response to {remote}: {ex.Message}", "");
-            }
+            return Task.FromResult<byte[]>(null);
         }
 
-        Log.WriteLine(Log.LEVEL_INFO, nameof(DnsProxy), "Stopping DNS Proxy...", "");
+        // -- Parse header -----------------------------------------------
+        var transactionId = (ushort)((query[0] << 8) | query[1]);
+        var questionCount = (ushort)((query[4] << 8) | query[5]);
+
+        if (questionCount == 0)
+        {
+            return Task.FromResult<byte[]>(null);
+        }
+
+        // -- Parse first question ---------------------------------------
+        var offset = DNS_HEADER_SIZE;
+        var domainName = ParseDomainName(query, ref offset);
+
+        if (domainName == null || offset + 4 > length)
+        {
+            return Task.FromResult<byte[]>(null);
+        }
+
+        var qtype = (ushort)((query[offset] << 8) | query[offset + 1]);
+        var qclass = (ushort)((query[offset + 2] << 8) | query[offset + 3]);
+
+        offset += 4;
+
+        Log.WriteLine(Log.LEVEL_DEBUG, nameof(DnsProxy), $"Query: {domainName} type={qtype} class={qclass} from {remoteEndPoint}", "");
+
+        // -- Build response ---------------------------------------------
+        // Copy original question section (header through end of question)
+        var questionSection = query[..offset];
+
+        // Only the FIRST question is parsed and echoed, so both builders force QDCOUNT to 1 rather than
+        // inheriting a count that would promise more questions than the response carries.
+        var response = qtype == QTYPE_A && qclass == QCLASS_IN
+            ? BuildAResponse(transactionId, questionSection, offset)
+            : BuildEmptyResponse(transactionId, questionSection, offset);
+
+        return Task.FromResult(response);
     }
 
     private byte[] BuildAResponse(ushort transactionId, byte[] questionSection, int questionEnd)
@@ -146,7 +87,12 @@ public class DnsProxy
         response[2] = 0x85;
         response[3] = 0x80;
 
-        // QDCOUNT = 1 (already set from query)
+        // QDCOUNT must be forced to 1, not inherited. Only the FIRST question is parsed and copied, so a
+        // query carrying QDCOUNT > 1 produced a response promising N questions while containing one -
+        // unparseable to the resolver that sent it.
+        response[4] = 0x00;
+        response[5] = 0x01;
+
         // ANCOUNT = 1
         response[6] = 0x00;
         response[7] = 0x01;
@@ -204,7 +150,11 @@ public class DnsProxy
         response[2] = 0x81;
         response[3] = 0x80;
 
-        // QDCOUNT = 1 (already set from query). ANCOUNT/NSCOUNT/ARCOUNT must be cleared, not
+        // QDCOUNT forced to 1 for the same reason as the A-record path: only one question is copied.
+        response[4] = 0x00;
+        response[5] = 0x01;
+
+        // ANCOUNT/NSCOUNT/ARCOUNT must be cleared, not
         // assumed zero - the copied header still carries the query's counts, including an EDNS0
         // client's ARCOUNT=1 for an OPT record this response deliberately drops.
         response[6] = 0x00;

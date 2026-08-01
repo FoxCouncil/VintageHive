@@ -56,11 +56,19 @@ public class ListenerTests
         listener.Start();
 
         // Assert
-        Assert.IsTrue(listener.ProcessThread.IsAlive);
         Assert.AreEqual(listener.IsSecure, secure);
         Assert.AreEqual(listener.Port, port);
-        Thread.Sleep(1); // ahah, prolly a better way??
-        Assert.IsTrue(listener.IsListening);
+
+        // ProcessThread.IsAlive is deliberately NOT asserted. The accept loop is async, so the starting thread
+        // returns at its first await and dies almost immediately - it was only ever alive here by luck of
+        // timing, and the luck ran out once Run gained a wrapper. IsListening is the state that actually
+        // means "started", so poll for that instead of the old Thread.Sleep(1), which was racy in both
+        // directions and carried a comment saying as much.
+        var startedWithin = SpinWait.SpinUntil(() => listener.IsListening, TimeSpan.FromSeconds(5));
+
+        Assert.IsTrue(startedWithin, "The listener never reported IsListening.");
+
+        listener.Stop();
     }
 
     [TestMethod]

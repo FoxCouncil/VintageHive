@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 using VintageHive.Proxy.Socks.Socks4;
@@ -8,6 +8,9 @@ namespace VintageHive.Proxy.Socks;
 
 internal class SocksProxy : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     private const int BUFFER_SIZE = 8192;
 
     public SocksProxy(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp) { }

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using HeyRed.Mime;
 using VintageHive.Network;
@@ -8,6 +8,9 @@ namespace VintageHive.Proxy.Gopher;
 
 internal class GopherServer : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     const string ProxyPrefix = "/g/";
 
     const int MaxRequestBytes = 8192;

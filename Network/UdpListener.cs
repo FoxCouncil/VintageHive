@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Net.Sockets;
 
@@ -12,6 +12,14 @@ namespace VintageHive.Network;
 /// </summary>
 public abstract class UdpListener
 {
+    // Mirrors Listener.Instances. The admin dashboard's live-listeners grid was built solely from the TCP
+    // registry, so the two UDP services (DNS and H.225 RAS) never appeared in it at all and the panel
+    // structurally undercounted what was running.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<UdpListener, byte> Instances = new();
+
+    /// <summary>All UDP listeners that have been started and are currently listening.</summary>
+    public static IReadOnlyList<UdpListener> ActiveListeners => Instances.Keys.Where(x => x.IsListening).ToList();
+
     private readonly IPAddress _address;
     private readonly int _port;
     private readonly ManualResetEventSlim _startedEvent = new(false);
@@ -62,6 +70,9 @@ public abstract class UdpListener
     public void Stop()
     {
         _running = false;
+
+        Instances.TryRemove(this, out _);
+
         _udp?.Close();
     }
 
@@ -112,6 +123,10 @@ public abstract class UdpListener
         }
 
         BoundPort = ((IPEndPoint)_udp.Client.LocalEndPoint).Port;
+
+        // Registered only after a successful bind, so a listener whose port was taken is never reported live.
+        Instances[this] = 0;
+
         _startedEvent.Set();
 
         Log.WriteLine(Log.LEVEL_INFO, logSource, $"Starting {logSource}...{_address}:{BoundPort}", "");
@@ -152,6 +167,8 @@ public abstract class UdpListener
                 Log.WriteException(logSource, ex, "");
             }
         }
+
+        Instances.TryRemove(this, out _);
 
         Log.WriteLine(Log.LEVEL_INFO, logSource, $"Stopping {logSource}...", "");
     }

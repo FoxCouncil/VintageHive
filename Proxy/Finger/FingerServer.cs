@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 using VintageHive.Proxy.Oscar;
@@ -8,6 +8,9 @@ namespace VintageHive.Proxy.Finger;
 
 public class FingerServer : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     public FingerServer(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, false) { }
 
     public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
