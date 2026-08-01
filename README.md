@@ -541,7 +541,7 @@ dotnet build -c Debug
 dotnet run -c Debug
 ```
 
-All services are controlled at runtime through the admin panel's service toggles rather than by build configuration.
+All services are controlled at runtime through the admin panel's service toggles rather than by build configuration. The HTTP and HTTPS proxies are deliberately not toggleable: they carry the admin panel itself, so switching one off would leave no way back in short of editing the database.
 
 ### Reporting Issues
 

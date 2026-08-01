@@ -15,7 +15,7 @@ internal partial class AdminController : Controller
     // Services the admin dashboard is allowed to toggle, mapped to their config keys.
     // Listener-backed services (everything except intranet) apply on the next restart;
     // intranet is checked per-request and applies immediately.
-    private static readonly IReadOnlyDictionary<string, string> ToggleableServices = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    internal static readonly IReadOnlyDictionary<string, string> ToggleableServices = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "intranet", ConfigNames.ServiceIntranet },
         { "smtp", ConfigNames.ServiceSmtp },
@@ -36,6 +36,19 @@ internal partial class AdminController : Controller
         { "yahoopager", ConfigNames.ServiceYahooPager },
         { "msn", ConfigNames.ServiceMsn },
         { "socks5auth", ConfigNames.ServiceSocks5RequireAuth },
+        // These have config defaults and StartService gates but were never exposed, so the only way to turn
+        // them off was editing the database by hand. All are independent listeners: switching one off cannot
+        // cost you the admin panel.
+        { "ftp", ConfigNames.ServiceFtp },
+        { "telnet", ConfigNames.ServiceTelnet },
+        { "socks", ConfigNames.ServiceSocks },
+        { "oscar", ConfigNames.ServiceOscar },
+        { "mms", ConfigNames.ServiceMms },
+        { "pna", ConfigNames.ServicePna },
+        // Deliberately NOT exposed: ServiceHttp and ServiceHttps carry the admin panel itself, so a toggle
+        // would be a one-way door - you would need a database edit to get back in, which is exactly the
+        // situation these toggles exist to avoid. ServiceWalledGarden is a routing policy rather than a
+        // protocol server and does not belong in this grid.
     };
 
     public override async Task CallInitial(string rawPath)
@@ -452,8 +465,14 @@ internal partial class AdminController : Controller
 
         var ircChannels = Mind.IrcServer?.GetChannelStats()?.Select(c => new { name = c.Name, members = c.MemberCount, topic = c.Topic }).ToList();
 
+        // Both registries. Built from the TCP one alone, this grid silently omitted every UDP service - DNS
+        // and H.225 RAS - so the panel reported fewer listeners than were actually running. UDP is
+        // connectionless, so those rows report no active-connection count; BoundPort rather than Port so an
+        // ephemeral (port 0) listener shows what it actually bound to.
         var listeners = Network.Listener.ActiveListeners
-            .Select(l => new { name = l.GetType().Name, port = l.Port, secure = l.IsSecure, active = l.ActiveConnections })
+            .Select(l => new { name = l.GetType().Name, port = l.Port, secure = l.IsSecure, active = l.ActiveConnections, protocol = "TCP" })
+            .Concat(Network.UdpListener.ActiveListeners
+                .Select(l => new { name = l.GetType().Name, port = l.BoundPort, secure = false, active = 0, protocol = "UDP" }))
             .OrderBy(l => l.name)
             .ToList();
 
@@ -559,6 +578,8 @@ internal partial class AdminController : Controller
         return Response.HasSession(LoginSessionKeyName);
     }
 
-    [GeneratedRegex("[a-zA-Z0-9]+")]
+    // Anchored. Used with IsMatch, "[a-zA-Z0-9]+" matched anything CONTAINING one alphanumeric character, so
+    // "a';" and "a_b" both passed a check whose whole purpose was to keep them out.
+    [GeneratedRegex("^[a-zA-Z0-9]+$")]
     private static partial Regex UserRegexPattern();
 }

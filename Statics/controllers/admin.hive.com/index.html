@@ -39,7 +39,7 @@
     <p class="text-muted mb-2">Connections each protocol listener is handling right now.</p>
     <div class="table-responsive mb-3">
         <table class="table table-sm table-striped align-middle">
-            <thead><tr><th>Service</th><th>Port</th><th class="text-end">Active</th></tr></thead>
+            <thead><tr><th>Service</th><th>Proto</th><th>Port</th><th class="text-end">Active</th></tr></thead>
             <tbody id="listeners_body"></tbody>
         </table>
     </div>
@@ -205,7 +205,14 @@
             finger: "Finger",
             gopher: "Gopher",
             yahoo: "Yahoo! Messenger",
+            yahoopager: "Yahoo! Pager",
             msn: "MSN Messenger",
+            ftp: "FTP",
+            telnet: "Telnet",
+            socks: "SOCKS",
+            oscar: "AIM / ICQ (OSCAR)",
+            mms: "MMS (Windows Media)",
+            pna: "PNA (RealPlayer)",
             socks5auth: "SOCKS5 Auth",
         };
         function applyToggle(btn, isOn) {
@@ -247,7 +254,7 @@
             if (!list || list.length === 0) {
                 const tr = ce("tr");
                 const td = ce("td");
-                td.colSpan = 3;
+                td.colSpan = 4;
                 td.className = "text-muted text-center";
                 td.innerText = "No active listeners";
                 tr.appendChild(td);
@@ -261,12 +268,16 @@
                 }
                 const name = ce("td");
                 name.innerText = l.secure ? l.name + " [SSL]" : l.name;
+                const proto = ce("td");
+                proto.innerText = l.protocol || "TCP";
                 const port = ce("td");
                 port.innerText = l.port;
                 const active = ce("td");
                 active.className = "text-end";
-                active.innerText = l.active;
+                // UDP is connectionless, so there is no per-connection count to show.
+                active.innerText = l.protocol === "UDP" ? "-" : l.active;
                 tr.appendChild(name);
+                tr.appendChild(proto);
                 tr.appendChild(port);
                 tr.appendChild(active);
                 body.appendChild(tr);
@@ -277,17 +288,18 @@
                 return;
             }
             servicesGrid.innerHTML = "";
-            for (const key of Object.keys(serviceLabels)) {
-                if (!(key in services)) {
-                    continue;
-                }
+            // Iterate what the API actually returned, not the label map. Doing it the other way round meant a
+            // service the backend supported but nobody had added a label for was silently dropped from the
+            // grid - which is how the Yahoo Pager toggle went missing. An unlabelled key now still renders,
+            // under its raw name, so the omission is visible instead of invisible.
+            for (const key of Object.keys(services)) {
                 const col = ce("div");
                 col.className = "col";
                 const btn = ce("button");
                 btn.type = "button";
                 btn.className = "btn w-100 d-flex justify-content-between align-items-center";
                 const label = ce("span");
-                label.innerText = serviceLabels[key];
+                label.innerText = serviceLabels[key] ?? key;
                 const badge = ce("span");
                 badge.className = "badge ms-2";
                 btn.appendChild(label);
