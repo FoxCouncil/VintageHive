@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -47,9 +47,8 @@ internal class OscarPrivacyService : IOscarService
 
                 foreach (var name in screenNames)
                 {
-                    if (!session.PermitList.Any(p => p.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    if (session.AddPermit(name))
                     {
-                        session.PermitList.Add(name);
                     }
                 }
 
@@ -63,7 +62,7 @@ internal class OscarPrivacyService : IOscarService
 
                 foreach (var name in screenNames)
                 {
-                    session.PermitList.RemoveAll(p => p.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    session.RemovePermit(name);
                 }
 
                 Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarPrivacyService), $"Removed {screenNames.Count} from visible list", traceId);
@@ -76,9 +75,8 @@ internal class OscarPrivacyService : IOscarService
 
                 foreach (var name in screenNames)
                 {
-                    if (!session.DenyList.Any(d => d.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    if (session.AddDeny(name))
                     {
-                        session.DenyList.Add(name);
                     }
                 }
 
@@ -112,7 +110,7 @@ internal class OscarPrivacyService : IOscarService
 
                 foreach (var name in screenNames)
                 {
-                    session.DenyList.RemoveAll(d => d.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    session.RemoveDeny(name);
                 }
 
                 Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarPrivacyService), $"Removed {screenNames.Count} from invisible list", traceId);

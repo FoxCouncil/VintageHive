@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -319,9 +319,8 @@ internal class OscarSsiService : IOscarService
                             }
 
                             // Also add to session buddies for legacy compatibility
-                            if (!session.Buddies.Any(b => b.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                            if (session.AddBuddy(name))
                             {
-                                session.Buddies.Add(name);
                                 session.Save();
                             }
                         }
@@ -349,7 +348,7 @@ internal class OscarSsiService : IOscarService
                         // Remove from session buddies for legacy compatibility
                         if (itemType == OscarSsiItem.TYPE_BUDDY)
                         {
-                            session.Buddies.RemoveAll(b => b.Equals(name, StringComparison.OrdinalIgnoreCase));
+                            session.RemoveBuddy(name);
                             session.Save();
                         }
 
@@ -383,8 +382,8 @@ internal class OscarSsiService : IOscarService
     {
         var items = Mind.Db.OscarGetSsiItems(session.ScreenName);
 
-        session.PermitList = items.Where(i => i.ItemType == OscarSsiItem.TYPE_PERMIT).Select(i => i.Name).ToList();
-        session.DenyList = items.Where(i => i.ItemType == OscarSsiItem.TYPE_DENY).Select(i => i.Name).ToList();
+        session.ReplacePermitList(items.Where(i => i.ItemType == OscarSsiItem.TYPE_PERMIT).Select(i => i.Name));
+        session.ReplaceDenyList(items.Where(i => i.ItemType == OscarSsiItem.TYPE_DENY).Select(i => i.Name));
 
         var pdSettings = items.FirstOrDefault(i => i.ItemType == OscarSsiItem.TYPE_PERMIT_DENY_SETTINGS);
 

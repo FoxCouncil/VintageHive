@@ -2,6 +2,8 @@
 
 using System.Collections.Concurrent;
 
+using System.Buffers.Binary;
+
 namespace VintageHive.Proxy.Oscar;
 
 public static class OscarUtils
@@ -20,58 +22,51 @@ public static class OscarUtils
         return roastedPassword.ToArray();
     }
 
+    // BinaryPrimitives rather than BitConverter plus a conditional Array.Reverse. Same bytes on the wire, but
+    // the endianness is stated in the call instead of being derived from the host's, and there is no clone or
+    // in-place mutation of the caller's buffer. This is the house convention for protocol integers - Yahoo,
+    // PNA, RTP and the streaming BigEndianWriter all use it - and OSCAR was the last holdout, which is what
+    // made it look like there were three different ways to do the same thing.
     public static byte[] GetBytes(ushort number)
     {
-        var bytes = BitConverter.GetBytes(number);
+        var bytes = new byte[sizeof(ushort)];
 
-        MakeNetworkByteOrder(bytes);
+        BinaryPrimitives.WriteUInt16BigEndian(bytes, number);
 
         return bytes;
     }
 
     public static byte[] GetBytes(uint number)
     {
-        var bytes = BitConverter.GetBytes(number);
+        var bytes = new byte[sizeof(uint)];
 
-        MakeNetworkByteOrder(bytes);
+        BinaryPrimitives.WriteUInt32BigEndian(bytes, number);
 
         return bytes;
     }
 
     public static byte[] GetBytes(ulong number)
     {
-        var bytes = BitConverter.GetBytes(number);
+        var bytes = new byte[sizeof(ulong)];
 
-        MakeNetworkByteOrder(bytes);
+        BinaryPrimitives.WriteUInt64BigEndian(bytes, number);
 
         return bytes;
     }
 
     public static ushort ToUInt16(byte[] data)
     {
-        var buf = (byte[])data.Clone();
-
-        MakeNetworkByteOrder(buf);
-
-        return BitConverter.ToUInt16(buf);
+        return BinaryPrimitives.ReadUInt16BigEndian(data);
     }
 
     public static uint ToUInt32(byte[] data)
     {
-        var buf = (byte[])data.Clone();
-
-        MakeNetworkByteOrder(buf);
-
-        return BitConverter.ToUInt32(buf);
+        return BinaryPrimitives.ReadUInt32BigEndian(data);
     }
 
     public static ulong ToUInt64(byte[] data)
     {
-        var buf = (byte[])data.Clone();
-
-        MakeNetworkByteOrder(buf);
-
-        return BitConverter.ToUInt64(buf);
+        return BinaryPrimitives.ReadUInt64BigEndian(data);
     }
 
     public static OscarSession GetSessionByCookie(this List<OscarSession> sessions, string cookie)
@@ -211,13 +206,5 @@ public static class OscarUtils
         var partFive = BitConverter.ToString(data[10..16]).Replace("-", string.Empty);
 
         return $"{partOne}-{partTwo}-{partThree}-{partFour}-{partFive}";
-    }
-
-    private static void MakeNetworkByteOrder(byte[] bytes)
-    {
-        if (BitConverter.IsLittleEndian)
-        {
-            Array.Reverse(bytes);
-        }
     }
 }

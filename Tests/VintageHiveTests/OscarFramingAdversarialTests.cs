@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,8 @@ namespace Adversarial6.OscarFraming;
 public class OscarUtilsIntMutationAdversarialTests
 {
     // GAP: the first pass asserted ToUInt16 does NOT mutate its input. It actually reverses the
-    // caller's array IN PLACE (MakeNetworkByteOrder -> Array.Reverse, no clone) on a little-endian
+    // caller's array IN PLACE (Array.Reverse, no clone) on a little-endian host. The helpers are on
+    // BinaryPrimitives now, so they neither clone nor mutate; these tests pin that they stay that way
     // host. In-repo callers happen to pass fresh range-slice copies, so this is latent, but a "read"
     // helper mutating its argument is a genuine footgun. These document the ACTUAL behavior.
 
@@ -68,25 +69,30 @@ public class OscarUtilsIntMutationAdversarialTests
         Assert.AreEqual(0x04, buffer[3]);
     }
 
-    // GAP: the first pass only tested UNDER-sized slices (which throw). An OVER-sized slice does NOT
-    // throw; it silently reads a reversed window and returns a garbage value. No length validation.
+    // This pair used to document the gap these methods had: an OVER-sized slice did not throw, it reversed the
+    // WHOLE buffer and then read the first N bytes - which is the LAST N bytes of the input, reversed. A
+    // garbage value, silently. Rewriting the helpers onto BinaryPrimitives closed it: an over-sized slice now
+    // reads the FIRST N bytes in network order, which is what every caller passing a whole SNAC body meant.
+    //
+    // Not academic. OscarGenericServiceControls does `OscarUtils.ToUInt16(snac.RawData)` to pull the requested
+    // family off a service request, and RawData is longer than two bytes whenever the request carries TLVs -
+    // the chat-invite accept path is exactly that shape. Under the old behaviour that read the wrong window
+    // entirely.
 
     [TestMethod]
-    public void ToUInt16_ThreeByteSlice_SilentlyReturnsReversedWindow_NoThrow()
+    public void ToUInt16_OverSizedSlice_ReadsTheFirstTwoBytesInNetworkOrder()
     {
-        // {0x01,0x02,0x03} reversed -> {0x03,0x02,0x01}; ToUInt16 reads the first two (LE) => 0x0203.
         var value = OscarUtils.ToUInt16(new byte[] { 0x01, 0x02, 0x03 });
 
-        Assert.AreEqual((ushort)0x0203, value);
+        Assert.AreEqual((ushort)0x0102, value, "An over-sized slice must read the leading field, not a reversed tail window.");
     }
 
     [TestMethod]
-    public void ToUInt32_SixByteSlice_SilentlyReturnsReversedWindow_NoThrow()
+    public void ToUInt32_OverSizedSlice_ReadsTheFirstFourBytesInNetworkOrder()
     {
-        // {01,02,03,04,05,06} reversed -> {06,05,04,03,02,01}; first four (LE) => 0x03040506.
         var value = OscarUtils.ToUInt32(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
 
-        Assert.AreEqual((uint)0x03040506, value);
+        Assert.AreEqual((uint)0x01020304, value, "An over-sized slice must read the leading field, not a reversed tail window.");
     }
 
     [TestMethod]

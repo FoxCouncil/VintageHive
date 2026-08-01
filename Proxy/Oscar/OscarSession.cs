@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Data;
 using VintageHive.Network;
@@ -21,6 +21,12 @@ public class OscarSession
 
     public bool IsReady { get; set; }
 
+    // Set only where a credential has actually been verified: a roasted or MD5 password, a stored sign-on
+    // cookie, or a one-shot chat cookie. ScreenName cannot stand in for this - the client supplies it in a
+    // TLV and both the auth-key request and the MD5 login assign it before anything is checked, so a session
+    // can carry a name it never proved it owns.
+    public bool IsAuthenticated { get; set; }
+
     public string Cookie { get; set; }
 
     public ushort SequenceNumber { get; set; } = 0;
@@ -29,7 +35,125 @@ public class OscarSession
 
     public OscarSessionOnlineStatus Status { get; set; }
 
-    public List<string> Buddies { get; set; } = new();
+    // Buddy, permit and deny are mutated by the OWNER's handler thread while OTHER sessions' threads read
+    // them during presence fan-out (BroadcastStatusToWatchers and IsVisibleTo both walk other sessions'
+    // copies). As plain List<string> that meant a member editing their list while someone else signed on
+    // threw "Collection was modified" mid-broadcast, aborting the fan-out so every watcher after the throw
+    // was never told the user came online. Reads hand back an immutable snapshot and every mutation goes
+    // through a method holding the same lock, so an edit can no longer land inside someone else's walk.
+    private readonly object _listLock = new();
+
+    private List<string> _buddies = new();
+
+    private List<string> _permitList = new();
+
+    private List<string> _denyList = new();
+
+    public IReadOnlyList<string> Buddies
+    {
+        get
+        {
+            lock (_listLock)
+            {
+                return _buddies.ToArray();
+            }
+        }
+    }
+
+    public IReadOnlyList<string> PermitList
+    {
+        get
+        {
+            lock (_listLock)
+            {
+                return _permitList.ToArray();
+            }
+        }
+    }
+
+    public IReadOnlyList<string> DenyList
+    {
+        get
+        {
+            lock (_listLock)
+            {
+                return _denyList.ToArray();
+            }
+        }
+    }
+
+    public void ReplaceBuddies(IEnumerable<string> names)
+    {
+        lock (_listLock)
+        {
+            _buddies = names?.ToList() ?? new List<string>();
+        }
+    }
+
+    public void ReplacePermitList(IEnumerable<string> names)
+    {
+        lock (_listLock)
+        {
+            _permitList = names?.ToList() ?? new List<string>();
+        }
+    }
+
+    public void ReplaceDenyList(IEnumerable<string> names)
+    {
+        lock (_listLock)
+        {
+            _denyList = names?.ToList() ?? new List<string>();
+        }
+    }
+
+    /// <summary>Adds the name unless an equal one (ignoring case) is already present. Returns whether it was added.</summary>
+    public bool AddBuddy(string name) => AddUnique(_ => _buddies, name);
+
+    public bool AddPermit(string name) => AddUnique(_ => _permitList, name);
+
+    public bool AddDeny(string name) => AddUnique(_ => _denyList, name);
+
+    public void RemoveBuddy(string name) => RemoveFrom(_ => _buddies, name);
+
+    public void RemovePermit(string name) => RemoveFrom(_ => _permitList, name);
+
+    public void RemoveDeny(string name) => RemoveFrom(_ => _denyList, name);
+
+    // The check and the add have to be one atomic step, or two threads both see "not present" and both add.
+    private bool AddUnique(Func<object, List<string>> pick, string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+
+        lock (_listLock)
+        {
+            var list = pick(null);
+
+            if (list.Any(x => x.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            list.Add(name);
+
+            return true;
+        }
+    }
+
+    private void RemoveFrom(Func<object, List<string>> pick, string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        lock (_listLock)
+        {
+            pick(null).RemoveAll(x => x.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+    }
 
     public string Profile { get; set; } = string.Empty;
 
@@ -51,10 +175,6 @@ public class OscarSession
 
     public DateTimeOffset SignOnTime { get; set; } = DateTimeOffset.UtcNow;
 
-    public List<string> PermitList { get; set; } = new();
-
-    public List<string> DenyList { get; set; } = new();
-
     public byte PrivacyMode { get; set; } = 1; // 1=allow all, 2=deny all, 3=permit only, 4=deny list, 5=allow buddy list only
 
     public OscarSession() { }
@@ -73,7 +193,7 @@ public class OscarSession
         ProfileMimeType = reader.GetString(5);
         Profile = reader.GetString(6);
 
-        Buddies = JsonSerializer.Deserialize<List<string>>(reader.GetString(7));
+        ReplaceBuddies(JsonSerializer.Deserialize<List<string>>(reader.GetString(7)));
 
         Capabilities = JsonSerializer.Deserialize<List<string>>(reader.GetString(8));
 
@@ -99,7 +219,7 @@ public class OscarSession
         ProfileMimeType = otherSession.ProfileMimeType;
         Profile = otherSession.Profile;
 
-        Buddies = otherSession.Buddies;
+        ReplaceBuddies(otherSession.Buddies);
 
         Capabilities = otherSession.Capabilities;
 
@@ -280,7 +400,7 @@ public class OscarSession
             return false;
         }
 
-        bool OnList(List<string> list) => list != null && list.Any(x => x.Equals(otherScreenName, StringComparison.OrdinalIgnoreCase));
+        bool OnList(IReadOnlyList<string> list) => list != null && list.Any(x => x.Equals(otherScreenName, StringComparison.OrdinalIgnoreCase));
 
         return PrivacyMode switch
         {

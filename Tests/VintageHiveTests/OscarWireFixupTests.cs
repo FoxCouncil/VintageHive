@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 // Wire-format pins for the AIM 4.x fixes: the SSI max-item-counts array must carry one big-endian
 // ushort per item type 0x00-0x14 (the old six-entry array fed AIM 4.7's by-type indexing garbage
@@ -120,7 +120,9 @@ public class OscarWireFixupTests
 
         try
         {
-            var session = new OscarSession { ScreenName = screenName, Buddies = ["pal1", "pal2"] };
+            var session = new OscarSession { ScreenName = screenName };
+
+            session.ReplaceBuddies(["pal1", "pal2"]);
 
             var items = new OscarSsiService(null).EnsureSsiItems(session);
 

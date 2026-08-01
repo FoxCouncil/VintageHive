@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -836,7 +836,7 @@ internal class OscarIcqService : IOscarService
 
         interestsUserData.WriteByte(0x0A); // Success Byte
 
-        var interests = JsonSerializer.Deserialize<List<JsonElement>>(profile.InterestsJson);
+        var interests = ReadJsonList(profile.InterestsJson);
 
         interestsUserData.WriteByte((byte)interests.Count);
 
@@ -858,7 +858,7 @@ internal class OscarIcqService : IOscarService
 
         affiliationUserData.WriteByte(0x0A); // Success Byte
 
-        var affiliations = JsonSerializer.Deserialize<List<JsonElement>>(profile.AffiliationsJson);
+        var affiliations = ReadJsonList(profile.AffiliationsJson);
 
         affiliationUserData.WriteByte((byte)affiliations.Count);
 
@@ -871,7 +871,7 @@ internal class OscarIcqService : IOscarService
             affiliationUserData.Write(WriteIcqString(keyword));
         }
 
-        var pastAffiliations = JsonSerializer.Deserialize<List<JsonElement>>(profile.PastAffiliationsJson);
+        var pastAffiliations = ReadJsonList(profile.PastAffiliationsJson);
 
         affiliationUserData.WriteByte((byte)pastAffiliations.Count);
 
@@ -945,4 +945,25 @@ internal class OscarIcqService : IOscarService
 
         return str;
     }
+
+    // The model defaults these columns to "[]", but rows written before that default exist on real boxes and
+    // come back NULL. Deserialize threw on them, which aborted the whole multi-part user-info reply, so the
+    // requesting client got a partial dump instead of a profile with one empty section.
+    private static List<JsonElement> ReadJsonList(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new List<JsonElement>();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<JsonElement>>(json) ?? new List<JsonElement>();
+        }
+        catch (JsonException)
+        {
+            return new List<JsonElement>();
+        }
+    }
+
 }

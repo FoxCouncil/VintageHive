@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using VintageHive.Network;
@@ -8,6 +8,9 @@ namespace VintageHive.Proxy.Oscar;
 
 public class OscarServer : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     public const string LoginHelpUrl = "http://" + HiveDomains.Intranet + "/help.html#aim_login";
 
     public static readonly ConcurrentDictionary<ulong, OscarSession> Sessions = new();
@@ -80,8 +83,21 @@ public class OscarServer : Listener
 
     readonly List<IOscarService> services;
 
-    public OscarServer(IPAddress listenAddress) : base(listenAddress, 5190, SocketType.Stream, ProtocolType.Tcp, false)
+    /// <summary>
+    /// The port BOS/chat redirect TLVs advertise back to clients.
+    /// </summary>
+    /// <remarks>
+    /// The four redirect sites used to interpolate a literal ":5190" while the listener took its port from the
+    /// constructor, so moving the port would have silently broken the sign-on handoff: the client would be told
+    /// to reconnect to a port nothing was listening on. Static because the services that build those TLVs are
+    /// constructed per server but reached from paths that do not carry the instance.
+    /// </remarks>
+    public static int AdvertisedPort { get; private set; } = 5190;
+
+    public OscarServer(IPAddress listenAddress, int port) : base(listenAddress, port, SocketType.Stream, ProtocolType.Tcp, false)
     {
+        AdvertisedPort = port;
+
         services = new()
         {
             new OscarGenericServiceControls(this),
@@ -173,6 +189,9 @@ public class OscarServer : Listener
                                 {
                                     chatRoom = pending.Room;
 
+                                    // The one-shot cookie is the credential on a chat connection.
+                                    session.IsAuthenticated = true;
+
                                     // A chat connection authenticates purely by the cookie; give it a placeholder name
                                     // when one wasn't carried over.
                                     if (session.ScreenName == null)
@@ -208,6 +227,18 @@ public class OscarServer : Listener
                             var snacPacket = flap.GetSnac();
 
                             Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"-> {snacPacket}", traceId);
+
+                            // Family 0x17 IS the authentication exchange, so it has to run before the session is
+                            // authenticated. Everything else must not: the ICQ family in particular answers
+                            // CLI_FIND_BY_UIN and CLI_FULLINFO_REQUEST2 out of the profile store without needing a
+                            // screen name, so an unauthenticated socket could read any member's name, email,
+                            // addresses and phone number just by connecting and skipping sign-on.
+                            if (!session.IsAuthenticated && snacPacket.Family != OscarAuthorizationService.FAMILY_ID)
+                            {
+                                Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Dropped SNAC family 0x{snacPacket.Family:X4} on an unauthenticated session", traceId);
+
+                                break;
+                            }
 
                             var familyProcessor = services.FirstOrDefault(x => x.Family == snacPacket.Family);
 
@@ -310,6 +341,7 @@ public class OscarServer : Listener
         session.ScreenName = storedSession.ScreenName;
         session.UserAgent = storedSession.UserAgent;
         session.SignOnTime = DateTimeOffset.UtcNow;
+        session.IsAuthenticated = true;
 
         // Ensure user profile exists in the database
         Mind.Db.OscarEnsureProfileExists(session.ScreenName);
@@ -357,6 +389,8 @@ public class OscarServer : Listener
 
         if (OscarUtils.RoastPassword(user.Password).SequenceEqual(passwordTlv.Value))
         {
+            session.IsAuthenticated = true;
+
             // The user-agent TLV 0x03 is optional; a client that omits it used to NRE here and drop sign-on.
             session.UserAgent = tlvs.GetTlv(0x03)?.Value is { } uaBytes ? Encoding.ASCII.GetString(uaBytes) : "unknown";
 
@@ -370,7 +404,7 @@ public class OscarServer : Listener
             var srvCookie = new List<Tlv>
             {
                 new Tlv(Tlv.Type_ScreenName, session.ScreenName),
-                new Tlv(0x0005, $"{serverIP}:5190"),
+                new Tlv(0x0005, $"{serverIP}:{AdvertisedPort}"),
                 new Tlv(0x0006, session.Cookie)
             };
 

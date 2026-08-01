@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -84,7 +84,7 @@ internal class OscarGenericServiceControls : IOscarService
                         redirectSnac.WriteTlvs(new List<Tlv>
                         {
                             new Tlv(0x0D, OscarUtils.GetBytes(OscarChatService.FAMILY_ID)), // Service family (Chat)
-                            new Tlv(0x05, $"{serverIP}:5190"),                              // Chat server address
+                            new Tlv(0x05, $"{serverIP}:{OscarServer.AdvertisedPort}"),                              // Chat server address
                             new Tlv(0x06, chatCookie),                                      // One-shot join cookie
                             new Tlv(0x01, room.EncodeChatRoomInfo()),                       // Room being joined
                         });

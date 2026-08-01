@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.IO;
 using System.Net;
@@ -202,7 +202,7 @@ public class OscarInvisibilityTests
         await WithCleanSessions(async () =>
         {
             var read = MakeWatcher("bob", out var bob);
-            bob.Buddies = new List<string> { "fox" };
+            bob.ReplaceBuddies(new List<string> { "fox" });
             OscarServer.Sessions[bob.ID] = bob;
 
             var fox = new OscarSession { ScreenName = "fox", Status = OscarSessionOnlineStatus.Invisible };
@@ -226,7 +226,7 @@ public class OscarInvisibilityTests
         await WithCleanSessions(async () =>
         {
             var read = MakeWatcher("bob", out var bob);
-            bob.Buddies = new List<string> { "fox" };
+            bob.ReplaceBuddies(new List<string> { "fox" });
             OscarServer.Sessions[bob.ID] = bob;
 
             var fox = new OscarSession { ScreenName = "fox", Status = OscarSessionOnlineStatus.Online };

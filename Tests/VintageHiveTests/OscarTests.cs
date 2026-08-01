@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Net;
 using System.Net.Sockets;
@@ -1311,10 +1311,11 @@ public class OscarSessionTests
             AwayMessageMimeType = "text/x-aolrtf",
             Profile = "Hello world",
             ProfileMimeType = "text/aolrtf",
-            Buddies = new List<string> { "Friend1", "Friend2" },
             Capabilities = new List<string> { "CAP1" },
             UserAgent = "AIM/5.9"
         };
+
+        source.ReplaceBuddies(new List<string> { "Friend1", "Friend2" });
 
         var target = new OscarSession();
 

@@ -69,10 +69,29 @@ internal class OscarIcbmService : IOscarService
 
             case CLI_SEND_ICBM:
             {
+                // Every slice below is driven by a client-supplied length. The guarded siblings
+                // (OscarBuddyListService.ParseBuddyList, IcqUserMetaRequest) bounds-check first; this one did
+                // not, so a truncated frame threw ArgumentOutOfRangeException into the per-SNAC catch and the
+                // request disappeared with only a log line to show for it.
+                if (snac.RawData.Length < 11)
+                {
+                    Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcbmService), "Dropped a truncated CLI_SEND_ICBM (shorter than its fixed header)", traceId);
+
+                    return;
+                }
+
                 var msgIdCookie = OscarUtils.ToUInt64(snac.RawData[..8]);
                 var msgChannel = OscarUtils.ToUInt16(snac.RawData[8..10]);
 
                 var screenNameLength = (ushort)snac.RawData[10];
+
+                if (snac.RawData.Length < 11 + screenNameLength)
+                {
+                    Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcbmService), "Dropped a CLI_SEND_ICBM whose screen-name length ran past the frame", traceId);
+
+                    return;
+                }
+
                 var screenName = Encoding.ASCII.GetString(snac.RawData[11..(11 + screenNameLength)]);
 
                 var tlvData = snac.RawData[(11 + screenNameLength)..];
@@ -181,7 +200,19 @@ internal class OscarIcbmService : IOscarService
 
                     if (msgChannel == 1)
                     {
-                        sendClientMessageSnac.WriteTlv(new Tlv(0x02, tlvs.GetTlv(0x02).Value));
+                        // The offline-store path already null-checks this TLV; the live path did not, so a
+                        // channel-1 ICBM that omitted the message block threw an NRE that the per-SNAC catch
+                        // swallowed - the IM vanished and neither party was told anything.
+                        var liveMessageTlv = tlvs.GetTlv(0x02);
+
+                        if (liveMessageTlv?.Value == null)
+                        {
+                            Log.WriteLine(Log.LEVEL_DEBUG, nameof(OscarIcbmService), "Dropped a channel-1 ICBM carrying no message TLV (0x02)", traceId);
+
+                            return;
+                        }
+
+                        sendClientMessageSnac.WriteTlv(new Tlv(0x02, liveMessageTlv.Value));
                     }
                     else if (msgChannel == 2)
                     {

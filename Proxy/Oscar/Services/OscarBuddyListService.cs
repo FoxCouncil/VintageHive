@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -44,7 +44,7 @@ public class OscarBuddyListService : IOscarService
             {
                 var buddies = ParseBuddyList(snac.RawData);
 
-                session.Buddies = buddies;
+                session.ReplaceBuddies(buddies);
 
                 session.Save();
 
@@ -58,7 +58,7 @@ public class OscarBuddyListService : IOscarService
 
                 foreach (var buddy in removedBuddies)
                 {
-                    session.Buddies.RemoveAll(b => b.Equals(buddy, StringComparison.OrdinalIgnoreCase));
+                    session.RemoveBuddy(buddy);
                 }
 
                 session.Save();

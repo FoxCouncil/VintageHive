@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Security.Cryptography;
 
@@ -57,6 +57,8 @@ public class OscarAuthorizationService : IOscarService
 
                 if (hashedPassword.SequenceEqual(userPassword))
                 {
+                    session.IsAuthenticated = true;
+
                     var remoteIpAddress = session.Client.RemoteIP;
 
                     var otherSession = Mind.Db.OscarGetSessionByScreenameAndIp(user.Username, remoteIpAddress);
@@ -80,7 +82,7 @@ public class OscarAuthorizationService : IOscarService
                     var authSuccessTlvs = new List<Tlv>
                     {
                         new Tlv(Tlv.Type_ScreenName, session.ScreenName),
-                        new Tlv(0x0005, $"{serverIP}:5190"),
+                        new Tlv(0x0005, $"{serverIP}:{OscarServer.AdvertisedPort}"),
                         new Tlv(0x0006, session.Cookie),
                         new Tlv(0x0011, BuildAccountEmail(session.ScreenName)),
                     };
