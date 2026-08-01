@@ -49,7 +49,9 @@ public sealed class FtpRequest : Request
 
     internal async Task<Tuple<string, string>> FetchCommand()
     {
-        var rawResponse = await ReadRawResponseAsync();
+        // Draws one line from the shared carry buffer, so a command that was pipelined behind the previous one
+        // is read from memory rather than waited for on a socket that will never carry it again.
+        var rawResponse = await ReadCommandLineAsync();
 
         if (string.IsNullOrWhiteSpace(rawResponse))
         {
@@ -177,20 +179,12 @@ public sealed class FtpRequest : Request
             return Invalid;
         }
 
-        if (rawRequest[..3].ToUpper() == "GET" && rawRequest.Contains(HttpUtilities.HttpBodySeperator))
+        // StartsWith rather than rawRequest[..3], which threw on any line shorter than three characters that
+        // still carried a CRLF.
+        if (rawRequest.StartsWith("GET", StringComparison.OrdinalIgnoreCase) && rawRequest.Contains(HttpUtilities.HttpBodySeperator))
         {
             return ParseFtpOverHttp(socket, encoding, rawRequest);
         }
-
-        if (!rawRequest.Contains(' '))
-        {
-            // Malformed FTP command
-            return Invalid;
-        }
-
-        var rawFtpData = rawRequest.SplitSpaces();
-
-        var initialFtpCommand = rawFtpData[0].ToUpper();
 
         var newRequest = new FtpRequest
         {
@@ -201,6 +195,24 @@ public sealed class FtpRequest : Request
             Encoding = encoding,
             IsValid = true
         };
+
+        // Everything the listener just handed us goes into the command buffer, and the opening command is then
+        // drawn from it a line at a time - the same source every later FetchCommand reads from. Parsing the
+        // whole read as one command meant a pipelined "USER x\r\nPASS y\r\n" became username "x\r\nPASS", and
+        // then FetchCommand blocked forever waiting for a PASS that had already been consumed and thrown away.
+        newRequest.SeedCommandBuffer(rawRequest);
+
+        var firstLine = await newRequest.ReadCommandLineAsync();
+
+        if (!firstLine.Contains(' '))
+        {
+            // Malformed FTP command
+            return Invalid;
+        }
+
+        var rawFtpData = firstLine.SplitSpaces();
+
+        var initialFtpCommand = rawFtpData[0].ToUpper();
 
         Tuple<string, string> proxyRequest;
 
@@ -270,6 +282,14 @@ public sealed class FtpRequest : Request
             }
 
             var splitHeaderKV = header.Split(": ", 2);
+
+            // Indexing [1] unconditionally threw IndexOutOfRangeException on any header line without ": " -
+            // a folded continuation line, or simply a malformed one - and the throw tore the whole FTP
+            // connection down through the Listener's catch instead of returning a clean error.
+            if (splitHeaderKV.Length < 2)
+            {
+                continue;
+            }
 
             if (!headers.ContainsKey(splitHeaderKV[0]))
             {

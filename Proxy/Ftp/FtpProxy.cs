@@ -32,8 +32,6 @@ public class FtpProxy : Listener
 
     public override async Task<byte[]> ProcessRequest(ListenerSocket connection, byte[] data, int read)
     {
-        var requestData = Encoding.ASCII.GetString(data, 0, read);
-
         var req = await FtpRequest.Parse(connection, Encoding, data, read);
 
         if (!req.IsValid)
@@ -90,7 +88,8 @@ public class FtpProxy : Listener
             catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(FtpProxy), $"Cached response decode failed: {ex.Message}", connection.TraceId.ToString()); }
         }
 
-        // TODO: Keep-Alive respect?
+        // FTP-over-HTTP answers one request per connection and closes; there is no keep-alive to respect,
+        // because the raw FTP path owns the socket for the whole control session instead of returning here.
         connection.RawSocket.Close();
 
         return null;

@@ -36,20 +36,13 @@ internal class NntpProxy : Listener
         const int MaxLineBytes = 16 * 1024;
 
         // Buffer to CRLF and loop: a command split across the 4096-byte read (or pipelined commands) was
-        // previously truncated/dropped with no carry-over.
-        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
-        var buffer = prev + data[..read].ToASCII();
+        // previously truncated/dropped with no carry-over. Mechanics shared via LineBuffer.
+        var buffer = LineBuffer.Open(connection, LineBufferKey, data, read, MaxLineBytes);
 
         var responses = new List<byte>();
 
-        int start = 0, idx;
-
-        while ((idx = buffer.IndexOf('\n', start)) != -1)
+        while (buffer.TryReadLine(out var line))
         {
-            var line = buffer[start..idx].TrimEnd('\r');
-
-            start = idx + 1;
-
             if (string.IsNullOrWhiteSpace(line))
             {
                 continue;
@@ -64,15 +57,13 @@ internal class NntpProxy : Listener
 
             if (!connection.IsKeepAlive)
             {
-                connection.DataBag[LineBufferKey] = string.Empty;
+                buffer.Clear();
 
                 return responses.Count > 0 ? responses.ToArray() : null;
             }
         }
 
-        var remainder = buffer[start..];
-
-        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+        buffer.Save();
 
         return responses.Count > 0 ? responses.ToArray() : null;
     }
