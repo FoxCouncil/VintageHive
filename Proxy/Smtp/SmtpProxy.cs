@@ -70,19 +70,15 @@ public class SmtpProxy : Listener
             return await ProcessRequestInner(connection, data, read);
         }
 
-        var prev = bag.TryGetValue(LineBufferKey, out var lb) ? lb as string : string.Empty;
-        var buffer = prev + Encoding.ASCII.GetString(data, 0, read);
+        // Mechanics shared via LineBuffer. The control flow stays here because a DATA command switches this
+        // connection into body mode mid-loop, at which point everything still buffered stops being commands
+        // and becomes message body - a plain line reader has nowhere to express that handover.
+        var buffer = LineBuffer.Open(connection, LineBufferKey, data, read, MaxLineBytes);
 
         var responses = new List<byte>();
 
-        int start = 0, nl;
-
-        while ((nl = buffer.IndexOf('\n', start)) != -1)
+        while (buffer.TryReadLine(out var line))
         {
-            var line = buffer[start..nl].TrimEnd('\r');
-
-            start = nl + 1;
-
             var lineBytes = Encoding.ASCII.GetBytes(line);
 
             var resp = await ProcessRequestInner(connection, lineBytes, lineBytes.Length);
@@ -94,7 +90,7 @@ public class SmtpProxy : Listener
 
             if (!connection.IsKeepAlive)
             {
-                bag[LineBufferKey] = string.Empty;
+                buffer.Clear();
 
                 return responses.Count > 0 ? responses.ToArray() : null;
             }
@@ -102,11 +98,13 @@ public class SmtpProxy : Listener
             // If that command (DATA) switched us into body mode, the rest of the buffer is message body
             if (bag.ContainsKey(RequestingData))
             {
-                bag[LineBufferKey] = string.Empty;
+                var body = buffer.TakeRest();
 
-                if (start < buffer.Length)
+                buffer.Save();
+
+                if (body.Length > 0)
                 {
-                    var bodyBytes = Encoding.ASCII.GetBytes(buffer[start..]);
+                    var bodyBytes = Encoding.ASCII.GetBytes(body);
 
                     var bodyResp = await ProcessRequestInner(connection, bodyBytes, bodyBytes.Length);
 
@@ -120,9 +118,7 @@ public class SmtpProxy : Listener
             }
         }
 
-        var remainder = buffer[start..];
-
-        bag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+        buffer.Save();
 
         return responses.Count > 0 ? responses.ToArray() : null;
     }
@@ -174,7 +170,9 @@ public class SmtpProxy : Listener
                     return await SendResponse(MailboxNameNotAllowed, "Sender domain not hosted here");
                 }
 
-                if (email.User != bag[Authenticated].ToString())
+                // Case-insensitive: the user table itself is COLLATE NOCASE, so someone who authenticated as
+                // "Fred" was being told they could not send as fred@domain - their own mailbox.
+                if (!string.Equals(email.User, bag[Authenticated].ToString(), StringComparison.OrdinalIgnoreCase))
                 {
                     return await SendResponse(MailboxUnavailable, "Cannot relay email for another user!");
                 }
@@ -304,14 +302,18 @@ public class SmtpProxy : Listener
 
                     bag[MailData] = mailData;
 
-                    if (!mailData.EndsWith(EOM))
+                    // A client ending an EMPTY body sends just ".\r\n" with no leading CRLF, so EndsWith(EOM)
+                    // was never true: the transaction hung accumulating until it hit the 32 MB cap and 552'd.
+                    var emptyBody = mailData == ".\r\n";
+
+                    if (!emptyBody && !mailData.EndsWith(EOM))
                     {
                         return null;
                     }
 
                     // Strip ONLY the trailing terminator (Replace(EOM) mangled interior sequences), then reverse
                     // SMTP dot-stuffing so IMAP FETCH doesn't expose ".." corruption on lines that began with a dot.
-                    var message = UnstuffDots(mailData[..^EOM.Length]);
+                    var message = emptyBody ? string.Empty : UnstuffDots(mailData[..^EOM.Length]);
 
                     bag.Remove(RequestingData);
                     bag.Remove(MailData);
@@ -422,16 +424,14 @@ public class SmtpProxy : Listener
 
         var sb = new StringBuilder();
 
-        foreach (var message in messages)
+        // Index, not value equality. "message != messages.Last()" picked the continuation form by comparing
+        // CONTENT, so two byte-identical lines would both render as the final "250 " form and break the
+        // multiline framing. Today's EHLO lines happen to differ, so this was latent rather than live.
+        for (var i = 0; i < messages.Length; i++)
         {
-            if (message != messages.Last())
-            {
-                sb.Append($"{(int)responseCode}-{message}{EOL}");
-            }
-            else
-            {
-                sb.Append($"{(int)responseCode} {message}{EOL}");
-            }
+            var separator = i < messages.Length - 1 ? '-' : ' ';
+
+            sb.Append($"{(int)responseCode}{separator}{messages[i]}{EOL}");
         }
 
         return sb.ToString().ToASCII();

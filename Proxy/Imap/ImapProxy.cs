@@ -56,23 +56,23 @@ public partial class ImapProxy : Listener
 
         // Buffer to CRLF and loop so pipelined commands are all answered and a command split across TCP reads
         // is reassembled instead of misparsed (its tag would otherwise never be answered - the client stalls).
-        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
-        var buffer = prev + Encoding.ASCII.GetString(data, 0, read);
+        // Mechanics shared via LineBuffer. The control flow stays here because IMAP has to drain a byte-counted
+        // APPEND literal BEFORE any line splitting - that payload is message data full of CRLFs and would be
+        // shredded by a line reader.
+        var buffer = LineBuffer.Open(connection, LineBufferKey, data, read, MaxLineBytes);
 
         var responses = new List<byte>();
 
-        while (buffer.Length > 0)
+        while (buffer.Pending.Length > 0)
         {
             // An armed APPEND literal is byte-counted message data full of CRLFs - drain it here so
             // it never reaches the line splitter below.
             if (session.Append != null)
             {
-                var take = Math.Min(session.Append.Remaining, buffer.Length);
+                var taken = buffer.TakeRaw(session.Append.Remaining);
 
-                session.Append.Data.Append(buffer, 0, take);
-                session.Append.Remaining -= take;
-
-                buffer = buffer[take..];
+                session.Append.Data.Append(taken);
+                session.Append.Remaining -= taken.Length;
 
                 if (session.Append.Remaining > 0)
                 {
@@ -84,16 +84,10 @@ public partial class ImapProxy : Listener
                 continue;
             }
 
-            var idx = buffer.IndexOf('\n');
-
-            if (idx == -1)
+            if (!buffer.TryReadLine(out var line))
             {
                 break;
             }
-
-            var line = buffer[..idx].TrimEnd('\r');
-
-            buffer = buffer[(idx + 1)..];
 
             if (string.IsNullOrWhiteSpace(line))
             {
@@ -109,13 +103,13 @@ public partial class ImapProxy : Listener
 
             if (!connection.IsKeepAlive)
             {
-                connection.DataBag[LineBufferKey] = string.Empty;
+                buffer.Clear();
 
                 return responses.Count > 0 ? responses.ToArray() : null;
             }
         }
 
-        connection.DataBag[LineBufferKey] = buffer.Length > MaxLineBytes ? string.Empty : buffer;
+        buffer.Save();
 
         return responses.Count > 0 ? responses.ToArray() : null;
     }
@@ -1559,7 +1553,13 @@ public partial class ImapProxy : Listener
             return "NIL";
         }
 
-        return $"((\"{addr.User}\" NIL \"{addr.User}\" \"{addr.Domain}\"))";
+        // Routed through QuoteString like the subject and date fields, rather than interpolated raw. The
+        // EmailAddress regex permits both backslash and double quote in a local part ([^@\s>]+), so a stored
+        // address carrying either used to close the IMAP quoted string early and desynchronise that client's
+        // FETCH ENVELOPE parse. QuoteString supplies its own surrounding quotes.
+        var user = QuoteString(addr.User);
+
+        return $"(({user} NIL {user} {QuoteString(addr.Domain)}))";
     }
 
     private static string QuoteString(string value)

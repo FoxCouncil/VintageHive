@@ -32,9 +32,9 @@ public class PostOfficeDbContext : DbContextBase
         {
             using var command = context.CreateCommand();
 
-            command.CommandText = $"SELECT COALESCE(SUM(size), 0) FROM {TABLE_EMAILS} WHERE toAddress LIKE @toAddressPattern";
+            command.CommandText = $"SELECT COALESCE(SUM(size), 0) FROM {TABLE_EMAILS} WHERE toAddress LIKE @toAddressPattern ESCAPE '\\'";
 
-            command.Parameters.Add(new SqliteParameter("@toAddressPattern", username + "@%"));
+            command.Parameters.Add(new SqliteParameter("@toAddressPattern", EscapeLikePattern(username) + "@%"));
 
             return Convert.ToInt64(command.ExecuteScalar());
         });
@@ -68,6 +68,21 @@ public class PostOfficeDbContext : DbContextBase
     }
 
     /// <summary>Queues the message for each recipient, skipping full mailboxes. Returns the skipped recipients.</summary>
+    // Parameter binding stops SQL injection but says nothing about LIKE, where % and _ are still wildcards: a
+    // mailbox owner called "a_b" would match "axb@..." and read someone else's mail, and "jo%" would match
+    // every address starting "jo". Usernames are charset-validated at creation now, but rows created before
+    // that validation still exist and these queries are the wrong place to assume otherwise. Backslash goes
+    // first or it would double-escape the escapes added after it.
+    internal static string EscapeLikePattern(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+    }
+
     public List<EmailAddress> ProcessAndInsertEmail(EmailAddress from, HashSet<EmailAddress> toAddresses, string data)
     {
         var subject = Regex.Match(data, @"Subject: (.*?)\r\n", RegexOptions.IgnoreCase).Groups[1].Value;
@@ -112,9 +127,9 @@ public class PostOfficeDbContext : DbContextBase
         {
             using var selectCommand = context.CreateCommand();
 
-            selectCommand.CommandText = $"SELECT * FROM {TABLE_EMAILS} WHERE delivery = 1 AND toAddress LIKE @toAddressPattern";
+            selectCommand.CommandText = $"SELECT * FROM {TABLE_EMAILS} WHERE delivery = 1 AND toAddress LIKE @toAddressPattern ESCAPE '\\'";
 
-            selectCommand.Parameters.Add(new SqliteParameter("@toAddressPattern", toAddressStartsWith + "@%"));
+            selectCommand.Parameters.Add(new SqliteParameter("@toAddressPattern", EscapeLikePattern(toAddressStartsWith) + "@%"));
 
             using var reader = selectCommand.ExecuteReader();
 
@@ -563,15 +578,17 @@ public class PostOfficeDbContext : DbContextBase
     {
         return WithContext(context =>
         {
-            var uid = GetNextUid(targetMailboxId);
-
             using var cmd = context.CreateCommand();
 
-            cmd.CommandText = $"INSERT INTO {TABLE_MESSAGE_MAILBOX} (email_id, mailbox_id, uid, flags) VALUES(@emailId, @mailboxId, @uid, '')";
+            // The UID is derived inside the INSERT rather than read first by GetNextUid, which opens its OWN
+            // separate connection: read-compute-write split across two connections let two concurrent copies
+            // into the same mailbox both see MAX(uid) = N and both insert N+1. Duplicate UIDs in one mailbox
+            // break UID FETCH/STORE addressing for era clients. As a single statement this runs under
+            // SQLite's write lock, so the max and the insert cannot be separated.
+            cmd.CommandText = $"INSERT INTO {TABLE_MESSAGE_MAILBOX} (email_id, mailbox_id, uid, flags) SELECT @emailId, @mailboxId, COALESCE(MAX(uid), 0) + 1, '' FROM {TABLE_MESSAGE_MAILBOX} WHERE mailbox_id = @mailboxId";
 
             cmd.Parameters.Add(new SqliteParameter("@emailId", emailId));
             cmd.Parameters.Add(new SqliteParameter("@mailboxId", targetMailboxId));
-            cmd.Parameters.Add(new SqliteParameter("@uid", uid));
 
             return cmd.ExecuteNonQuery() > 0;
         });
@@ -675,15 +692,14 @@ public class PostOfficeDbContext : DbContextBase
 
             var emailId = Convert.ToInt32(idCmd.ExecuteScalar());
 
-            var uid = GetNextUid(mailboxId);
-
             using var insertMmCmd = context.CreateCommand();
 
-            insertMmCmd.CommandText = $"INSERT INTO {TABLE_MESSAGE_MAILBOX} (email_id, mailbox_id, uid, flags) VALUES(@emailId, @mailboxId, @uid, @flags)";
+            // GetNextUid opened its own connection, so its read sat OUTSIDE this transaction and the value
+            // could be stale by the time the insert ran. Deriving it in the statement keeps it atomic.
+            insertMmCmd.CommandText = $"INSERT INTO {TABLE_MESSAGE_MAILBOX} (email_id, mailbox_id, uid, flags) SELECT @emailId, @mailboxId, COALESCE(MAX(uid), 0) + 1, @flags FROM {TABLE_MESSAGE_MAILBOX} WHERE mailbox_id = @mailboxId";
 
             insertMmCmd.Parameters.Add(new SqliteParameter("@emailId", emailId));
             insertMmCmd.Parameters.Add(new SqliteParameter("@mailboxId", mailboxId));
-            insertMmCmd.Parameters.Add(new SqliteParameter("@uid", uid));
             insertMmCmd.Parameters.Add(new SqliteParameter("@flags", flags));
 
             insertMmCmd.ExecuteNonQuery();
@@ -724,15 +740,14 @@ public class PostOfficeDbContext : DbContextBase
                 return;
             }
 
-            var uid = GetNextUid(mailboxId);
-
             using var cmd = context.CreateCommand();
 
-            cmd.CommandText = $"INSERT INTO {TABLE_MESSAGE_MAILBOX} (email_id, mailbox_id, uid, flags) VALUES(@emailId, @mailboxId, @uid, '\\Recent')";
+            // Same atomicity fix as CopyMessageToMailbox: the UID comes from a subquery inside the INSERT, so
+            // two concurrent deliveries into one mailbox cannot both claim the same number.
+            cmd.CommandText = $"INSERT INTO {TABLE_MESSAGE_MAILBOX} (email_id, mailbox_id, uid, flags) SELECT @emailId, @mailboxId, COALESCE(MAX(uid), 0) + 1, '\\Recent' FROM {TABLE_MESSAGE_MAILBOX} WHERE mailbox_id = @mailboxId";
 
             cmd.Parameters.Add(new SqliteParameter("@emailId", emailId));
             cmd.Parameters.Add(new SqliteParameter("@mailboxId", mailboxId));
-            cmd.Parameters.Add(new SqliteParameter("@uid", uid));
 
             cmd.ExecuteNonQuery();
         });

@@ -33,19 +33,14 @@ public class Pop3Proxy : Listener
 
         // Buffer to CRLF and loop: a client that pipelines commands in one packet, or whose command is split
         // across TCP reads, was previously misparsed (only the first line handled; later tags never answered).
-        var prev = connection.DataBag.TryGetValue(LineBufferKey, out var b) ? b as string : string.Empty;
-        var buffer = prev + Encoding.ASCII.GetString(data, 0, read);
+        // The carry-buffer mechanics live in LineBuffer, shared with the other line-based protocols; see its
+        // remarks for why they share the mechanics but each keep their own control flow.
+        var buffer = LineBuffer.Open(connection, LineBufferKey, data, read, MaxLineBytes);
 
         var responses = new List<byte>();
 
-        int start = 0, idx;
-
-        while ((idx = buffer.IndexOf('\n', start)) != -1)
+        while (buffer.TryReadLine(out var line))
         {
-            var line = buffer[start..idx].TrimEnd('\r');
-
-            start = idx + 1;
-
             if (string.IsNullOrWhiteSpace(line))
             {
                 continue;
@@ -60,15 +55,13 @@ public class Pop3Proxy : Listener
 
             if (!connection.IsKeepAlive)
             {
-                connection.DataBag[LineBufferKey] = string.Empty;
+                buffer.Clear();
 
                 return responses.Count > 0 ? responses.ToArray() : null;
             }
         }
 
-        var remainder = buffer[start..];
-
-        connection.DataBag[LineBufferKey] = remainder.Length > MaxLineBytes ? string.Empty : remainder;
+        buffer.Save();
 
         return responses.Count > 0 ? responses.ToArray() : null;
     }
@@ -189,7 +182,7 @@ public class Pop3Proxy : Listener
 
                 var message = messages[selectedIndex - 1];
 
-                var reply = $"{message.Size} octets{EOL}{message.Data}{EOL}.";
+                var reply = $"{message.Size} octets{EOL}{StuffDots(message.Data)}{EOL}.";
 
                 return await SendResponse(true, reply);
             }
@@ -279,7 +272,7 @@ public class Pop3Proxy : Listener
                     result = headers + limitedBody;
                 }
 
-                var reply = $"Top of message follows{EOL}{result}{EOL}.";
+                var reply = $"Top of message follows{EOL}{StuffDots(result)}{EOL}.";
 
                 return await SendResponse(true, reply);
             }
@@ -347,6 +340,26 @@ public class Pop3Proxy : Listener
         }
 
         return $"{(success ? "+OK" : "-ERR")} {message}".ToASCII();
+    }
+
+    // RFC 1939 3: in a multi-line reply, any line starting with '.' is sent with an extra '.' prepended, so the
+    // lone '.' that terminates the reply cannot be confused with message content. SMTP ingest deliberately
+    // strips this on the way in (SmtpProxy.UnstuffDots), so without the matching stuff on the way out a stored
+    // body line of "." truncates the download and a line beginning with "." silently loses a character. The
+    // exact inverse of UnstuffDots, and the reason IMAP needs no equivalent is that it frames with literals.
+    internal static string StuffDots(string data)
+    {
+        if (string.IsNullOrEmpty(data))
+        {
+            return data;
+        }
+
+        if (data.StartsWith('.'))
+        {
+            data = "." + data;
+        }
+
+        return data.Replace($"{EOL}.", $"{EOL}..");
     }
 
     private static (string Command, string Message) ParseCommandLine(string line)

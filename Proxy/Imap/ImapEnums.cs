@@ -41,7 +41,6 @@ internal static class ImapMessageFlag
     public static readonly string[] AllFlags = [Seen, Answered, Flagged, Deleted, Draft, Recent];
 }
 
-internal static class ImapDefaults
-{
-    public static readonly string[] DefaultMailboxNames = ["INBOX", "Sent", "Drafts", "Trash"];
-}
+// ImapDefaults lived here with a DefaultMailboxNames array that nothing ever read: PostOfficeDbContext carries
+// its own private copy of the identical list and uses that one. Removed rather than left as a second source of
+// truth for the mailbox set, where the two could drift apart with no compiler complaint.
