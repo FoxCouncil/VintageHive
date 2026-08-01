@@ -11,6 +11,9 @@ public class TelnetServer : Listener
     // Keyed by the per-connection trace id (TelnetSession.ID is unset), concurrent because connections add/remove from their own threads
     private static readonly ConcurrentDictionary<Guid, TelnetSession> _sessions = new();
 
+    /// <summary>How long an idle connection waits before repainting timer-driven windows.</summary>
+    private static readonly TimeSpan WindowTickInterval = TimeSpan.FromSeconds(1);
+
     public TelnetServer(IPAddress address, int port) : base(address, port, SocketType.Stream, ProtocolType.Tcp, false) { }
 
     public override async Task<byte[]> ProcessConnection(ListenerSocket connection)
@@ -24,17 +27,38 @@ public class TelnetServer : Listener
         {
             var buffer = new byte[1024];
 
-            connection.Stream.ReadTimeout = 1000;
-
+            // NetworkStream.ReadTimeout is only honoured by the SYNCHRONOUS Read, never by ReadAsync, so
+            // setting it here bought nothing: the loop blocked until a keystroke arrived and TickWindows only
+            // ran when the member typed. Timer-driven windows (weather, news) therefore never repainted on
+            // their own. A cancellation token gives the async read a real deadline, so an idle connection
+            // wakes up on schedule and ticks.
             var bufferedCommands = string.Empty;
 
             // First tick to force output to client before main session loop.
             await session.TickWindows();
 
-            var read = 0;
-            while (connection.IsConnected && (read = await connection.Stream.ReadAsync(buffer)) > 0)
+            while (connection.IsConnected)
             {
-                Thread.Sleep(1);
+                int read;
+
+                try
+                {
+                    using var idleTimeout = new CancellationTokenSource(WindowTickInterval);
+
+                    read = await connection.Stream.ReadAsync(buffer, idleTimeout.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Nothing typed within the interval: repaint any timer-driven windows and wait again.
+                    await session.TickWindows();
+
+                    continue;
+                }
+
+                if (read <= 0)
+                {
+                    break;
+                }
 
                 bufferedCommands += Encoding.ASCII.GetString(buffer, 0, read);
                 session.InputBuffer = bufferedCommands;

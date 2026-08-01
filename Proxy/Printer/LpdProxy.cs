@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 
@@ -175,7 +175,7 @@ public class LpdProxy : Listener
                     await stream.WriteAsync(new byte[] { ACK });
 
                     // Read control file data
-                    var controlData = await ReadExactBytesAsync(stream, count);
+                    var controlData = await ReadExactBytesAsync(stream, count, Leftover(buffer, read));
 
                     // Read trailing zero byte
                     await ReadExactBytesAsync(stream, 1);
@@ -220,7 +220,7 @@ public class LpdProxy : Listener
                     await stream.WriteAsync(new byte[] { ACK });
 
                     // Read data file
-                    documentData = await ReadExactBytesAsync(stream, count);
+                    documentData = await ReadExactBytesAsync(stream, count, Leftover(buffer, read));
 
                     // Read trailing zero byte
                     await ReadExactBytesAsync(stream, 1);
@@ -345,6 +345,53 @@ public class LpdProxy : Listener
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Reads <paramref name="count"/> bytes, consuming <paramref name="buffered"/> first.
+    /// </summary>
+    /// <remarks>
+    /// The subcommand line and its payload can arrive in ONE read. The caller parses the line out of its
+    /// buffer and then used to read the payload from the stream fresh, silently discarding whatever payload
+    /// bytes were sitting in that same buffer behind the LF - the job body then came back short and shifted.
+    /// Real LPR clients wait for the ACK before sending the body, which is why this stayed hidden.
+    /// </remarks>
+    /// <summary>Bytes already received behind the subcommand line's terminating LF, if the client pipelined.</summary>
+    static ReadOnlyMemory<byte> Leftover(byte[] buffer, int read)
+    {
+        var lf = Array.IndexOf(buffer, (byte)0x0A, 0, read);
+
+        if (lf < 0 || lf + 1 >= read)
+        {
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        return buffer.AsMemory(lf + 1, read - lf - 1);
+    }
+
+    static async Task<byte[]> ReadExactBytesAsync(NetworkStream stream, int count, ReadOnlyMemory<byte> buffered)
+    {
+        if (buffered.Length == 0)
+        {
+            return await ReadExactBytesAsync(stream, count);
+        }
+
+        var result = new byte[count];
+
+        var fromBuffer = Math.Min(buffered.Length, count);
+
+        buffered[..fromBuffer].CopyTo(result);
+
+        if (fromBuffer == count)
+        {
+            return result;
+        }
+
+        var rest = await ReadExactBytesAsync(stream, count - fromBuffer);
+
+        rest.CopyTo(result, fromBuffer);
+
+        return fromBuffer + rest.Length < count ? result[..(fromBuffer + rest.Length)] : result;
     }
 
     static async Task<byte[]> ReadExactBytesAsync(NetworkStream stream, int count)
