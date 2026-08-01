@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
@@ -12,6 +12,9 @@ namespace VintageHive.Proxy.Msn;
 // ring that invites a callee is delivered in-process over the callee's own NS connection.
 public sealed class MsnServer : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     // Authenticated notification-server sessions, keyed by lowercased account.
     public static readonly ConcurrentDictionary<string, MsnSession> NsSessions = new();
 
@@ -106,6 +109,10 @@ public sealed class MsnServer : Listener
 
     // -- Notification Server ----------------------------------------------
 
+    // Everything else the notification loop accepts (CVR, INF, USR, PNG, OUT) is either part of the sign-on
+    // exchange itself or carries no account state, so it stays reachable before authentication.
+    static readonly HashSet<string> RequiresAuthentication = new(StringComparer.Ordinal) { "SYN", "CHG", "XFR" };
+
     async Task RunNotificationLoopAsync(MsnSession session, string traceId)
     {
         while (session.Client.IsConnected)
@@ -119,6 +126,20 @@ public sealed class MsnServer : Listener
 
             var parts = line.Split(' ');
             var verb = parts[0];
+
+            // SYN answers with the full contact list, which on this hive is every registered account, and
+            // CHG/XFR act on the account's identity. None may run before USR has actually verified a password:
+            // an anonymous VER-then-SYN used to enumerate every member on the box, because HandleSynAsync
+            // calls OtherAccounts(session.Account) and a null account excludes nobody.
+            if (!session.IsAuthenticated && RequiresAuthentication.Contains(verb))
+            {
+                Log.WriteLine(Log.LEVEL_INFO, nameof(MsnServer), $"Refused {verb} on an unauthenticated session", traceId);
+
+                // 911 is the authentication-failed code this server already answers a bad USR with.
+                await session.SendLineAsync($"911 {(parts.Length > 1 ? parts[1] : "0")}");
+
+                continue;
+            }
 
             switch (verb)
             {
