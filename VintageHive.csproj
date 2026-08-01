@@ -73,6 +73,11 @@
       <PackageReference Include="SixLabors.Fonts" Version="2.1.3" />
       <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
       <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.7" />
+      <!-- AngleSharp is pulled in transitively by SmartReader, which still resolves 1.4.0. That version
+           carries GHSA-pgww-w46g-26qg (moderate), so it is pinned forward here the same way
+           SQLitePCLRaw.lib.e_sqlite3 was pinned for CVE-2025-6965. Remove the pin once SmartReader
+           ships a build that resolves a patched AngleSharp on its own. -->
+      <PackageReference Include="AngleSharp" Version="1.6.0" />
       <PackageReference Include="SmartReader" Version="0.11.0" />
       <PackageReference Include="System.ServiceModel.Syndication" Version="10.0.3" />
       <PackageReference Include="UAParser" Version="3.1.47" />
