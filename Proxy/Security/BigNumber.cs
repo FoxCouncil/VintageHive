@@ -23,7 +23,7 @@ namespace VintageHive.Proxy.Security
             set { Native.CheckResultSuccess(Native.BN_set_word(this, value)); }
         }
 
-        public override void Dispose()
+        protected override void FreeHandle()
         {
             Native.BN_free(this);
         }

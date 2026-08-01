@@ -133,7 +133,7 @@ public class X509Certificate : NativeRef
         return writeBio.ToString();
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         X509_free(this);
     }

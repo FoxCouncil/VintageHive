@@ -26,7 +26,7 @@ public class Asn1Integer : NativeRef
         return ASN1_INTEGER_get(ptr);
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         ASN1_INTEGER_free(this);
     }

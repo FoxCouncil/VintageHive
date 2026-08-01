@@ -54,7 +54,7 @@ public class CryptoKey : NativeRef
         }
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         EVP_PKEY_free(this);
     }

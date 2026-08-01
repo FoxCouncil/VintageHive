@@ -107,7 +107,7 @@ public class X509Name : NativeRef
         return nid;
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         X509_NAME_free(this);
     }

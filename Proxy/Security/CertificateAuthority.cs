@@ -275,6 +275,31 @@ public static class CertificateAuthority
             return domainCert;
         }
 
+        // Serialised per domain. This is called once per HTTPS connection from the listener's accept path, so
+        // several simultaneous first-time connections to the same new host each ran a full RSA keygen and then
+        // raced each other's CertSet write. Every connection still got a self-consistent certificate, so
+        // nothing broke visibly - it was just the same expensive work several times over, and a write-write
+        // race on one row. Keyed per domain so an unrelated host is never blocked behind someone else's keygen.
+        var gate = DomainCertificateGates.GetOrAdd(domain, _ => new object());
+
+        lock (gate)
+        {
+            // Another thread may have finished while this one waited.
+            domainCert = Mind.Db.CertGet(domain);
+
+            if (IsUsable(domainCert))
+            {
+                return domainCert;
+            }
+
+            return IssueDomainCertificate(domain, issuer);
+        }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> DomainCertificateGates = new(StringComparer.OrdinalIgnoreCase);
+
+    private static SslCertificate IssueDomainCertificate(string domain, X509Certificate2 issuer)
+    {
         using var rsaKey = RSA.Create(KeySize);
 
         var request = new CertificateRequest($"CN={domain}", rsaKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -296,7 +321,7 @@ public static class CertificateAuthority
         var certPem = new string(PemEncoding.Write("CERTIFICATE", domainCertificate.RawData));
         var keyPem = new string(PemEncoding.Write("PRIVATE KEY", rsaKey.ExportPkcs8PrivateKey()));
 
-        domainCert = new SslCertificate(certPem, keyPem);
+        var domainCert = new SslCertificate(certPem, keyPem);
 
         Mind.Db.CertSet(domain, domainCert);
 

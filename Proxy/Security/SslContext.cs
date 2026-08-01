@@ -40,7 +40,7 @@ public class SslContext : NativeRef
         }
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         Native.SSL_CTX_free(this);
     }

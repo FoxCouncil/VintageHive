@@ -49,7 +49,7 @@ public class Rsa : NativeRef
         return writeBio.ToString();
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         RSA_free(this);
     }

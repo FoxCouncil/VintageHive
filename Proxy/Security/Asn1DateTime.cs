@@ -48,7 +48,7 @@ public class Asn1DateTime : NativeRef
         return DateTime.ParseExact(bio.ToString(), formats, new DateTimeFormatInfo(), DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         ASN1_TIME_free(this);
     }

@@ -62,13 +62,82 @@ public static class Native
         SSL_load_error_strings();
         _ = SSL_library_init();
 
+        InitializeThreadLocks();
+
         // ERR_load_crypto_strings();
+    }
+
+    /* THREADING */
+
+    // OpenSSL before 1.1.0 does no locking of its own; it calls back into the application for
+    // every internal lock, and with no callback installed those locks are silent no-ops. One
+    // SSL_CTX is shared across every connection (SslContext) and driven from a pool thread per
+    // connection (Listener), so without these the ctx refcount, session cache and error queue
+    // all race. Dynamic locks (CRYPTO_set_dynlock_*) stay unset: 1.0.2 only takes them on engine
+    // and CRL paths this proxy never enters, and a missing dynlock callback degrades safely.
+    const int CRYPTO_LOCK = 1;
+
+    // Rooted in static fields on purpose. OpenSSL keeps these pointers for the life of the
+    // process, so letting the GC collect the thunks would crash on the next internal lock.
+    static readonly LockingCallback _lockingCallback = OnLocking;
+
+    static readonly ThreadIdCallback _threadIdCallback = OnThreadId;
+
+    static object[] _cryptoLocks;
+
+    static void InitializeThreadLocks()
+    {
+        var lockCount = CRYPTO_num_locks();
+
+        _cryptoLocks = new object[lockCount];
+
+        for (var i = 0; i < lockCount; i++)
+        {
+            _cryptoLocks[i] = new object();
+        }
+
+        CRYPTO_THREADID_set_callback(_threadIdCallback);
+
+        CRYPTO_set_locking_callback(_lockingCallback);
+    }
+
+    static void OnLocking(int mode, int type, IntPtr file, int line)
+    {
+        if (type < 0 || type >= _cryptoLocks.Length)
+        {
+            return;
+        }
+
+        // OpenSSL always pairs a lock and its unlock on the same thread, which is exactly what
+        // Monitor requires, and it never yields between the two, so no await can intervene.
+        if ((mode & CRYPTO_LOCK) != 0)
+        {
+            Monitor.Enter(_cryptoLocks[type]);
+        }
+        else
+        {
+            Monitor.Exit(_cryptoLocks[type]);
+        }
+    }
+
+    static void OnThreadId(IntPtr threadId)
+    {
+        // set_pointer rather than set_numeric: OpenSSL's numeric id is an unsigned long, which is
+        // 4 bytes on Windows and 8 on Linux. The value is only ever hashed and compared, so a
+        // pointer-sized managed thread id is a valid identity on both.
+        CRYPTO_THREADID_set_pointer(threadId, Environment.CurrentManagedThreadId);
     }
 
     /* Delegate (Un)Function Pointers */
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate int PEMPasswordCallback(IntPtr buf, int size, int rwflag, IntPtr userdata);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void LockingCallback(int mode, int type, IntPtr file, int line);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void ThreadIdCallback(IntPtr threadId);
 
     /* INITS */
 
@@ -77,6 +146,21 @@ public static class Native
 
     [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
     public extern static uint SSLeay();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static int CRYPTO_num_locks();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void CRYPTO_set_locking_callback(LockingCallback callback);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static IntPtr CRYPTO_get_locking_callback();
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void CRYPTO_THREADID_set_callback(ThreadIdCallback callback);
+
+    [DllImport(CORE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+    public extern static void CRYPTO_THREADID_set_pointer(IntPtr threadId, IntPtr value);
 
     /* Errors */
 
@@ -107,9 +191,17 @@ public static class Native
     /* EVP_PKEY */
 
     /* = Macros = */
+    /// <summary>
+    /// EVP_PKEY_assign_RSA. TRANSFERS OWNERSHIP of the RSA* into the EVP_PKEY on success.
+    /// </summary>
+    /// <remarks>
+    /// The type argument was 0 (EVP_PKEY_NONE), not EVP_PKEY_RSA, so the assign always failed and the caller
+    /// threw. Callers must not free the RSA* afterwards: EVP_PKEY_free will free it, and doing both is a
+    /// double free. See CryptoKey(Rsa), which is why that constructor takes the wrapper's handle away.
+    /// </remarks>
     public static int EVP_PKEY_assign_RSA(IntPtr pkey, IntPtr rsa)
     {
-        return EVP_PKEY_assign(pkey, 0, rsa);
+        return EVP_PKEY_assign(pkey, KeyType.RSA, rsa);
     }
     /* = Macros = */
 

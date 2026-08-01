@@ -59,9 +59,11 @@ public class SslStream : NativeRef
         Dispose();
     }
 
+    // Keeps its own Dispose rather than supplying FreeHandle: SSL_free releases the two BIOs as well, and the
+    // managed info callback has to be kept alive until after the native side is gone.
     public override void Dispose()
     {
-        if (Handle == IntPtr.Zero)
+        if (!IsOwner || Handle == IntPtr.Zero)
         {
             return;
         }
@@ -151,6 +153,24 @@ public class SslStream : NativeRef
     {
         var unencryptedBytesWritten = Native.SSL_write(this, buffer, length);
 
+        // SSL_write's return was previously handed straight back as a "bytes written" count without ever
+        // being looked at, so a fatal write-side error surfaced to the caller as a negative or zero write
+        // with no exception at all - the caller carried on believing the data had gone out. Anything at or
+        // below zero means nothing was written; ask OpenSSL why and fail loudly.
+        if (unencryptedBytesWritten <= 0)
+        {
+            var error = Native.SSL_get_error(this, unencryptedBytesWritten);
+
+            // WANT_READ/WANT_WRITE mean "retry later", which is not an error but is also not a write. The
+            // handshake and renegotiation paths are the only way to reach them here.
+            if (error is Native.SSL_ERROR_WANT_READ or Native.SSL_ERROR_WANT_WRITE)
+            {
+                return 0;
+            }
+
+            throw new OpenSslException();
+        }
+
         if (bioOutput.PendingBytes > 0)
         {
             var newBuffer = new byte[bioOutput.PendingBytes];
@@ -208,13 +228,19 @@ public class SslStream : NativeRef
     internal void AuthenticateAsServer()
     {
         var buffer = new byte[1024];
-        var tick = 5;
+
+        // A round-trip budget, not a time budget: the real deadline is the caller's ReadTimeout on the socket
+        // (Listener sets it before calling in), which is what actually stops a stalled peer. This only bounds
+        // pathological ping-pong. It was 5, which a client that fragments its ClientHello, sends a client
+        // certificate, or hits a retransmit can legitimately exceed - those got a spurious "Handshake timeout"
+        // while the socket was still perfectly healthy.
+        var tick = 64;
 
         while (handshakeState != HandshakeState.Done)
         {
             if (tick == 0)
             {
-                throw new OpenSslException("Handshake timeout.");
+                throw new OpenSslException("Handshake exceeded its round-trip budget.");
             }
 
             HandshakeReadSocket(buffer);

@@ -25,7 +25,12 @@ public class BasicInputOutput : NativeRef
 
     public int Write(string data)
     {
-        return BIO_write(Handle, StringEncoding.GetBytes(data), data.Length);
+        // Byte count, not character count. data.Length happens to equal the encoded length for the ASCII PEM
+        // this handles today, but StringEncoding is a mutable property, so any multibyte encoding would have
+        // written a truncated buffer with a mismatched length.
+        var bytes = StringEncoding.GetBytes(data);
+
+        return BIO_write(Handle, bytes, bytes.Length);
     }
 
     public int Write(byte[] buffer, int length)
@@ -59,7 +64,7 @@ public class BasicInputOutput : NativeRef
         return output;
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         BIO_free(this);
     }

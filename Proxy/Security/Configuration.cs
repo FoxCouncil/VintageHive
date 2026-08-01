@@ -15,7 +15,7 @@ internal class Configuration : NativeRef
         CheckResultSuccess(NCONF_load(this, filename, ref eline));
     }
 
-    public override void Dispose()
+    protected override void FreeHandle()
     {
         NCONF_free(this);
     }
