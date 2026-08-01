@@ -109,6 +109,16 @@ internal class HiveController : Controller
 
             var user = Mind.Db.UserFetch(username, password);
 
+            // UserFetch filters by password and returns null on a mismatch. The existence check above only
+            // proves the account is real, so without this every wrong password dereferenced null and served a
+            // 500 error page instead of telling the member their credentials were wrong.
+            if (user == null)
+            {
+                NotAuthorized("Invalid credentials, try again.");
+
+                return;
+            }
+
             Session.user = user.Username;
 
             Response.SetFound("/me.html");

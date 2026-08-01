@@ -236,6 +236,50 @@ public sealed class HttpResponse
         return this;
     }
 
+    // Header names and values reach the wire from places a client can steer: the Location header takes a
+    // query parameter on the image-fetch route, and HttpUtility.ParseQueryString has already URL-decoded it,
+    // so a %0d%0a arrives here as a real CR LF. Serialisation is the one point every header passes through,
+    // so the framing characters get removed here rather than trusting each caller to have thought about it.
+    // SP and HTAB stay: both are legal inside a field value.
+    internal static string SanitiseHeaderField(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        var offending = false;
+
+        foreach (var character in value)
+        {
+            if ((character < 0x20 && character != '\t') || character == 0x7F)
+            {
+                offending = true;
+
+                break;
+            }
+        }
+
+        if (!offending)
+        {
+            return value;
+        }
+
+        var builder = new StringBuilder(value.Length);
+
+        foreach (var character in value)
+        {
+            if ((character < 0x20 && character != '\t') || character == 0x7F)
+            {
+                continue;
+            }
+
+            builder.Append(character);
+        }
+
+        return builder.ToString();
+    }
+
     public byte[] GetResponseEncodedData()
     {
         var outputBuilder = new StringBuilder();
@@ -244,12 +288,12 @@ public sealed class HttpResponse
 
         foreach (var newCookie in deltaCookies)
         {
-            Headers.Add("Set-Cookie", $"{newCookie.Key}={newCookie.Value}");
+            Headers.Add("Set-Cookie", $"{SanitiseHeaderField(newCookie.Key)}={SanitiseHeaderField(newCookie.Value)}");
         }
 
         foreach (var header in Headers)
         {
-            outputBuilder.Append($"{header.Key}: {header.Value}{HttpSeperator}");
+            outputBuilder.Append($"{SanitiseHeaderField(header.Key)}: {SanitiseHeaderField(header.Value)}{HttpSeperator}");
         }
 
         outputBuilder.Append($"{HttpHeaderName.XTraceId}: {Request.ListenerSocket.TraceId}{HttpSeperator}"); // Tracing

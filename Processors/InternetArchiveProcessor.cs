@@ -65,7 +65,7 @@ internal static class InternetArchiveProcessor
             return false;
         }
 
-        // TODO:
+        // Ideas, not pending work:
         // -- Pull in request details to determine content "relavence"
         // -- Detect stupid shit redirection services and fucking make it better
         // -- Allow the user to add their own redirection shitstuff <-- store in ConfigDB?
@@ -516,19 +516,34 @@ internal static class InternetArchiveProcessor
 
         foreach (var metaTag in metaTags)
         {
-            if (metaTag.Attributes["http-equiv"].Value.ToLowerInvariant() == "refresh")
+            // Every sibling Alter* method null-checks its attribute; this one did not, so an archived page
+            // carrying <meta http-equiv="refresh"> with no content attribute threw mid-scrub and turned the
+            // whole page into a 500.
+            if (metaTag.Attributes["http-equiv"]?.Value?.ToLowerInvariant() != "refresh")
             {
-                var refreshContent = metaTag.Attributes["content"].Value;
-
-                if (refreshContent.Contains("http:"))
-                {
-                    var rContentParsed = refreshContent.Split("=", 2);
-
-                    var newUrl = rContentParsed[1][(rContentParsed[1].IndexOf("/http") + 1)..];
-
-                    metaTag.Attributes["content"].Value = rContentParsed[0] + "=" + newUrl;
-                }
+                continue;
             }
+
+            var refreshContent = metaTag.Attributes["content"]?.Value;
+
+            if (refreshContent == null || !refreshContent.Contains("http:"))
+            {
+                continue;
+            }
+
+            var rContentParsed = refreshContent.Split("=", 2);
+
+            // content="http:..." with no '=' splits into one part, and indexing [1] threw.
+            if (rContentParsed.Length < 2)
+            {
+                continue;
+            }
+
+            var slashHttp = rContentParsed[1].IndexOf("/http");
+
+            var newUrl = slashHttp >= 0 ? rContentParsed[1][(slashHttp + 1)..] : rContentParsed[1];
+
+            metaTag.Attributes["content"].Value = rContentParsed[0] + "=" + newUrl;
         }
     }
 

@@ -12,6 +12,31 @@ namespace VintageHive.Proxy.Http
 
         public static readonly IReadOnlyList<string> HttpVersions = new List<string> { "HTTP/1.0", "HTTP/1.1" };
 
+        /// <summary>
+        /// Whether <paramref name="host"/> is <paramref name="domain"/> or a subdomain of it.
+        /// </summary>
+        /// <remarks>
+        /// Routing used a bare Host.EndsWith(domain), which has no notion of label boundaries: an
+        /// attacker-registered "evilblooberry.com" matched the curated "blooberry.com" and got proxied through
+        /// the passthrough path. A domain suffix only counts when it starts at a dot.
+        /// </remarks>
+        public static bool HostMatchesDomain(string host, string domain)
+        {
+            if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(domain))
+            {
+                return false;
+            }
+
+            if (host.Equals(domain, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return host.Length > domain.Length
+                && host[host.Length - domain.Length - 1] == '.'
+                && host.EndsWith(domain, StringComparison.OrdinalIgnoreCase);
+        }
+
         public static class HttpHeaderName
         {
             public const string ContentType = "Content-Type";

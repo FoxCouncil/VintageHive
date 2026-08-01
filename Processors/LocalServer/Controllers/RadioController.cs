@@ -211,7 +211,10 @@ internal class RadioController : Controller
 
         if (Request.QueryParams.ContainsKey("country"))
         {
-            var countryCodeStripped = Request.QueryParams["country"][..2];
+            // ISO alpha-2, but the slice ran unchecked: ?country=U or ?country= threw and served a 500.
+            var countryParam = Request.QueryParams["country"] ?? string.Empty;
+
+            var countryCodeStripped = countryParam.Length >= 2 ? countryParam[..2] : countryParam;
 
             var countryName = Mind.Geonames.GetCountryNameByIso(countryCodeStripped);
 

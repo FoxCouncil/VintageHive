@@ -55,12 +55,12 @@ internal static class HelperProcessor
 
     public static async Task<bool> ProcessHttpRequest(HttpRequest req, HttpResponse res)
     {
-        if (ExternalPassthroughDomains.Any(x => req.Host.ToLower().EndsWith(x)))
+        if (ExternalPassthroughDomains.Any(x => HttpUtilities.HostMatchesDomain(req.Host, x)))
         {
             return await ProcessExternalPassthroughRequest(req, res);
         }
 
-        if (ServiceSupportDomains.Any(x => req.Host.ToLower().EndsWith(x)))
+        if (ServiceSupportDomains.Any(x => HttpUtilities.HostMatchesDomain(req.Host, x)))
         {
             return ProcessServiceSupportRequest(req, res);
         }

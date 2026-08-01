@@ -49,7 +49,7 @@ internal static class ProtoWebProcessor
             httpSitesLoadedAtUtc = DateTime.UtcNow;
         }
 
-        if (AvailableHttpSites.Any(x => req.Uri.Host.EndsWith(x)))
+        if (AvailableHttpSites.Any(x => HttpUtilities.HostMatchesDomain(req.Uri.Host, x)))
         {
             res.Cache = false;
 
@@ -125,7 +125,7 @@ internal static class ProtoWebProcessor
             ftpSitesLoadedAtUtc = DateTime.UtcNow;
         }
 
-        if (AvailableFtpSites.Any(req.Uri.Host.EndsWith))
+        if (AvailableFtpSites.Any(x => HttpUtilities.HostMatchesDomain(req.Uri.Host, x)))
         {
             // We're streaming the data to the client, so it's not caching.
             // We could cache the small pages, but file downloads are not appropriate for SQLite storage.

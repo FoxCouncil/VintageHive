@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using VintageHive.Network;
 using VintageHive.Proxy.Security;
@@ -110,7 +110,6 @@ public class HttpProxy : Listener
 
             if (!handled || (handled && httpResponse.StatusCode == HttpStatusCode.NotFound && !hasOwnBody))
             {
-                // TODO: Add Error Handling...
                 handled = ProcessErrorResponse(httpRequest, httpResponse, HttpStatusCode.NotFound);
             }
 
@@ -213,7 +212,9 @@ public class HttpProxy : Listener
             {
                 // Log.WriteLine(Log.LEVEL_REQUEST, GetType().Name, $"({httpRequest.Uri}) [N/A]", connection.TraceId.ToString());
 
-                // TODO: Store metadata about what made the cached response.
+                // Note: the cache stores only the response bytes, not which processor produced them, so a
+                // cached hit cannot be attributed in the admin log. Worth adding if that attribution is ever
+                // wanted; not a defect.
                 return Convert.FromBase64String(cachedResponse);
             }
             catch (Exception ex) { Log.WriteLine(Log.LEVEL_DEBUG, nameof(HttpProxy), $"Cached response decode failed: {ex.Message}", connection.TraceId.ToString()); }
