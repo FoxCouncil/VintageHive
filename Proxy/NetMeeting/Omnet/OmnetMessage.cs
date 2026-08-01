@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Buffers.Binary;
 using System.Text;
@@ -551,7 +551,9 @@ internal static class OmnetCodec
         var dataLength = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(32));
 
         byte[] objectData = null;
-        if (dataLength > 0 && data.Length >= OmnetConstants.OBJECT_ADD_HEADER_SIZE + (int)dataLength)
+        // Compared in LONG, not int. Casting the attacker-controlled uint to int made any length at or
+        // above 2^31 wrap negative, sail through this guard, and then allocate multi-GB below.
+        if (dataLength > 0 && data.Length >= (long)OmnetConstants.OBJECT_ADD_HEADER_SIZE + dataLength)
         {
             objectData = new byte[dataLength];
             Array.Copy(data, OmnetConstants.OBJECT_ADD_HEADER_SIZE, objectData, 0, (int)dataLength);
@@ -602,7 +604,7 @@ internal static class OmnetCodec
 
         var dataLength = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(56));
         byte[] objectData = null;
-        if (dataLength > 0 && data.Length >= OmnetConstants.OBJECT_CATCHUP_HEADER_SIZE + (int)dataLength)
+        if (dataLength > 0 && data.Length >= (long)OmnetConstants.OBJECT_CATCHUP_HEADER_SIZE + dataLength)
         {
             objectData = new byte[dataLength];
             Array.Copy(data, OmnetConstants.OBJECT_CATCHUP_HEADER_SIZE, objectData, 0, (int)dataLength);
@@ -639,7 +641,7 @@ internal static class OmnetCodec
         var dataLength = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(28));
 
         byte[] objectData = null;
-        if (dataLength > 0 && data.Length >= OmnetConstants.OBJECT_REPLACE_HEADER_SIZE + (int)dataLength)
+        if (dataLength > 0 && data.Length >= (long)OmnetConstants.OBJECT_REPLACE_HEADER_SIZE + dataLength)
         {
             objectData = new byte[dataLength];
             Array.Copy(data, OmnetConstants.OBJECT_REPLACE_HEADER_SIZE, objectData, 0, (int)dataLength);
@@ -679,7 +681,7 @@ internal static class OmnetCodec
 
         var dataLength = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4));
         byte[] objectData = null;
-        if (dataLength > 0 && data.Length >= OmnetConstants.MORE_DATA_HEADER_SIZE + (int)dataLength)
+        if (dataLength > 0 && data.Length >= (long)OmnetConstants.MORE_DATA_HEADER_SIZE + dataLength)
         {
             objectData = new byte[dataLength];
             Array.Copy(data, OmnetConstants.MORE_DATA_HEADER_SIZE, objectData, 0, (int)dataLength);

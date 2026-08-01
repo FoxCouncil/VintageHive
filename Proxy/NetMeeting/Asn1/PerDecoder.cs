@@ -626,9 +626,20 @@ internal class PerDecoder
 
         var components = new List<int>();
 
-        // First byte: c1 * 40 + c2 (X.690 Section 8.19.4)
-        components.Add(bytes[0] / 40);
-        components.Add(bytes[0] % 40);
+        // First byte: c1 * 40 + c2 (X.690 Section 8.19.4). Arc 1 is capped at 2, so for any first byte at or
+        // above 80 the plain divide is wrong - the second arc is then unbounded and carries the remainder.
+        // Harmless for the small OIDs actually exchanged here (T.124 {0 0 20 124 0 1} and the H.225 protocol
+        // OID both have a first byte well under 80) but this is a shared decoder.
+        if (bytes[0] < 80)
+        {
+            components.Add(bytes[0] / 40);
+            components.Add(bytes[0] % 40);
+        }
+        else
+        {
+            components.Add(2);
+            components.Add(bytes[0] - 80);
+        }
 
         var i = 1;
 

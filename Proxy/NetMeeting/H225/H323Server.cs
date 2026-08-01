@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Net;
@@ -15,7 +15,13 @@ namespace VintageHive.Proxy.NetMeeting.H225;
 /// </summary>
 internal class H323Server : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     private const string LOG_SRC = nameof(H323Server);
+
+    /// <summary>How long to wait for a callee's signalling socket before giving up on the call.</summary>
+    private static readonly TimeSpan CalleeConnectTimeout = TimeSpan.FromSeconds(5);
 
     private readonly RasRegistry _registry;
     private readonly ConcurrentDictionary<int, H323Call> _activeCalls = new();
@@ -141,7 +147,14 @@ internal class H323Server : Listener
             try
             {
                 calleeClient = new TcpClient();
-                await calleeClient.ConnectAsync(call.CalleeSignalAddress.Address, call.CalleeSignalAddress.Port);
+
+                // Bounded. Any endpoint can self-register an alias-to-address mapping over unauthenticated
+                // RRQ, so an unreachable address here pinned the CALLER's signalling task for the full OS
+                // connect timeout (about 21 seconds on Windows) with nothing to show for it.
+                using var connectTimeout = new CancellationTokenSource(CalleeConnectTimeout);
+
+                await calleeClient.ConnectAsync(call.CalleeSignalAddress.Address, call.CalleeSignalAddress.Port, connectTimeout.Token);
+
                 calleeStream = calleeClient.GetStream();
             }
             catch (Exception ex)

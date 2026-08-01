@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Text;
 using VintageHive.Proxy.NetMeeting.Asn1;
@@ -13,8 +13,27 @@ internal abstract class LdapFilter
 {
     public abstract bool Evaluate(IlsUser user);
 
+    /// <summary>
+    /// How deep a filter tree may nest. Each and/or/not level costs about two bytes on the wire against a
+    /// 1 MB message cap, so an unbounded parser could be driven tens of thousands of levels deep by a single
+    /// SearchRequest - and StackOverflowException cannot be caught in .NET, so that took the whole process
+    /// down rather than just the connection. Real filters are a handful of levels at most; NetMeeting's are
+    /// flatter still. Evaluate() recurses over the same tree, so capping the parse bounds both.
+    /// </summary>
+    public const int MaxNestingDepth = 32;
+
     public static LdapFilter Parse(BerDecoder decoder)
     {
+        return Parse(decoder, 0);
+    }
+
+    private static LdapFilter Parse(BerDecoder decoder, int depth)
+    {
+        if (depth > MaxNestingDepth)
+        {
+            throw new ApplicationException($"LDAP filter nested deeper than {MaxNestingDepth} levels");
+        }
+
         var tag = decoder.PeekTag();
 
         switch (tag.RawByte)
@@ -27,7 +46,7 @@ internal abstract class LdapFilter
                 var filters = new List<LdapFilter>();
                 while (children.HasData)
                 {
-                    filters.Add(Parse(children));
+                    filters.Add(Parse(children, depth + 1));
                 }
                 return new AndFilter(filters);
             }
@@ -40,7 +59,7 @@ internal abstract class LdapFilter
                 var filters = new List<LdapFilter>();
                 while (children.HasData)
                 {
-                    filters.Add(Parse(children));
+                    filters.Add(Parse(children, depth + 1));
                 }
                 return new OrFilter(filters);
             }
@@ -50,7 +69,7 @@ internal abstract class LdapFilter
                 decoder.ReadTag();
                 var length = decoder.ReadLength();
                 var child = decoder.Slice(length);
-                return new NotFilter(Parse(child));
+                return new NotFilter(Parse(child, depth + 1));
             }
 
             case LdapConstants.FILTER_EQUALITY:

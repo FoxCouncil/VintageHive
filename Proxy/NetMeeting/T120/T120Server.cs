@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Net;
@@ -19,6 +19,9 @@ namespace VintageHive.Proxy.NetMeeting.T120;
 /// </summary>
 internal class T120Server : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     private const string LOG_SRC = nameof(T120Server);
 
     private readonly ConcurrentDictionary<int, T120Session> _sessions = new();

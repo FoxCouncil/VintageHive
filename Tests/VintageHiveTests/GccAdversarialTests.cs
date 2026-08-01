@@ -217,7 +217,11 @@ public class McsBerAdversarialTests
             0x02, 0x01, 0x00,
             0x30, 0x18 // SEQUENCE claiming 24 bytes, but none follow
         };
-        Assert.ThrowsExactly<IndexOutOfRangeException>(
+        // ApplicationException, not IndexOutOfRangeException. ReadBerDomainParameters and the scalar BER
+        // readers now bounds-check their declared length the way their ReadBerOctetString sibling already
+        // did, so a truncated sequence is rejected as malformed input rather than escaping as an index
+        // crash from somewhere deep in the parse. The neighbouring userData tests read the same way.
+        Assert.ThrowsExactly<ApplicationException>(
             () => McsCodec.DecodeConnectResponse(bytes.ToArray()));
     }
 

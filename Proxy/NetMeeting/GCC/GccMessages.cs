@@ -490,14 +490,18 @@ internal static class GccCodec
     {
         // SET OF length (unconstrained)
         var count = dec.ReadLengthDeterminant();
-        var blocks = new GccUserDataBlock[count];
+
+        // Grown as elements are actually decoded rather than sized up-front from the wire. The old
+        // new GccUserDataBlock[count] allocated from attacker input before a single backing byte was known
+        // to exist; bounded to 16383 by the length determinant, so never a true OOM, but the wrong shape.
+        var blocks = new List<GccUserDataBlock>();
 
         for (var i = 0; i < count; i++)
         {
-            blocks[i] = DecodeUserDataBlock(dec);
+            blocks.Add(DecodeUserDataBlock(dec));
         }
 
-        return blocks;
+        return blocks.ToArray();
     }
 
     private static GccUserDataBlock DecodeUserDataBlock(PerDecoder dec)

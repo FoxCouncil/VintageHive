@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Net;
 using System.Text;
@@ -14,6 +14,9 @@ namespace VintageHive.Proxy.NetMeeting.ILS;
 /// </summary>
 internal class IlsServer : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     private const string LOG_SRC = nameof(IlsServer);
 
     private readonly IlsDirectory _directory = new();

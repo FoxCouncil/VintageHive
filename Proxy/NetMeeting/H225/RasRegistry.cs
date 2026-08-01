@@ -30,14 +30,31 @@ internal class RasRegistry
     /// <summary>Register or update an endpoint. Returns false if the registry is full (new endpoints only).</summary>
     public bool Register(RasEndpoint endpoint)
     {
-        if (!_endpoints.ContainsKey(endpoint.EndpointId) && _endpoints.Count >= MaxEndpoints)
+        // Check-then-act on a ConcurrentDictionary is not atomic: concurrent RRQ datagrams could each see
+        // Count below the cap and each add, pushing the registry past the very limit it exists to enforce.
+        // AddOrUpdate's factory runs under the bucket lock, so the count is re-checked at the moment of the
+        // add rather than some time before it.
+        var admitted = true;
+
+        _endpoints.AddOrUpdate(
+            endpoint.EndpointId,
+            _ =>
+            {
+                if (_endpoints.Count >= MaxEndpoints)
+                {
+                    admitted = false;
+                }
+
+                return endpoint;
+            },
+            (_, _) => endpoint);
+
+        if (!admitted)
         {
-            return false;
+            _endpoints.TryRemove(endpoint.EndpointId, out _);
         }
 
-        _endpoints[endpoint.EndpointId] = endpoint;
-
-        return true;
+        return admitted;
     }
 
     /// <summary>Find an existing registration by its primary call-signal address (for re-registration dedup).</summary>

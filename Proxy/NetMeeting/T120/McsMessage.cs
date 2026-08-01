@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Buffers.Binary;
 using VintageHive.Proxy.NetMeeting.Asn1;
@@ -689,6 +689,14 @@ internal static class McsCodec
     {
         var tag = data[offset++];
         var length = ReadBerLength(data, ref offset);
+
+        // Skipping past the end leaves offset out of range for the next reader rather than throwing here,
+        // which turns a bad length into a confusing failure somewhere further along the parse.
+        if (offset + length > data.Length)
+        {
+            throw new ApplicationException("BER octet string length runs past the end of the buffer");
+        }
+
         offset += length;
     }
 
@@ -703,6 +711,16 @@ internal static class McsCodec
     {
         var tag = data[offset++]; // 0x0A
         var length = ReadBerLength(data, ref offset);
+
+        // Bounds-checked like its ReadBerOctetString sibling, which was hardened while these were left
+        // indexing data[offset++] on an unvalidated length. A malformed Connect-Initial reaching T120Server
+        // threw IndexOutOfRangeException mid-parse; the server's outer catch contained it to one connection,
+        // but the decoder was unsafe by contract.
+        if (offset + length > data.Length)
+        {
+            throw new ApplicationException("BER value length runs past the end of the buffer");
+        }
+
         var value = 0;
         for (var i = 0; i < length; i++)
         {
@@ -715,6 +733,16 @@ internal static class McsCodec
     {
         var tag = data[offset++]; // 0x02
         var length = ReadBerLength(data, ref offset);
+
+        // Bounds-checked like its ReadBerOctetString sibling, which was hardened while these were left
+        // indexing data[offset++] on an unvalidated length. A malformed Connect-Initial reaching T120Server
+        // threw IndexOutOfRangeException mid-parse; the server's outer catch contained it to one connection,
+        // but the decoder was unsafe by contract.
+        if (offset + length > data.Length)
+        {
+            throw new ApplicationException("BER value length runs past the end of the buffer");
+        }
+
         var value = 0;
         for (var i = 0; i < length; i++)
         {
@@ -727,6 +755,14 @@ internal static class McsCodec
     {
         var tag = data[offset++]; // 0x30 (SEQUENCE)
         var length = ReadBerLength(data, ref offset);
+
+        // Same guard as the scalar readers: end is used to reposition after the fields, so a length past the
+        // buffer would leave offset out of range for whatever parses next.
+        if (offset + length > data.Length)
+        {
+            throw new ApplicationException("BER sequence length runs past the end of the buffer");
+        }
+
         var end = offset + length;
 
         var maxChannelIds = ReadBerInteger(data, ref offset);
