@@ -50,17 +50,22 @@ public sealed class YmsgSession : YahooSession
         }
     }
 
-    // Real server-to-client Message packets carry 4 (from), 5 (to), 14 (text), 15 (timestamp), 97 (utf8)
-    // and the IMVironment pair 63/64. Clients stamp 63/64 on every IM they compose (";0"/"0" for a plain
-    // window; libyahoo2.c:4038 does the same) and the real servers relayed the pair through, so it is echoed
-    // here when the originator supplied one and defaulted to the plain-window values otherwise. A capture
-    // of YM 5.5.0.1244 showed it silently discarding well-formed deliveries that lacked the pair, and the
-    // missing pair is the prime suspect for that drop.
+    // The HEADER STATUS is the load-bearing part: a live delivery must go out as YmsgStatus.LiveDelivery (1).
+    // YM 5.5.0.1244 silently discards a server-to-client Message with any other status, which made every live
+    // delivery - chat-service replies and member-to-member relays alike - invisible to the real client while
+    // the loopback tests stayed green, because they assert the server's bytes rather than the client's parser.
+    // Proved with an A/B probe against a signed-on 5.5 session; see YmsgStatus.LiveDelivery.
+    //
+    // Body fields: 4 (from), 5 (to), 14 (text), 15 (timestamp), 97 (utf8) and the IMVironment pair 63/64.
+    // Clients stamp 63/64 on every IM they compose (";0"/"0" for a plain window; libyahoo2.c:4038 does the
+    // same) and real servers relayed the pair through, so it is echoed when the originator supplied one and
+    // defaulted otherwise. Note the same probe proved 63/64 is NOT what gates rendering - the pair was present
+    // in the dropped variants too - so keep it for fidelity, not as the fix.
     // Fields 0/1 must NOT be present: libyahoo2-lineage clients treat the FIRST of key 1 or 4 as the
     // sender, so a leading field 1 would attribute the message to the recipient themselves.
     public override Task<bool> DeliverMessageAsync(string from, string text, long timestamp, bool offline, string imvironment = null, string imvironmentFlag = null)
     {
-        var delivery = new YmsgPacket(YmsgService.Message, offline ? YmsgStatus.OfflineMessage : 0, SessionId)
+        var delivery = new YmsgPacket(YmsgService.Message, offline ? YmsgStatus.OfflineMessage : YmsgStatus.LiveDelivery, SessionId)
             .Add(4, from)
             .Add(5, Username)
             .Add(14, text)
@@ -102,9 +107,14 @@ public sealed class YmsgSession : YahooSession
         return GuardedAsync(ct => SendAsync(logoff, ct));
     }
 
+    // The sender's status word is deliberately NOT echoed here. A 5.5 client stamps 22 (0x16) on its outgoing
+    // TYPING, and relaying that verbatim produced exactly the shape the A/B probe proved the client drops.
+    // Notify follows the same rule as Message: live deliveries go out as status 1. Typing on/off is carried in
+    // field 13, which is where Escargot puts it too. The status parameter stays on the signature because
+    // PagerSession's YPNS delivery has its own use for it.
     public override Task<bool> DeliverTypingAsync(YahooSession from, string kind, string flag, uint status)
     {
-        var notify = new YmsgPacket(YmsgService.Notify, status, SessionId)
+        var notify = new YmsgPacket(YmsgService.Notify, YmsgStatus.LiveDelivery, SessionId)
             .Add(4, from.Username)
             .Add(5, Username)
             .Add(49, kind)

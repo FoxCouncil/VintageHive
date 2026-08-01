@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
+﻿// Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
@@ -16,6 +16,9 @@ namespace VintageHive.Proxy.Yahoo;
 // YahooSessionRegistry's, shared with every other Yahoo! transport.
 public sealed class YmsgServer : Listener
 {
+
+    // ProcessConnection below drives the whole session; there is nothing for the base read loop to do.
+    protected override bool OwnsConnection => true;
     // The shared table, exposed under its historical name. Not a YMSG-private table: an HTTP Pager session
     // for the same account lands in here too, and supersedes this one.
     public static ConcurrentDictionary<uint, YahooSession> Sessions => YahooSessionRegistry.Sessions;
@@ -319,6 +322,14 @@ public sealed class YmsgServer : Listener
 
     async Task HandleStatusChangeAsync(YmsgSession session, YmsgPacket packet)
     {
+        // The guard its three siblings (HandleMessageAsync, HandleNotifyAsync, HandleBuddyEditAsync) all have
+        // and this one did not. Without it a pre-auth connection could send IsAway and drive a presence
+        // broadcast for a subject whose Username was still null, pushing junk into every signed-on roster.
+        if (!session.IsAuthenticated)
+        {
+            return;
+        }
+
         if (uint.TryParse(packet.Get(10), out var status))
         {
             session.YahooStatus = status;

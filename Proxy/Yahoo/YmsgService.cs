@@ -45,4 +45,14 @@ internal static class YmsgStatus
     public const uint LoginError = 0xFFFFFFFF;
     public const uint Duplicate = 0xFFFFFFFF;
     public const uint OfflineMessage = 5;
+
+    // Header status for a LIVE server-to-client delivery. Shares BeRightBack's wire value, but this is the
+    // header word, not a presence code - real servers used 1 as the generic "server response" status.
+    //
+    // This is load-bearing, not cosmetic: YM 5.5.0.1244 silently DISCARDS any server-to-client Message whose
+    // header status is not 1. Proved on the wire with an A/B probe - six variants injected into a signed-on
+    // session, and only the three with status 1 rendered. Status 0 and mid-session status 5 were both
+    // dropped regardless of which body fields were present, and field 15 and field order made no difference.
+    // Escargot's YMSG front sends BRB(1) on every live Message and Notify for the same reason.
+    public const uint LiveDelivery = 1;
 }

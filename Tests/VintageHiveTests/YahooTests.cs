@@ -477,6 +477,9 @@ public class YmsgServerTests
         var delivered = await bob.ReadAsync();
 
         Assert.AreEqual(YmsgService.Message, delivered.Service);
+        // The one delivery that is NOT status 1. A live Message must be 1 or YM 5.5 discards it, but the
+        // at-login offline flush keeps 5, matching Escargot's OIM-at-login shape. Mid-session status 5 is
+        // dropped by the client; at-login is a different, accepted window. Do not "unify" these two.
         Assert.AreEqual(YmsgStatus.OfflineMessage, delivered.Status, "Offline delivery must carry the offline header status");
         Assert.AreEqual("alice", delivered.Get(4), "Sender must be in field 4");
         Assert.IsNull(delivered.Get(1), "Field 1 must be absent or period clients attribute the message to the recipient");
@@ -604,13 +607,17 @@ public class YmsgServerTests
         await bob.LoginAsync("bob");
         await alice.ReadAsync(); // drain bob's arrival LOGON
 
-        // 22 is the client's TYPING header status; it must be echoed through to the recipient.
+        // 22 (0x16) is what a 5.5 client stamps on its OUTGOING typing notification. This test used to assert
+        // that value was echoed through to the recipient, which pinned the bug rather than the behaviour: an
+        // A/B probe against a signed-on 5.5.0.1244 session showed the client silently discards any
+        // server-to-client delivery whose header status is not 1, so the "faithfully relayed" 22 was landing
+        // on the floor. Escargot sends BRB(1) on every live Notify for the same reason.
         await alice.SendAsync(new YmsgPacket(YmsgService.Notify, 22, 0).Add(1, "alice").Add(5, "bob").Add(49, "TYPING").Add(13, "1").Add(14, " "));
 
         var notify = await bob.ReadAsync();
 
         Assert.AreEqual(YmsgService.Notify, notify.Service);
-        Assert.AreEqual(22u, notify.Status, "Header status must be relayed");
+        Assert.AreEqual(YmsgStatus.LiveDelivery, notify.Status, "A live Notify must go out as status 1 regardless of what the sender stamped, or YM 5.5 drops it.");
         Assert.AreEqual("alice", notify.Get(4), "Sender must be rewritten into field 4");
         Assert.AreEqual("TYPING", notify.Get(49));
         Assert.AreEqual("1", notify.Get(13));

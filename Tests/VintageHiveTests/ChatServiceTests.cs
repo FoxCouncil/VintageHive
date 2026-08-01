@@ -116,6 +116,7 @@ public class ChatServiceYmsgTests
         var first = await alice.ReadAsync();
 
         Assert.AreEqual(YmsgService.Message, first.Service);
+        Assert.AreEqual(YmsgStatus.LiveDelivery, first.Status, "YM 5.5 silently discards a live delivery whose header status is not 1, so this reply would never render.");
         Assert.AreEqual("yahoohelper", first.Get(4), "The reply must carry the name as the client sent it, or the IM window may not thread it.");
         Assert.AreEqual("alice", first.Get(5));
         Assert.AreEqual("you said: help", first.Get(14));
@@ -125,6 +126,7 @@ public class ChatServiceYmsgTests
         var second = await alice.ReadAsync();
 
         Assert.AreEqual("anything else?", second.Get(14), "Each returned line is its own Message packet.");
+        Assert.AreEqual(YmsgStatus.LiveDelivery, second.Status, "Every line of a multi-line service reply is its own live delivery and needs status 1.");
     }
 
     [TestMethod]
@@ -188,6 +190,7 @@ public class ChatServiceYmsgTests
         var delivered = await bob.ReadAsync();
 
         Assert.AreEqual("hi bob", delivered.Get(14), "The signed-on member must receive the message.");
+        Assert.AreEqual(YmsgStatus.LiveDelivery, delivered.Status, "A member-to-member relay is a live delivery: status 1 or YM 5.5 drops it on the floor.");
         Assert.IsFalse(handled, "The service handler must not fire when the recipient is a live session.");
     }
 }
