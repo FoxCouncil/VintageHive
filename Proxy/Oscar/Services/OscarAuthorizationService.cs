@@ -38,16 +38,37 @@ public class OscarAuthorizationService : IOscarService
 
                 session.ScreenName = tlvs.GetTlv(0x01).Value.ToASCII();
 
-                if (!Mind.Db.UserExistsByUsername(session.ScreenName))
+                HiveUser user;
+
+                var aliasSignOn = false;
+
+                if (Mind.Db.UserExistsByUsername(session.ScreenName))
                 {
-                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (unknown user): {session.ScreenName}", traceId);
-
-                    await FailAuth(session, snac);
-
-                    return;
+                    user = Mind.Db.UserFetch(session.ScreenName);
                 }
+                else
+                {
+                    // Same alias fallback as channel-1 auth: only the account lookup changes. ScreenName
+                    // stays the presented number, and the hash below already salts with it - which is what
+                    // the client hashed, since SRV_AUTH_KEY_RESPONSE echoes the presented name back as the
+                    // challenge key.
+                    user = Mind.Db.UserFetchByAlias(session.ScreenName);
 
-                var user = Mind.Db.UserFetch(session.ScreenName);
+                    if (user == null)
+                    {
+                        Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"MD5 auth failed (unknown user): {session.ScreenName}", traceId);
+
+                        await FailAuth(session, snac);
+
+                        return;
+                    }
+
+                    aliasSignOn = true;
+
+                    session.AccountUsername = user.Username;
+
+                    Log.WriteLine(Log.LEVEL_INFO, nameof(OscarAuthorizationService), $"Alias sign-on: {session.ScreenName} is {user.Username}", traceId);
+                }
 
                 session.UserAgent = tlvs.GetTlv(0x03).Value.ToASCII();
 
@@ -61,7 +82,10 @@ public class OscarAuthorizationService : IOscarService
 
                     var remoteIpAddress = session.Client.RemoteIP;
 
-                    var otherSession = Mind.Db.OscarGetSessionByScreenameAndIp(user.Username, remoteIpAddress);
+                    // Sessions are stored under the wire identity, so an alias sign-on has to look up by the
+                    // presented number - keying on the owner would hand it the owner's own AIM session
+                    // state. The username path keeps its historical stored-case key.
+                    var otherSession = Mind.Db.OscarGetSessionByScreenameAndIp(aliasSignOn ? session.ScreenName : user.Username, remoteIpAddress);
 
                     if (otherSession != null)
                     {
@@ -84,7 +108,10 @@ public class OscarAuthorizationService : IOscarService
                         new Tlv(Tlv.Type_ScreenName, session.ScreenName),
                         new Tlv(0x0005, $"{serverIP}:{OscarServer.AdvertisedPort}"),
                         new Tlv(0x0006, session.Cookie),
-                        new Tlv(0x0011, BuildAccountEmail(session.ScreenName)),
+                        // The account email follows the OWNING account (identical to ScreenName when no
+                        // alias is in play): an alias is not a mailbox, so the client is shown the address
+                        // that actually receives mail.
+                        new Tlv(0x0011, BuildAccountEmail(session.AccountUsername)),
                     };
 
                     var authSuccessSnac = snac.NewReply(Family, SRV_LOGIN_REPLY);

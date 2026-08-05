@@ -126,8 +126,10 @@ internal class OscarIcbmService : IOscarService
                             await SendServiceReply(session, screenName, line);
                         }
                     }
-                    // User is offline - store for offline delivery (channel 1 only)
-                    else if (msgChannel == 1 && Mind.Db.UserExistsByUsername(screenName))
+                    // User is offline - store for offline delivery (channel 1 only). A configured numeric
+                    // alias is a valid recipient too: the store stays keyed on the presented number, which
+                    // is the name the owning session signs on with and flushes.
+                    else if (msgChannel == 1 && (Mind.Db.UserExistsByUsername(screenName) || Mind.Db.UserResolveAlias(screenName) != null))
                     {
                         // Store the message TLVs for later delivery
                         var messageTlv = tlvs.GetTlv(0x02);

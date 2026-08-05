@@ -33,6 +33,19 @@ public class OscarSession
 
     public string ScreenName { get; set; }
 
+    // The wire identity and the account it authenticates as split when a numeric alias signs on:
+    // ScreenName stays the presented number - contacts, ICBMs, presence and the session store all key on
+    // it - while the credential, account email and any other user-row lookup follow the owning username.
+    // Defaults to ScreenName, so a session with no alias in play behaves exactly as before.
+    string accountUsername;
+
+    public string AccountUsername
+    {
+        get => accountUsername ?? ScreenName;
+
+        set => accountUsername = value;
+    }
+
     public OscarSessionOnlineStatus Status { get; set; }
 
     // Buddy, permit and deny are mutated by the OWNER's handler thread while OTHER sessions' threads read

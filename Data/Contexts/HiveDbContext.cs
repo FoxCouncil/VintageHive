@@ -30,6 +30,8 @@ public class HiveDbContext : DbContextBase
 
     private const string TABLE_USER = "user";
 
+    private const string TABLE_USERALIAS = "user_alias";
+
     private const string TABLE_OSCARSESSION = "oscar_session";
 
     private const string TABLE_OSCARPROFILE = "oscar_profile";
@@ -179,6 +181,10 @@ public class HiveDbContext : DbContextBase
 
         // User Accounts
         CreateTable(TABLE_USER, "username TEXT UNIQUE COLLATE NOCASE, password TEXT");
+
+        // Optional numeric OSCAR aliases (ICQ UINs): at most one per account, resolving to the owning
+        // username. Sign-on is the only consumer; mail, IRC and finger stay keyed on the username.
+        CreateTable(TABLE_USERALIAS, "username TEXT UNIQUE COLLATE NOCASE, alias TEXT UNIQUE");
 
         // ICQ (OSCAR) Server
         CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
@@ -879,6 +885,138 @@ public class HiveDbContext : DbContextBase
 
             return users;
         });
+    }
+
+    /// <summary>Digits only, and the same 3-8 length window that governs usernames.</summary>
+    public static bool IsValidAlias(string alias)
+    {
+        if (string.IsNullOrEmpty(alias) || alias.Length is < 3 or > 8)
+        {
+            return false;
+        }
+
+        foreach (var character in alias)
+        {
+            if (!char.IsAsciiDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Attaches or reassigns a numeric OSCAR alias. Refused when the alias is malformed, the user is
+    /// unknown, the alias is already a username (the username path always wins at sign-on, so such an alias
+    /// would be dead on arrival), or the alias belongs to another user.</summary>
+    public bool UserSetAlias(string username, string alias)
+    {
+        if (!IsValidAlias(alias))
+        {
+            return false;
+        }
+
+        if (!UserExistsByUsername(username))
+        {
+            return false;
+        }
+
+        if (UserExistsByUsername(alias))
+        {
+            return false;
+        }
+
+        var owner = UserResolveAlias(alias);
+
+        if (owner != null && !owner.Equals(username, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            updateCommand.CommandText = $"UPDATE {TABLE_USERALIAS} SET alias = @alias WHERE username = @username";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@alias", alias));
+            updateCommand.Parameters.Add(new SqliteParameter("@username", username));
+
+            try
+            {
+                if (updateCommand.ExecuteNonQuery() == 0)
+                {
+                    using var insertCommand = context.CreateCommand();
+
+                    insertCommand.CommandText = $"INSERT INTO {TABLE_USERALIAS} (username, alias) VALUES(@username, @alias)";
+
+                    insertCommand.Parameters.Add(new SqliteParameter("@username", username));
+                    insertCommand.Parameters.Add(new SqliteParameter("@alias", alias));
+
+                    insertCommand.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+
+                return true;
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+            {
+                // UNIQUE constraint: the ownership checks above are check-then-write, so two racing
+                // assignments of the same alias both pass them and the loser lands here. "Refused" is the
+                // same answer the pre-checks would have given it.
+                return false;
+            }
+        });
+    }
+
+    public bool UserClearAlias(string username)
+    {
+        return WithContext(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_USERALIAS} WHERE username = @username";
+
+            command.Parameters.Add(new SqliteParameter("@username", username));
+
+            return Convert.ToBoolean(command.ExecuteNonQuery());
+        });
+    }
+
+    /// <summary>The username owning this alias, or null. Purely the table lookup: it does not check that the
+    /// owning user row still exists (UserFetchByAlias does).</summary>
+    public string UserResolveAlias(string alias)
+    {
+        if (string.IsNullOrEmpty(alias))
+        {
+            return null;
+        }
+
+        return WithContext<string>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT username FROM {TABLE_USERALIAS} WHERE alias = @alias";
+
+            command.Parameters.Add(new SqliteParameter("@alias", alias));
+
+            using var reader = command.ExecuteReader();
+
+            return reader.Read() ? reader.GetString(0) : null;
+        });
+    }
+
+    /// <summary>The user row owning this alias, or null when the alias is unknown or its owner no longer
+    /// exists. Sign-on must use this rather than UserResolveAlias so nobody authenticates against a row that
+    /// is not there.</summary>
+    public HiveUser UserFetchByAlias(string alias)
+    {
+        var owner = UserResolveAlias(alias);
+
+        return owner == null ? null : UserFetch(owner);
     }
 
     #endregion

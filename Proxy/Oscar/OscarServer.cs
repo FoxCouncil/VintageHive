@@ -343,6 +343,18 @@ public class OscarServer : Listener
         session.SignOnTime = DateTimeOffset.UtcNow;
         session.IsAuthenticated = true;
 
+        // A session stored under a numeric alias re-adopts its owning account, so anything on this
+        // connection that reads the user row follows the owner while the wire identity stays the number.
+        if (!Mind.Db.UserExistsByUsername(session.ScreenName))
+        {
+            var aliasOwner = Mind.Db.UserResolveAlias(session.ScreenName);
+
+            if (aliasOwner != null)
+            {
+                session.AccountUsername = aliasOwner;
+            }
+        }
+
         // Ensure user profile exists in the database
         Mind.Db.OscarEnsureProfileExists(session.ScreenName);
 
@@ -376,16 +388,32 @@ public class OscarServer : Listener
             return;
         }
 
-        if (!Mind.Db.UserExistsByUsername(session.ScreenName))
+        HiveUser user;
+
+        if (Mind.Db.UserExistsByUsername(session.ScreenName))
         {
-            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Auth failed (unknown user): {session.ScreenName}", traceId);
-
-            await AuthFailedError(session);
-
-            return;
+            user = Mind.Db.UserFetch(session.ScreenName);
         }
+        else
+        {
+            // Not a username - the one remaining possibility is a configured numeric alias. The presented
+            // name stays the session's wire identity either way; only the credential check runs against
+            // the owning account.
+            user = Mind.Db.UserFetchByAlias(session.ScreenName);
 
-        var user = Mind.Db.UserFetch(session.ScreenName);
+            if (user == null)
+            {
+                Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Auth failed (unknown user): {session.ScreenName}", traceId);
+
+                await AuthFailedError(session);
+
+                return;
+            }
+
+            session.AccountUsername = user.Username;
+
+            Log.WriteLine(Log.LEVEL_INFO, nameof(OscarServer), $"Alias sign-on: {session.ScreenName} is {user.Username}", traceId);
+        }
 
         if (OscarUtils.RoastPassword(user.Password).SequenceEqual(passwordTlv.Value))
         {
