@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using System.Text.RegularExpressions;
+
 namespace VintageHive.Data.Types;
 
 /// <summary>
@@ -9,7 +11,7 @@ namespace VintageHive.Data.Types;
 /// the compile-time <see cref="HiveDomains"/> constants. Every member re-reads config so an
 /// embedding host's ConfigSet takes effect without restart - do not cache the results.
 /// </summary>
-public static class MailDomains
+public static partial class MailDomains
 {
     public static IReadOnlyList<string> All
     {
@@ -78,4 +80,58 @@ public static class MailDomains
 
         return true;
     }
+
+    // Gate for operator-supplied domain lists (the admin panel field). EmailAddress's domain match is
+    // deliberately loose ("anything but @, whitespace, >"), so this is the layer that keeps garbage -
+    // LIKE wildcards, underscores, stray '@'s - out of the stored config. Normalization: split on
+    // commas, trim, lowercase, dedupe keeping first occurrence (order matters - the first entry is the
+    // primary domain the postmaster signs bounces with). An empty or all-whitespace input normalizes to
+    // "" - the stored shape that makes All fall back to the built-in default - and reports success,
+    // matching the admin panel's "empty restores the built-in" convention everywhere else.
+    public static bool TryNormalizeList(string raw, out string normalized)
+    {
+        normalized = null;
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            normalized = string.Empty;
+
+            return true;
+        }
+
+        var entries = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var domains = new List<string>(entries.Length);
+
+        foreach (var entry in entries)
+        {
+            var domain = entry.ToLowerInvariant();
+
+            if (domain.Length > 253 || !HostnameRegex().IsMatch(domain))
+            {
+                return false;
+            }
+
+            if (!domains.Contains(domain))
+            {
+                domains.Add(domain);
+            }
+        }
+
+        if (domains.Count == 0)
+        {
+            normalized = string.Empty;
+
+            return true;
+        }
+
+        normalized = string.Join(",", domains);
+
+        return true;
+    }
+
+    // Anchored: dot-separated labels of letters/digits/hyphens, no leading/trailing hyphen, 63 chars
+    // per label. A single label ("hive") is allowed - era LANs use dotless names.
+    [GeneratedRegex(@"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$")]
+    private static partial Regex HostnameRegex();
 }

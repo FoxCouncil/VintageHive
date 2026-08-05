@@ -400,6 +400,33 @@ internal partial class AdminController : Controller
         Response.SetJsonSuccess();
     }
 
+    [Route("/api/maildomainsset")]
+    public async Task MailDomainsSet()
+    {
+        await Task.Delay(0);
+
+        if (!Request.FormData.ContainsKey("domains"))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        // Validation and normalization live in MailDomains (the single seam for hosted-domain
+        // semantics); empty restores the built-in default. Applies to the very next mail operation -
+        // every reader pulls the list fresh from config.
+        if (!MailDomains.TryNormalizeList(Request.FormData["domains"], out var normalized))
+        {
+            Response.SetJsonSuccess(false);
+
+            return;
+        }
+
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, normalized);
+
+        Response.SetJsonSuccess();
+    }
+
     [Route("/api/protowebtoggle")]
     public async Task ProtoWebToggle()
     {
@@ -490,6 +517,8 @@ internal partial class AdminController : Controller
             ircMotd = Mind.Db.ConfigGet<string>(ConfigNames.IrcMotd),
             ircHostname = Mind.Db.ConfigGet<string>(ConfigNames.IrcHostname),
             ircVersion = Mind.Db.ConfigGet<string>(ConfigNames.IrcVersion),
+            // Raw stored value (may be empty = default); the field's placeholder shows the fallback.
+            mailDomains = Mind.Db.ConfigGet<string>(ConfigNames.ValidMailDomains),
             ia = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchive),
             iayear = Mind.Db.ConfigGet<int>(ConfigNames.ServiceInternetArchiveYear),
             iaworker = Mind.Db.ConfigGet<bool>(ConfigNames.ServiceInternetArchiveWorker),

@@ -167,6 +167,15 @@
         </div>
     </div>
     <div class="row g-2 mb-4 align-items-end">
+        <div class="col-sm-9">
+            <label class="form-label small mb-1">Hosted mail domains (comma-separated, first is the primary the postmaster uses; empty = hive.com). Gates SMTP/POP3/IMAP logins, MAIL FROM and RCPT TO. Applies immediately.</label>
+            <input type="text" id="mail_domains" class="form-control" placeholder="hive.com">
+        </div>
+        <div class="col-sm-3">
+            <button type="button" id="mail_domains_save" class="btn btn-outline-primary w-100">Save</button>
+        </div>
+    </div>
+    <div class="row g-2 mb-4 align-items-end">
         <div class="col-sm-5">
             <label class="form-label small mb-1">IRC server hostname (empty = irc.hive.com)</label>
             <input type="text" id="irc_hostname" class="form-control" placeholder="irc.hive.com">
@@ -340,6 +349,7 @@
                 setInputIfNotEditing(gei("irc_motd_text"), status.ircMotd || "");
                 setInputIfNotEditing(gei("irc_hostname"), status.ircHostname || "");
                 setInputIfNotEditing(gei("irc_version"), status.ircVersion || "");
+                setInputIfNotEditing(gei("mail_domains"), status.mailDomains || "");
             } catch (e) {
                 console.log(e)
             }
@@ -384,6 +394,10 @@
         });
         gei("irc_motd_save").addEventListener("click", async () => {
             await callApi("ircmotdset", formData({ motd: gei("irc_motd_text").value }));
+            await updateDashboard();
+        });
+        gei("mail_domains_save").addEventListener("click", async () => {
+            await callApi("maildomainsset", formData({ domains: gei("mail_domains").value.trim() }));
             await updateDashboard();
         });
         gei("irc_identity_save").addEventListener("click", async () => {
