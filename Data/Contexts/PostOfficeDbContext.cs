@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
 using Microsoft.Data.Sqlite;
+using System.Data;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -32,9 +33,7 @@ public class PostOfficeDbContext : DbContextBase
         {
             using var command = context.CreateCommand();
 
-            command.CommandText = $"SELECT COALESCE(SUM(size), 0) FROM {TABLE_EMAILS} WHERE toAddress LIKE @toAddressPattern ESCAPE '\\'";
-
-            command.Parameters.Add(new SqliteParameter("@toAddressPattern", EscapeLikePattern(username) + "@%"));
+            command.CommandText = $"SELECT COALESCE(SUM(size), 0) FROM {TABLE_EMAILS} WHERE {BuildHostedAddressPredicate(command, username)}";
 
             return Convert.ToInt64(command.ExecuteScalar());
         });
@@ -83,6 +82,32 @@ public class PostOfficeDbContext : DbContextBase
         return value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
     }
 
+    // The old shape here was "LIKE 'user@%'": local part only, any domain. New mail can't land under a
+    // foreign domain any more (RCPT rejects it, the postmaster routes on local part + domain), but rows
+    // misdelivered by pre-enforcement builds still exist in real databases, and a prefix match hands them
+    // to whichever local user shares the local part. So reads enumerate the hosted-domain list instead:
+    // one fully-escaped, wildcard-free LIKE per domain (LIKE rather than '=' keeps the ASCII
+    // case-insensitivity the prefix match had - toAddress has no NOCASE collation). The list is runtime
+    // config read fresh via MailDomains on every call, never cached, so this filters at read time only:
+    // a temporarily narrowed domain list hides mail, it never destroys it.
+    private static string BuildHostedAddressPredicate(IDbCommand command, string username)
+    {
+        var domains = MailDomains.All;
+
+        var clauses = new string[domains.Count];
+
+        for (var i = 0; i < domains.Count; i++)
+        {
+            var parameterName = "@toAddress" + i;
+
+            clauses[i] = $"toAddress LIKE {parameterName} ESCAPE '\\'";
+
+            command.Parameters.Add(new SqliteParameter(parameterName, EscapeLikePattern(username + "@" + domains[i])));
+        }
+
+        return "(" + string.Join(" OR ", clauses) + ")";
+    }
+
     public List<EmailAddress> ProcessAndInsertEmail(EmailAddress from, HashSet<EmailAddress> toAddresses, string data)
     {
         var subject = Regex.Match(data, @"Subject: (.*?)\r\n", RegexOptions.IgnoreCase).Groups[1].Value;
@@ -119,7 +144,7 @@ public class PostOfficeDbContext : DbContextBase
 
         return skipped;
     }
-    public List<EmailMessage> GetDeliveredEmailsForUser(string toAddressStartsWith)
+    public List<EmailMessage> GetDeliveredEmailsForUser(string username)
     {
         var deliveredEmails = new List<EmailMessage>();
 
@@ -127,9 +152,7 @@ public class PostOfficeDbContext : DbContextBase
         {
             using var selectCommand = context.CreateCommand();
 
-            selectCommand.CommandText = $"SELECT * FROM {TABLE_EMAILS} WHERE delivery = 1 AND toAddress LIKE @toAddressPattern ESCAPE '\\'";
-
-            selectCommand.Parameters.Add(new SqliteParameter("@toAddressPattern", EscapeLikePattern(toAddressStartsWith) + "@%"));
+            selectCommand.CommandText = $"SELECT * FROM {TABLE_EMAILS} WHERE delivery = 1 AND {BuildHostedAddressPredicate(selectCommand, username)}";
 
             using var reader = selectCommand.ExecuteReader();
 
