@@ -535,9 +535,13 @@ public sealed class YmsgServer : Listener
         return YmsgCrypt.MakeChallenge();
     }
 
-    // True only when the client's fields 6 and 96 match what the stored password produces for this session's
-    // challenge. Every other outcome - no challenge issued, an unusable challenge, a missing field, an unknown
+    // True only when the client's field 6 matches what the stored password produces for this session's
+    // challenge. Every other outcome - no challenge issued, an unusable challenge, a missing field 6, an unknown
     // account - is a refusal. There is deliberately no branch here that accepts something it could not check.
+    // Field 96 is computed and compared but never gates the login: Messenger 5.5 sends a wrong field 96 on its
+    // first sign-on per process (correct field 6 from the same challenge and password proves the client is not
+    // mis-deriving; it hashed a different crypt(3) input), so Yahoo's servers evidently never gated on it.
+    // Field 6 alone is a full challenge-bound proof of knowledge of the password, so this weakens nothing.
     static bool IsAuthResponseValid(YmsgSession session, YmsgPacket packet, string username, string traceId)
     {
         if (session.Challenge == null)
@@ -550,7 +554,7 @@ public sealed class YmsgServer : Listener
         var resp6 = packet.Get(6);
         var resp96 = packet.Get(96);
 
-        if (string.IsNullOrEmpty(resp6) || string.IsNullOrEmpty(resp96))
+        if (string.IsNullOrEmpty(resp6))
         {
             Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (no crypt response): {username}", traceId);
 
@@ -576,14 +580,19 @@ public sealed class YmsgServer : Listener
         }
 
         // Fixed-time compare so a wrong password cannot be narrowed down by timing the reply.
-        var match = CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected.Resp6), Encoding.UTF8.GetBytes(resp6))
-            & CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected.Resp96), Encoding.UTF8.GetBytes(resp96));
+        var match = CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected.Resp6), Encoding.UTF8.GetBytes(resp6));
 
         if (!match)
         {
             Log.WriteLine(Log.LEVEL_WARN, nameof(YmsgServer), $"Auth failed (bad password): {username}", traceId);
 
             return false;
+        }
+
+        if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected.Resp96), Encoding.UTF8.GetBytes(resp96 ?? string.Empty)))
+        {
+            // Known Messenger 5.5 defect on the first sign-on per process; also a useful client fingerprint.
+            Log.WriteLine(Log.LEVEL_INFO, nameof(YmsgServer), $"Field 96 mismatch ignored (field 6 verified): {username}", traceId);
         }
 
         return true;

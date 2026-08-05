@@ -133,10 +133,14 @@ public class YmsgAuthTests
         Assert.AreEqual(YmsgStatus.LoginError, (await AttemptLoginRaw("alice", "", "")).Status);
     }
 
-    // Only one of the two responses being right must not be enough.
+    // Messenger 5.5 sends a wrong field 96 on its first sign-on per process: field 6 from the same challenge is
+    // byte-correct on those attempts, which proves the seed decode, the key derivation, and the password, so the
+    // client simply hashed a different crypt(3) input. Yahoo's real servers evidently did not gate on field 96,
+    // and neither do we - field 6 alone is a full challenge-bound proof of knowledge of the password. A loopback
+    // client computes both fields correctly, so this feeds the defective shape by hand.
     [TestMethod]
     [Timeout(15000)]
-    public async Task Login_OnlyOneResponseFieldCorrect_IsRefused()
+    public async Task Login_CorrectField6WrongField96_IsAcceptedAndMismatchLogged()
     {
         var server = new YmsgServer(IPAddress.Loopback, 0);
 
@@ -151,11 +155,69 @@ public class YmsgAuthTests
 
         var correct = YmsgCrypt.ComputeAuthResponse(seed, YmsgTestEnv.Password);
 
+        var start = DateTimeOffset.UtcNow;
+
         await conn.SendAsync(new YmsgPacket(YmsgService.AuthResp, 0, 0).Add(0, "alice").Add(6, correct.Resp6).Add(96, "wrong"));
 
         var reply = await conn.ReadAsync();
 
-        Assert.AreEqual(YmsgStatus.LoginError, reply.Status, "field 96 must be checked, not just field 6");
+        Assert.AreEqual(YmsgService.List, reply.Service, "Messenger 5.5's first sign-on per process carries a wrong field 96; a correct field 6 must sign in");
+
+        // The mismatch is demoted, not discarded - it stays in the log as a client-fingerprint signal. The log
+        // table outlives the process, so only rows written after this attempt count.
+        Assert.IsTrue(
+            Mind.Db!.GetLogItems(1, 200).Any(l => l.Timestamp >= start && l.Message.Contains("Field 96 mismatch ignored")),
+            "The ignored field 96 mismatch must be visible in the log");
+    }
+
+    // The inverse must never pass: field 96 is observational, not an alternate gate.
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Login_WrongField6CorrectField96_IsRefused()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var conn = new YmsgConn(server);
+
+        await conn.SendAsync(new YmsgPacket(YmsgService.Verify, 0, 0));
+        await conn.ReadAsync();
+
+        await conn.SendAsync(new YmsgPacket(YmsgService.Auth, 0, 0).Add(1, "alice"));
+
+        var seed = (await conn.ReadAsync()).Get(94);
+
+        var correct = YmsgCrypt.ComputeAuthResponse(seed, YmsgTestEnv.Password);
+
+        await conn.SendAsync(new YmsgPacket(YmsgService.AuthResp, 0, 0).Add(0, "alice").Add(6, "wrong").Add(96, correct.Resp96));
+
+        var reply = await conn.ReadAsync();
+
+        Assert.AreEqual(YmsgStatus.LoginError, reply.Status, "field 6 is the gate; a correct field 96 alone must not authenticate");
+    }
+
+    // Field 96 being absent entirely is treated the same as a mismatch when field 6 proves the password.
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Login_CorrectField6MissingField96_IsAccepted()
+    {
+        var server = new YmsgServer(IPAddress.Loopback, 0);
+
+        using var conn = new YmsgConn(server);
+
+        await conn.SendAsync(new YmsgPacket(YmsgService.Verify, 0, 0));
+        await conn.ReadAsync();
+
+        await conn.SendAsync(new YmsgPacket(YmsgService.Auth, 0, 0).Add(1, "alice"));
+
+        var seed = (await conn.ReadAsync()).Get(94);
+
+        var correct = YmsgCrypt.ComputeAuthResponse(seed, YmsgTestEnv.Password);
+
+        await conn.SendAsync(new YmsgPacket(YmsgService.AuthResp, 0, 0).Add(0, "alice").Add(6, correct.Resp6));
+
+        var reply = await conn.ReadAsync();
+
+        Assert.AreEqual(YmsgService.List, reply.Service);
     }
 
     // A response valid for one challenge must not be replayable against a different one.
