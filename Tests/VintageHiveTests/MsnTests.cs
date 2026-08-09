@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using VintageHive;
 using VintageHive.Data.Contexts;
+using VintageHive.Data.Types;
 using VintageHive.Network;
 using VintageHive.Proxy.Msn;
 using VintageHive.Proxy.Presence;
@@ -579,6 +580,132 @@ public class MsnServerTests
 
         Assert.AreEqual(DateTimeOffset.MinValue, session.IdleSince);
         Assert.AreEqual(0u, PresenceRegistry.Find("alice").IdleSeconds);
+    }
+
+    // MSN Messenger refuses to submit a bare sign-in name (it demands the .NET Passport name@domain
+    // form client-side), so name@<hosted domain> must authenticate against the local part's stored
+    // password while the wire identity stays the address the client presented.
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Login_PassportAddressOnHostedDomain_AuthenticatesAsTheLocalPart()
+    {
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var account = $"alice@{MailDomains.Primary}";
+
+        using var conn = new MsnConn(server);
+
+        await conn.SendAsync("VER 1 MSNP7 CVR0");
+        await conn.ReadLineAsync();
+
+        await conn.SendAsync($"USR 3 MD5 I {account}");
+
+        var challenge = (await conn.ReadLineAsync()).Split(' ')[4];
+
+        await conn.SendAsync($"USR 4 MD5 S {MsnServer.Md5Response(challenge, MsnTestEnv.Password)}");
+
+        var ok = await conn.ReadLineAsync();
+
+        // The OK (and everything downstream) carries the presented address, not the bare local part.
+        StringAssert.StartsWith(ok, $"USR 4 OK {account} ", $"A Passport address on a hosted domain must sign in with the local part's password, got: {ok}");
+
+        // The session store keys on the resolved username, so cross-protocol lookups and the bare form agree.
+        Assert.IsTrue(MsnServer.NsSessions.TryGetValue("alice", out var session), "The session must be keyed on the resolved username");
+        Assert.AreEqual(account, session.Account, "The wire identity must stay the presented address");
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Login_PassportAddressOnUnhostedDomain_Is911NotStripped()
+    {
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var conn = new MsnConn(server);
+
+        await conn.SendAsync("VER 1 MSNP7 CVR0");
+        await conn.ReadLineAsync();
+
+        await conn.SendAsync("USR 3 MD5 I alice@evil.example");
+
+        var challenge = (await conn.ReadLineAsync()).Split(' ')[4];
+
+        // The CORRECT password: only the foreign domain may cause the refusal, never a stripped-domain success.
+        await conn.SendAsync($"USR 4 MD5 S {MsnServer.Md5Response(challenge, MsnTestEnv.Password)}");
+
+        var reply = await conn.ReadLineAsync();
+
+        StringAssert.StartsWith(reply, "911", $"An unhosted domain must be refused, not silently stripped to its local part, got: {reply}");
+        Assert.IsFalse(MsnServer.NsSessions.ContainsKey("alice"), "The refused sign-on must not register a session");
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task DuplicateLogin_BareThenPassportForm_SupersedesNotGhosts()
+    {
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var account = $"alice@{MailDomains.Primary}";
+
+        var first = new MsnConn(server);
+
+        try
+        {
+            await first.LoginAsync("alice");
+
+            using var second = new MsnConn(server);
+
+            await second.LoginAsync(account);
+
+            // One member, one entry: the Passport form must land on the SAME key and supersede, not sit
+            // alongside as a ghost that still receives presence.
+            Assert.IsFalse(MsnServer.NsSessions.Keys.Any(k => k.Contains('@')), "The Passport form must not occupy a second NsSessions entry");
+            Assert.IsTrue(MsnServer.NsSessions.TryGetValue("alice", out var live));
+            Assert.AreEqual(account, live.Account, "The second (Passport-form) login must have superseded the bare-name session");
+
+            // The superseded connection was closed by the server.
+            try
+            {
+                Assert.IsNull(await first.ReadLineAsync(), "The superseded bare-name connection must be closed");
+            }
+            catch (IOException)
+            {
+                // Windows may surface the close as an IOException; also acceptable.
+            }
+        }
+        finally
+        {
+            first.Dispose();
+        }
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Presence_CarriesThePresentedPassportAddress()
+    {
+        Mind.Db.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var account = $"alice@{MailDomains.Primary}";
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync(account);
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        using var bob = new MsnConn(server);
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        // Bob's initial presence dump and alice's arrival broadcast both name the Passport address.
+        StringAssert.StartsWith(await bob.ReadLineAsync(), $"ILN 6 NLN {account}", "ILN must carry the address the client presented");
+        StringAssert.StartsWith(await alice.ReadLineAsync(), "NLN NLN bob", "Alice still receives bob's presence under his bare name");
     }
 
     [TestMethod]

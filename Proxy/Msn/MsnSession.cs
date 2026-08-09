@@ -25,6 +25,19 @@ public sealed class MsnSession
 
     public string Account { get; set; }
 
+    // The wire identity and the account it authenticates as split when a Passport-style name@domain
+    // signs on: Account stays the presented address - contacts, presence and switchboard addressing
+    // all carry it - while the credential lookup and the NsSessions key follow the owning username.
+    // Defaults to Account, so a bare-name session behaves exactly as before.
+    string accountUsername;
+
+    public string AccountUsername
+    {
+        get => accountUsername ?? Account;
+
+        set => accountUsername = value;
+    }
+
     public string DisplayName { get; set; }
 
     public string Status { get; set; } = MsnStatus.Offline;

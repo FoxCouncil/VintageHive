@@ -205,7 +205,18 @@ public sealed class MsnServer : Listener
         if (phase == "S")
         {
             var clientHash = parts[4];
-            var user = Mind.Db?.UserFetch(session.Account ?? string.Empty);
+            var presented = session.Account ?? string.Empty;
+            var user = Mind.Db?.UserFetch(presented);
+
+            // MSN Messenger only ever sends a Passport-style name@domain (the client refuses to submit a
+            // bare name), so on a miss resolve it the way the mail plane resolves POP3/IMAP/SMTP logins:
+            // validate the domain against the hosted list and fetch the local part. The whole-string fetch
+            // above always wins, so an account literally named with an '@' keeps working, and an unhosted
+            // domain stays a 911 rather than being silently stripped to its local part.
+            if (user == null && presented.Contains('@') && MailDomains.TryResolveLogin(presented, out var localPart, out _))
+            {
+                user = Mind.Db?.UserFetch(localPart);
+            }
 
             if (user == null || !string.Equals(Md5Response(session.AuthChallenge, user.Password), clientHash, StringComparison.OrdinalIgnoreCase))
             {
@@ -216,9 +227,12 @@ public sealed class MsnServer : Listener
             }
 
             session.IsAuthenticated = true;
+            session.AccountUsername = user.Username;
             session.DisplayName = session.Account;
 
-            var key = session.Account.ToLowerInvariant();
+            // Key on the RESOLVED username, not the presented string, so `alice` and `alice@<hosted>` are
+            // one entry and a duplicate login supersedes instead of ghosting alongside.
+            var key = session.AccountUsername.ToLowerInvariant();
 
             // A duplicate login supersedes the prior connection; close it so it doesn't linger as a ghost.
             if (NsSessions.TryGetValue(key, out var existing) && !ReferenceEquals(existing, session))
@@ -239,7 +253,9 @@ public sealed class MsnServer : Listener
         var trid = parts.Length > 1 ? parts[1] : "0";
         const string version = "1";
 
-        var contacts = OtherAccounts(session.Account);
+        // The "everyone except me" filter compares stored usernames, so it must use the resolved
+        // username; the presented alice@<hosted> would exclude nobody and list the member to themselves.
+        var contacts = OtherAccounts(session.AccountUsername);
 
         await session.SendLineAsync($"SYN {trid} {version}");
         await session.SendLineAsync($"GTC {trid} {version} A");
@@ -570,7 +586,8 @@ public sealed class MsnServer : Listener
     {
         if (session.Role == MsnRole.Notification && session.IsAuthenticated && session.Account != null)
         {
-            var key = session.Account.ToLowerInvariant();
+            // Same resolved-username key HandleUsrAsync registered under.
+            var key = session.AccountUsername.ToLowerInvariant();
 
             // Only evict/announce if THIS session is still the registered one; a duplicate login may have
             // already replaced it, and removing then would ghost the live session.
