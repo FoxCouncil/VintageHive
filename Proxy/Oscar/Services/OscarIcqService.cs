@@ -45,6 +45,8 @@ internal class OscarIcqService : IOscarService
     public const byte DATA_CHUNK_HEADER_SIZE = 0x10;
 
     public const string XML_REQ_BANNERIP = "<key>BannersIP</key>";
+    public const string XML_REQ_DATAFILESIP = "<key>DataFilesIP</key>";
+    public const string XML_REQ_CHANNELSIP = "<key>ChannelsIP</key>";
 
     public ushort Family => FAMILY_ID;
 
@@ -154,12 +156,23 @@ internal class OscarIcqService : IOscarService
                 {
                     case XML_REQ_BANNERIP:
                     {
-                        var mem = new MemoryStream();
+                        var configured = Mind.Db.ConfigGet<string>(ConfigNames.IcqBannersUrl);
 
-                        mem.WriteByte(0x0A);
-                        mem.Write(WriteIcqString($"<value>http://{HiveDomains.Api}/api/icq2000a/%d/%s.cb</value>"));
+                        await SendXmlInfoValue(session, snac, icqMetaReq, string.IsNullOrEmpty(configured) ? $"http://{HiveDomains.Api}/api/icq2000a/%d/%s.cb" : configured);
+                    }
+                    break;
 
-                        await SendMetaData(session, snac, icqMetaReq, META_XML_INFO, mem);
+                    // A failed when-guard falls through to default, so an unset URL leaves the key
+                    // unanswered and logged as unknown, exactly as before these keys were recognized.
+                    case XML_REQ_DATAFILESIP when Mind.Db.ConfigGet<string>(ConfigNames.IcqDataFilesUrl) is { Length: > 0 } url:
+                    {
+                        await SendXmlInfoValue(session, snac, icqMetaReq, url);
+                    }
+                    break;
+
+                    case XML_REQ_CHANNELSIP when Mind.Db.ConfigGet<string>(ConfigNames.IcqChannelsUrl) is { Length: > 0 } url:
+                    {
+                        await SendXmlInfoValue(session, snac, icqMetaReq, url);
                     }
                     break;
 
@@ -885,6 +898,17 @@ internal class OscarIcqService : IOscarService
         }
 
         await SendMetaData(session, snac, icqMetaReq, META_AFFILATIONS_USERINFO, affiliationUserData, true);
+    }
+
+    private async Task SendXmlInfoValue(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, string url)
+    {
+        // The url goes out verbatim: any %d/%s tokens in it belong to the client, so no format call here.
+        var mem = new MemoryStream();
+
+        mem.WriteByte(0x0A);
+        mem.Write(WriteIcqString($"<value>{url}</value>"));
+
+        await SendMetaData(session, snac, icqMetaReq, META_XML_INFO, mem);
     }
 
     private async Task SendMetaData(OscarSession session, Snac snac, IcqUserMetaRequest icqMetaReq, ushort meta, MemoryStream userinfo, bool isFinal = false)

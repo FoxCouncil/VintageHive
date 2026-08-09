@@ -152,6 +152,16 @@ public static class ConfigNames
 
     public const string IrcVersion = "ircversion";
 
+    // ICQ service-locator URLs answered from the CLI_REQ_XML_INFO meta request. The %d/%s tokens are the
+    // CLIENT's substitution placeholders and must pass through verbatim, never via a format call. Banners
+    // empty = built-in api.hive.com template; DataFiles/Channels empty = the key stays unanswered and is
+    // logged as unknown, which is the pre-config behavior.
+    public const string IcqBannersUrl = "icqbannersurl";
+
+    public const string IcqDataFilesUrl = "icqdatafilesurl";
+
+    public const string IcqChannelsUrl = "icqchannelsurl";
+
     // Comma-separated list of mail domains this host serves; governs POP3/IMAP/SMTP login, MAIL FROM,
     // RCPT TO, and postmaster routing. First entry is the primary domain (banner and postmaster identity).
     // Every check re-reads it, so an embedding host's ConfigSet takes effect without restart.
