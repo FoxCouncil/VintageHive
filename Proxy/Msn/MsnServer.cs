@@ -163,6 +163,13 @@ public sealed class MsnServer : Listener
 
         var chosen = ChooseVersion(parts.Skip(2));
 
+        // HandleSynAsync varies its reply shape by dialect (MSNP7 adds contact groups), so the
+        // negotiated version must outlive this exchange.
+        if (chosen.StartsWith("MSNP", StringComparison.Ordinal) && int.TryParse(chosen.AsSpan(4), out var dialect))
+        {
+            session.Dialect = dialect;
+        }
+
         await session.SendLineAsync($"VER {trid} {chosen} CVR0");
     }
 
@@ -261,17 +268,31 @@ public sealed class MsnServer : Listener
         await session.SendLineAsync($"GTC {trid} {version} A");
         await session.SendLineAsync($"BLP {trid} {version} AL");
 
+        // MSNP7 adds contact groups to the sync, and the client stalls on "Signing In..." forever without
+        // them: at least one LSG line always precedes the lists (the implicit "Other Contacts" group,
+        // id 0, counted in the group total), and every FL entry carries a trailing comma-separated
+        // group-id field naming the groups it belongs to. The hive has no group storage, so the single
+        // implicit group holding every contact is the complete answer, not a stub. Pre-7 dialects use
+        // neither shape and get the exact reply they always did.
+        var msnp7 = session.Dialect >= 7;
+
+        if (msnp7)
+        {
+            await session.SendLineAsync($"LSG {trid} {version} 1 1 0 {UrlEncode("Other Contacts")} 0");
+        }
+
         // MSNP2-7 clients expect ALL FOUR lists in the SYN response, each terminated by its item#/total
         // pair (0 0 when empty), before they consider contact sync complete. Everyone is a buddy of
         // everyone on the hive, so FL and RL carry the full account list; AL mirrors FL (everyone is
         // pre-allowed, so GTC A never triggers a prompt storm) and BL stays empty.
-        await SendContactListAsync(session, trid, version, "FL", contacts);
+        await SendContactListAsync(session, trid, version, "FL", contacts, appendGroupField: msnp7);
         await SendContactListAsync(session, trid, version, "AL", contacts);
         await SendContactListAsync(session, trid, version, "BL", new List<string>());
         await SendContactListAsync(session, trid, version, "RL", contacts);
     }
 
-    static async Task SendContactListAsync(MsnSession session, string trid, string version, string list, List<string> contacts)
+    // appendGroupField applies only to the FL on MSNP7+; the AL/BL/RL never carry group ids in any dialect.
+    static async Task SendContactListAsync(MsnSession session, string trid, string version, string list, List<string> contacts, bool appendGroupField = false)
     {
         if (contacts.Count == 0)
         {
@@ -282,7 +303,14 @@ public sealed class MsnServer : Listener
 
         for (var i = 0; i < contacts.Count; i++)
         {
-            await session.SendLineAsync($"LST {trid} {list} {version} {i + 1} {contacts.Count} {contacts[i]} {UrlEncode(contacts[i])}");
+            var line = $"LST {trid} {list} {version} {i + 1} {contacts.Count} {contacts[i]} {UrlEncode(contacts[i])}";
+
+            if (appendGroupField)
+            {
+                line += " 0";
+            }
+
+            await session.SendLineAsync(line);
         }
     }
 

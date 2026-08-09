@@ -91,9 +91,10 @@ public class MsnAuthGateTests
 
         StringAssert.StartsWith(await conn.ReadLineAsync(), "SYN 5", "SYN stopped working for a properly signed-on client.");
 
-        // GTC and BLP precede the lists; then FL must arrive.
+        // GTC, BLP and the MSNP7 group block precede the lists; then FL must arrive.
         StringAssert.StartsWith(await conn.ReadLineAsync(), "GTC 5");
         StringAssert.StartsWith(await conn.ReadLineAsync(), "BLP 5");
+        StringAssert.StartsWith(await conn.ReadLineAsync(), "LSG 5");
         StringAssert.StartsWith(await conn.ReadLineAsync(), "LST 5 FL");
     }
 }

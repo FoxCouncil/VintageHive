@@ -23,6 +23,10 @@ public sealed class MsnSession
 
     public MsnRole Role { get; set; } = MsnRole.Unknown;
 
+    // The MSNP dialect number negotiated at VER (7 for "MSNP7"). Zero until VER answers, which keeps
+    // the pre-7 SYN shape: only MSNP7 adds LSG group lines and the FL group-id field.
+    public int Dialect { get; set; }
+
     public string Account { get; set; }
 
     // The wire identity and the account it authenticates as split when a Passport-style name@domain

@@ -105,14 +105,15 @@ internal sealed class MsnConn : IDisposable
 
     public Task<byte[]> ReadBytesAsync(int count) => _reader.ReadBytesAsync(count);
 
-    // Runs VER/CVR/USR-MD5 login and returns after the USR OK.
-    public async Task LoginAsync(string account)
+    // Runs VER/CVR/USR-MD5 login and returns after the USR OK. Versions are offered highest-first,
+    // so the first one is what the server must choose.
+    public async Task LoginAsync(string account, string versions = "MSNP7 MSNP6")
     {
-        await SendAsync("VER 1 MSNP7 MSNP6 CVR0");
+        await SendAsync($"VER 1 {versions} CVR0");
 
         var ver = await ReadLineAsync();
 
-        Assert.IsTrue(ver.StartsWith("VER 1 MSNP7"), $"Unexpected VER reply: {ver}");
+        Assert.IsTrue(ver.StartsWith($"VER 1 {versions.Split(' ')[0]}"), $"Unexpected VER reply: {ver}");
 
         await SendAsync($"CVR 2 0x0409 win 5.0 i386 MSNMSGR 5.0.0544 MSMSGS {account}");
         await ReadLineAsync(); // CVR
@@ -458,6 +459,9 @@ public class MsnServerTests
         Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("GTC 5"), "GTC");
         Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("BLP 5"), "BLP");
 
+        // The harness negotiates MSNP7, so the implicit contact group precedes the lists.
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("LSG 5"), "LSG");
+
         // Each list arrives as LST lines terminated by its item#/total pair (a single 0 0 line when
         // empty); the client will not consider contact sync complete until all four lists have arrived.
         foreach (var list in new[] { "FL", "AL", "BL", "RL" })
@@ -492,6 +496,144 @@ public class MsnServerTests
             {
                 CollectionAssert.Contains(members, "bob", $"{list} must contain the other hive accounts");
             }
+        }
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Syn_Msnp6_KeepsThePre7Shape()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice", "MSNP6");
+        await alice.SendAsync("SYN 5");
+
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("SYN 5"), "SYN echo");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("GTC 5"), "GTC");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("BLP 5"), "BLP");
+
+        // Pre-7 dialects have no group concept: no LSG lines anywhere, and every LST entry stays
+        // byte-identical to the historical shape - seven fields after the verb, no trailing group-id.
+        foreach (var list in new[] { "FL", "AL", "BL", "RL" })
+        {
+            var first = (await alice.ReadLineAsync()).Split(' ');
+
+            Assert.AreEqual("LST", first[0], $"MSNP6 must go straight from BLP to the lists; got {first[0]} while expecting the {list} list");
+            Assert.AreEqual(list, first[2]);
+
+            var total = int.Parse(first[5]);
+
+            Assert.AreEqual(total == 0 ? 6 : 8, first.Length, $"MSNP6 {list} lines must not carry a group-id field");
+
+            for (var i = 1; i < total; i++)
+            {
+                var line = (await alice.ReadLineAsync()).Split(' ');
+
+                Assert.AreEqual(list, line[2]);
+                Assert.AreEqual(8, line.Length, $"MSNP6 {list} lines must not carry a group-id field");
+            }
+        }
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Syn_Msnp7_SendsGroupsAndFlGroupIds()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("SYN 5");
+
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("SYN 5"), "SYN echo");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("GTC 5"), "GTC");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("BLP 5"), "BLP");
+
+        // The implicit "Other Contacts" group (id 0) always exists and is counted in the group total.
+        Assert.AreEqual("LSG 5 1 1 1 0 Other%20Contacts 0", await alice.ReadLineAsync());
+
+        // FL entries carry the trailing group-id field ("0" = the implicit group); AL/BL/RL never do.
+        foreach (var list in new[] { "FL", "AL", "BL", "RL" })
+        {
+            var first = (await alice.ReadLineAsync()).Split(' ');
+
+            Assert.AreEqual("LST", first[0], $"Expected an LST line for {list}");
+            Assert.AreEqual(list, first[2]);
+
+            var total = int.Parse(first[5]);
+            var expectedLength = list == "FL" ? 9 : 8;
+
+            Assert.AreEqual(total == 0 ? 6 : expectedLength, first.Length, $"{list} line has the wrong field count for MSNP7");
+
+            if (total > 0 && list == "FL")
+            {
+                Assert.AreEqual("0", first[8], "FL entries must end with the implicit group id");
+            }
+
+            for (var i = 1; i < total; i++)
+            {
+                var line = (await alice.ReadLineAsync()).Split(' ');
+
+                Assert.AreEqual(list, line[2]);
+                Assert.AreEqual(expectedLength, line.Length, $"{list} line has the wrong field count for MSNP7");
+
+                if (list == "FL")
+                {
+                    Assert.AreEqual("0", line[8], "FL entries must end with the implicit group id");
+                }
+            }
+        }
+
+        // The corrected SYN is what unblocks sign-on: the client's next command is CHG, which must echo.
+        await alice.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await alice.ReadLineAsync());
+    }
+
+    // DbContextBase names its sqlite file after the runtime type, so this subclass opens a fresh store:
+    // the one-account hive the empty-forward-list case needs (the shared context always holds alice+bob).
+    private sealed class LoneUserDbContext : HiveDbContext { }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Syn_Msnp7_EmptyForwardList_StillSendsTheGroup()
+    {
+        var shared = Mind.Db;
+        var setter = typeof(Mind).GetProperty(nameof(Mind.Db))!.GetSetMethod(nonPublic: true)!;
+
+        try
+        {
+            var lone = new LoneUserDbContext();
+
+            if (!lone.UserExistsByUsername("solo"))
+            {
+                Assert.IsTrue(lone.UserCreate("solo", MsnTestEnv.Password), "could not create the lone test user");
+            }
+
+            setter.Invoke(null, new object[] { lone });
+
+            var server = new MsnServer(IPAddress.Loopback, 0);
+
+            using var solo = new MsnConn(server);
+
+            await solo.LoginAsync("solo");
+            await solo.SendAsync("SYN 5");
+
+            Assert.IsTrue((await solo.ReadLineAsync()).StartsWith("SYN 5"), "SYN echo");
+            Assert.IsTrue((await solo.ReadLineAsync()).StartsWith("GTC 5"), "GTC");
+            Assert.IsTrue((await solo.ReadLineAsync()).StartsWith("BLP 5"), "BLP");
+
+            Assert.AreEqual("LSG 5 1 1 1 0 Other%20Contacts 0", await solo.ReadLineAsync(), "The implicit group must be present even with no contacts");
+            Assert.AreEqual("LST 5 FL 1 0 0", await solo.ReadLineAsync(), "An empty FL keeps the 0 0 form with no group field");
+            Assert.AreEqual("LST 5 AL 1 0 0", await solo.ReadLineAsync());
+            Assert.AreEqual("LST 5 BL 1 0 0", await solo.ReadLineAsync());
+            Assert.AreEqual("LST 5 RL 1 0 0", await solo.ReadLineAsync());
+        }
+        finally
+        {
+            setter.Invoke(null, new object[] { shared });
         }
     }
 
