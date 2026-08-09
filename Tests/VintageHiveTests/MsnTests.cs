@@ -116,7 +116,10 @@ internal sealed class MsnConn : IDisposable
         Assert.IsTrue(ver.StartsWith($"VER 1 {versions.Split(' ')[0]}"), $"Unexpected VER reply: {ver}");
 
         await SendAsync($"CVR 2 0x0409 win 5.0 i386 MSNMSGR 5.0.0544 MSMSGS {account}");
-        await ReadLineAsync(); // CVR
+
+        var cvr = await ReadLineAsync();
+
+        Assert.IsTrue(cvr.StartsWith("CVR 2 5.0.0544 5.0.0544 5.0.0544 "), $"CVR must echo the client's own version, got: {cvr}");
 
         await SendAsync($"USR 3 MD5 I {account}");
 
@@ -848,6 +851,64 @@ public class MsnServerTests
         // Bob's initial presence dump and alice's arrival broadcast both name the Passport address.
         StringAssert.StartsWith(await bob.ReadLineAsync(), $"ILN 6 NLN {account}", "ILN must carry the address the client presented");
         StringAssert.StartsWith(await alice.ReadLineAsync(), "NLN NLN bob", "Alice still receives bob's presence under his bare name");
+    }
+
+    // The CVR reply's third version field is a MINIMUM the client obeys literally: 4.5.0121 used to be
+    // told "A newer version is available" by the old hardcoded 4.7.2009 floor and sign-on died right there,
+    // after auth/SYN/CHG were all already working. The server cannot host an upgrade, so the minimum must
+    // never exceed whatever version the client itself states.
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Cvr_EchoesTheClientsVersion_SoOlderClientsAreNotWalled()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var conn = new MsnConn(server);
+
+        await conn.SendAsync("VER 1 MSNP7 CVR0");
+        await conn.ReadLineAsync();
+
+        await conn.SendAsync("CVR 2 0x0409 win 4.10 i386 MSMSGS 4.5.0121 MSMSGS alice");
+
+        var parts = (await conn.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("CVR", parts[0]);
+        Assert.AreEqual("2", parts[1]);
+        Assert.AreEqual("4.5.0121", parts[2], "The recommended version must echo the client's own");
+        Assert.AreEqual("4.5.0121", parts[3]);
+        Assert.AreEqual("4.5.0121", parts[4], "The minimum must never exceed the version the client stated");
+        Assert.AreEqual($"http://{HiveDomains.Intranet}/download.html", parts[5], "The download URL must point at the hive, not an off-network microsoft.com name");
+        Assert.AreEqual($"http://{HiveDomains.Intranet}/", parts[6]);
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Cvr_MalformedOrShort_NeverEmitsAMinimumAboveAnyClient()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var conn = new MsnConn(server);
+
+        await conn.SendAsync("VER 1 MSNP7 CVR0");
+        await conn.ReadLineAsync();
+
+        // No fields at all after the trid.
+        await conn.SendAsync("CVR 2");
+
+        var shortReply = (await conn.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("CVR", shortReply[0]);
+        Assert.AreEqual("2", shortReply[1]);
+        Assert.AreEqual("1.0.0000", shortReply[4], "An unparseable request must fall back to a floor minimum, never a wall");
+
+        // A garbage token in the version slot must not be echoed back.
+        await conn.SendAsync("CVR 3 0x0409 win 5.0 i386 MSNMSGR bogus%ver MSMSGS alice");
+
+        var garbageReply = (await conn.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("CVR", garbageReply[0]);
+        Assert.AreEqual("3", garbageReply[1]);
+        Assert.AreEqual("1.0.0000", garbageReply[4], "A garbage version token must fall back to the floor minimum");
     }
 
     [TestMethod]

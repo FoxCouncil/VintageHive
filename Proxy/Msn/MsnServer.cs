@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using VintageHive.Data.Types;
 using VintageHive.Network;
 
 namespace VintageHive.Proxy.Msn;
@@ -177,8 +178,37 @@ public sealed class MsnServer : Listener
     {
         var trid = parts.Length > 1 ? parts[1] : "0";
 
-        // Recommend the client keep its own version; the last arg is the account.
-        await session.SendLineAsync($"CVR {trid} 5.0.0544 5.0.0544 4.7.2009 http://download.microsoft.com/ http://messenger.msn.com/");
+        // CVR <trid> <localeid> <osType> <osVer> <arch> <clientName> <clientVer> <MSMSGS> <account>.
+        // Echo the client's own version into every slot: the reply's third version is a MINIMUM the client
+        // obeys literally, so any value above the connecting client is an upgrade wall ("A newer version is
+        // available...") pointing at an update this server cannot host.
+        var clientVersion = parts.Length > 7 && IsVersionToken(parts[7]) ? parts[7] : null;
+        var recommended = clientVersion ?? "5.0.0544";
+
+        // With no parseable client version, the minimum drops to a floor no real client is below.
+        var minimum = clientVersion ?? "1.0.0000";
+
+        await session.SendLineAsync($"CVR {trid} {recommended} {recommended} {minimum} http://{HiveDomains.Intranet}/download.html http://{HiveDomains.Intranet}/");
+    }
+
+    // A plausible dotted client version like "4.5.0121": digits and dots only, ending on a digit; anything
+    // else falls back so the reply can never assert a minimum above the client that asked.
+    static bool IsVersionToken(string token)
+    {
+        if (string.IsNullOrEmpty(token) || token.Length > 16 || token[0] == '.' || token[^1] == '.')
+        {
+            return false;
+        }
+
+        foreach (var c in token)
+        {
+            if (!char.IsAsciiDigit(c) && c != '.')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static async Task HandleInfAsync(MsnSession session, string[] parts)
