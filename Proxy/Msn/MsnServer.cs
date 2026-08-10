@@ -111,8 +111,9 @@ public sealed class MsnServer : Listener
     // -- Notification Server ----------------------------------------------
 
     // Everything else the notification loop accepts (CVR, INF, USR, PNG, OUT) is either part of the sign-on
-    // exchange itself or carries no account state, so it stays reachable before authentication.
-    static readonly HashSet<string> RequiresAuthentication = new(StringComparer.Ordinal) { "SYN", "CHG", "XFR" };
+    // exchange itself or carries no account state, so it stays reachable before authentication. ADD/REM edit
+    // the account's lists, so they gate with the rest.
+    static readonly HashSet<string> RequiresAuthentication = new(StringComparer.Ordinal) { "SYN", "CHG", "XFR", "ADD", "REM" };
 
     async Task RunNotificationLoopAsync(MsnSession session, string traceId)
     {
@@ -150,6 +151,8 @@ public sealed class MsnServer : Listener
                 case "SYN": await HandleSynAsync(session, parts); break;
                 case "CHG": await HandleChgAsync(session, parts); break;
                 case "XFR": await HandleXfrAsync(session, parts); break;
+                case "ADD": await HandleListEditAsync(session, parts); break;
+                case "REM": await HandleListEditAsync(session, parts); break;
                 case "PNG": await session.SendLineAsync("QNG 50"); break;
                 case "OUT": session.Client.RawSocket.Close(); break;
                 default: Log.WriteLine(Log.LEVEL_DEBUG, nameof(MsnServer), $"Unhandled NS command: {verb}", traceId); break;
@@ -290,9 +293,13 @@ public sealed class MsnServer : Listener
         var trid = parts.Length > 1 ? parts[1] : "0";
         const string version = "1";
 
-        // The "everyone except me" filter compares stored usernames, so it must use the resolved
-        // username; the presented alice@<hosted> would exclude nobody and list the member to themselves.
-        var contacts = OtherAccounts(session.AccountUsername);
+        // The server-built roster is the operator's call, not the server's: MsnAutoRoster off starts every
+        // member with all four lists empty (the 0 0 form) so members build their own via ADD/REM. Re-read
+        // per SYN, so a ConfigSet applies without restart. The "everyone except me" filter compares stored
+        // usernames, so it must use the resolved username; the presented alice@<hosted> would exclude
+        // nobody and list the member to themselves.
+        var autoRoster = Mind.Db?.ConfigGet<bool>(ConfigNames.MsnAutoRoster) ?? true;
+        var contacts = autoRoster ? OtherAccounts(session.AccountUsername) : new List<string>();
 
         await session.SendLineAsync($"SYN {trid} {version}");
         await session.SendLineAsync($"GTC {trid} {version} A");
@@ -342,6 +349,22 @@ public sealed class MsnServer : Listener
 
             await session.SendLineAsync(line);
         }
+    }
+
+    // ADD <trid> <list> <account> <displayname>[ <groupid>] and REM <trid> <list> <account>: acknowledged by
+    // echoing the request with the next list serial, which is all the client needs to commit the change into
+    // its own lists - the mechanism members build a roster with when MsnAutoRoster is off. Nothing is
+    // persisted (per-member list storage is a separate feature), and there is deliberately no
+    // does-the-account-exist check: a "no such user" error here would confirm which names exist, the very
+    // disclosure the roster switch closes.
+    static async Task HandleListEditAsync(MsnSession session, string[] parts)
+    {
+        if (parts.Length < 4)
+        {
+            return;
+        }
+
+        await session.SendLineAsync($"{parts[0]} {parts[1]} {parts[2]} {session.NextListSerial()} {string.Join(' ', parts.Skip(3))}");
     }
 
     async Task HandleChgAsync(MsnSession session, string[] parts)

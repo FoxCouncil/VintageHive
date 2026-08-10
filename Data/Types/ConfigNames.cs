@@ -140,6 +140,21 @@ public static class ConfigNames
     // an embedding host that provisions accounts externally sets this off. Default true (today's behavior).
     public const string AllowSelfRegistration = "allowselfregistration";
 
+    // Per-service switches for the server-built rosters. True (the default everywhere) is exactly today's
+    // behavior: the service hands every member the full account list. False starts each member with an
+    // empty roster - still well-formed, because an absent list hangs period clients where an empty one does
+    // not - so an operator whose members are strangers can require them to add each other. Deliberately
+    // independent with no global switch: a public finger directory with private messenger rosters (or the
+    // reverse) are both legitimate deployments. A future service that grows a server-built roster takes
+    // <Service>AutoRoster; services without one (OSCAR's member-built SSI tree, channel-scoped IRC) get no
+    // key, because a key that gates nothing is a key that will be believed.
+    public const string MsnAutoRoster = "msnautoroster";
+
+    public const string YahooAutoRoster = "yahooautoroster";
+
+    // When false, finger's no-query answer is the banner with no online-user table (Gopher's /users reuse follows).
+    public const string FingerListOnline = "fingerlistonline";
+
     // When true, IRC registration requires PASS with valid account credentials (nickname = screen
     // name), and nick renames are refused. Default false (today's open behavior).
     public const string IrcRequireAuthentication = "ircrequireauthentication";

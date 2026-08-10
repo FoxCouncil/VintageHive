@@ -385,6 +385,25 @@ public class YahooSessionRegistryTests
         Assert.IsNull(PresenceRegistry.Find("bob"), "An invisible member on another transport leaked into the presence registry.");
     }
 
+    // The HTTP pager builds its BUDDYLIST block through this same helper, so gating the server-built roster
+    // here closes both dialects with one switch.
+    [TestMethod]
+    public void OtherUsernames_AutoRosterOff_AnswersEmptyForEveryCaller()
+    {
+        CollectionAssert.Contains(YahooSessionRegistry.OtherUsernames("alice"), "bob", "The default must stay the server-built roster");
+
+        Mind.Db!.ConfigSet(VintageHive.Data.Types.ConfigNames.YahooAutoRoster, false);
+
+        try
+        {
+            Assert.AreEqual(0, YahooSessionRegistry.OtherUsernames("alice").Count, "No server-built roster when the switch is off");
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(VintageHive.Data.Types.ConfigNames.YahooAutoRoster, true);
+        }
+    }
+
     // Two simultaneous logins for one account must leave exactly one survivor. Without the gate they can each
     // see the OTHER as the ghost and mutually kick, leaving zero - and the gate now has to span transports.
     [TestMethod]

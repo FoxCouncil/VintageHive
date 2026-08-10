@@ -8,8 +8,10 @@ using VintageHive;
 using VintageHive.Data.Contexts;
 using VintageHive.Data.Types;
 using VintageHive.Network;
+using VintageHive.Proxy.Finger;
 using VintageHive.Proxy.Msn;
 using VintageHive.Proxy.Presence;
+using VintageHive.Proxy.Yahoo;
 
 namespace Msn;
 
@@ -593,6 +595,69 @@ public class MsnServerTests
         // The corrected SYN is what unblocks sign-on: the client's next command is CHG, which must echo.
         await alice.SendAsync("CHG 6 NLN");
         Assert.AreEqual("CHG 6 NLN", await alice.ReadLineAsync());
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
+    public async Task Syn_AutoRosterOff_SendsAllFourListsEmptyAndStillAcceptsAddRem()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnAutoRoster, false);
+
+        try
+        {
+            var server = new MsnServer(IPAddress.Loopback, 0);
+
+            using var alice = new MsnConn(server);
+
+            await alice.LoginAsync("alice");
+            await alice.SendAsync("SYN 5");
+
+            Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("SYN 5"), "SYN echo");
+            Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("GTC 5"), "GTC");
+            Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("BLP 5"), "BLP");
+
+            // The MSNP7 group block still precedes the lists regardless of contents; a 4.5 client stalls without it.
+            Assert.AreEqual("LSG 5 1 1 1 0 Other%20Contacts 0", await alice.ReadLineAsync(), "The implicit group must survive the roster being off");
+
+            // All four lists arrive empty but well-formed: an empty list is a valid answer, a missing one hangs.
+            Assert.AreEqual("LST 5 FL 1 0 0", await alice.ReadLineAsync(), "FL must be empty with the roster off");
+            Assert.AreEqual("LST 5 AL 1 0 0", await alice.ReadLineAsync(), "AL must be empty too - AL means pre-authorized");
+            Assert.AreEqual("LST 5 BL 1 0 0", await alice.ReadLineAsync());
+            Assert.AreEqual("LST 5 RL 1 0 0", await alice.ReadLineAsync());
+
+            // Members build their own lists, so ADD/REM must still be acknowledged (echo + next list serial).
+            await alice.SendAsync("ADD 6 FL bob bob 0");
+            Assert.AreEqual("ADD 6 FL 2 bob bob 0", await alice.ReadLineAsync(), "ADD must be acked so the client commits the contact");
+
+            await alice.SendAsync("REM 7 FL bob");
+            Assert.AreEqual("REM 7 FL 3 bob", await alice.ReadLineAsync(), "REM must be acked so the client commits the removal");
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(ConfigNames.MsnAutoRoster, true);
+        }
+    }
+
+    // The three roster keys are independent by contract: turning MSN's off must leave the Yahoo roster and
+    // the finger directory at today's behavior (and vice versa - there is deliberately no global switch).
+    [TestMethod]
+    public void AutoRosterKeys_AreIndependent()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnAutoRoster, false);
+
+        try
+        {
+            CollectionAssert.Contains(YahooSessionRegistry.OtherUsernames("alice"), "bob", "MsnAutoRoster must not gate the Yahoo roster");
+
+            // Either table form proves the finger directory branch still runs; the gated form is banner-only.
+            var finger = FingerServer.BuildUserList();
+
+            Assert.IsTrue(finger.Contains("No users currently online.") || finger.Contains("On Since"), $"MsnAutoRoster must not gate the finger directory, got: {finger}");
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(ConfigNames.MsnAutoRoster, true);
+        }
     }
 
     // DbContextBase names its sqlite file after the runtime type, so this subclass opens a fresh store:

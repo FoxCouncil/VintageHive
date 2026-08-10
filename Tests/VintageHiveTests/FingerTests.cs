@@ -1,5 +1,8 @@
 // Copyright (c) 2026 Fox Council - VintageHive - https://github.com/FoxCouncil/VintageHive
 
+using VintageHive;
+using VintageHive.Data.Contexts;
+using VintageHive.Data.Types;
 using VintageHive.Proxy.Finger;
 using VintageHive.Proxy.Oscar;
 using VintageHive.Proxy.Presence;
@@ -452,6 +455,38 @@ public class FingerUserListTests
 
             Assert.IsTrue(output.Contains("RealUser"), output);
         });
+    }
+
+    [TestMethod]
+    public void BuildUserList_ListOnlineOff_AnswersWithTheBannerAlone()
+    {
+        // The gate reads config, so this test (alone in this file) needs the reflection-initialized Mind.Db.
+        Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "vfs", "data"));
+
+        if (Mind.Db == null)
+        {
+            typeof(Mind).GetProperty(nameof(Mind.Db))!.GetSetMethod(nonPublic: true)!.Invoke(null, new object[] { new HiveDbContext() });
+        }
+
+        Mind.Db!.ConfigSet(ConfigNames.FingerListOnline, false);
+
+        try
+        {
+            WithSessions(add =>
+            {
+                add(new OscarSession { ScreenName = "RealUser", Status = OscarSessionOnlineStatus.Online });
+
+                var output = FingerServer.BuildUserList();
+
+                Assert.IsTrue(output.Contains("Finger Server"), output);
+                Assert.IsFalse(output.Contains("RealUser"), "The online-user table must not be listed when the directory is off");
+                Assert.IsFalse(output.Contains("No users currently online."), "The banner-only answer must not imply the table is merely empty");
+            });
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(ConfigNames.FingerListOnline, true);
+        }
     }
 
     [TestMethod]

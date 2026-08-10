@@ -334,6 +334,46 @@ public class YmsgServerTests
 
     [TestMethod]
     [Timeout(15000)]
+    public async Task Login_AutoRosterOff_ListPacketIsPresentAndEmptyAndSignOnCompletes()
+    {
+        Mind.Db!.ConfigSet(VintageHive.Data.Types.ConfigNames.YahooAutoRoster, false);
+
+        try
+        {
+            var server = new YmsgServer(IPAddress.Loopback, 0);
+
+            using var conn = new YmsgConn(server);
+
+            await conn.SendAsync(new YmsgPacket(YmsgService.Verify, 0, 0));
+            await conn.ReadAsync();
+
+            await conn.SendAsync(new YmsgPacket(YmsgService.Auth, 0, 0).Add(1, "alice"));
+
+            var challenge = await conn.ReadAsync();
+            var answer = YmsgCrypt.ComputeAuthResponse(challenge.Get(94), YmsgTestEnv.Password);
+
+            await conn.SendAsync(new YmsgPacket(YmsgService.AuthResp, 0, 0).Add(0, "alice").Add(6, answer.Resp6).Add(96, answer.Resp96));
+
+            // The buddy-list packet must still be SENT - a missing LIST hangs period clients - just with an
+            // empty roster field.
+            var list = await conn.ReadAsync();
+
+            Assert.AreEqual(YmsgService.List, list.Service, "The LIST packet must still be sent with the roster off");
+            Assert.IsTrue(string.IsNullOrEmpty(list.Get(87)), $"The roster field must be empty with the roster off, got: {list.Get(87)}");
+
+            // ...and sign-on still completes: the initial presence snapshot follows as always.
+            var logon = await conn.ReadAsync();
+
+            Assert.AreEqual(YmsgService.Logon, logon.Service, "Sign-on must still complete with the roster off");
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(VintageHive.Data.Types.ConfigNames.YahooAutoRoster, true);
+        }
+    }
+
+    [TestMethod]
+    [Timeout(15000)]
     public async Task SecondUserLogin_BroadcastsPresenceToFirst()
     {
         var server = new YmsgServer(IPAddress.Loopback, 0);

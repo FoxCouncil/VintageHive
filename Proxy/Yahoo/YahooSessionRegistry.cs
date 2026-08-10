@@ -199,9 +199,18 @@ public static class YahooSessionRegistry
         await target.DeliverTypingAsync(from, kind, flag, status);
     }
 
-    /// <summary>Every registered account except the caller's own. The hive roster is server-built.</summary>
+    /// <summary>Every registered account except the caller's own - the server-built hive roster, shared by
+    /// YMSG and the HTTP Pager. YahooAutoRoster off turns the server-built roster off at this single seam:
+    /// every caller gets an empty answer, and the member's list is what they added. The list packets
+    /// themselves still go out (well-formed and empty) because a missing list hangs period clients where an
+    /// empty one does not. Re-read per call, so a ConfigSet applies without restart.</summary>
     public static List<string> OtherUsernames(string username)
     {
+        if (!(Mind.Db?.ConfigGet<bool>(Data.Types.ConfigNames.YahooAutoRoster) ?? true))
+        {
+            return new List<string>();
+        }
+
         var users = Mind.Db?.UserList() ?? new List<Data.Types.HiveUser>();
 
         return users

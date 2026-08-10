@@ -73,6 +73,15 @@ public class FingerServer : Listener
         sb.AppendLine($"{Mind.ProductName} Finger Server");
         sb.AppendLine(new string('-', 60));
 
+        // Listing who is online is a policy call: on a box whose members are strangers it is a continuous
+        // presence disclosure, so FingerListOnline off answers with the banner alone - no table, and no
+        // "nobody online" line that would imply the table is merely empty. Gopher's /users page reuses this
+        // builder and follows automatically.
+        if (!(Mind.Db?.ConfigGet<bool>(ConfigNames.FingerListOnline) ?? true))
+        {
+            return sb.ToString();
+        }
+
         // Presence now spans every messenger network via the shared registry, not just OSCAR/AIM.
         var entries = PresenceRegistry.Online().ToList();
 

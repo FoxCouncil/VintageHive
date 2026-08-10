@@ -60,6 +60,15 @@ public sealed class MsnSession
     // Switchboard-only: the session id this SB connection belongs to.
     public string SwitchboardId { get; set; }
 
+    // List serial echoed in ADD/REM acks. SYN always answers version 1, so the first edit acks 2. Only the
+    // session's own sequential NS loop touches it, so a bare increment is enough.
+    int listSerial = 1;
+
+    public int NextListSerial()
+    {
+        return ++listSerial;
+    }
+
     public uint GetCurrentIdleSeconds()
     {
         if (IdleSince == DateTimeOffset.MinValue)
