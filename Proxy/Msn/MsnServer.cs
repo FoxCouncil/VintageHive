@@ -112,8 +112,8 @@ public sealed class MsnServer : Listener
 
     // Everything else the notification loop accepts (CVR, INF, USR, PNG, OUT) is either part of the sign-on
     // exchange itself or carries no account state, so it stays reachable before authentication. ADD/REM edit
-    // the account's lists, so they gate with the rest.
-    static readonly HashSet<string> RequiresAuthentication = new(StringComparer.Ordinal) { "SYN", "CHG", "XFR", "ADD", "REM" };
+    // the account's lists and REA edits its stored display name, so they gate with the rest.
+    static readonly HashSet<string> RequiresAuthentication = new(StringComparer.Ordinal) { "SYN", "CHG", "XFR", "ADD", "REM", "REA" };
 
     async Task RunNotificationLoopAsync(MsnSession session, string traceId)
     {
@@ -153,6 +153,7 @@ public sealed class MsnServer : Listener
                 case "XFR": await HandleXfrAsync(session, parts); break;
                 case "ADD": await HandleListEditAsync(session, parts); break;
                 case "REM": await HandleListEditAsync(session, parts); break;
+                case "REA": await HandleReaAsync(session, parts); break;
                 case "PNG": await session.SendLineAsync("QNG 50"); break;
                 case "OUT": session.Client.RawSocket.Close(); break;
                 default: Log.WriteLine(Log.LEVEL_DEBUG, nameof(MsnServer), $"Unhandled NS command: {verb}", traceId); break;
@@ -268,7 +269,12 @@ public sealed class MsnServer : Listener
 
             session.IsAuthenticated = true;
             session.AccountUsername = user.Username;
-            session.DisplayName = session.Account;
+
+            // A name the member chose (REA) survives sign-ons; without one the sign-in address is the
+            // display name, exactly as before the profile store existed.
+            var storedName = Mind.Db?.UserGetDisplayName(user.Username);
+
+            session.DisplayName = string.IsNullOrWhiteSpace(storedName) ? session.Account : storedName;
 
             // Key on the RESOLVED username, not the presented string, so `alice` and `alice@<hosted>` are
             // one entry and a duplicate login supersedes instead of ghosting alongside.
@@ -430,6 +436,98 @@ public sealed class MsnServer : Listener
 
             await SafeSendAsync(other, line);
         }
+    }
+
+    // REA <trid> <account> <urlencodedName>, answered REA <trid> <serial> <account> <urlencodedName>: the
+    // MSNP2-9 rename. A member may only rename THEMSELVES - accepting any other account here would let one
+    // member rename another. The DECODED name is what persists; the wire encoding is applied exactly once,
+    // by UrlEncode on every outbound surface. Error codes: 201 = invalid parameter, 209 = invalid friendly name.
+    async Task HandleReaAsync(MsnSession session, string[] parts)
+    {
+        if (parts.Length < 4)
+        {
+            return;
+        }
+
+        var trid = parts[1];
+
+        // A raw space in the name token means the client never URL-encoded it; storing the truncated
+        // fragment tokenization left in parts[3] would persist something the member did not send.
+        if (parts.Length > 4)
+        {
+            await session.SendLineAsync($"209 {trid}");
+
+            return;
+        }
+
+        if (!string.Equals(parts[2], session.Account, StringComparison.OrdinalIgnoreCase))
+        {
+            await session.SendLineAsync($"201 {trid}");
+
+            return;
+        }
+
+        string decoded;
+
+        try
+        {
+            decoded = Uri.UnescapeDataString(parts[3]);
+        }
+        catch (UriFormatException)
+        {
+            await session.SendLineAsync($"209 {trid}");
+
+            return;
+        }
+
+        if (!IsValidDisplayName(decoded))
+        {
+            await session.SendLineAsync($"209 {trid}");
+
+            return;
+        }
+
+        // Empty or whitespace-only clears the stored name: the sign-in address becomes the display name
+        // again, rather than contacts seeing a blank entry.
+        var cleared = string.IsNullOrWhiteSpace(decoded);
+
+        Mind.Db?.UserSetDisplayName(session.AccountUsername, cleared ? null : decoded);
+
+        session.DisplayName = cleared ? session.Account : decoded;
+
+        await session.SendLineAsync($"REA {trid} {session.NextListSerial()} {session.Account} {UrlEncode(session.DisplayName)}");
+
+        // Already-connected contacts see the new name immediately: the NLN broadcast carries
+        // UrlEncode(session.DisplayName). A session that never went online (or is hidden) announces
+        // nothing, exactly as its status demands - the name still lands at the next sign-on/CHG.
+        if (session.Status is not (MsnStatus.Offline or MsnStatus.Hidden))
+        {
+            await BroadcastPresenceAsync(session, session.Status);
+        }
+    }
+
+    // The decoded form is shown to other members, so it gets the same discipline as any member-supplied
+    // display text: a period-honest length cap (clients of the era handled ~129 chars) and no control
+    // characters, which covers the CR/LF that would break MSNP's line framing. Spaces and delimiters are
+    // fine here because every outbound path re-encodes with UrlEncode.
+    internal const int MaxDisplayNameLength = 129;
+
+    internal static bool IsValidDisplayName(string name)
+    {
+        if (name.Length > MaxDisplayNameLength)
+        {
+            return false;
+        }
+
+        foreach (var c in name)
+        {
+            if (char.IsControl(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     async Task HandleXfrAsync(MsnSession session, string[] parts)

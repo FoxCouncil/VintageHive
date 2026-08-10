@@ -75,6 +75,21 @@ public class MsnAuthGateTests
         StringAssert.StartsWith(await conn.ReadLineAsync(), "911", "XFR issued a switchboard ticket to a session that never signed on.");
     }
 
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task AnUnauthenticatedSession_CannotRename()
+    {
+        MsnTestEnv.Ensure();
+
+        using var conn = new MsnConn(NewServer());
+
+        await OpenUnauthenticatedAsync(conn);
+
+        await conn.SendAsync("REA 2 alice Hax");
+
+        StringAssert.StartsWith(await conn.ReadLineAsync(), "911", "REA edits stored account state and must be refused before sign-on.");
+    }
+
     // The gate must not break the thing it guards. After a real MD5 login SYN still has to answer with the
     // four contact lists, or every client sits forever waiting for contact sync to finish.
     [TestMethod]

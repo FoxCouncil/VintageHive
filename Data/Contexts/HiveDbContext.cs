@@ -32,6 +32,8 @@ public class HiveDbContext : DbContextBase
 
     private const string TABLE_USERALIAS = "user_alias";
 
+    private const string TABLE_USERPROFILE = "user_profile";
+
     private const string TABLE_OSCARSESSION = "oscar_session";
 
     private const string TABLE_OSCARPROFILE = "oscar_profile";
@@ -191,6 +193,13 @@ public class HiveDbContext : DbContextBase
         // Optional numeric OSCAR aliases (ICQ UINs): at most one per account, resolving to the owning
         // username. Sign-on is the only consumer; mail, IRC and finger stay keyed on the username.
         CreateTable(TABLE_USERALIAS, "username TEXT UNIQUE COLLATE NOCASE, alias TEXT UNIQUE");
+
+        // Member-chosen display text shared across every messenger, keyed on the resolved username so
+        // alice and alice@<hosted domain> are one person with one name. No row means "no chosen name"
+        // and every service falls back to the identity it uses today, which is what keeps an upgraded
+        // database byte-identical on the wire until a member actually sets one. Deliberately not
+        // MSN-shaped: Yahoo nicknames and the OSCAR profile can point here later without a reshape.
+        CreateTable(TABLE_USERPROFILE, "username TEXT UNIQUE COLLATE NOCASE, displayname TEXT");
 
         // ICQ (OSCAR) Server
         CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
@@ -989,6 +998,80 @@ public class HiveDbContext : DbContextBase
             command.Parameters.Add(new SqliteParameter("@username", username));
 
             return Convert.ToBoolean(command.ExecuteNonQuery());
+        });
+    }
+
+    /// <summary>The member's chosen display name, or null when none is stored. The DECODED string lives here;
+    /// wire encoding is each protocol's job on the way out, so it is applied exactly once.</summary>
+    public string UserGetDisplayName(string username)
+    {
+        if (string.IsNullOrEmpty(username))
+        {
+            return null;
+        }
+
+        return WithContext<string>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT displayname FROM {TABLE_USERPROFILE} WHERE username = @username";
+
+            command.Parameters.Add(new SqliteParameter("@username", username));
+
+            using var reader = command.ExecuteReader();
+
+            return reader.Read() && !reader.IsDBNull(0) ? reader.GetString(0) : null;
+        });
+    }
+
+    /// <summary>Stores the member's display name. Null, empty or whitespace-only clears it (the row is
+    /// deleted), returning the member to the no-chosen-name state every service falls back from.</summary>
+    public bool UserSetDisplayName(string username, string displayName)
+    {
+        if (string.IsNullOrEmpty(username))
+        {
+            return false;
+        }
+
+        return WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                using var deleteCommand = context.CreateCommand();
+
+                deleteCommand.CommandText = $"DELETE FROM {TABLE_USERPROFILE} WHERE username = @username";
+
+                deleteCommand.Parameters.Add(new SqliteParameter("@username", username));
+
+                deleteCommand.ExecuteNonQuery();
+            }
+            else
+            {
+                using var updateCommand = context.CreateCommand();
+
+                updateCommand.CommandText = $"UPDATE {TABLE_USERPROFILE} SET displayname = @displayname WHERE username = @username";
+
+                updateCommand.Parameters.Add(new SqliteParameter("@displayname", displayName));
+                updateCommand.Parameters.Add(new SqliteParameter("@username", username));
+
+                if (updateCommand.ExecuteNonQuery() == 0)
+                {
+                    using var insertCommand = context.CreateCommand();
+
+                    insertCommand.CommandText = $"INSERT INTO {TABLE_USERPROFILE} (username, displayname) VALUES(@username, @displayname)";
+
+                    insertCommand.Parameters.Add(new SqliteParameter("@username", username));
+                    insertCommand.Parameters.Add(new SqliteParameter("@displayname", displayName));
+
+                    insertCommand.ExecuteNonQuery();
+                }
+            }
+
+            transaction.Commit();
+
+            return true;
         });
     }
 

@@ -107,9 +107,10 @@ internal sealed class MsnConn : IDisposable
 
     public Task<byte[]> ReadBytesAsync(int count) => _reader.ReadBytesAsync(count);
 
-    // Runs VER/CVR/USR-MD5 login and returns after the USR OK. Versions are offered highest-first,
-    // so the first one is what the server must choose.
-    public async Task LoginAsync(string account, string versions = "MSNP7 MSNP6")
+    // Runs VER/CVR/USR-MD5 login and returns the USR OK line, so callers can assert which display
+    // name sign-on carried. Versions are offered highest-first, so the first one is what the server
+    // must choose.
+    public async Task<string> LoginAsync(string account, string versions = "MSNP7 MSNP6")
     {
         await SendAsync($"VER 1 {versions} CVR0");
 
@@ -134,6 +135,8 @@ internal sealed class MsnConn : IDisposable
         var ok = await ReadLineAsync();
 
         Assert.IsTrue(ok.StartsWith("USR 4 OK"), $"Login failed: {ok}");
+
+        return ok;
     }
 
     public void Dispose()
@@ -992,5 +995,167 @@ public class MsnServerTests
 
         Assert.IsNull(PresenceRegistry.Find("alice"), "Hidden users must not be exposed via the presence registry");
         Assert.IsFalse(PresenceRegistry.Online().Any(e => e.Network == "MSN" && e.Username == "alice"), "Hidden users must not appear in the online list");
+    }
+}
+
+[TestClass]
+public class MsnDisplayNameTests
+{
+    [TestInitialize]
+    public void Setup()
+    {
+        MsnTestEnv.Ensure();
+        MsnServer.NsSessions.Clear();
+
+        // The profile store is on-disk sqlite that outlives the process, so a name left behind by a prior
+        // run (or a prior test) must not leak into the no-stored-name regression cases.
+        Mind.Db!.UserSetDisplayName("alice", null);
+        Mind.Db!.UserSetDisplayName("bob", null);
+    }
+
+    // The compatibility contract: with no stored name, every surface emits exactly what it emitted before
+    // the profile table existed - the sign-in address.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task NoStoredName_UsrIlnAndNln_AllCarryTheSignInAddress()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        var ok = await alice.LoginAsync("alice");
+
+        Assert.AreEqual("USR 4 OK alice alice 1 0", ok, "With no stored name the USR OK must carry the sign-in address as the display name");
+
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        using var bob = new MsnConn(server);
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        Assert.AreEqual("ILN 6 NLN alice alice", await bob.ReadLineAsync(), "With no stored name the ILN display name must be the sign-in address");
+        Assert.AreEqual("NLN NLN bob bob", await alice.ReadLineAsync(), "With no stored name the NLN display name must be the sign-in address");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_PersistsAndAFreshSignOnCarriesTheStoredName()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using (var alice = new MsnConn(server))
+        {
+            await alice.LoginAsync("alice");
+            await alice.SendAsync("REA 5 alice The%20Fox");
+
+            // SYN always answers version 1, so the first account-state edit acks serial 2.
+            Assert.AreEqual("REA 5 2 alice The%20Fox", await alice.ReadLineAsync(), "REA must be acknowledged with the serial-bearing form");
+        }
+
+        Assert.AreEqual("The Fox", Mind.Db!.UserGetDisplayName("alice"), "The DECODED name must be what persists");
+
+        using var again = new MsnConn(server);
+
+        var ok = await again.LoginAsync("alice");
+
+        Assert.AreEqual("USR 4 OK alice The%20Fox 1 0", ok, "A fresh sign-on must carry the stored name without another REA");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_ReannouncesSoConnectedContactsSeeTheNewName()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+        Assert.AreEqual("ILN 6 NLN alice alice", await bob.ReadLineAsync());
+        Assert.AreEqual("NLN NLN bob bob", await alice.ReadLineAsync());
+
+        await alice.SendAsync("REA 7 alice The%20Fox");
+        Assert.AreEqual("REA 7 2 alice The%20Fox", await alice.ReadLineAsync());
+
+        Assert.AreEqual("NLN NLN alice The%20Fox", await bob.ReadLineAsync(), "The rename must re-announce presence so already-connected contacts see the new name");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_NamingAnotherAccount_IsRefusedAndNotStored()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("REA 5 bob Sneaky");
+
+        Assert.AreEqual("201 5", await alice.ReadLineAsync(), "One member must not be able to rename another");
+        Assert.IsNull(Mind.Db!.UserGetDisplayName("bob"), "The refused rename must not persist anything");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_MalformedNames_AreRefusedNotStoredAndNotEchoed()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+
+        // Over-long (decoded length past the period cap).
+        await alice.SendAsync($"REA 5 alice {new string('a', MsnServer.MaxDisplayNameLength + 1)}");
+        Assert.AreEqual("209 5", await alice.ReadLineAsync(), "An over-long name must be refused, and the refusal must not echo it");
+
+        // A control character survives URL-decoding.
+        await alice.SendAsync("REA 6 alice bad%01name");
+        Assert.AreEqual("209 6", await alice.ReadLineAsync(), "A control character in the decoded name must be refused");
+
+        // CR/LF would break MSNP's line framing if it ever reached an outbound line unencoded.
+        await alice.SendAsync("REA 7 alice evil%0D%0Aname");
+        Assert.AreEqual("209 7", await alice.ReadLineAsync(), "A CRLF-bearing name must be refused");
+
+        // A raw space means the client never encoded the name; the truncated first token must not persist.
+        await alice.SendAsync("REA 8 alice raw spacename");
+        Assert.AreEqual("209 8", await alice.ReadLineAsync(), "An unencoded name must be refused, not truncated at the first space");
+
+        Assert.IsNull(Mind.Db!.UserGetDisplayName("alice"), "No refused name may be stored");
+
+        // And none of them touched the live session either: presence still carries the address.
+        await alice.SendAsync("CHG 9 NLN");
+        Assert.AreEqual("CHG 9 NLN", await alice.ReadLineAsync());
+
+        Assert.AreEqual("alice", MsnServer.NsSessions["alice"].DisplayName, "A refused rename must not change the session's display name");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_EmptyOrWhitespaceName_ClearsBackToTheAddress()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("REA 5 alice The%20Fox");
+        Assert.AreEqual("REA 5 2 alice The%20Fox", await alice.ReadLineAsync());
+
+        // Whitespace-only decodes to nothing a contact could see; it must clear, not store a blank.
+        await alice.SendAsync("REA 6 alice %20");
+        Assert.AreEqual("REA 6 3 alice alice", await alice.ReadLineAsync(), "Clearing must fall back to the sign-in address, never a blank name");
+
+        Assert.IsNull(Mind.Db!.UserGetDisplayName("alice"), "Clearing must remove the stored name entirely");
+        Assert.AreEqual("alice", MsnServer.NsSessions["alice"].DisplayName);
     }
 }
