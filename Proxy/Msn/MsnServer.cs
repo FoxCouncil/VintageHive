@@ -153,6 +153,8 @@ public sealed class MsnServer : Listener
                 case "XFR": await HandleXfrAsync(session, parts); break;
                 case "ADD": await HandleListEditAsync(session, parts); break;
                 case "REM": await HandleListEditAsync(session, parts); break;
+                case "GTC": await HandleListSettingAsync(session, parts, traceId); break;
+                case "BLP": await HandleListSettingAsync(session, parts, traceId); break;
                 case "REA": await HandleReaAsync(session, parts); break;
                 case "PNG": await session.SendLineAsync("QNG 50"); break;
                 case "OUT": session.Client.RawSocket.Close(); break;
@@ -297,19 +299,52 @@ public sealed class MsnServer : Listener
     static async Task HandleSynAsync(MsnSession session, string[] parts)
     {
         var trid = parts.Length > 1 ? parts[1] : "0";
-        const string version = "1";
 
-        // The server-built roster is the operator's call, not the server's: MsnAutoRoster off starts every
-        // member with all four lists empty (the 0 0 form) so members build their own via ADD/REM. Re-read
-        // per SYN, so a ConfigSet applies without restart. The "everyone except me" filter compares stored
-        // usernames, so it must use the resolved username; the presented alice@<hosted> would exclude
-        // nobody and list the member to themselves.
-        var autoRoster = Mind.Db?.ConfigGet<bool>(ConfigNames.MsnAutoRoster) ?? true;
-        var contacts = autoRoster ? OtherAccounts(session.AccountUsername) : new List<string>();
+        string version;
+        string gtc;
+        string blp;
+        List<MsnListEntry> forwardList, allowList, blockList, reverseList;
+
+        if (PersistLists)
+        {
+            // Members own their lists: serve exactly what is stored, under the serial that survives a
+            // process restart (so a client's cached version number stays meaningful). MsnAutoRoster is
+            // ignored on this path by contract.
+            var state = Mind.Db.MsnListStateGet(session.AccountUsername);
+
+            version = state.Serial.ToString();
+            gtc = state.Gtc;
+            blp = state.Blp;
+            forwardList = Mind.Db.MsnListGet(session.AccountUsername, "FL");
+            allowList = Mind.Db.MsnListGet(session.AccountUsername, "AL");
+            blockList = Mind.Db.MsnListGet(session.AccountUsername, "BL");
+            reverseList = Mind.Db.MsnListGet(session.AccountUsername, "RL");
+        }
+        else
+        {
+            // The server-built roster is the operator's call, not the server's: MsnAutoRoster off starts every
+            // member with all four lists empty (the 0 0 form) so members build their own via ADD/REM. Re-read
+            // per SYN, so a ConfigSet applies without restart. The "everyone except me" filter compares stored
+            // usernames, so it must use the resolved username; the presented alice@<hosted> would exclude
+            // nobody and list the member to themselves.
+            var autoRoster = Mind.Db?.ConfigGet<bool>(ConfigNames.MsnAutoRoster) ?? true;
+            var contacts = autoRoster ? OtherAccounts(session.AccountUsername) : new List<string>();
+            var entries = contacts.Select(c => new MsnListEntry(c, c, 0)).ToList();
+
+            // Everyone is a buddy of everyone on the hive, so FL and RL carry the full account list; AL
+            // mirrors FL (everyone is pre-allowed, so GTC A never triggers a prompt storm) and BL stays empty.
+            version = "1";
+            gtc = "A";
+            blp = "AL";
+            forwardList = entries;
+            allowList = entries;
+            blockList = new List<MsnListEntry>();
+            reverseList = entries;
+        }
 
         await session.SendLineAsync($"SYN {trid} {version}");
-        await session.SendLineAsync($"GTC {trid} {version} A");
-        await session.SendLineAsync($"BLP {trid} {version} AL");
+        await session.SendLineAsync($"GTC {trid} {version} {gtc}");
+        await session.SendLineAsync($"BLP {trid} {version} {blp}");
 
         // MSNP7 adds contact groups to the sync, and the client stalls on "Signing In..." forever without
         // them: at least one LSG line always precedes the lists (the implicit "Other Contacts" group,
@@ -325,17 +360,15 @@ public sealed class MsnServer : Listener
         }
 
         // MSNP2-7 clients expect ALL FOUR lists in the SYN response, each terminated by its item#/total
-        // pair (0 0 when empty), before they consider contact sync complete. Everyone is a buddy of
-        // everyone on the hive, so FL and RL carry the full account list; AL mirrors FL (everyone is
-        // pre-allowed, so GTC A never triggers a prompt storm) and BL stays empty.
-        await SendContactListAsync(session, trid, version, "FL", contacts, appendGroupField: msnp7);
-        await SendContactListAsync(session, trid, version, "AL", contacts);
-        await SendContactListAsync(session, trid, version, "BL", new List<string>());
-        await SendContactListAsync(session, trid, version, "RL", contacts);
+        // pair (0 0 when empty), before they consider contact sync complete.
+        await SendContactListAsync(session, trid, version, "FL", forwardList, appendGroupField: msnp7);
+        await SendContactListAsync(session, trid, version, "AL", allowList);
+        await SendContactListAsync(session, trid, version, "BL", blockList);
+        await SendContactListAsync(session, trid, version, "RL", reverseList);
     }
 
     // appendGroupField applies only to the FL on MSNP7+; the AL/BL/RL never carry group ids in any dialect.
-    static async Task SendContactListAsync(MsnSession session, string trid, string version, string list, List<string> contacts, bool appendGroupField = false)
+    static async Task SendContactListAsync(MsnSession session, string trid, string version, string list, List<MsnListEntry> contacts, bool appendGroupField = false)
     {
         if (contacts.Count == 0)
         {
@@ -346,11 +379,13 @@ public sealed class MsnServer : Listener
 
         for (var i = 0; i < contacts.Count; i++)
         {
-            var line = $"LST {trid} {list} {version} {i + 1} {contacts.Count} {contacts[i]} {UrlEncode(contacts[i])}";
+            var entry = contacts[i];
+            var display = string.IsNullOrEmpty(entry.DisplayName) ? entry.Contact : entry.DisplayName;
+            var line = $"LST {trid} {list} {version} {i + 1} {contacts.Count} {entry.Contact} {UrlEncode(display)}";
 
             if (appendGroupField)
             {
-                line += " 0";
+                line += $" {entry.GroupId}";
             }
 
             await session.SendLineAsync(line);
@@ -359,10 +394,10 @@ public sealed class MsnServer : Listener
 
     // ADD <trid> <list> <account> <displayname>[ <groupid>] and REM <trid> <list> <account>: acknowledged by
     // echoing the request with the next list serial, which is all the client needs to commit the change into
-    // its own lists - the mechanism members build a roster with when MsnAutoRoster is off. Nothing is
-    // persisted (per-member list storage is a separate feature), and there is deliberately no
-    // does-the-account-exist check: a "no such user" error here would confirm which names exist, the very
-    // disclosure the roster switch closes.
+    // its own lists. With MsnPersistLists off nothing is persisted (the flag-off contract); with it on the
+    // edit lands in the owner's stored lists and an ADD FL grows its reverse side (NotifyForwardAddAsync).
+    // Either way there is deliberately no does-the-account-exist check: a "no such user" error here would
+    // confirm which names exist, the very disclosure the roster switch closes.
     static async Task HandleListEditAsync(MsnSession session, string[] parts)
     {
         if (parts.Length < 4)
@@ -370,7 +405,153 @@ public sealed class MsnServer : Listener
             return;
         }
 
-        await session.SendLineAsync($"{parts[0]} {parts[1]} {parts[2]} {session.NextListSerial()} {string.Join(' ', parts.Skip(3))}");
+        if (!PersistLists)
+        {
+            await session.SendLineAsync($"{parts[0]} {parts[1]} {parts[2]} {session.NextListSerial()} {string.Join(' ', parts.Skip(3))}");
+
+            return;
+        }
+
+        var verb = parts[0];
+        var trid = parts[1];
+        var list = parts[2];
+        var contact = parts[3];
+
+        // Only the four real lists persist; anything else is not a shape a period client emits.
+        if (list is not ("FL" or "AL" or "BL" or "RL"))
+        {
+            return;
+        }
+
+        if (verb == "ADD")
+        {
+            // The DECODED display name persists (wire encoding is applied exactly once, on the way out); a
+            // name that fails REA's validity rules falls back to the account token rather than refusing the
+            // add, because the ack must stay uniform regardless of what was asked for (see the no-oracle
+            // rule above).
+            var display = contact;
+
+            if (parts.Length > 4)
+            {
+                try
+                {
+                    var decoded = Uri.UnescapeDataString(parts[4]);
+
+                    if (!string.IsNullOrWhiteSpace(decoded) && IsValidDisplayName(decoded))
+                    {
+                        display = decoded;
+                    }
+                }
+                catch (UriFormatException)
+                {
+                    // Keep the account-token fallback.
+                }
+            }
+
+            var groupId = parts.Length > 5 && int.TryParse(parts[5], out var parsedGroup) && parsedGroup >= 0 ? parsedGroup : 0;
+
+            Mind.Db.MsnListUpsert(session.AccountUsername, list, contact, display, groupId);
+
+            await session.SendLineAsync($"ADD {trid} {list} {Mind.Db.MsnListBumpSerial(session.AccountUsername)} {string.Join(' ', parts.Skip(3))}");
+
+            if (list == "FL")
+            {
+                await NotifyForwardAddAsync(session, trid, contact);
+            }
+        }
+        else
+        {
+            // REM FL deliberately leaves the target's RL entry alone (real MSN semantics: withdrawing your
+            // subscription does not erase the fact you once asked), so only the owner's own row goes.
+            Mind.Db.MsnListRemove(session.AccountUsername, list, contact);
+
+            await session.SendLineAsync($"REM {trid} {list} {Mind.Db.MsnListBumpSerial(session.AccountUsername)} {string.Join(' ', parts.Skip(3))}");
+        }
+    }
+
+    // The reverse half of ADD FL, the piece that makes the client's authorization prompt possible under
+    // GTC A: the adder lands on the target's RL, a live target hears about it as ADD 0 RL, and the adder
+    // gets the target's presence immediately instead of staying dark until the contact's next CHG. A name
+    // that resolves to no account simply has no reverse side - it was stored and acked upstream identically
+    // to a real one, so nothing here may emit anything that distinguishes the two cases to the adder.
+    static async Task NotifyForwardAddAsync(MsnSession session, string trid, string contact)
+    {
+        var targetUsername = ResolveAccountUsername(contact);
+
+        if (targetUsername == null || targetUsername.Equals(session.AccountUsername, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // Only a NEW reverse-list entry notifies: re-adding someone who already holds the RL entry (say,
+        // after a REM FL) must not re-ring their authorization prompt.
+        if (Mind.Db.MsnListUpsert(targetUsername, "RL", session.Account, session.DisplayName, 0))
+        {
+            var targetSerial = Mind.Db.MsnListBumpSerial(targetUsername);
+
+            if (NsSessions.TryGetValue(targetUsername.ToLowerInvariant(), out var live) && live.IsAuthenticated)
+            {
+                await SafeSendAsync(live, $"ADD 0 RL {targetSerial} {session.Account} {UrlEncode(session.DisplayName)}");
+            }
+        }
+
+        // Presence on add, under the same veto as the fan-out: a target whose BL names the adder stays
+        // exactly as dark as an offline or nonexistent one.
+        if (NsSessions.TryGetValue(targetUsername.ToLowerInvariant(), out var target)
+            && target.IsAuthenticated
+            && target.Status is not (MsnStatus.Offline or MsnStatus.Hidden)
+            && !ListNames(Mind.Db.MsnListGet(targetUsername, "BL"), session))
+        {
+            await session.SendLineAsync($"ILN {trid} {target.Status} {target.Account} {UrlEncode(target.DisplayName)}");
+        }
+    }
+
+    // GTC <trid> <A|N> and BLP <trid> <AL|BL>: the client's list-behavior settings, persisted so SYN can
+    // serve them back. Only meaningful with persistent lists; without the flag they stay the unhandled
+    // no-ops they always were (hence not in RequiresAuthentication - a 911 there would change the flag-off
+    // behavior - so the auth gate lives here instead).
+    static async Task HandleListSettingAsync(MsnSession session, string[] parts, string traceId)
+    {
+        if (!PersistLists)
+        {
+            Log.WriteLine(Log.LEVEL_DEBUG, nameof(MsnServer), $"Unhandled NS command: {parts[0]}", traceId);
+
+            return;
+        }
+
+        if (parts.Length < 3)
+        {
+            return;
+        }
+
+        var verb = parts[0];
+        var trid = parts[1];
+        var value = parts[2];
+
+        if (!session.IsAuthenticated)
+        {
+            await session.SendLineAsync($"911 {trid}");
+
+            return;
+        }
+
+        if (verb == "GTC" ? value is not ("A" or "N") : value is not ("AL" or "BL"))
+        {
+            return;
+        }
+
+        var serial = Mind.Db.MsnListBumpSerial(session.AccountUsername);
+
+        if (verb == "GTC")
+        {
+            Mind.Db.MsnListSetGtc(session.AccountUsername, value);
+        }
+        else
+        {
+            Mind.Db.MsnListSetBlp(session.AccountUsername, value);
+        }
+
+        await session.SendLineAsync($"{verb} {trid} {serial} {value}");
     }
 
     async Task HandleChgAsync(MsnSession session, string[] parts)
@@ -406,10 +587,20 @@ public sealed class MsnServer : Listener
 
         await session.SendLineAsync($"CHG {trid} {status}");
 
-        // Initial presence dump: one ILN per already-online contact.
+        // Initial presence dump: one ILN per already-online contact. With persistent lists this is
+        // list-scoped: only contacts the member's own FL names, and never a principal whose BL names
+        // the member (the same veto BroadcastPresenceAsync applies).
+        var persist = PersistLists;
+        var forwardList = persist ? Mind.Db.MsnListGet(session.AccountUsername, "FL") : null;
+
         foreach (var other in NsSessions.Values.ToArray())
         {
             if (!other.IsAuthenticated || ReferenceEquals(other, session) || other.Status is MsnStatus.Offline or MsnStatus.Hidden)
+            {
+                continue;
+            }
+
+            if (persist && (!ListNames(forwardList, other) || ListNames(Mind.Db.MsnListGet(other.AccountUsername, "BL"), session)))
             {
                 continue;
             }
@@ -423,9 +614,20 @@ public sealed class MsnServer : Listener
 
     static async Task BroadcastPresenceAsync(MsnSession session, string status)
     {
+        var persist = PersistLists;
+        var blockList = persist ? Mind.Db.MsnListGet(session.AccountUsername, "BL") : null;
+
         foreach (var other in NsSessions.Values.ToArray())
         {
             if (!other.IsAuthenticated || ReferenceEquals(other, session))
+            {
+                continue;
+            }
+
+            // With persistent lists the fan-out is list-scoped: presence reaches only members whose FL
+            // names the principal, and the principal's BL is the veto - which is what makes the Block
+            // button of the GTC A authorization prompt actually mean something.
+            if (persist && (!ListNames(Mind.Db.MsnListGet(other.AccountUsername, "FL"), session) || ListNames(blockList, other)))
             {
                 continue;
             }
@@ -495,7 +697,7 @@ public sealed class MsnServer : Listener
 
         session.DisplayName = cleared ? session.Account : decoded;
 
-        await session.SendLineAsync($"REA {trid} {session.NextListSerial()} {session.Account} {UrlEncode(session.DisplayName)}");
+        await session.SendLineAsync($"REA {trid} {NextListSerial(session)} {session.Account} {UrlEncode(session.DisplayName)}");
 
         // Already-connected contacts see the new name immediately: the NLN broadcast carries
         // UrlEncode(session.DisplayName). A session that never went online (or is hidden) announces
@@ -737,6 +939,53 @@ public sealed class MsnServer : Listener
     }
 
     // -- Shared helpers ---------------------------------------------------
+
+    // Re-read per operation (like MsnAutoRoster) so a ConfigSet applies without restart.
+    static bool PersistLists => Mind.Db?.ConfigGet<bool>(ConfigNames.MsnPersistLists) ?? false;
+
+    // With persistent lists the serial lives in storage, shared by every edit surface (ADD/REM/REA/GTC/BLP)
+    // so the client's cached version number never runs backwards; otherwise it stays the session counter it
+    // always was.
+    static int NextListSerial(MsnSession session)
+    {
+        return PersistLists ? Mind.Db.MsnListBumpSerial(session.AccountUsername) : session.NextListSerial();
+    }
+
+    // The same resolution sign-on uses: whole-string fetch first (an account literally named with an '@'
+    // wins), then the Passport-style name@domain form against the hosted mail domains. Null when nothing
+    // matches - which callers must treat exactly like a real-but-offline member.
+    static string ResolveAccountUsername(string presented)
+    {
+        var user = Mind.Db?.UserFetch(presented);
+
+        if (user == null && presented.Contains('@') && MailDomains.TryResolveLogin(presented, out var localPart, out _))
+        {
+            user = Mind.Db?.UserFetch(localPart);
+        }
+
+        return user?.Username;
+    }
+
+    // Whether a stored list names this session's member. Entries hold whatever the member's client sent,
+    // so a bare name and the Passport form of the same account must both match: the presented wire
+    // identity, the resolved username, and a hosted name@domain resolving to that username all count.
+    static bool ListNames(List<MsnListEntry> entries, MsnSession who)
+    {
+        foreach (var entry in entries)
+        {
+            if (entry.Contact.Equals(who.Account, StringComparison.OrdinalIgnoreCase) || entry.Contact.Equals(who.AccountUsername, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (entry.Contact.Contains('@') && MailDomains.TryResolveLogin(entry.Contact, out var localPart, out _) && localPart.Equals(who.AccountUsername, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     static Switchboard GetOrCreateSwitchboard(string sessionId)
     {

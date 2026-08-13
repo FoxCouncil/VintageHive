@@ -34,6 +34,10 @@ public class HiveDbContext : DbContextBase
 
     private const string TABLE_USERPROFILE = "user_profile";
 
+    private const string TABLE_MSNLIST = "msn_list";
+
+    private const string TABLE_MSNLISTSTATE = "msn_list_state";
+
     private const string TABLE_OSCARSESSION = "oscar_session";
 
     private const string TABLE_OSCARPROFILE = "oscar_profile";
@@ -113,6 +117,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.ServiceWalledGarden, false },
         { ConfigNames.AllowSelfRegistration, true },
         { ConfigNames.MsnAutoRoster, true },
+        { ConfigNames.MsnPersistLists, false },
         { ConfigNames.YahooAutoRoster, true },
         { ConfigNames.FingerListOnline, true },
         { ConfigNames.IrcRequireAuthentication, false },
@@ -201,8 +206,16 @@ public class HiveDbContext : DbContextBase
         // MSN-shaped: Yahoo nicknames and the OSCAR profile can point here later without a reshape.
         CreateTable(TABLE_USERPROFILE, "username TEXT UNIQUE COLLATE NOCASE, displayname TEXT");
 
+        // MSN Messenger persistent contact lists (msnpersistlists): one row per (owner, list, contact)
+        // across the four MSNP lists FL/AL/BL/RL, plus a per-owner serial and the GTC/BLP settings. The
+        // owner is the resolved username (like user_profile); the contact is stored exactly as the client
+        // presented it (see MsnListEntry). Created on demand - an existing box gets the empty tables and,
+        // with the flag off, never a single row.
+        CreateTable(TABLE_MSNLIST, "owner TEXT COLLATE NOCASE, list TEXT, contact TEXT COLLATE NOCASE, displayname TEXT, groupid INTEGER, UNIQUE(owner, list, contact)");
+        CreateTable(TABLE_MSNLISTSTATE, "owner TEXT UNIQUE COLLATE NOCASE, serial INTEGER, gtc TEXT, blp TEXT");
+
         // ICQ (OSCAR) Server
-        CreateTable(TABLE_OSCARSESSION, "cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
+        CreateTable(TABLE_OSCARSESSION,"cookie TEXT UNIQUE, screenname TEXT, status TEXT, awaymime TEXT, away TEXT, profilemime TEXT, profile TEXT, buddies TEXT, capabilities TEXT, useragent TEXT, clientip TEXT, timestamp TEXT");
 
         // Oscar User Profiles
         CreateTable(TABLE_OSCARPROFILE, "screenname TEXT UNIQUE COLLATE NOCASE, nickname TEXT, firstname TEXT, lastname TEXT, email TEXT, homecity TEXT, homestate TEXT, homephone TEXT, homefax TEXT, homeaddress TEXT, cellphone TEXT, homezip TEXT, homecountry INTEGER, age INTEGER, gender INTEGER, homepage TEXT, birthyear INTEGER, birthmonth INTEGER, birthday INTEGER, language1 INTEGER, language2 INTEGER, language3 INTEGER, workcity TEXT, workstate TEXT, workphone TEXT, workfax TEXT, workaddress TEXT, workzip TEXT, workcountry INTEGER, workcompany TEXT, workdepartment TEXT, workposition TEXT, workhomepage TEXT, workoccupation INTEGER, notes TEXT, interests TEXT, affiliations TEXT, pastaffiliations TEXT");
@@ -1106,6 +1119,260 @@ public class HiveDbContext : DbContextBase
         var owner = UserResolveAlias(alias);
 
         return owner == null ? null : UserFetch(owner);
+    }
+
+    #endregion
+
+    #region Msn List Methods
+
+    /// <summary>The stored entries of one of an owner's four MSN lists, in insertion order (so SYN's
+    /// item numbering is stable). Empty for a member who has never edited.</summary>
+    public List<MsnListEntry> MsnListGet(string owner, string list)
+    {
+        return WithContext<List<MsnListEntry>>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT contact, displayname, groupid FROM {TABLE_MSNLIST} WHERE owner = @owner AND list = @list ORDER BY rowid";
+
+            command.Parameters.Add(new SqliteParameter("@owner", owner));
+            command.Parameters.Add(new SqliteParameter("@list", list));
+
+            using var reader = command.ExecuteReader();
+
+            var entries = new List<MsnListEntry>();
+
+            while (reader.Read())
+            {
+                entries.Add(new MsnListEntry(reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1), reader.IsDBNull(2) ? 0 : reader.GetInt32(2)));
+            }
+
+            return entries;
+        });
+    }
+
+    /// <summary>Stores or refreshes one list entry. True only when the entry is NEW - the caller uses that
+    /// to decide whether the reverse-list notification fires, so a re-add must not re-ring anyone's
+    /// authorization prompt.</summary>
+    public bool MsnListUpsert(string owner, string list, string contact, string displayName, int groupId)
+    {
+        return WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            updateCommand.CommandText = $"UPDATE {TABLE_MSNLIST} SET displayname = @displayname, groupid = @groupid WHERE owner = @owner AND list = @list AND contact = @contact";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@displayname", displayName ?? string.Empty));
+            updateCommand.Parameters.Add(new SqliteParameter("@groupid", groupId));
+            updateCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+            updateCommand.Parameters.Add(new SqliteParameter("@list", list));
+            updateCommand.Parameters.Add(new SqliteParameter("@contact", contact));
+
+            var inserted = false;
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {TABLE_MSNLIST} (owner, list, contact, displayname, groupid) VALUES(@owner, @list, @contact, @displayname, @groupid)";
+
+                insertCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+                insertCommand.Parameters.Add(new SqliteParameter("@list", list));
+                insertCommand.Parameters.Add(new SqliteParameter("@contact", contact));
+                insertCommand.Parameters.Add(new SqliteParameter("@displayname", displayName ?? string.Empty));
+                insertCommand.Parameters.Add(new SqliteParameter("@groupid", groupId));
+
+                try
+                {
+                    insertCommand.ExecuteNonQuery();
+
+                    inserted = true;
+                }
+                catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+                {
+                    // UNIQUE constraint: a racing add of the same entry won the check-then-insert; for
+                    // this caller "already there" and "updated" are the same answer.
+                }
+            }
+
+            transaction.Commit();
+
+            return inserted;
+        });
+    }
+
+    /// <summary>Removes one entry; true when a row actually went away. Deliberately touches nothing else:
+    /// REM FL keeps the target's RL entry (real MSN semantics) by simply never being called for it.</summary>
+    public bool MsnListRemove(string owner, string list, string contact)
+    {
+        return WithContext(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"DELETE FROM {TABLE_MSNLIST} WHERE owner = @owner AND list = @list AND contact = @contact";
+
+            command.Parameters.Add(new SqliteParameter("@owner", owner));
+            command.Parameters.Add(new SqliteParameter("@list", list));
+            command.Parameters.Add(new SqliteParameter("@contact", contact));
+
+            return command.ExecuteNonQuery() > 0;
+        });
+    }
+
+    /// <summary>The owner's list serial and GTC/BLP settings, or the never-edited defaults (1, A, AL)
+    /// when no row exists - exactly the constants the pre-persistence SYN always answered.</summary>
+    public MsnListState MsnListStateGet(string owner)
+    {
+        return WithContext<MsnListState>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT serial, gtc, blp FROM {TABLE_MSNLISTSTATE} WHERE owner = @owner";
+
+            command.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            using var reader = command.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return new MsnListState(1, "A", "AL");
+            }
+
+            return new MsnListState(reader.GetInt32(0), reader.IsDBNull(1) ? "A" : reader.GetString(1), reader.IsDBNull(2) ? "AL" : reader.GetString(2));
+        });
+    }
+
+    /// <summary>Advances the owner's list serial and returns the new value. A never-edited owner gets the
+    /// row on demand and acks 2, matching the session-counter behavior the flag-off path keeps (SYN always
+    /// answered version 1, so the first edit acks 2).</summary>
+    public int MsnListBumpSerial(string owner)
+    {
+        return WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            updateCommand.CommandText = $"UPDATE {TABLE_MSNLISTSTATE} SET serial = serial + 1 WHERE owner = @owner";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {TABLE_MSNLISTSTATE} (owner, serial, gtc, blp) VALUES(@owner, 2, 'A', 'AL')";
+
+                insertCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+                try
+                {
+                    insertCommand.ExecuteNonQuery();
+
+                    transaction.Commit();
+
+                    return 2;
+                }
+                catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+                {
+                    // A racing first bump inserted the row between the UPDATE and the INSERT; fall
+                    // through to the increment-and-read path against the row that now exists.
+                    using var retryCommand = context.CreateCommand();
+
+                    retryCommand.CommandText = $"UPDATE {TABLE_MSNLISTSTATE} SET serial = serial + 1 WHERE owner = @owner";
+
+                    retryCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+                    retryCommand.ExecuteNonQuery();
+                }
+            }
+
+            using var readCommand = context.CreateCommand();
+
+            readCommand.CommandText = $"SELECT serial FROM {TABLE_MSNLISTSTATE} WHERE owner = @owner";
+
+            readCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            var serial = Convert.ToInt32(readCommand.ExecuteScalar());
+
+            transaction.Commit();
+
+            return serial;
+        });
+    }
+
+    /// <summary>Persists the GTC (prompt-on-reverse-add) setting; the serial bump is the caller's,
+    /// matching the ack it sends.</summary>
+    public void MsnListSetGtc(string owner, string value)
+    {
+        MsnListSetSetting(owner, "gtc", value);
+    }
+
+    /// <summary>Persists the BLP (default-for-strangers) setting; the serial bump is the caller's.</summary>
+    public void MsnListSetBlp(string owner, string value)
+    {
+        MsnListSetSetting(owner, "blp", value);
+    }
+
+    // column is one of the two internal callers' literals, never user input.
+    private void MsnListSetSetting(string owner, string column, string value)
+    {
+        WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            updateCommand.CommandText = $"UPDATE {TABLE_MSNLISTSTATE} SET {column} = @value WHERE owner = @owner";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@value", value));
+            updateCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {TABLE_MSNLISTSTATE} (owner, serial, gtc, blp) VALUES(@owner, 1, @gtc, @blp)";
+
+                insertCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+                insertCommand.Parameters.Add(new SqliteParameter("@gtc", column == "gtc" ? value : "A"));
+                insertCommand.Parameters.Add(new SqliteParameter("@blp", column == "blp" ? value : "AL"));
+
+                insertCommand.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+        });
+    }
+
+    /// <summary>Erases an owner's lists and state entirely - every list row plus the serial/settings row -
+    /// returning them to the never-edited defaults.</summary>
+    public void MsnListReset(string owner)
+    {
+        WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var deleteListsCommand = context.CreateCommand();
+
+            deleteListsCommand.CommandText = $"DELETE FROM {TABLE_MSNLIST} WHERE owner = @owner";
+
+            deleteListsCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            deleteListsCommand.ExecuteNonQuery();
+
+            using var deleteStateCommand = context.CreateCommand();
+
+            deleteStateCommand.CommandText = $"DELETE FROM {TABLE_MSNLISTSTATE} WHERE owner = @owner";
+
+            deleteStateCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            deleteStateCommand.ExecuteNonQuery();
+
+            transaction.Commit();
+        });
     }
 
     #endregion

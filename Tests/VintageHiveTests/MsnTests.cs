@@ -1159,3 +1159,323 @@ public class MsnDisplayNameTests
         Assert.AreEqual("alice", MsnServer.NsSessions["alice"].DisplayName);
     }
 }
+
+[TestClass]
+public class MsnPersistListsTests
+{
+    [TestInitialize]
+    public void Setup()
+    {
+        MsnTestEnv.Ensure();
+        MsnServer.NsSessions.Clear();
+
+        // The list store is on-disk sqlite that outlives the process: rows and serials left by a prior
+        // run (or a prior test) must not leak in, so every owner starts never-edited. Display names too -
+        // a "The Fox" left behind by the REA tests would change every exact-match line below.
+        foreach (var owner in new[] { "alice", "bob" })
+        {
+            Mind.Db!.MsnListReset(owner);
+            Mind.Db!.UserSetDisplayName(owner, null);
+        }
+
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, true);
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task AddFl_PersistsAndSurvivesReconnect()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using (var alice = new MsnConn(server))
+        {
+            await alice.LoginAsync("alice");
+            await alice.SendAsync("ADD 5 FL bob bob 0");
+
+            Assert.AreEqual("ADD 5 FL 2 bob bob 0", await alice.ReadLineAsync(), "The first edit must ack the bumped stored serial");
+        }
+
+        // A fresh connection: the list must come back from storage, under the serial that survived.
+        using var again = new MsnConn(server);
+
+        await again.LoginAsync("alice");
+        await again.SendAsync("SYN 6");
+
+        Assert.AreEqual("SYN 6 2", await again.ReadLineAsync(), "SYN must serve the stored serial, not a fresh 1");
+        Assert.AreEqual("GTC 6 2 A", await again.ReadLineAsync());
+        Assert.AreEqual("BLP 6 2 AL", await again.ReadLineAsync());
+        Assert.AreEqual("LSG 6 2 1 1 0 Other%20Contacts 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 6 FL 2 1 1 bob bob 0", await again.ReadLineAsync(), "The FL must hold exactly the stored contact");
+        Assert.AreEqual("LST 6 AL 2 0 0", await again.ReadLineAsync(), "Nothing was added to the AL, so it must come back empty - no server-built mirror");
+        Assert.AreEqual("LST 6 BL 2 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 6 RL 2 0 0", await again.ReadLineAsync());
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task AddFl_LiveTarget_AdderGetsIlnAndTargetGetsRlAdd()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        // Both lists are empty, so neither the ILN dump nor the NLN broadcast delivered anything yet;
+        // the very next line each side reads is the one the ADD produces.
+        await alice.SendAsync("ADD 7 FL bob bob 0");
+
+        Assert.AreEqual("ADD 7 FL 2 bob bob 0", await alice.ReadLineAsync(), "The ADD ack keeps its serial-bearing shape");
+        Assert.AreEqual("ILN 7 NLN bob bob", await alice.ReadLineAsync(), "A live contact must light up at ADD, not at their next CHG");
+
+        Assert.AreEqual("ADD 0 RL 2 alice alice", await bob.ReadLineAsync(), "The target must hear about the reverse-list add - the authorization prompt's trigger");
+        Assert.IsTrue(Mind.Db!.MsnListGet("bob", "RL").Any(e => e.Contact == "alice"), "The reverse-list entry must persist");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task MutualAdd_PresenceFlowsBothWays()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await alice.SendAsync("ADD 7 FL bob bob 0");
+        Assert.AreEqual("ADD 7 FL 2 bob bob 0", await alice.ReadLineAsync());
+        Assert.AreEqual("ILN 7 NLN bob bob", await alice.ReadLineAsync());
+        Assert.AreEqual("ADD 0 RL 2 alice alice", await bob.ReadLineAsync());
+
+        await bob.SendAsync("ADD 8 FL alice alice 0");
+        Assert.AreEqual("ADD 8 FL 3 alice alice 0", await bob.ReadLineAsync(), "Bob's serial already moved when his RL grew, so his own edit acks 3");
+        Assert.AreEqual("ILN 8 NLN alice alice", await bob.ReadLineAsync());
+        Assert.AreEqual("ADD 0 RL 3 bob bob", await alice.ReadLineAsync());
+
+        // With both FLs in place, presence flows in both directions.
+        await alice.SendAsync("CHG 9 AWY");
+        Assert.AreEqual("CHG 9 AWY", await alice.ReadLineAsync());
+        Assert.AreEqual("ILN 9 NLN bob bob", await alice.ReadLineAsync(), "The CHG presence dump is FL-scoped and bob is now on it");
+        Assert.AreEqual("NLN AWY alice alice", await bob.ReadLineAsync(), "Bob's FL names alice, so her status change must reach him");
+
+        await bob.SendAsync("CHG 10 BSY");
+        Assert.AreEqual("CHG 10 BSY", await bob.ReadLineAsync());
+        Assert.AreEqual("ILN 10 AWY alice alice", await bob.ReadLineAsync());
+        Assert.AreEqual("NLN BSY bob bob", await alice.ReadLineAsync(), "Alice's FL names bob, so his status change must reach her");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task RemFl_DropsPresenceButKeepsReverseList()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await alice.SendAsync("ADD 7 FL bob bob 0");
+        Assert.AreEqual("ADD 7 FL 2 bob bob 0", await alice.ReadLineAsync());
+        Assert.AreEqual("ILN 7 NLN bob bob", await alice.ReadLineAsync());
+        Assert.AreEqual("ADD 0 RL 2 alice alice", await bob.ReadLineAsync());
+
+        await alice.SendAsync("REM 8 FL bob");
+        Assert.AreEqual("REM 8 FL 3 bob", await alice.ReadLineAsync());
+
+        // Bob's next status change must no longer reach alice. Bob's QNG sequences his handler past the
+        // CHG (broadcast included), so if an NLN had been sent it would already sit ahead of alice's QNG.
+        await bob.SendAsync("CHG 9 AWY");
+        Assert.AreEqual("CHG 9 AWY", await bob.ReadLineAsync());
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync());
+
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "After REM FL the contact's presence must no longer be delivered");
+
+        Assert.IsTrue(Mind.Db!.MsnListGet("bob", "RL").Any(e => e.Contact == "alice"), "REM FL must leave the target's RL entry intact (real MSN semantics)");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task AddUnknownName_AcksIdenticallyAndStaysDark()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+
+        // The unknown name and the real-but-offline member must be observationally identical: same ack
+        // shape, and in both cases the next reply after a PNG is the QNG - no ILN, no error, nothing.
+        await alice.SendAsync("ADD 5 FL ghost ghost 0");
+        Assert.AreEqual("ADD 5 FL 2 ghost ghost 0", await alice.ReadLineAsync(), "An unknown name must ack in exactly the shape a real one does");
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "Nothing may follow the ack that distinguishes the unknown name");
+
+        await alice.SendAsync("ADD 6 FL bob bob 0");
+        Assert.AreEqual("ADD 6 FL 3 bob bob 0", await alice.ReadLineAsync());
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "An offline real member looks exactly like the unknown one");
+
+        var forward = Mind.Db!.MsnListGet("alice", "FL");
+
+        Assert.IsTrue(forward.Any(e => e.Contact == "ghost"), "The unknown name is stored like any other entry");
+        Assert.IsTrue(forward.Any(e => e.Contact == "bob"));
+        Assert.AreEqual(0, Mind.Db!.MsnListGet("ghost", "RL").Count, "A name resolving to no account has no reverse side");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Bl_SuppressesPresenceFromTheBlockedMember()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await alice.SendAsync("ADD 7 FL bob bob 0");
+        Assert.AreEqual("ADD 7 FL 2 bob bob 0", await alice.ReadLineAsync());
+        Assert.AreEqual("ILN 7 NLN bob bob", await alice.ReadLineAsync());
+        Assert.AreEqual("ADD 0 RL 2 alice alice", await bob.ReadLineAsync());
+
+        // Bob blocks alice: even though her FL names him, his presence must stop reaching her.
+        await bob.SendAsync("ADD 8 BL alice alice");
+        Assert.AreEqual("ADD 8 BL 3 alice alice", await bob.ReadLineAsync());
+
+        await bob.SendAsync("CHG 9 AWY");
+        Assert.AreEqual("CHG 9 AWY", await bob.ReadLineAsync());
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync());
+
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "A member's BL must veto their presence reaching the blocked member");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task GtcBlp_PersistAndServeBackInSyn()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using (var alice = new MsnConn(server))
+        {
+            await alice.LoginAsync("alice");
+            await alice.SendAsync("GTC 5 N");
+            Assert.AreEqual("GTC 5 2 N", await alice.ReadLineAsync(), "GTC must ack with the bumped serial");
+
+            await alice.SendAsync("BLP 6 BL");
+            Assert.AreEqual("BLP 6 3 BL", await alice.ReadLineAsync());
+        }
+
+        using var again = new MsnConn(server);
+
+        await again.LoginAsync("alice");
+        await again.SendAsync("SYN 7");
+
+        Assert.AreEqual("SYN 7 3", await again.ReadLineAsync());
+        Assert.AreEqual("GTC 7 3 N", await again.ReadLineAsync(), "SYN must serve the stored GTC back");
+        Assert.AreEqual("BLP 7 3 BL", await again.ReadLineAsync(), "SYN must serve the stored BLP back");
+        Assert.AreEqual("LSG 7 3 1 1 0 Other%20Contacts 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 FL 3 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 AL 3 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 BL 3 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 RL 3 0 0", await again.ReadLineAsync());
+    }
+
+    // The compatibility contract: with the flag off, stored rows must be invisible everywhere - SYN serves
+    // the autoroster shape, ADD/REM go back to ack-only, and nothing new lands in storage.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task FlagOff_EverythingRevertsToTodaysBehavior()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+
+        // Rows left over from some flag-on life must not surface.
+        Mind.Db!.MsnListUpsert("alice", "FL", "ghost", "ghost", 0);
+        Mind.Db!.MsnListBumpSerial("alice");
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("SYN 5");
+
+        Assert.AreEqual("SYN 5 1", await alice.ReadLineAsync(), "Flag off must serve the version-1 shape, ignoring the stored serial");
+        Assert.AreEqual("GTC 5 1 A", await alice.ReadLineAsync());
+        Assert.AreEqual("BLP 5 1 AL", await alice.ReadLineAsync());
+        Assert.AreEqual("LSG 5 1 1 1 0 Other%20Contacts 0", await alice.ReadLineAsync());
+
+        // The FL is the server-built roster again: bob present, the stored ghost absent.
+        var first = (await alice.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("LST", first[0]);
+        Assert.AreEqual("FL", first[2]);
+
+        var total = int.Parse(first[5]);
+        var members = new List<string> { first[6] };
+
+        for (var i = 1; i < total; i++)
+        {
+            members.Add((await alice.ReadLineAsync()).Split(' ')[6]);
+        }
+
+        CollectionAssert.Contains(members, "bob", "Flag off must serve the autoroster FL");
+        CollectionAssert.DoesNotContain(members, "ghost", "Stored rows must be invisible with the flag off");
+
+        // Drain the remaining three lists so the next read really is the ADD ack.
+        foreach (var list in new[] { "AL", "BL", "RL" })
+        {
+            var head = (await alice.ReadLineAsync()).Split(' ');
+
+            Assert.AreEqual(list, head[2]);
+
+            for (var i = 1; i < int.Parse(head[5]); i++)
+            {
+                await alice.ReadLineAsync();
+            }
+        }
+
+        // ADD reverts to ack-only on the session counter: nothing persisted, no reverse side.
+        await alice.SendAsync("ADD 6 FL bob bob 0");
+        Assert.AreEqual("ADD 6 FL 2 bob bob 0", await alice.ReadLineAsync(), "Flag off must ack from the session serial, exactly as today");
+
+        Assert.AreEqual(1, Mind.Db!.MsnListGet("alice", "FL").Count, "The ack-only ADD must not have stored anything (only the seeded row remains)");
+        Assert.AreEqual(0, Mind.Db!.MsnListGet("bob", "RL").Count, "The ack-only ADD must not have grown anyone's reverse list");
+    }
+}

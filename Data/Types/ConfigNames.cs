@@ -152,6 +152,13 @@ public static class ConfigNames
 
     public const string YahooAutoRoster = "yahooautoroster";
 
+    // When true, MSN serves each member's own persisted FL/AL/BL/RL (built with ADD/REM, surviving
+    // restarts), reverse-list adds reach the target so the client can raise its authorization prompt,
+    // and presence fans out list-scoped; MsnAutoRoster is ignored. False (the default) is exactly the
+    // pre-persistence behavior: server-built or empty roster per MsnAutoRoster, ack-only ADD/REM,
+    // broadcast-to-all presence. No existing deployment changes behavior until an operator opts in.
+    public const string MsnPersistLists = "msnpersistlists";
+
     // When false, finger's no-query answer is the banner with no online-user table (Gopher's /users reuse follows).
     public const string FingerListOnline = "fingerlistonline";
 

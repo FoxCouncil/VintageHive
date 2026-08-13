@@ -7,6 +7,8 @@
 
 using System.Net;
 using Msn;
+using VintageHive;
+using VintageHive.Data.Types;
 using VintageHive.Proxy.Msn;
 
 namespace Adversarial5.MsnAuthGate;
@@ -88,6 +90,33 @@ public class MsnAuthGateTests
         await conn.SendAsync("REA 2 alice Hax");
 
         StringAssert.StartsWith(await conn.ReadLineAsync(), "911", "REA edits stored account state and must be refused before sign-on.");
+    }
+
+    // GTC/BLP only do anything with persistent lists on, and there they edit stored account state, so the
+    // auth gate (which lives inside the handler rather than RequiresAuthentication - flag-off behavior must
+    // stay a silent unhandled log) has to hold.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task AnUnauthenticatedSession_CannotEditListSettings()
+    {
+        MsnTestEnv.Ensure();
+
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, true);
+
+        try
+        {
+            using var conn = new MsnConn(NewServer());
+
+            await OpenUnauthenticatedAsync(conn);
+
+            await conn.SendAsync("GTC 2 N");
+
+            StringAssert.StartsWith(await conn.ReadLineAsync(), "911", "GTC edits stored account state and must be refused before sign-on.");
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+        }
     }
 
     // The gate must not break the thing it guards. After a real MD5 login SYN still has to answer with the
