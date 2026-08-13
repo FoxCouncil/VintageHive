@@ -772,12 +772,11 @@ public sealed class MsnServer : Listener
             session.IsAuthenticated = true;
             session.SwitchboardId = invite.SessionId;
 
-            // The switchboard session must answer list lookups (CanContact) under the same owner key the
-            // notification side stores them with, so the presented form resolves exactly as sign-on does.
-            if (PersistLists)
-            {
-                session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
-            }
+            // The switchboard session must answer list lookups (CanContact/MayRing) under the same owner
+            // key the notification side stores them with, so the presented form resolves exactly as
+            // sign-on does. Unconditional, so a flag flipped on mid-session finds already-open
+            // switchboard sessions carrying the right key rather than failing open.
+            session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
 
             GetOrCreateSwitchboard(invite.SessionId).Participants[session.Account.ToLowerInvariant()] = session;
 
@@ -801,11 +800,9 @@ public sealed class MsnServer : Listener
             session.IsAuthenticated = true;
             session.SwitchboardId = invite.SessionId;
 
-            // Same owner-key resolution as the USR branch, for the same CanContact lookups.
-            if (PersistLists)
-            {
-                session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
-            }
+            // Same owner-key resolution as the USR branch, for the same lookups, unconditional for the
+            // same mid-session flag-flip reason.
+            session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
 
             var sb = GetOrCreateSwitchboard(invite.SessionId);
             var existing = sb.Participants.Values.ToArray();
@@ -932,11 +929,13 @@ public sealed class MsnServer : Listener
                     continue;
                 }
 
-                // A block takes effect on the OPEN switchboard: every relay consults the stored lists, so
-                // an ADD BL on the notification connection stops the very next message here rather than
-                // only future sessions. Skipped delivery counts as undelivered, so a lone blocked
-                // recipient surfaces to the sender as the same NAK any dead peer produces.
-                if (persist && !CanContact(participant.AccountUsername, session))
+                // A block takes effect on the OPEN switchboard, in both directions: every relay consults
+                // the stored lists, so an ADD BL on the notification connection stops the very next
+                // message - the blocked party's toward the blocker AND the blocker's own toward the
+                // blocked, because blocking someone ends the conversation rather than demoting them to a
+                // listener. Skipped delivery counts as undelivered, so a lone refused recipient surfaces
+                // to the sender as the same NAK any dead peer produces.
+                if (persist && (!CanContact(participant.AccountUsername, session) || !CanContact(session.AccountUsername, participant)))
                 {
                     continue;
                 }
@@ -991,16 +990,15 @@ public sealed class MsnServer : Listener
         return user?.Username;
     }
 
-    // Whether this switchboard may ring the callee at all. The caller must be admitted by the callee's
-    // lists, and the room must stay coherent: the invitee is refused when they and any CURRENT participant
-    // refuse each other in EITHER direction, because a join would hand each side presence (IRO/JOI, relayed
-    // MSG identity) the other's Block explicitly denied - one direction closes "invite the blocked member
-    // via a mutual friend", the other closes the mirror "invite the blocker into the blocked member's
-    // room". The refusal shares CAL's offline 217, so the inviter learns nothing a busy callee would not
-    // already show.
+    // Whether this switchboard may ring the callee at all: the callee and every person already in the
+    // room - the caller included - must admit each other in BOTH directions, because a join hands every
+    // pair each other's presence (RNG/IRO/JOI, relayed MSG identity) and a Block in either direction
+    // denies exactly that. One rule, no self-inflicted exception: blocking someone means the conversation
+    // is over until you unblock them, not "over unless the blocker dials". The refusal shares CAL's
+    // offline 217, so the inviter learns nothing a busy callee would not already show.
     static bool MayRing(MsnSession caller, MsnSession callee)
     {
-        if (!CanContact(callee.AccountUsername, caller))
+        if (!CanContact(callee.AccountUsername, caller) || !CanContact(caller.AccountUsername, callee))
         {
             return false;
         }

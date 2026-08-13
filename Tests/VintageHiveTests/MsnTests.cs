@@ -1712,14 +1712,50 @@ public class MsnSwitchboardBlockTests
         await aliceSb.SendPayloadAsync($"MSG 4 A {body.Length}", body);
         Assert.AreEqual("NAK 4", await aliceSb.ReadLineAsync(), "A block must take effect on the open switchboard, not just future sessions");
 
-        // The block is one-way: the blocker can still send, and alice receives.
+        // The block ends the conversation in BOTH directions: the blocker's own sends drop too, rather
+        // than demoting the blocked member to a listener.
         var reply = Encoding.ASCII.GetBytes("MIME-Version: 1.0\r\n\r\nstill here");
 
         await bobSb.SendPayloadAsync($"MSG 2 A {reply.Length}", reply);
+        Assert.AreEqual("NAK 2", await bobSb.ReadLineAsync(), "Blocking someone must end the blocker's own sends as well");
+    }
 
-        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("MSG bob"));
-        CollectionAssert.AreEqual(reply, await aliceSb.ReadBytesAsync(reply.Length));
-        Assert.AreEqual("ACK 2", await bobSb.ReadLineAsync());
+    // Blocking someone closes the door from BOTH sides: the blocker cannot ring the member they blocked
+    // either, and unblocking is what reopens it.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Blocker_CannotRingTheMemberTheyBlocked()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await alice.SendAsync("ADD 7 BL bob bob");
+        Assert.AreEqual("ADD 7 BL 2 bob bob", await alice.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+        Assert.AreEqual("217 2", await aliceSb.ReadLineAsync(), "The blocker must not be able to ring the member they blocked");
+
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync(), "No RNG may reach the member the caller blocked");
+
+        await alice.SendAsync("REM 8 BL bob");
+        Assert.AreEqual("REM 8 BL 3 bob", await alice.ReadLineAsync());
+
+        await aliceSb.SendAsync("CAL 3 bob");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "Unblocking must reopen contact from the blocker's side");
+        Assert.IsTrue((await bob.ReadLineAsync()).StartsWith("RNG"));
     }
 
     [TestMethod]
