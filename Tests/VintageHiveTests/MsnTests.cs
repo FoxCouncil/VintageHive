@@ -1479,3 +1479,319 @@ public class MsnPersistListsTests
         Assert.AreEqual(0, Mind.Db!.MsnListGet("bob", "RL").Count, "The ack-only ADD must not have grown anyone's reverse list");
     }
 }
+
+[TestClass]
+public class MsnSwitchboardBlockTests
+{
+    [TestInitialize]
+    public void Setup()
+    {
+        MsnTestEnv.Ensure();
+        MsnServer.NsSessions.Clear();
+
+        // Same hygiene as MsnPersistListsTests: the on-disk store outlives runs, and a leftover display
+        // name or serial would break the exact-match lines below.
+        foreach (var owner in new[] { "alice", "bob" })
+        {
+            Mind.Db!.MsnListReset(owner);
+            Mind.Db!.UserSetDisplayName(owner, null);
+        }
+
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, true);
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+    }
+
+    private static async Task<MsnConn> OpenSwitchboardAsync(MsnServer server, MsnConn ns, string account)
+    {
+        await ns.SendAsync("XFR 10 SB");
+
+        var cookie = (await ns.ReadLineAsync()).Split(' ')[5];
+
+        var sb = new MsnConn(server);
+
+        await sb.SendAsync($"USR 1 {account} {cookie}");
+
+        Assert.IsTrue((await sb.ReadLineAsync()).StartsWith($"USR 1 OK {account}"), "Switchboard join failed");
+
+        return sb;
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task BlockedCallee_TranscriptIsIdenticalToOfflineCallee()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        // Bob is genuinely offline: capture the refusal a caller sees.
+        using var sbOffline = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await sbOffline.SendAsync("CAL 2 bob");
+
+        var offlineReply = await sbOffline.ReadLineAsync();
+
+        Assert.AreEqual("217 2", offlineReply);
+
+        // Bob signs on and blocks alice; the same CAL must produce the byte-identical refusal.
+        using var bob = new MsnConn(server);
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await bob.SendAsync("ADD 7 BL alice alice");
+        Assert.AreEqual("ADD 7 BL 2 alice alice", await bob.ReadLineAsync());
+
+        using var sbBlocked = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await sbBlocked.SendAsync("CAL 2 bob");
+
+        Assert.AreEqual(offlineReply, await sbBlocked.ReadLineAsync(), "A blocked caller must not be able to tell blocked from offline");
+
+        // And nothing rang: bob's next notification line is the PNG's answer, not an RNG.
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync(), "No RNG may reach a callee whose lists refuse the caller");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task BlpBl_EmptyAl_RefusesEveryone_AndPresenceAgrees()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        // Alice subscribes to bob while his lists still allow her: contact works both in presence...
+        await alice.SendAsync("ADD 7 FL bob bob 0");
+        Assert.AreEqual("ADD 7 FL 2 bob bob 0", await alice.ReadLineAsync());
+        Assert.AreEqual("ILN 7 NLN bob bob", await alice.ReadLineAsync());
+        Assert.AreEqual("ADD 0 RL 2 alice alice", await bob.ReadLineAsync());
+
+        // ...until bob flips to allow-list-only. Alice is on neither his AL nor his BL: refused.
+        await bob.SendAsync("BLP 8 BL");
+        Assert.AreEqual("BLP 8 3 BL", await bob.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+        Assert.AreEqual("217 2", await aliceSb.ReadLineAsync(), "BLP BL with an empty AL must refuse everyone, in the offline shape");
+
+        // Presence and contact must never disagree: bob's status change must not reach alice either.
+        await bob.SendAsync("CHG 9 AWY");
+        Assert.AreEqual("CHG 9 AWY", await bob.ReadLineAsync());
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync());
+
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "BLP BL must hide presence exactly as it refuses contact");
+
+        // Authorization (ADD AL) is the way back through the allow-list-only door.
+        await bob.SendAsync("ADD 10 AL alice alice");
+        Assert.AreEqual("ADD 10 AL 4 alice alice", await bob.ReadLineAsync());
+
+        await aliceSb.SendAsync("CAL 3 bob");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "An AL entry must satisfy BLP BL");
+        Assert.IsTrue((await bob.ReadLineAsync()).StartsWith("RNG"), "The ring must reach the callee once authorized");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Unblock_RestoresContact()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await bob.SendAsync("ADD 7 BL alice alice");
+        Assert.AreEqual("ADD 7 BL 2 alice alice", await bob.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+        Assert.AreEqual("217 2", await aliceSb.ReadLineAsync());
+
+        await bob.SendAsync("REM 8 BL alice");
+        Assert.AreEqual("REM 8 BL 3 alice", await bob.ReadLineAsync());
+
+        // The same switchboard session can now complete the call.
+        await aliceSb.SendAsync("CAL 3 bob");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "Removing the BL entry must restore contact");
+
+        var rng = await bob.ReadLineAsync();
+
+        Assert.IsTrue(rng.StartsWith("RNG"), $"The ring must reach the callee after the unblock, got: {rng}");
+        Assert.IsTrue(rng.Contains(" alice "), "The RNG must name the restored caller");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task MidConversationBlock_StopsDeliveryOnTheOpenSwitchboard()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var aliceNs = new MsnConn(server);
+        using var bobNs = new MsnConn(server);
+
+        await aliceNs.LoginAsync("alice");
+        await aliceNs.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await aliceNs.ReadLineAsync());
+
+        await bobNs.LoginAsync("bob");
+        await bobNs.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bobNs.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, aliceNs, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+
+        var cal = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 2 RINGING"), $"Expected RINGING, got: {cal}");
+
+        var sessionId = cal.Split(' ')[3];
+        var rng = (await bobNs.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng[0]);
+
+        using var bobSb = new MsnConn(server);
+
+        await bobSb.SendAsync($"ANS 1 bob {rng[4]} {sessionId}");
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("IRO 1 1 1 alice"));
+        Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("JOI bob"));
+
+        // Delivery works before the block.
+        var body = Encoding.ASCII.GetBytes("MIME-Version: 1.0\r\n\r\nhello bob");
+
+        await aliceSb.SendPayloadAsync($"MSG 3 A {body.Length}", body);
+
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("MSG alice"));
+        CollectionAssert.AreEqual(body, await bobSb.ReadBytesAsync(body.Length));
+        Assert.AreEqual("ACK 3", await aliceSb.ReadLineAsync());
+
+        // Bob blocks alice on his NOTIFICATION connection, mid-conversation.
+        await bobNs.SendAsync("ADD 7 BL alice alice");
+        Assert.AreEqual("ADD 7 BL 2 alice alice", await bobNs.ReadLineAsync());
+
+        // The very next message on the open switchboard is dropped: nobody receives it, so the A-mode
+        // ack comes back NAK, exactly as if the peer were gone.
+        await aliceSb.SendPayloadAsync($"MSG 4 A {body.Length}", body);
+        Assert.AreEqual("NAK 4", await aliceSb.ReadLineAsync(), "A block must take effect on the open switchboard, not just future sessions");
+
+        // The block is one-way: the blocker can still send, and alice receives.
+        var reply = Encoding.ASCII.GetBytes("MIME-Version: 1.0\r\n\r\nstill here");
+
+        await bobSb.SendPayloadAsync($"MSG 2 A {reply.Length}", reply);
+
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("MSG bob"));
+        CollectionAssert.AreEqual(reply, await aliceSb.ReadBytesAsync(reply.Length));
+        Assert.AreEqual("ACK 2", await bobSb.ReadLineAsync());
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task GtcN_HoldsAnUnauthorizedAdderUntilAllowed()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await bob.SendAsync("GTC 7 N");
+        Assert.AreEqual("GTC 7 2 N", await bob.ReadLineAsync());
+
+        // Alice adds bob: the RL add still reaches him (it IS the authorization request), but under
+        // GTC N the unauthorized adder gets no presence back - no ILN follows her ack.
+        await alice.SendAsync("ADD 8 FL bob bob 0");
+        Assert.AreEqual("ADD 8 FL 2 bob bob 0", await alice.ReadLineAsync());
+        Assert.AreEqual("ADD 0 RL 3 alice alice", await bob.ReadLineAsync());
+
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "Under GTC N the unauthorized adder must stay dark - no ILN on add");
+
+        // And she cannot ring him either, in the offline shape.
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+        Assert.AreEqual("217 2", await aliceSb.ReadLineAsync(), "GTC N must hold an unauthorized adder at the door");
+
+        // Authorizing (ADD AL) opens it.
+        await bob.SendAsync("ADD 9 AL alice alice");
+        Assert.AreEqual("ADD 9 AL 4 alice alice", await bob.ReadLineAsync());
+
+        await aliceSb.SendAsync("CAL 3 bob");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "Authorization must restore contact under GTC N");
+        Assert.IsTrue((await bob.ReadLineAsync()).StartsWith("RNG"));
+    }
+
+    // The compatibility contract: with the flag off, stored lists and settings stay advisory - CAL rings,
+    // RNG arrives, exactly as after the presence-scoping commit.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task FlagOff_SwitchboardIgnoresStoredLists()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+
+        Mind.Db!.MsnListUpsert("bob", "BL", "alice", "alice", 0);
+        Mind.Db!.MsnListSetBlp("bob", "BL");
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var aliceNs = new MsnConn(server);
+        using var bobNs = new MsnConn(server);
+
+        await aliceNs.LoginAsync("alice");
+        await aliceNs.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await aliceNs.ReadLineAsync());
+
+        await bobNs.LoginAsync("bob");
+        await bobNs.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bobNs.ReadLineAsync());
+
+        // Flag off is broadcast-to-all presence: both sides see each other despite the stored BL.
+        Assert.AreEqual("ILN 6 NLN alice alice", await bobNs.ReadLineAsync());
+        Assert.AreEqual("NLN NLN bob bob", await aliceNs.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, aliceNs, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 2 RINGING"), "Stored lists must not gate CAL with the flag off");
+        Assert.IsTrue((await bobNs.ReadLineAsync()).StartsWith("RNG"), "The RNG must still reach the callee with the flag off");
+    }
+}

@@ -495,12 +495,12 @@ public sealed class MsnServer : Listener
             }
         }
 
-        // Presence on add, under the same veto as the fan-out: a target whose BL names the adder stays
-        // exactly as dark as an offline or nonexistent one.
+        // Presence on add, under the same veto as the fan-out: a target whose lists refuse the adder
+        // (Block, BLP BL, GTC N) stays exactly as dark as an offline or nonexistent one.
         if (NsSessions.TryGetValue(targetUsername.ToLowerInvariant(), out var target)
             && target.IsAuthenticated
             && target.Status is not (MsnStatus.Offline or MsnStatus.Hidden)
-            && !ListNames(Mind.Db.MsnListGet(targetUsername, "BL"), session))
+            && CanContact(targetUsername, session))
         {
             await session.SendLineAsync($"ILN {trid} {target.Status} {target.Account} {UrlEncode(target.DisplayName)}");
         }
@@ -588,8 +588,8 @@ public sealed class MsnServer : Listener
         await session.SendLineAsync($"CHG {trid} {status}");
 
         // Initial presence dump: one ILN per already-online contact. With persistent lists this is
-        // list-scoped: only contacts the member's own FL names, and never a principal whose BL names
-        // the member (the same veto BroadcastPresenceAsync applies).
+        // list-scoped: only contacts the member's own FL names, and only when the contact's own lists
+        // answer that this member may perceive them (the same CanContact the switchboard consults).
         var persist = PersistLists;
         var forwardList = persist ? Mind.Db.MsnListGet(session.AccountUsername, "FL") : null;
 
@@ -600,7 +600,7 @@ public sealed class MsnServer : Listener
                 continue;
             }
 
-            if (persist && (!ListNames(forwardList, other) || ListNames(Mind.Db.MsnListGet(other.AccountUsername, "BL"), session)))
+            if (persist && (!ListNames(forwardList, other) || !CanContact(other.AccountUsername, session)))
             {
                 continue;
             }
@@ -615,7 +615,6 @@ public sealed class MsnServer : Listener
     static async Task BroadcastPresenceAsync(MsnSession session, string status)
     {
         var persist = PersistLists;
-        var blockList = persist ? Mind.Db.MsnListGet(session.AccountUsername, "BL") : null;
 
         foreach (var other in NsSessions.Values.ToArray())
         {
@@ -625,9 +624,9 @@ public sealed class MsnServer : Listener
             }
 
             // With persistent lists the fan-out is list-scoped: presence reaches only members whose FL
-            // names the principal, and the principal's BL is the veto - which is what makes the Block
-            // button of the GTC A authorization prompt actually mean something.
-            if (persist && (!ListNames(Mind.Db.MsnListGet(other.AccountUsername, "FL"), session) || ListNames(blockList, other)))
+            // names the principal AND whom the principal's own lists admit (BL veto, BLP default, GTC N
+            // hold - the same CanContact the switchboard consults, so seeing and reaching never disagree).
+            if (persist && (!ListNames(Mind.Db.MsnListGet(other.AccountUsername, "FL"), session) || !CanContact(session.AccountUsername, other)))
             {
                 continue;
             }
@@ -773,6 +772,13 @@ public sealed class MsnServer : Listener
             session.IsAuthenticated = true;
             session.SwitchboardId = invite.SessionId;
 
+            // The switchboard session must answer list lookups (CanContact) under the same owner key the
+            // notification side stores them with, so the presented form resolves exactly as sign-on does.
+            if (PersistLists)
+            {
+                session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
+            }
+
             GetOrCreateSwitchboard(invite.SessionId).Participants[session.Account.ToLowerInvariant()] = session;
 
             await session.SendLineAsync($"USR {parts[1]} OK {session.Account} {UrlEncode(session.DisplayName)}");
@@ -794,6 +800,12 @@ public sealed class MsnServer : Listener
             session.DisplayName = parts[2];
             session.IsAuthenticated = true;
             session.SwitchboardId = invite.SessionId;
+
+            // Same owner-key resolution as the USR branch, for the same CanContact lookups.
+            if (PersistLists)
+            {
+                session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
+            }
 
             var sb = GetOrCreateSwitchboard(invite.SessionId);
             var existing = sb.Participants.Values.ToArray();
@@ -857,8 +869,11 @@ public sealed class MsnServer : Listener
 
         // Hidden (and authenticated-but-pre-CHG, still-FLN) callees must look offline to a caller: ringing
         // them would leak the concealed presence via RINGING-vs-217 and pop an RNG the FLN broadcast said
-        // could not happen. 217 = principal not online.
-        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden)
+        // could not happen. 217 = principal not online. With persistent lists, a callee whose lists refuse
+        // the caller (Block, BLP BL, GTC N) answers from this SAME condition: blocked and offline must be
+        // byte-identical - the same 217, no RINGING, no invite minted, no RNG - or the refusal becomes a
+        // did-they-block-me oracle, the mirror of the enumeration oracle ADD refuses to be.
+        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden || (PersistLists && !CanContact(calleeNs.AccountUsername, session)))
         {
             await session.SendLineAsync($"217 {trid}");
 
@@ -906,12 +921,22 @@ public sealed class MsnServer : Listener
         }
 
         var delivered = false;
+        var persist = PersistLists;
 
         if (Switchboards.TryGetValue(session.SwitchboardId ?? string.Empty, out var sb))
         {
             foreach (var participant in sb.Participants.Values.ToArray())
             {
                 if (ReferenceEquals(participant, session))
+                {
+                    continue;
+                }
+
+                // A block takes effect on the OPEN switchboard: every relay consults the stored lists, so
+                // an ADD BL on the notification connection stops the very next message here rather than
+                // only future sessions. Skipped delivery counts as undelivered, so a lone blocked
+                // recipient surfaces to the sender as the same NAK any dead peer produces.
+                if (persist && !CanContact(participant.AccountUsername, session))
                 {
                     continue;
                 }
@@ -964,6 +989,40 @@ public sealed class MsnServer : Listener
         }
 
         return user?.Username;
+    }
+
+    // The one answer to "may peer reach or perceive principal", shared by presence (the CHG ILN dump, the
+    // NLN/FLN fan-out, the ILN-on-add) and the switchboard (CAL refusal, MSG relay), so blocked-ness can
+    // never disagree between what a member sees and what can reach them. The principal's stored lists
+    // decide: the BL always vetoes; the AL always grants; a stranger falls to the BLP default (BL means
+    // allow-list-only); and GTC N holds an unauthorized adder (on the RL but not yet the AL) at the door
+    // until the member authorizes them. The flag-on defaults (GTC A, BLP AL, empty lists) answer true for
+    // everyone, which is exactly the pre-enforcement behavior.
+    static bool CanContact(string principalUsername, MsnSession peer)
+    {
+        if (ListNames(Mind.Db.MsnListGet(principalUsername, "BL"), peer))
+        {
+            return false;
+        }
+
+        if (ListNames(Mind.Db.MsnListGet(principalUsername, "AL"), peer))
+        {
+            return true;
+        }
+
+        var state = Mind.Db.MsnListStateGet(principalUsername);
+
+        if (state.Blp == "BL")
+        {
+            return false;
+        }
+
+        if (state.Gtc == "N" && ListNames(Mind.Db.MsnListGet(principalUsername, "RL"), peer))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     // Whether a stored list names this session's member. Entries hold whatever the member's client sent,
