@@ -1758,6 +1758,71 @@ public class MsnSwitchboardBlockTests
         Assert.IsTrue((await bob.ReadLineAsync()).StartsWith("RNG"));
     }
 
+    // A ticket is screened when CAL mints it, but the block can land in the gap before ANS redeems it;
+    // the redemption must re-screen against the room as it exists then, or a seconds-wide race joins a
+    // blocked pair anyway.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task BlockLandingBetweenCalAndAns_RefusesTheTicket()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        // The ring itself is legitimate: nobody blocks anybody at CAL time.
+        await aliceSb.SendAsync("CAL 2 bob");
+
+        var cal = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 2 RINGING"), $"Expected RINGING, got: {cal}");
+
+        var rng = (await bob.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng[0]);
+
+        // Bob blocks alice in the gap between the ring and his answer.
+        await bob.SendAsync("ADD 7 BL alice alice");
+        Assert.AreEqual("ADD 7 BL 2 alice alice", await bob.ReadLineAsync());
+
+        // The pre-block ticket must not join him to her room: same 911 a dead ticket gets, and no IRO
+        // roster line ever reaches him.
+        using (var bobSb = new MsnConn(server))
+        {
+            await bobSb.SendAsync($"ANS 1 bob {rng[4]} {cal.Split(' ')[3]}");
+            Assert.AreEqual("911 1", await bobSb.ReadLineAsync(), "A ticket minted before the block must be refused at redemption");
+        }
+
+        // Unblocking restores the normal flow end to end with a fresh ring.
+        await bob.SendAsync("REM 8 BL alice");
+        Assert.AreEqual("REM 8 BL 3 alice", await bob.ReadLineAsync());
+
+        await aliceSb.SendAsync("CAL 3 bob");
+
+        var cal2 = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(cal2.StartsWith("CAL 3 RINGING"));
+
+        var rng2 = (await bob.ReadLineAsync()).Split(' ');
+
+        using var bobSb2 = new MsnConn(server);
+
+        await bobSb2.SendAsync($"ANS 1 bob {rng2[4]} {cal2.Split(' ')[3]}");
+        Assert.IsTrue((await bobSb2.ReadLineAsync()).StartsWith("IRO 1 1 1 alice"));
+        Assert.AreEqual("ANS 1 OK", await bobSb2.ReadLineAsync());
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("JOI bob"), "After the unblock a fresh ticket must join normally");
+    }
+
     [TestMethod]
     [Timeout(20000)]
     public async Task GtcN_HoldsAnUnauthorizedAdderUntilAllowed()

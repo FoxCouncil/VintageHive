@@ -797,15 +797,38 @@ public sealed class MsnServer : Listener
 
             session.Account = parts[2];
             session.DisplayName = parts[2];
-            session.IsAuthenticated = true;
-            session.SwitchboardId = invite.SessionId;
 
             // Same owner-key resolution as the USR branch, for the same lookups, unconditional for the
             // same mid-session flag-flip reason.
             session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
 
+            Switchboards.TryGetValue(invite.SessionId, out var pending);
+
+            var existing = pending?.Participants.Values.ToArray() ?? Array.Empty<MsnSession>();
+
+            // The invite was screened at CAL time, but a block can land in the gap before ANS redeems it
+            // (and the flag can flip on in that gap): re-screen against the room as it exists NOW, in both
+            // directions, answering the same 911 an expired or stolen ticket gets so the refusal discloses
+            // nothing. This runs before the IRO roster hands the joiner anyone's identity, and before the
+            // session is marked a room member - a refused connection must tear down like one that never
+            // joined, not broadcast a BYE for a member who was never announced.
+            if (PersistLists)
+            {
+                foreach (var participant in existing)
+                {
+                    if (!CanContact(participant.AccountUsername, session) || !CanContact(session.AccountUsername, participant))
+                    {
+                        await session.SendLineAsync($"911 {trid}");
+
+                        return;
+                    }
+                }
+            }
+
+            session.IsAuthenticated = true;
+            session.SwitchboardId = invite.SessionId;
+
             var sb = GetOrCreateSwitchboard(invite.SessionId);
-            var existing = sb.Participants.Values.ToArray();
 
             // Tell the joiner about everyone already present.
             var index = 1;
