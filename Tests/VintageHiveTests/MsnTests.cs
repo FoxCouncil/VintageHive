@@ -1489,9 +1489,15 @@ public class MsnSwitchboardBlockTests
         MsnTestEnv.Ensure();
         MsnServer.NsSessions.Clear();
 
+        // The multiparty cases need a mutual friend on neither side of the block.
+        if (!Mind.Db!.UserExistsByUsername("carol"))
+        {
+            Mind.Db!.UserCreate("carol", MsnTestEnv.Password);
+        }
+
         // Same hygiene as MsnPersistListsTests: the on-disk store outlives runs, and a leftover display
         // name or serial would break the exact-match lines below.
-        foreach (var owner in new[] { "alice", "bob" })
+        foreach (var owner in new[] { "alice", "bob", "carol" })
         {
             Mind.Db!.MsnListReset(owner);
             Mind.Db!.UserSetDisplayName(owner, null);
@@ -1793,5 +1799,195 @@ public class MsnSwitchboardBlockTests
         await aliceSb.SendAsync("CAL 2 bob");
         Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 2 RINGING"), "Stored lists must not gate CAL with the flag off");
         Assert.IsTrue((await bobNs.ReadLineAsync()).StartsWith("RNG"), "The RNG must still reach the callee with the flag off");
+    }
+
+    // The mutual-friend loophole: a caller neither side blocks must not be able to assemble a room that
+    // hands a blocked pair each other's presence. Both invite orders are the same hole - ringing the
+    // blocked member into the blocker's room, and ringing the blocker into the blocked member's room.
+    [TestMethod]
+    [Timeout(30000)]
+    public async Task MutualFriendInvite_CannotAssembleABlockedPair_EitherOrder()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+        using var carol = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await bob.SendAsync("ADD 7 BL alice alice");
+        Assert.AreEqual("ADD 7 BL 2 alice alice", await bob.ReadLineAsync());
+
+        // Carol is on nobody's lists; she can ring either of them alone.
+        await carol.LoginAsync("carol");
+
+        // Order one: bob (the blocker) is in carol's room; the blocked alice must be unreachable.
+        using var carolSb = await OpenSwitchboardAsync(server, carol, "carol");
+
+        await carolSb.SendAsync("CAL 2 bob");
+
+        var cal = await carolSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 2 RINGING"), $"Carol alone must be able to ring bob, got: {cal}");
+
+        var rng = (await bob.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng[0]);
+
+        using var bobSb = new MsnConn(server);
+
+        await bobSb.SendAsync($"ANS 1 bob {rng[4]} {cal.Split(' ')[3]}");
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("IRO 1 1 1 carol"));
+        Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
+        Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("JOI bob"));
+
+        await carolSb.SendAsync("CAL 3 alice");
+        Assert.AreEqual("217 3", await carolSb.ReadLineAsync(), "Inviting the blocked member into the blocker's room must refuse in the offline shape");
+
+        await alice.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await alice.ReadLineAsync(), "No RNG may reach the blocked member for a room containing the blocker");
+
+        // Order two: alice (the blocked member) is in a fresh room; the blocker bob must be unreachable.
+        using var carolSb2 = await OpenSwitchboardAsync(server, carol, "carol");
+
+        await carolSb2.SendAsync("CAL 4 alice");
+
+        var cal2 = await carolSb2.ReadLineAsync();
+
+        Assert.IsTrue(cal2.StartsWith("CAL 4 RINGING"), $"Carol alone must be able to ring alice, got: {cal2}");
+
+        var rng2 = (await alice.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng2[0]);
+
+        using var aliceSb = new MsnConn(server);
+
+        await aliceSb.SendAsync($"ANS 1 alice {rng2[4]} {cal2.Split(' ')[3]}");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("IRO 1 1 1 carol"));
+        Assert.AreEqual("ANS 1 OK", await aliceSb.ReadLineAsync());
+        Assert.IsTrue((await carolSb2.ReadLineAsync()).StartsWith("JOI alice"));
+
+        await carolSb2.SendAsync("CAL 5 bob");
+        Assert.AreEqual("217 5", await carolSb2.ReadLineAsync(), "Inviting the blocker into the blocked member's room is the same hole and must refuse identically");
+
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync(), "No RNG may reach the blocker for a room containing the blocked member");
+    }
+
+    // The pairwise room check must not cost anything when no blocks exist: a plain three-way still forms.
+    [TestMethod]
+    [Timeout(30000)]
+    public async Task ThreeWay_WithNoBlocks_StillAssembles()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+        using var carol = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await carol.LoginAsync("carol");
+
+        using var carolSb = await OpenSwitchboardAsync(server, carol, "carol");
+
+        await carolSb.SendAsync("CAL 2 alice");
+
+        var cal = await carolSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 2 RINGING"));
+
+        var sessionId = cal.Split(' ')[3];
+        var rngAlice = (await alice.ReadLineAsync()).Split(' ');
+
+        using var aliceSb = new MsnConn(server);
+
+        await aliceSb.SendAsync($"ANS 1 alice {rngAlice[4]} {sessionId}");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("IRO 1 1 1 carol"));
+        Assert.AreEqual("ANS 1 OK", await aliceSb.ReadLineAsync());
+        Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("JOI alice"));
+
+        await carolSb.SendAsync("CAL 3 bob");
+        Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "An unblocked three-way must still ring");
+
+        var rngBob = (await bob.ReadLineAsync()).Split(' ');
+
+        using var bobSb = new MsnConn(server);
+
+        await bobSb.SendAsync($"ANS 1 bob {rngBob[4]} {sessionId}");
+
+        // Two IRO lines (carol and alice, dictionary order is unspecified), then the OK.
+        var iro = new[] { await bobSb.ReadLineAsync(), await bobSb.ReadLineAsync() };
+
+        Assert.IsTrue(iro.All(l => l.StartsWith("IRO 1 ")), $"Expected two IRO lines, got: {string.Join(" | ", iro)}");
+        Assert.IsTrue(iro.Any(l => l.Contains(" carol ")) && iro.Any(l => l.Contains(" alice ")), "The joiner must be told about both existing participants");
+        Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
+
+        Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("JOI bob"));
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("JOI bob"));
+
+        // And the room actually relays: one message from carol reaches both.
+        var body = Encoding.ASCII.GetBytes("MIME-Version: 1.0\r\n\r\nhello all");
+
+        await carolSb.SendPayloadAsync($"MSG 4 A {body.Length}", body);
+
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("MSG carol"));
+        CollectionAssert.AreEqual(body, await aliceSb.ReadBytesAsync(body.Length));
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("MSG carol"));
+        CollectionAssert.AreEqual(body, await bobSb.ReadBytesAsync(body.Length));
+        Assert.AreEqual("ACK 4", await carolSb.ReadLineAsync());
+    }
+
+    [TestMethod]
+    [Timeout(30000)]
+    public async Task FlagOff_MutualFriendInviteStillRings()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+
+        Mind.Db!.MsnListUpsert("bob", "BL", "alice", "alice", 0);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+        using var carol = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        // Flag off is broadcast-to-all presence; drain the crosstalk before the calls.
+        Assert.AreEqual("ILN 6 NLN alice alice", await bob.ReadLineAsync());
+        Assert.AreEqual("NLN NLN bob bob", await alice.ReadLineAsync());
+
+        // Carol stays FLN (no CHG), so she broadcasts nothing and can still place calls.
+        await carol.LoginAsync("carol");
+
+        using var carolSb = await OpenSwitchboardAsync(server, carol, "carol");
+
+        await carolSb.SendAsync("CAL 2 bob");
+        Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("CAL 2 RINGING"));
+        Assert.IsTrue((await bob.ReadLineAsync()).StartsWith("RNG"));
+
+        await carolSb.SendAsync("CAL 3 alice");
+        Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "The stored block must not gate the room with the flag off");
+        Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("RNG"), "The RNG must still reach the blocked member with the flag off");
     }
 }

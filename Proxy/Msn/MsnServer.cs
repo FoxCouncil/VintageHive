@@ -869,11 +869,11 @@ public sealed class MsnServer : Listener
 
         // Hidden (and authenticated-but-pre-CHG, still-FLN) callees must look offline to a caller: ringing
         // them would leak the concealed presence via RINGING-vs-217 and pop an RNG the FLN broadcast said
-        // could not happen. 217 = principal not online. With persistent lists, a callee whose lists refuse
-        // the caller (Block, BLP BL, GTC N) answers from this SAME condition: blocked and offline must be
-        // byte-identical - the same 217, no RINGING, no invite minted, no RNG - or the refusal becomes a
-        // did-they-block-me oracle, the mirror of the enumeration oracle ADD refuses to be.
-        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden || (PersistLists && !CanContact(calleeNs.AccountUsername, session)))
+        // could not happen. 217 = principal not online. With persistent lists, a callee the ring may not
+        // reach (Block, BLP BL, GTC N - see MayRing) answers from this SAME condition: blocked and offline
+        // must be byte-identical - the same 217, no RINGING, no invite minted, no RNG - or the refusal
+        // becomes a did-they-block-me oracle, the mirror of the enumeration oracle ADD refuses to be.
+        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden || (PersistLists && !MayRing(session, calleeNs)))
         {
             await session.SendLineAsync($"217 {trid}");
 
@@ -989,6 +989,39 @@ public sealed class MsnServer : Listener
         }
 
         return user?.Username;
+    }
+
+    // Whether this switchboard may ring the callee at all. The caller must be admitted by the callee's
+    // lists, and the room must stay coherent: the invitee is refused when they and any CURRENT participant
+    // refuse each other in EITHER direction, because a join would hand each side presence (IRO/JOI, relayed
+    // MSG identity) the other's Block explicitly denied - one direction closes "invite the blocked member
+    // via a mutual friend", the other closes the mirror "invite the blocker into the blocked member's
+    // room". The refusal shares CAL's offline 217, so the inviter learns nothing a busy callee would not
+    // already show.
+    static bool MayRing(MsnSession caller, MsnSession callee)
+    {
+        if (!CanContact(callee.AccountUsername, caller))
+        {
+            return false;
+        }
+
+        if (caller.SwitchboardId != null && Switchboards.TryGetValue(caller.SwitchboardId, out var sb))
+        {
+            foreach (var participant in sb.Participants.Values.ToArray())
+            {
+                if (ReferenceEquals(participant, caller))
+                {
+                    continue;
+                }
+
+                if (!CanContact(participant.AccountUsername, callee) || !CanContact(callee.AccountUsername, participant))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     // The one answer to "may peer reach or perceive principal", shared by presence (the CHG ILN dump, the
