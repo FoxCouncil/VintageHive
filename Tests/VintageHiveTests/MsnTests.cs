@@ -1158,6 +1158,56 @@ public class MsnDisplayNameTests
         Assert.IsNull(Mind.Db!.UserGetDisplayName("alice"), "Clearing must remove the stored name entirely");
         Assert.AreEqual("alice", MsnServer.NsSessions["alice"].DisplayName);
     }
+
+    // The rename gate compares PRINCIPALS: the bare and Passport forms of one account both name self,
+    // whichever form the sign-on used - a real client always sends the Passport form, and 201-ing it
+    // made renames impossible for exactly the clients the server exists for.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_EitherFormOfSelf_IsAccepted()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var passport = $"alice@{MailDomains.Primary}";
+
+        // Signed in bare, renaming via the Passport form: the ack carries the sign-in identity.
+        using (var alice = new MsnConn(server))
+        {
+            await alice.LoginAsync("alice");
+            await alice.SendAsync($"REA 5 {passport} The%20Fox");
+
+            Assert.AreEqual("REA 5 2 alice The%20Fox", await alice.ReadLineAsync(), "The Passport form of self must rename self, not 201");
+        }
+
+        Assert.AreEqual("The Fox", Mind.Db!.UserGetDisplayName("alice"));
+
+        // Signed in with the Passport form, renaming via the bare form: the same principal again.
+        using var again = new MsnConn(server);
+
+        await again.LoginAsync(passport);
+        await again.SendAsync("REA 5 alice Fox%20Two");
+
+        Assert.AreEqual($"REA 5 2 {passport} Fox%20Two", await again.ReadLineAsync(), "The bare form of self must rename self under a Passport sign-in");
+        Assert.AreEqual("Fox Two", Mind.Db!.UserGetDisplayName("alice"), "Both forms must land on the same stored profile");
+    }
+
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_AnotherMembersPassportForm_IsStillRefused()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync($"REA 5 bob@{MailDomains.Primary} Sneaky");
+
+        Assert.AreEqual("201 5", await alice.ReadLineAsync(), "Another member's Passport form must refuse exactly like their bare form");
+        Assert.IsNull(Mind.Db!.UserGetDisplayName("bob"), "The refused rename must not persist anything");
+    }
 }
 
 [TestClass]
@@ -2145,7 +2195,7 @@ public class MsnSwitchboardBlockTests
         await bobSb.SendAsync($"ANS 1 {passport} {rng[4]} {cal.Split(' ')[3]}");
         Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("IRO 1 1 1 alice"), "The Passport-form ANS must redeem the ticket");
         Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
-        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith($"JOI {passport}"), "The caller must see the callee join under the identity his ANS presented");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("JOI bob "), "The room must announce the identity presence carries (the sign-in form), not the form the ANS happened to present");
     }
 
     // The converse pairing: the callee signed in with the Passport form (what every real client does),
@@ -2188,7 +2238,7 @@ public class MsnSwitchboardBlockTests
         await bobSb.SendAsync($"ANS 1 {passport} {rng[4]} {cal.Split(' ')[3]}");
         Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("IRO 1 1 1 alice"), "The callee's natural (sign-in form) ANS must redeem a bare-dialed ticket");
         Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
-        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("JOI"), "The caller must see the callee join");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith($"JOI {passport}"), "The room must announce the Passport identity the callee's presence carries");
     }
 
     // The oracle discipline must hold in both forms: a blocked callee and an offline callee answer with
@@ -2243,5 +2293,99 @@ public class MsnSwitchboardBlockTests
         // And nothing rang: bob's next notification line is the PNG's answer, not an RNG.
         await bob.SendAsync("PNG");
         Assert.AreEqual("QNG 50", await bob.ReadLineAsync(), "No RNG may reach the callee in either form");
+    }
+
+    // The caller-side ticket (XFR -> SB USR) is the same principal gate as the callee's: minted under
+    // the NS sign-in form, it must redeem under either form of the same account - and the session then
+    // adopts the notification identity, so the room carries the form presence announced.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task SbUsr_RedeemsTheTicketInEitherForm()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var passport = $"alice@{MailDomains.Primary}";
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("XFR 10 SB");
+
+        var cookie = (await alice.ReadLineAsync()).Split(' ')[5];
+
+        using var aliceSb = new MsnConn(server);
+
+        await aliceSb.SendAsync($"USR 1 {passport} {cookie}");
+        Assert.AreEqual("USR 1 OK alice alice", await aliceSb.ReadLineAsync(), "A Passport-form USR must redeem a bare-minted ticket and adopt the sign-in identity");
+    }
+
+    // The real-client path end to end: every name on the wire is the Passport form, because that is the
+    // only form MSN Messenger ever sends - the SB join, the CAL, the ANS, and both message directions
+    // must all work without a single bare name.
+    [TestMethod]
+    [Timeout(30000)]
+    public async Task PassportOnlyClient_CompletesCallAnswerAndMessageDelivery()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var alicePassport = $"alice@{MailDomains.Primary}";
+        var bobPassport = $"bob@{MailDomains.Primary}";
+
+        using var aliceNs = new MsnConn(server);
+        using var bobNs = new MsnConn(server);
+
+        await aliceNs.LoginAsync(alicePassport);
+        await aliceNs.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await aliceNs.ReadLineAsync());
+
+        await bobNs.LoginAsync(bobPassport);
+        await bobNs.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bobNs.ReadLineAsync());
+
+        await aliceNs.SendAsync("XFR 10 SB");
+
+        var cookie = (await aliceNs.ReadLineAsync()).Split(' ')[5];
+
+        using var aliceSb = new MsnConn(server);
+
+        await aliceSb.SendAsync($"USR 1 {alicePassport} {cookie}");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith($"USR 1 OK {alicePassport} "), "The SB join must succeed in the Passport form");
+
+        await aliceSb.SendAsync($"CAL 2 {bobPassport}");
+
+        var cal = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 2 RINGING"), $"The Passport-form CAL must ring, got: {cal}");
+
+        var rng = (await bobNs.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng[0]);
+        Assert.AreEqual(alicePassport, rng[5], "The RNG must name the caller in the form presence carries");
+
+        using var bobSb = new MsnConn(server);
+
+        await bobSb.SendAsync($"ANS 1 {bobPassport} {rng[4]} {cal.Split(' ')[3]}");
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith($"IRO 1 1 1 {alicePassport} "), "The roster must carry the Passport identity");
+        Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith($"JOI {bobPassport} "), "The join announcement must carry the Passport identity");
+
+        var body = Encoding.ASCII.GetBytes("MIME-Version: 1.0\r\n\r\nhello bob");
+
+        await aliceSb.SendPayloadAsync($"MSG 3 A {body.Length}", body);
+
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith($"MSG {alicePassport} "), "The relayed message must carry the Passport identity");
+        CollectionAssert.AreEqual(body, await bobSb.ReadBytesAsync(body.Length));
+        Assert.AreEqual("ACK 3", await aliceSb.ReadLineAsync());
+
+        // And the answering side can speak back.
+        var reply = Encoding.ASCII.GetBytes("MIME-Version: 1.0\r\n\r\nhello alice");
+
+        await bobSb.SendPayloadAsync($"MSG 2 A {reply.Length}", reply);
+
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith($"MSG {bobPassport} "), "The reply must carry the Passport identity");
+        CollectionAssert.AreEqual(reply, await aliceSb.ReadBytesAsync(reply.Length));
+        Assert.AreEqual("ACK 2", await bobSb.ReadLineAsync());
     }
 }

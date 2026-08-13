@@ -661,7 +661,13 @@ public sealed class MsnServer : Listener
             return;
         }
 
-        if (!string.Equals(parts[2], session.Account, StringComparison.OrdinalIgnoreCase))
+        // "Themselves" is a PRINCIPAL, not a string: the bare and Passport forms of one account both name
+        // it (the same resolution every other account argument goes through), so a client presenting the
+        // form it did not sign in with is still renaming itself. Any other member's name, in either form,
+        // stays the 201.
+        var target = ResolveAccountUsername(parts[2]) ?? parts[2];
+
+        if (!string.Equals(target, session.AccountUsername, StringComparison.OrdinalIgnoreCase))
         {
             await session.SendLineAsync($"201 {trid}");
 
@@ -778,7 +784,9 @@ public sealed class MsnServer : Listener
             // switchboard sessions carrying the right key rather than failing open.
             session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
 
-            GetOrCreateSwitchboard(invite.SessionId).Participants[session.Account.ToLowerInvariant()] = session;
+            AdoptNotificationIdentity(session);
+
+            GetOrCreateSwitchboard(invite.SessionId).Participants[session.AccountUsername.ToLowerInvariant()] = session;
 
             await session.SendLineAsync($"USR {parts[1]} OK {session.Account} {UrlEncode(session.DisplayName)}");
         }
@@ -801,6 +809,8 @@ public sealed class MsnServer : Listener
             // Same owner-key resolution as the USR branch, for the same lookups, unconditional for the
             // same mid-session flag-flip reason.
             session.AccountUsername = ResolveAccountUsername(session.Account) ?? session.Account;
+
+            AdoptNotificationIdentity(session);
 
             Switchboards.TryGetValue(invite.SessionId, out var pending);
 
@@ -842,7 +852,7 @@ public sealed class MsnServer : Listener
 
             await session.SendLineAsync($"ANS {trid} OK");
 
-            sb.Participants[session.Account.ToLowerInvariant()] = session;
+            sb.Participants[session.AccountUsername.ToLowerInvariant()] = session;
 
             // Announce the joiner to the others.
             foreach (var participant in existing)
@@ -1022,6 +1032,20 @@ public sealed class MsnServer : Listener
         return user?.Username;
     }
 
+    // A member's switchboard identity is the identity their notification session announces: peers key
+    // conversation windows on the form presence carried (ILN/NLN/RNG), so IRO/JOI/MSG must emit that same
+    // form - and the member's chosen display name, not the account token - no matter which form this
+    // switchboard connection presented. With no live notification session (signed off in the ring gap)
+    // the presented form stands, resolved username and all.
+    static void AdoptNotificationIdentity(MsnSession session)
+    {
+        if (NsSessions.TryGetValue(session.AccountUsername.ToLowerInvariant(), out var ns) && ns.IsAuthenticated)
+        {
+            session.Account = ns.Account;
+            session.DisplayName = ns.DisplayName;
+        }
+    }
+
     // Whether this switchboard may ring the callee at all: the callee and every person already in the
     // room - the caller included - must admit each other in BOTH directions, because a join hands every
     // pair each other's presence (RNG/IRO/JOI, relayed MSG identity) and a Block in either direction
@@ -1170,14 +1194,28 @@ public sealed class MsnServer : Listener
         }
         else if (session.Role == MsnRole.Switchboard && session.SwitchboardId != null && Switchboards.TryGetValue(session.SwitchboardId, out var sb))
         {
-            if (session.Account != null)
+            // Participants key on the resolved username (one member = one slot, whichever form each
+            // connection presented), so evict and announce only if THIS session still holds the slot: a
+            // rejoin by the same member supersedes the entry, and tearing the superseded connection down
+            // must not remove the live session or broadcast a BYE for a member still in the room.
+            var removed = false;
+
+            if (session.AccountUsername != null)
             {
-                sb.Participants.TryRemove(session.Account.ToLowerInvariant(), out _);
+                var key = session.AccountUsername.ToLowerInvariant();
+
+                if (sb.Participants.TryGetValue(key, out var current) && ReferenceEquals(current, session))
+                {
+                    removed = sb.Participants.TryRemove(key, out _);
+                }
             }
 
-            foreach (var participant in sb.Participants.Values.ToArray())
+            if (removed)
             {
-                _ = SafeSendAsync(participant, $"BYE {session.Account}");
+                foreach (var participant in sb.Participants.Values.ToArray())
+                {
+                    _ = SafeSendAsync(participant, $"BYE {session.Account}");
+                }
             }
 
             if (sb.Participants.IsEmpty)
