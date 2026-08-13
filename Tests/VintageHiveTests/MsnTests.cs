@@ -2091,4 +2091,157 @@ public class MsnSwitchboardBlockTests
         Assert.IsTrue((await carolSb.ReadLineAsync()).StartsWith("CAL 3 RINGING"), "The stored block must not gate the room with the flag off");
         Assert.IsTrue((await alice.ReadLineAsync()).StartsWith("RNG"), "The RNG must still reach the blocked member with the flag off");
     }
+
+    // A real client dials the Passport form (the contact list and the RNG/ILN payloads all carry
+    // name@domain), so CAL must find a live callee under either form - and the minted ticket must stay
+    // redeemable across forms, because which form the callee's ANS carries depends on how IT signed in,
+    // not on how the caller dialed.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Cal_PassportForm_IsEquivalentToTheBareForm_ForAnOnlineCallee()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var passport = $"bob@{MailDomains.Primary}";
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        // The bare form rings and delivers the RNG.
+        await aliceSb.SendAsync("CAL 2 bob");
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("CAL 2 RINGING"), "The bare form must ring an online callee");
+
+        var rngBare = await bob.ReadLineAsync();
+
+        Assert.IsTrue(rngBare.StartsWith("RNG"), $"The bare-form CAL must deliver the RNG, got: {rngBare}");
+        Assert.IsTrue(rngBare.Contains(" alice "), "The RNG must name the caller");
+
+        // The Passport form of the same callee is the same call, not an offline 217.
+        await aliceSb.SendAsync($"CAL 3 {passport}");
+
+        var cal = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 3 RINGING"), $"The Passport form must ring exactly like the bare form, got: {cal}");
+
+        var rng = (await bob.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng[0], "The Passport-form CAL must deliver the RNG");
+
+        // The callee answers with the Passport form though the ticket was minted while he was signed in
+        // bare: redemption compares principals, so the form mismatch must not 911 a legitimate answer.
+        using var bobSb = new MsnConn(server);
+
+        await bobSb.SendAsync($"ANS 1 {passport} {rng[4]} {cal.Split(' ')[3]}");
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("IRO 1 1 1 alice"), "The Passport-form ANS must redeem the ticket");
+        Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith($"JOI {passport}"), "The caller must see the callee join under the identity his ANS presented");
+    }
+
+    // The converse pairing: the callee signed in with the Passport form (what every real client does),
+    // the caller dials the bare name. The ticket is minted for the callee's own sign-in identity, so the
+    // client's natural ANS - carrying the name it signed in as - must redeem it.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Cal_BareForm_MintsATicketAPassportSignedCalleeCanRedeem()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var passport = $"bob@{MailDomains.Primary}";
+
+        using var alice = new MsnConn(server);
+        using var bob = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        await bob.LoginAsync(passport);
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        using var aliceSb = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await aliceSb.SendAsync("CAL 2 bob");
+
+        var cal = await aliceSb.ReadLineAsync();
+
+        Assert.IsTrue(cal.StartsWith("CAL 2 RINGING"), $"The bare form must find the Passport-signed callee, got: {cal}");
+
+        var rng = (await bob.ReadLineAsync()).Split(' ');
+
+        Assert.AreEqual("RNG", rng[0]);
+
+        using var bobSb = new MsnConn(server);
+
+        await bobSb.SendAsync($"ANS 1 {passport} {rng[4]} {cal.Split(' ')[3]}");
+        Assert.IsTrue((await bobSb.ReadLineAsync()).StartsWith("IRO 1 1 1 alice"), "The callee's natural (sign-in form) ANS must redeem a bare-dialed ticket");
+        Assert.AreEqual("ANS 1 OK", await bobSb.ReadLineAsync());
+        Assert.IsTrue((await aliceSb.ReadLineAsync()).StartsWith("JOI"), "The caller must see the callee join");
+    }
+
+    // The oracle discipline must hold in both forms: a blocked callee and an offline callee answer with
+    // the byte-identical transcript whether the caller dials the bare name or the Passport form - a form
+    // that slipped past the block gate would be a did-they-block-me probe, and a form that answered
+    // differently offline would distinguish the two refusals.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Cal_BlockedAndOfflineTranscripts_AreIdenticalInBothForms()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.ValidMailDomains, HiveDomains.Base);
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+        var passport = $"bob@{MailDomains.Primary}";
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await alice.ReadLineAsync());
+
+        // Bob is genuinely offline: both forms give the same refusal.
+        using var sbOffline = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await sbOffline.SendAsync("CAL 2 bob");
+
+        var offlineReply = await sbOffline.ReadLineAsync();
+
+        Assert.AreEqual("217 2", offlineReply);
+
+        await sbOffline.SendAsync($"CAL 2 {passport}");
+        Assert.AreEqual(offlineReply, await sbOffline.ReadLineAsync(), "An offline callee must answer identically in both forms");
+
+        // Bob signs on and blocks alice: both forms must reproduce the offline transcript exactly.
+        using var bob = new MsnConn(server);
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await bob.ReadLineAsync());
+
+        await bob.SendAsync("ADD 7 BL alice alice");
+        Assert.AreEqual("ADD 7 BL 2 alice alice", await bob.ReadLineAsync());
+
+        using var sbBlocked = await OpenSwitchboardAsync(server, alice, "alice");
+
+        await sbBlocked.SendAsync("CAL 2 bob");
+        Assert.AreEqual(offlineReply, await sbBlocked.ReadLineAsync(), "The bare form must refuse the blocked caller in the offline shape");
+
+        await sbBlocked.SendAsync($"CAL 2 {passport}");
+        Assert.AreEqual(offlineReply, await sbBlocked.ReadLineAsync(), "The Passport form must not slip past the block gate the bare form enforces");
+
+        // And nothing rang: bob's next notification line is the PNG's answer, not an RNG.
+        await bob.SendAsync("PNG");
+        Assert.AreEqual("QNG 50", await bob.ReadLineAsync(), "No RNG may reach the callee in either form");
+    }
 }

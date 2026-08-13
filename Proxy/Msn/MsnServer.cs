@@ -887,13 +887,19 @@ public sealed class MsnServer : Listener
         var trid = parts[1];
         var callee = parts[2];
 
+        // A real client dials the Passport form - the contact list and the RNG/ILN payloads all carry
+        // name@domain - while NsSessions keys on the RESOLVED username, so the callee token goes through
+        // the same resolution as sign-on and both forms land on the same entry. A name that resolves to
+        // nothing keeps its presented form, which misses the lookup exactly like a real-but-offline member.
+        var calleeUsername = ResolveAccountUsername(callee) ?? callee;
+
         // Hidden (and authenticated-but-pre-CHG, still-FLN) callees must look offline to a caller: ringing
         // them would leak the concealed presence via RINGING-vs-217 and pop an RNG the FLN broadcast said
         // could not happen. 217 = principal not online. With persistent lists, a callee the ring may not
         // reach (Block, BLP BL, GTC N - see MayRing) answers from this SAME condition: blocked and offline
         // must be byte-identical - the same 217, no RINGING, no invite minted, no RNG - or the refusal
         // becomes a did-they-block-me oracle, the mirror of the enumeration oracle ADD refuses to be.
-        if (!NsSessions.TryGetValue(callee.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden || (PersistLists && !MayRing(session, calleeNs)))
+        if (!NsSessions.TryGetValue(calleeUsername.ToLowerInvariant(), out var calleeNs) || !calleeNs.IsAuthenticated || calleeNs.Status is MsnStatus.Offline or MsnStatus.Hidden || (PersistLists && !MayRing(session, calleeNs)))
         {
             await session.SendLineAsync($"217 {trid}");
 
@@ -906,8 +912,11 @@ public sealed class MsnServer : Listener
 
         PruneExpiredInvites();
 
-        // The CALLEE redeems this ticket when answering the ring (ANS).
-        PendingInvites[cookie] = new SbInvite(cookie, session.SwitchboardId, callee, DateTimeOffset.UtcNow);
+        // The CALLEE redeems this ticket when answering the ring (ANS). It is minted for the callee's own
+        // sign-in identity, not the form the caller dialed: the callee's client answers with the name it
+        // signed in as, and dialing the other form of the same account must not produce a ticket its own
+        // callee cannot redeem.
+        PendingInvites[cookie] = new SbInvite(cookie, session.SwitchboardId, calleeNs.Account, DateTimeOffset.UtcNow);
 
         // The ring is delivered over the callee's notification connection, not the switchboard.
         await SafeSendAsync(calleeNs, $"RNG {session.SwitchboardId} {AdvertisedAddress(session)} CKI {cookie} {session.Account} {UrlEncode(session.DisplayName)}");
@@ -1105,9 +1114,26 @@ public sealed class MsnServer : Listener
         return Switchboards.GetOrAdd(sessionId, id => new Switchboard(id));
     }
 
+    // The account gate compares PRINCIPALS, not strings: the redeemer may present either form of the
+    // account the ticket was minted for (bare or Passport on a hosted domain), because which form a client
+    // sends depends on how it signed in, not on how the ticket was minted. Names that resolve to no
+    // account never match each other this way - an unresolvable ticket stays redeemable only by its exact
+    // string - so the widening admits no principal the exact match would have refused.
     static bool IsRedeemableBy(SbInvite invite, string account)
     {
-        return string.Equals(invite.Account, account, StringComparison.OrdinalIgnoreCase) && DateTimeOffset.UtcNow - invite.IssuedAt <= InviteLifetime;
+        if (DateTimeOffset.UtcNow - invite.IssuedAt > InviteLifetime)
+        {
+            return false;
+        }
+
+        if (string.Equals(invite.Account, account, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var invitedUsername = ResolveAccountUsername(invite.Account);
+
+        return invitedUsername != null && string.Equals(invitedUsername, ResolveAccountUsername(account), StringComparison.OrdinalIgnoreCase);
     }
 
     // Opportunistic sweep on invite creation (no timer thread needed): abandoned XFRs and unanswered rings
