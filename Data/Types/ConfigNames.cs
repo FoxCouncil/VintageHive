@@ -159,6 +159,14 @@ public static class ConfigNames
     // broadcast-to-all presence. No existing deployment changes behavior until an operator opts in.
     public const string MsnPersistLists = "msnpersistlists";
 
+    // When true, Yahoo! serves each member's own persisted buddy list (built with ADDBUDDY/REMBUDDY, group
+    // names preserved verbatim, surviving restarts), a fresh add of an online member pushes their presence
+    // to the adder immediately, and presence fans out list-scoped; YahooAutoRoster is ignored. False (the
+    // default) is exactly the pre-persistence behavior: server-built or empty roster per YahooAutoRoster,
+    // ack-only ADDBUDDY/REMBUDDY, broadcast-to-all presence. No existing deployment changes behavior until
+    // an operator opts in.
+    public const string YahooPersistLists = "yahoopersistlists";
+
     // When false, finger's no-query answer is the banner with no online-user table (Gopher's /users reuse follows).
     public const string FingerListOnline = "fingerlistonline";
 

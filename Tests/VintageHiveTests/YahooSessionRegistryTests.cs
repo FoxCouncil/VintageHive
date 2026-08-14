@@ -404,6 +404,23 @@ public class YahooSessionRegistryTests
         }
     }
 
+    // With persistent lists on the server-built roster is not a thing at all - YahooAutoRoster is ignored -
+    // so the shared seam answers empty for every caller and the stored rows are the only roster source.
+    [TestMethod]
+    public void OtherUsernames_PersistListsOn_AnswersEmptyForEveryCaller()
+    {
+        Mind.Db!.ConfigSet(VintageHive.Data.Types.ConfigNames.YahooPersistLists, true);
+
+        try
+        {
+            Assert.AreEqual(0, YahooSessionRegistry.OtherUsernames("alice").Count, "The server-built roster must not leak through with persistent lists on");
+        }
+        finally
+        {
+            Mind.Db!.ConfigSet(VintageHive.Data.Types.ConfigNames.YahooPersistLists, false);
+        }
+    }
+
     // Two simultaneous logins for one account must leave exactly one survivor. Without the gate they can each
     // see the OTHER as the ghost and mutually kick, leaving zero - and the gate now has to span transports.
     [TestMethod]

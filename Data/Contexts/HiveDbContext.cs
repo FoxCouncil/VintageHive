@@ -48,6 +48,10 @@ public class HiveDbContext : DbContextBase
 
     private const string TABLE_YAHOOOFFLINEMSG = "yahoo_offline_msg";
 
+    private const string TABLE_YAHOOLIST = "yahoo_list";
+
+    private const string TABLE_YAHOOLISTSTATE = "yahoo_list_state";
+
     static readonly IReadOnlyDictionary<string, object> kDefaultGlobalSettings = new Dictionary<string, object>()
     {
         // Networking Settings
@@ -119,6 +123,7 @@ public class HiveDbContext : DbContextBase
         { ConfigNames.MsnAutoRoster, true },
         { ConfigNames.MsnPersistLists, false },
         { ConfigNames.YahooAutoRoster, true },
+        { ConfigNames.YahooPersistLists, false },
         { ConfigNames.FingerListOnline, true },
         { ConfigNames.IrcRequireAuthentication, false },
         { ConfigNames.IrcMotd, "" },
@@ -228,6 +233,15 @@ public class HiveDbContext : DbContextBase
 
         // Yahoo! Messenger Offline Messages
         CreateTable(TABLE_YAHOOOFFLINEMSG, "id INTEGER PRIMARY KEY AUTOINCREMENT, fromusername TEXT, tousername TEXT COLLATE NOCASE, message TEXT, timestamp INTEGER");
+
+        // Yahoo! Messenger persistent buddy lists (yahoopersistlists): one row per (owner, group, buddy),
+        // plus a per-owner serial, mirroring msn_list/msn_list_state. The owner is the resolved username;
+        // the group and buddy are stored exactly as the client presented them (see YahooListEntry - the
+        // group must round-trip verbatim). Deliberately a parallel table rather than a shared one: the MSN
+        // shape carries list kinds, display names and numeric group ids Yahoo has no wire concept of.
+        // Created on demand - an existing box gets the empty tables and, with the flag off, never a row.
+        CreateTable(TABLE_YAHOOLIST, "owner TEXT COLLATE NOCASE, groupname TEXT, buddy TEXT COLLATE NOCASE, UNIQUE(owner, groupname, buddy)");
+        CreateTable(TABLE_YAHOOLISTSTATE, "owner TEXT UNIQUE COLLATE NOCASE, serial INTEGER");
     }
 
     #region Log Methods
@@ -1721,6 +1735,176 @@ public class HiveDbContext : DbContextBase
             command.ExecuteNonQuery();
         });
     }
+    #endregion
+
+    #region Yahoo List Methods
+
+    /// <summary>The stored entries of a member's Yahoo! buddy list, in insertion order (so the roster
+    /// field's group order is stable across logins). Empty for a member who has never edited.</summary>
+    public List<YahooListEntry> YahooListGet(string owner)
+    {
+        return WithContext<List<YahooListEntry>>(context =>
+        {
+            var command = context.CreateCommand();
+
+            command.CommandText = $"SELECT groupname, buddy FROM {TABLE_YAHOOLIST} WHERE owner = @owner ORDER BY rowid";
+
+            command.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            using var reader = command.ExecuteReader();
+
+            var entries = new List<YahooListEntry>();
+
+            while (reader.Read())
+            {
+                entries.Add(new YahooListEntry(reader.GetString(0), reader.GetString(1)));
+            }
+
+            return entries;
+        });
+    }
+
+    /// <summary>Stores one buddy entry. True only when the entry is NEW: a re-add of the same
+    /// (group, buddy) pair changes nothing, and the caller acks it identically either way.</summary>
+    public bool YahooListUpsert(string owner, string group, string buddy)
+    {
+        return WithContext(context =>
+        {
+            using var command = context.CreateCommand();
+
+            command.CommandText = $"INSERT INTO {TABLE_YAHOOLIST} (owner, groupname, buddy) VALUES(@owner, @groupname, @buddy)";
+
+            command.Parameters.Add(new SqliteParameter("@owner", owner));
+            command.Parameters.Add(new SqliteParameter("@groupname", group ?? string.Empty));
+            command.Parameters.Add(new SqliteParameter("@buddy", buddy));
+
+            try
+            {
+                command.ExecuteNonQuery();
+
+                return true;
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+            {
+                // UNIQUE constraint: the pair is already stored (or a racing add won); for this caller
+                // "already there" and "inserted" are the same answer.
+                return false;
+            }
+        });
+    }
+
+    /// <summary>Removes a buddy; true when a row actually went away. A null group removes the buddy from
+    /// every group, for a client that names no group in its remove.</summary>
+    public bool YahooListRemove(string owner, string group, string buddy)
+    {
+        return WithContext(context =>
+        {
+            var command = context.CreateCommand();
+
+            if (group == null)
+            {
+                command.CommandText = $"DELETE FROM {TABLE_YAHOOLIST} WHERE owner = @owner AND buddy = @buddy";
+            }
+            else
+            {
+                command.CommandText = $"DELETE FROM {TABLE_YAHOOLIST} WHERE owner = @owner AND groupname = @groupname AND buddy = @buddy";
+
+                command.Parameters.Add(new SqliteParameter("@groupname", group));
+            }
+
+            command.Parameters.Add(new SqliteParameter("@owner", owner));
+            command.Parameters.Add(new SqliteParameter("@buddy", buddy));
+
+            return command.ExecuteNonQuery() > 0;
+        });
+    }
+
+    /// <summary>Advances the owner's list serial and returns the new value. A never-edited owner gets the
+    /// row on demand and answers 2, mirroring the MSN store's never-edited baseline of 1.</summary>
+    public int YahooListBumpSerial(string owner)
+    {
+        return WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var updateCommand = context.CreateCommand();
+
+            updateCommand.CommandText = $"UPDATE {TABLE_YAHOOLISTSTATE} SET serial = serial + 1 WHERE owner = @owner";
+
+            updateCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            if (updateCommand.ExecuteNonQuery() == 0)
+            {
+                using var insertCommand = context.CreateCommand();
+
+                insertCommand.CommandText = $"INSERT INTO {TABLE_YAHOOLISTSTATE} (owner, serial) VALUES(@owner, 2)";
+
+                insertCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+                try
+                {
+                    insertCommand.ExecuteNonQuery();
+
+                    transaction.Commit();
+
+                    return 2;
+                }
+                catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+                {
+                    // A racing first bump inserted the row between the UPDATE and the INSERT; fall
+                    // through to the increment-and-read path against the row that now exists.
+                    using var retryCommand = context.CreateCommand();
+
+                    retryCommand.CommandText = $"UPDATE {TABLE_YAHOOLISTSTATE} SET serial = serial + 1 WHERE owner = @owner";
+
+                    retryCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+                    retryCommand.ExecuteNonQuery();
+                }
+            }
+
+            using var readCommand = context.CreateCommand();
+
+            readCommand.CommandText = $"SELECT serial FROM {TABLE_YAHOOLISTSTATE} WHERE owner = @owner";
+
+            readCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            var serial = Convert.ToInt32(readCommand.ExecuteScalar());
+
+            transaction.Commit();
+
+            return serial;
+        });
+    }
+
+    /// <summary>Erases an owner's stored list and state entirely - every buddy row plus the serial row -
+    /// returning them to the never-edited defaults.</summary>
+    public void YahooListReset(string owner)
+    {
+        WithContext(context =>
+        {
+            using var transaction = context.BeginTransaction();
+
+            using var deleteListCommand = context.CreateCommand();
+
+            deleteListCommand.CommandText = $"DELETE FROM {TABLE_YAHOOLIST} WHERE owner = @owner";
+
+            deleteListCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            deleteListCommand.ExecuteNonQuery();
+
+            using var deleteStateCommand = context.CreateCommand();
+
+            deleteStateCommand.CommandText = $"DELETE FROM {TABLE_YAHOOLISTSTATE} WHERE owner = @owner";
+
+            deleteStateCommand.Parameters.Add(new SqliteParameter("@owner", owner));
+
+            deleteStateCommand.ExecuteNonQuery();
+
+            transaction.Commit();
+        });
+    }
+
     #endregion
 
     #region Oscar SSI Methods

@@ -121,12 +121,94 @@ public static class YahooSessionRegistry
         return subject.YahooStatus == YmsgStatus.Invisible;
     }
 
-    /// <summary>Announces <paramref name="subject"/> to every other signed-on session, on any transport.</summary>
+    // Re-read per operation (like YahooAutoRoster) so a ConfigSet applies without restart.
+    internal static bool PersistLists => Mind.Db?.ConfigGet<bool>(Data.Types.ConfigNames.YahooPersistLists) ?? false;
+
+    /// <summary>
+    /// The one answer to "may observer perceive subject's presence", shared by the login snapshot on both
+    /// transports and the presence fan-out, so what a member sees at sign-on and what reaches them later
+    /// can never disagree. Invisibility always hides; with persistent lists the observer's own stored list
+    /// must also name the subject (the Yahoo! model: you see the people YOU added - the same predicate
+    /// shape as MSN's CanContact/ListNames, so the two protocols cannot disagree about who sees whom).
+    /// Flag off keeps the relay-to-all behavior byte for byte.
+    /// </summary>
+    public static bool MaySee(YahooSession observer, YahooSession subject)
+    {
+        if (IsInvisibleTo(subject, observer))
+        {
+            return false;
+        }
+
+        return !PersistLists || ListNames(observer.Username, subject.Username);
+    }
+
+    // Whether the owner's stored list names this username. Entries hold whatever the member's client sent,
+    // so a bare name and a hosted name@domain form of the same account must both match - mirroring
+    // MsnServer.ListNames, resolution at use rather than at storage.
+    static bool ListNames(string ownerUsername, string subjectUsername)
+    {
+        foreach (var entry in Mind.Db?.YahooListGet(ownerUsername) ?? new List<Data.Types.YahooListEntry>())
+        {
+            if (entry.Buddy.Equals(subjectUsername, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (entry.Buddy.Contains('@') && Data.Types.MailDomains.TryResolveLogin(entry.Buddy, out var localPart, out _) && localPart.Equals(subjectUsername, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The same resolution MSN's surfaces use: whole-string fetch first (an account literally
+    /// named with an '@' wins), then the name@domain form against the hosted mail domains. Null when
+    /// nothing matches - which callers must treat exactly like a real-but-offline member.</summary>
+    public static string ResolveAccountUsername(string presented)
+    {
+        var user = Mind.Db?.UserFetch(presented);
+
+        if (user == null && presented.Contains('@') && Data.Types.MailDomains.TryResolveLogin(presented, out var localPart, out _))
+        {
+            user = Mind.Db?.UserFetch(localPart);
+        }
+
+        return user?.Username;
+    }
+
+    /// <summary>The member's stored roster as (group, buddies) pairs, groups in first-appearance order and
+    /// names exactly as the client presented them. Shared by the YMSG LIST field and the Pager account
+    /// block, so the two transports keep showing the same buddy list with persistent lists on.</summary>
+    public static List<(string Group, List<string> Buddies)> StoredRosterGroups(string username)
+    {
+        var groups = new List<(string Group, List<string> Buddies)>();
+
+        foreach (var entry in Mind.Db?.YahooListGet(username) ?? new List<Data.Types.YahooListEntry>())
+        {
+            var slot = groups.FindIndex(g => string.Equals(g.Group, entry.Group, StringComparison.Ordinal));
+
+            if (slot < 0)
+            {
+                groups.Add((entry.Group, new List<string> { entry.Buddy }));
+            }
+            else
+            {
+                groups[slot].Buddies.Add(entry.Buddy);
+            }
+        }
+
+        return groups;
+    }
+
+    /// <summary>Announces <paramref name="subject"/> to every other signed-on session, on any transport.
+    /// With persistent lists the fan-out is list-scoped via <see cref="MaySee"/>.</summary>
     public static async Task BroadcastPresenceAsync(YahooSession subject)
     {
         foreach (var other in Peers(subject))
         {
-            if (IsInvisibleTo(subject, other))
+            if (!MaySee(other, subject))
             {
                 continue;
             }
@@ -135,11 +217,18 @@ public static class YahooSessionRegistry
         }
     }
 
-    /// <summary>Announces <paramref name="subject"/>'s departure to every other signed-on session.</summary>
+    /// <summary>Announces <paramref name="subject"/>'s departure to every other signed-on session. Scoped
+    /// by the stored list like presence (a member who could never see the subject hears nothing), but NOT
+    /// by invisibility - going invisible is announced exactly as a departure.</summary>
     public static async Task BroadcastLogoffAsync(YahooSession subject)
     {
         foreach (var other in Peers(subject))
         {
+            if (PersistLists && !ListNames(other.Username, subject.Username))
+            {
+                continue;
+            }
+
             await other.DeliverLogoffAsync(subject);
         }
     }
@@ -203,9 +292,17 @@ public static class YahooSessionRegistry
     /// YMSG and the HTTP Pager. YahooAutoRoster off turns the server-built roster off at this single seam:
     /// every caller gets an empty answer, and the member's list is what they added. The list packets
     /// themselves still go out (well-formed and empty) because a missing list hangs period clients where an
-    /// empty one does not. Re-read per call, so a ConfigSet applies without restart.</summary>
+    /// empty one does not. With persistent lists on, the server-built roster is not a thing at all
+    /// (YahooAutoRoster is ignored; the stored rows via <see cref="StoredRosterGroups"/> are the roster),
+    /// so this answers empty then too - a caller that forgets to branch serves an empty roster, never the
+    /// server-built one. Re-read per call, so a ConfigSet applies without restart.</summary>
     public static List<string> OtherUsernames(string username)
     {
+        if (PersistLists)
+        {
+            return new List<string>();
+        }
+
         if (!(Mind.Db?.ConfigGet<bool>(Data.Types.ConfigNames.YahooAutoRoster) ?? true))
         {
             return new List<string>();

@@ -369,21 +369,32 @@ public static class YahooPagerProcessor
     /// </code>
     /// The roster is server-built - every other account is everyone's buddy - which is the same rule
     /// <see cref="Proxy.Yahoo.YmsgServer"/> applies when it builds the YMSG roster field, so the two protocols
-    /// show the same buddy list.
+    /// show the same buddy list. With yahoopersistlists on, the same-list rule holds the other way around:
+    /// both transports serve the member's stored rows, group names and all.
     /// </summary>
     internal static string BuildAccountBlock(string username)
     {
-        var buddies = YahooSessionRegistry.OtherUsernames(username);
-
         var block = new StringBuilder();
 
         block.Append("OK").Append(LineEnding);
 
         block.Append("BEGIN BUDDYLIST").Append(LineEnding);
 
-        if (buddies.Count > 0)
+        if (YahooSessionRegistry.PersistLists)
         {
-            block.Append($"{RosterGroup}:{string.Join(",", buddies)}").Append(LineEnding);
+            foreach (var (group, buddies) in YahooSessionRegistry.StoredRosterGroups(username))
+            {
+                block.Append($"{group}:{string.Join(",", buddies)}").Append(LineEnding);
+            }
+        }
+        else
+        {
+            var buddies = YahooSessionRegistry.OtherUsernames(username);
+
+            if (buddies.Count > 0)
+            {
+                block.Append($"{RosterGroup}:{string.Join(",", buddies)}").Append(LineEnding);
+            }
         }
 
         block.Append("END BUDDYLIST").Append(LineEnding);

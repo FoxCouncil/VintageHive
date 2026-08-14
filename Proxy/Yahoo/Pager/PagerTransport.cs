@@ -318,7 +318,7 @@ public static class PagerTransport
 
     static async Task SendRosterAsync(PagerSession session)
     {
-        var online = YahooSessionRegistry.Peers(session).Where(s => !YahooSessionRegistry.IsInvisibleTo(s, session)).ToList();
+        var online = YahooSessionRegistry.Peers(session).Where(s => YahooSessionRegistry.MaySee(session, s)).ToList();
 
         await session.Enqueue(new YpnsPacket(YpnsService.Logon, session.Username, session.Username, PagerSession.RosterSnapshot(online), session.YahooStatus));
     }

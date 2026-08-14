@@ -289,10 +289,15 @@ public sealed class YmsgServer : Listener
 
     async Task SendListAsync(YmsgSession session)
     {
-        var others = YahooSessionRegistry.OtherUsernames(session.Username);
+        // With persistent lists the roster IS the member's stored rows, group names preserved exactly as
+        // they were sent; otherwise the server-built hive roster (YahooAutoRoster's seam) under the single
+        // Hive group. Either way an empty roster still goes out as a well-formed empty field, as always.
+        var roster = YahooSessionRegistry.PersistLists
+            ? BuildStoredRosterField(YahooSessionRegistry.StoredRosterGroups(session.Username))
+            : BuildRosterField(YahooSessionRegistry.OtherUsernames(session.Username));
 
         var list = new YmsgPacket(YmsgService.List, 0, session.SessionId)
-            .Add(87, BuildRosterField(others))
+            .Add(87, roster)
             .Add(88, string.Empty)
             .Add(89, session.Username)
             .Add(59, "Y\tv=1;\nT\tv=1;\n")
@@ -303,7 +308,7 @@ public sealed class YmsgServer : Listener
 
     async Task SendInitialPresenceAsync(YmsgSession session)
     {
-        var online = YahooSessionRegistry.Peers(session).Where(s => !YahooSessionRegistry.IsInvisibleTo(s, session)).ToList();
+        var online = YahooSessionRegistry.Peers(session).Where(s => YahooSessionRegistry.MaySee(session, s)).ToList();
 
         var presence = new YmsgPacket(YmsgService.Logon, 0, session.SessionId)
             .Add(0, session.Username)
@@ -490,9 +495,14 @@ public sealed class YmsgServer : Listener
         await YahooSessionRegistry.RelayTypingAsync(session, to, packet.Get(49) ?? "TYPING", packet.Get(13) ?? "1", packet.Status);
     }
 
-    // The hive roster is server-built (every account is everyone's buddy), so add/remove are acknowledged
-    // with field 66 = 0 (success) to complete the client's dialog but not persisted; the next login
-    // rebuilds the full roster anyway.
+    // With yahoopersistlists off the hive roster is server-built (every account is everyone's buddy), so
+    // add/remove are acknowledged with field 66 = 0 (success) to complete the client's dialog but not
+    // persisted; the next login rebuilds the full roster anyway. With it on, the edit lands in the owner's
+    // stored list and the ack echoes the group AS THE CLIENT SENT IT - the Add-a-Friend dialog files the
+    // buddy under a group its own list knows about, and a server-invented default ("Hive", for a member
+    // whose list has no such group) is exactly what locked Messenger 5.x's dialog up. Either way there is
+    // deliberately no does-the-account-exist check: a "no such user" error here would confirm which names
+    // exist, the very disclosure the roster switch closes.
     async Task HandleBuddyEditAsync(YmsgSession session, YmsgPacket packet)
     {
         if (!session.IsAuthenticated)
@@ -507,13 +517,60 @@ public sealed class YmsgServer : Listener
             return;
         }
 
+        var persist = YahooSessionRegistry.PersistLists;
+        var group = packet.Get(65);
+
+        if (persist)
+        {
+            if (packet.Service == YmsgService.AddBuddy)
+            {
+                Mind.Db.YahooListUpsert(session.Username, group ?? string.Empty, buddy);
+            }
+            else
+            {
+                // A remove naming no group clears the buddy from every group.
+                Mind.Db.YahooListRemove(session.Username, group, buddy);
+            }
+
+            Mind.Db.YahooListBumpSerial(session.Username);
+        }
+
         var ack = new YmsgPacket(packet.Service, 0, session.SessionId)
             .Add(1, session.Username)
             .Add(7, buddy)
-            .Add(65, packet.Get(65) ?? "Hive")
+            .Add(65, persist ? group ?? string.Empty : group ?? "Hive")
             .Add(66, "0");
 
         await session.SendAsync(ack);
+
+        if (persist && packet.Service == YmsgService.AddBuddy)
+        {
+            await PushPresenceOnAddAsync(session, buddy);
+        }
+    }
+
+    // The YMSG twin of MSN's ILN-on-add: a freshly added buddy who is already signed on lights up for the
+    // adder immediately instead of staying dark until their next status change. A name resolving to no
+    // account simply has no live session - it was stored and acked upstream identically to a real one, so
+    // nothing here may emit anything that distinguishes the two cases to the adder; an invisible buddy
+    // stays exactly as dark as an offline or nonexistent one.
+    static async Task PushPresenceOnAddAsync(YmsgSession session, string buddy)
+    {
+        var username = YahooSessionRegistry.ResolveAccountUsername(buddy);
+
+        if (username == null || username.Equals(session.Username, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var live = YahooSessionRegistry.GetByUsername(username);
+
+        if (live == null || YahooSessionRegistry.IsInvisibleTo(live, session))
+        {
+            return;
+        }
+
+        await session.DeliverPresenceAsync(live);
     }
 
     // The YMSG buddy roster is one string: "Group:buddy1,buddy2\nGroup2:buddy3\n". For the hive we put every
@@ -528,6 +585,25 @@ public sealed class YmsgServer : Listener
         }
 
         return $"Hive:{string.Join(",", list)}\n";
+    }
+
+    // The member's own stored roster in the same one-string shape, group names preserved exactly as the
+    // client sent them: "Friends:bob,carol\nWork:dave\n". Empty list = the empty field, as always.
+    internal static string BuildStoredRosterField(List<(string Group, List<string> Buddies)> groups)
+    {
+        if (groups.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var roster = new StringBuilder();
+
+        foreach (var (group, buddies) in groups)
+        {
+            roster.Append(group).Append(':').Append(string.Join(",", buddies)).Append('\n');
+        }
+
+        return roster.ToString();
     }
 
     internal static string MakeChallenge()
