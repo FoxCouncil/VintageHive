@@ -280,6 +280,7 @@ Visit `http://admin.hive.com:1990` to:
 | H.225 RAS Gatekeeper | 1719 | UDP | Experimental |
 | H.323 Call Signaling | 1720 | TCP | Experimental |
 | T.120 Data Conferencing | 1503 | TCP | Experimental |
+| File Transfer Relay | 1810-1819 | TCP | Experimental |
 | SMTP Server | 1980 | TCP | Debug |
 | POP3 Server | 1984 | TCP | Debug |
 | IMAP Server | 1985 | TCP | Debug |
@@ -399,6 +400,7 @@ docker run -d \
   -p 1719:1719/udp \
   -p 1720:1720 \
   -p 1503:1503 \
+  -p 1810-1819:1810-1819 \
   -p 1980:1980 \
   -p 1984:1984 \
   -p 1985:1985 \

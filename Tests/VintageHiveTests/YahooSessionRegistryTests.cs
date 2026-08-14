@@ -52,6 +52,11 @@ internal sealed class FakeTransportSession : YahooSession
         return Record($"typing:{from.Username}:{kind}:{flag}:{status}");
     }
 
+    public override Task<bool> DeliverFileTransferAsync(string from, string fileName, long fileSize, string message, string url)
+    {
+        return Record($"filetransfer:{from}:{fileName}:{fileSize}:{url}");
+    }
+
     public override Task SupersedeAsync()
     {
         WasSuperseded = true;

@@ -80,6 +80,9 @@ EXPOSE 1755
 # PNA (RealPlayer)
 EXPOSE 7070
 
+# File transfer relay range (relaytransfers); match RelayPortLow/High in the admin panel
+EXPOSE 1810-1819
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["VintageHive.csproj", "."]

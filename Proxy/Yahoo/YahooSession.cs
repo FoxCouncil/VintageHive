@@ -73,6 +73,13 @@ public abstract class YahooSession
     public abstract Task<bool> DeliverLogoffAsync(YahooSession subject);
 
     /// <summary>
+    /// Tells this session a file is waiting for it: the sender uploaded it to the relay host and this carries
+    /// the download URL. Not a message and not stored - if the recipient is offline the file simply expires
+    /// (no store-and-forward, by design). Returns false when the peer is gone or the wire cannot carry it.
+    /// </summary>
+    public abstract Task<bool> DeliverFileTransferAsync(string from, string fileName, long fileSize, string message, string url);
+
+    /// <summary>
     /// Relays an ephemeral notification (typing, and friends). Best effort: failures are dropped.
     /// <paramref name="status"/> is the originating packet's header status, echoed through so YMSG's
     /// notification variants survive the relay; a transport without that concept ignores it.

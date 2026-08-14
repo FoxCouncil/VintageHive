@@ -2,6 +2,8 @@
 
 using System.Text.RegularExpressions;
 using VintageHive.Proxy.Chat;
+using VintageHive.Proxy.Oscar.FileTransfer;
+using VintageHive.Proxy.Transfer;
 
 namespace VintageHive.Proxy.Oscar.Services;
 
@@ -223,7 +225,23 @@ internal class OscarIcbmService : IOscarService
 
                         if (rendezvousTlv != null)
                         {
-                            sendClientMessageSnac.WriteTlv(new Tlv(0x05, rendezvousTlv.Value));
+                            var rendezvousValue = rendezvousTlv.Value;
+
+                            // relaytransfers: a SendFile rendezvous has its connectivity rewritten to the relay
+                            // (and the UseARS proxy flag set) so both sides dial the rendezvous proxy. Every
+                            // other rendezvous - direct IM, other capabilities - and the whole thing with the
+                            // flag off is forwarded byte-identical.
+                            if (TransferRelay.Enabled && OscarRendezvous.TryParse(rendezvousValue, out var rendezvous) && rendezvous.IsSendFile)
+                            {
+                                var rewritten = OscarFileTransferRelay.TryRewrite(rendezvous, session);
+
+                                if (rewritten != null)
+                                {
+                                    rendezvousValue = rewritten;
+                                }
+                            }
+
+                            sendClientMessageSnac.WriteTlv(new Tlv(0x05, rendezvousValue));
                         }
                     }
 

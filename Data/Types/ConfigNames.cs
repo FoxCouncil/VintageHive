@@ -167,6 +167,18 @@ public static class ConfigNames
     // an operator opts in.
     public const string YahooPersistLists = "yahoopersistlists";
 
+    // When true, period IM file transfers (MSN/AIM/Yahoo) are brokered through a server-side relay so two
+    // members behind different NATs can transfer even though every client advertises a LAN address and expects
+    // a direct peer connection. Default false: invitations pass through untouched, exactly as today. Messaging,
+    // presence and lists are unaffected either way. The relay allocates a short-lived listener per transfer on
+    // the member-reachable address from the RelayPortLow..RelayPortHigh range; the host firewall must permit
+    // that range, exactly as it must for the FTP passive range.
+    public const string RelayTransfers = "relaytransfers";
+
+    public const string RelayPortLow = "relayportlow";
+
+    public const string RelayPortHigh = "relayporthigh";
+
     // When false, finger's no-query answer is the banner with no online-user table (Gopher's /users reuse follows).
     public const string FingerListOnline = "fingerlistonline";
 

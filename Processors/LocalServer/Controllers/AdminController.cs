@@ -35,6 +35,10 @@ internal partial class AdminController : Controller
         // Rides the HTTP proxy rather than its own listener, so this toggle applies immediately.
         { "yahoopager", ConfigNames.ServiceYahooPager },
         { "msn", ConfigNames.ServiceMsn },
+        // A behavior flag, not a listener of its own: it gates whether MSN/AIM/Yahoo file transfers are
+        // brokered through the relay. Exposed here so an operator can opt in from the panel; toggling it is
+        // read per transfer, so it applies immediately.
+        { "relaytransfers", ConfigNames.RelayTransfers },
         { "socks5auth", ConfigNames.ServiceSocks5RequireAuth },
         // These have config defaults and StartService gates but were never exposed, so the only way to turn
         // them off was editing the database by hand. All are independent listeners: switching one off cannot

@@ -123,6 +123,23 @@ public sealed class YmsgSession : YahooSession
         return GuardedAsync(ct => SendAsync(notify, ct));
     }
 
+    // The file-transfer notify (YMSG 0x46). Like a live Message it MUST go out as header status LiveDelivery
+    // (1) or YM 5.5.0.1244 silently discards it. Fields mirror libyahoo2's process_filetransfer read side:
+    // 4 (from), 5 (to/me), 14 (message), 27 (filename), 28 (size), 20 (download URL). Field 1 is deliberately
+    // absent - libyahoo-lineage clients treat the first of key 1 or 4 as the sender.
+    public override Task<bool> DeliverFileTransferAsync(string from, string fileName, long fileSize, string message, string url)
+    {
+        var notify = new YmsgPacket(YmsgService.FileTransfer, YmsgStatus.LiveDelivery, SessionId)
+            .Add(4, from)
+            .Add(5, Username)
+            .Add(14, message ?? string.Empty)
+            .Add(27, fileName)
+            .Add(28, fileSize.ToString())
+            .Add(20, url);
+
+        return GuardedAsync(ct => SendAsync(notify, ct));
+    }
+
     public override async Task SupersedeAsync()
     {
         await GuardedAsync(ct => SendAsync(new YmsgPacket(YmsgService.Logoff, YmsgStatus.Duplicate, SessionId).Add(0, Username), ct));

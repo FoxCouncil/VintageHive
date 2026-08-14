@@ -4,6 +4,8 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using VintageHive.Data.Types;
 using VintageHive.Network;
+using VintageHive.Proxy.Msn.FileTransfer;
+using VintageHive.Proxy.Transfer;
 
 namespace VintageHive.Proxy.Msn;
 
@@ -24,6 +26,13 @@ public sealed class MsnServer : Listener
 
     // Active switchboard sessions, keyed by session id.
     static readonly ConcurrentDictionary<string, Switchboard> Switchboards = new();
+
+    // File-transfer invitation cookies seen in an INVITE carrying the file-transfer GUID (relaytransfers), so
+    // the matching ACCEPT - which need not re-carry the GUID - is recognised as file transfer and its
+    // connectivity rewritten. Value is the advertised file size and when it was seen (for pruning).
+    static readonly ConcurrentDictionary<string, (long Size, DateTimeOffset Seen)> PendingFileTransfers = new();
+
+    static readonly TimeSpan FileTransferCookieTtl = TimeSpan.FromMinutes(5);
 
     static long _cookieCounter;
 
@@ -319,6 +328,19 @@ public sealed class MsnServer : Listener
             allowList = Mind.Db.MsnListGet(session.AccountUsername, "AL");
             blockList = Mind.Db.MsnListGet(session.AccountUsername, "BL");
             reverseList = Mind.Db.MsnListGet(session.AccountUsername, "RL");
+
+            // The stored displayname is a snapshot from whenever the row was written (ADD, or the RL grow),
+            // so a member who renames afterwards would stay under the stale name for everyone who reconnects,
+            // and one contact's FL and RL rows can disagree with each other. Serve the contact's CURRENT
+            // profile name instead - the same store REA writes - so every list agrees and a rename survives
+            // reconnects. The stored name stays as the fallback, which is what keeps a contact resolving to
+            // no account (or a member with no chosen name) exactly as they were.
+            var liveNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            OverlayLiveDisplayNames(forwardList, liveNames);
+            OverlayLiveDisplayNames(allowList, liveNames);
+            OverlayLiveDisplayNames(blockList, liveNames);
+            OverlayLiveDisplayNames(reverseList, liveNames);
         }
         else
         {
@@ -365,6 +387,33 @@ public sealed class MsnServer : Listener
         await SendContactListAsync(session, trid, version, "AL", allowList);
         await SendContactListAsync(session, trid, version, "BL", blockList);
         await SendContactListAsync(session, trid, version, "RL", reverseList);
+    }
+
+    // Replaces each entry's snapshot displayname with the contact's current profile name when one exists.
+    // The cache spans all four lists of one SYN, so a contact appearing on several lists resolves once and
+    // - just as important - renders identically on every list. A null cached value means "resolved, no
+    // profile name": the entry keeps its stored name, and SendContactListAsync's empty-name fallback
+    // completes the chain (live profile, then stored snapshot, then the account token).
+    static void OverlayLiveDisplayNames(List<MsnListEntry> entries, Dictionary<string, string> liveNames)
+    {
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var contact = entries[i].Contact;
+
+            if (!liveNames.TryGetValue(contact, out var live))
+            {
+                var username = ResolveAccountUsername(contact);
+
+                live = username == null ? null : Mind.Db.UserGetDisplayName(username);
+
+                liveNames[contact] = live;
+            }
+
+            if (!string.IsNullOrWhiteSpace(live))
+            {
+                entries[i] = entries[i] with { DisplayName = live };
+            }
+        }
     }
 
     // appendGroupField applies only to the FL on MSNP7+; the AL/BL/RL never carry group ids in any dialect.
@@ -962,7 +1011,26 @@ public sealed class MsnServer : Listener
         var delivered = false;
         var persist = PersistLists;
 
-        if (Switchboards.TryGetValue(session.SwitchboardId ?? string.Empty, out var sb))
+        Switchboards.TryGetValue(session.SwitchboardId ?? string.Empty, out var sb);
+
+        // relaytransfers: a file-transfer invitation is intercepted here so its peer connectivity can be
+        // rewritten to the relay before it reaches the other side. Every other payload - a plain IM, an
+        // emoticon, a non-file-transfer invite - and the whole thing with the flag off falls straight through
+        // to the byte-identical relay below. A file-transfer INVITE is recorded and still relayed verbatim; the
+        // ACCEPT that carries IP-Address/Port/AuthCookie is the one taken over (PassThrough vs Handled).
+        if (TransferRelay.Enabled && sb != null && await TryRelayFileTransferAsync(session, sb, payload))
+        {
+            // The rewritten ACCEPT was forwarded to the peer (and the role-flip injected), so the send
+            // counts as delivered for the ack below; the fan-out loop is skipped for this payload.
+            if (ack == "A")
+            {
+                await session.SendLineAsync($"ACK {trid}");
+            }
+
+            return;
+        }
+
+        if (sb != null)
         {
             foreach (var participant in sb.Participants.Values.ToArray())
             {
@@ -1001,6 +1069,164 @@ public sealed class MsnServer : Listener
         if (ack == "A" || (ack == "N" && !delivered))
         {
             await session.SendLineAsync($"{(delivered ? "ACK" : "NAK")} {trid}");
+        }
+    }
+
+    // relaytransfers, MSN adapter. Inspects a switchboard payload for a file-transfer invitation and, when it
+    // finds the ACCEPT that carries the peer connectivity, rewrites IP-Address/Port/AuthCookie to a freshly
+    // allocated relay endpoint + ticket, forwards that to the file-sender, and injects a role-flip message so
+    // the receiver dials the relay too - then starts the MSNFTP relay session. Returns true only when it took
+    // the payload over; false (the common case) means "not a file-transfer message I handle, relay it as-is".
+    //
+    // Only the file-transfer Application-GUID is acted on; every other content type and application GUID
+    // returns false and is relayed byte-identical. See MsnInvite / MsnFtpRelay for the parse and the
+    // (documented-as-unverified) both-dial-out choreography.
+    async Task<bool> TryRelayFileTransferAsync(MsnSession session, Switchboard sb, byte[] payload)
+    {
+        if (!MsnInvite.TryParse(payload, out var invite))
+        {
+            return false;
+        }
+
+        var command = invite.Command?.ToUpperInvariant();
+        var cookie = invite.Cookie;
+
+        if (string.IsNullOrEmpty(cookie))
+        {
+            return false;
+        }
+
+        PruneExpiredFileTransfers();
+
+        if (command == "INVITE")
+        {
+            // Record the cookie so the matching ACCEPT (which need not re-carry the GUID) is recognised, then
+            // let the INVITE relay through untouched so the receiver can accept it.
+            if (invite.IsFileTransfer)
+            {
+                PendingFileTransfers[cookie] = (invite.FileSize, DateTimeOffset.UtcNow);
+            }
+
+            return false;
+        }
+
+        if (command == "CANCEL")
+        {
+            PendingFileTransfers.TryRemove(cookie, out _);
+
+            return false;
+        }
+
+        if (command != "ACCEPT" || !invite.HasConnectivity)
+        {
+            return false;
+        }
+
+        // An ACCEPT is file transfer if its cookie matches a recorded INVITE, or if it re-carries the GUID.
+        var knownSize = 0L;
+
+        if (PendingFileTransfers.TryGetValue(cookie, out var pending))
+        {
+            knownSize = pending.Size;
+        }
+        else if (!invite.IsFileTransfer)
+        {
+            return false;
+        }
+
+        // The peer the rewritten ACCEPT goes to - the file-sender in a 2-party switchboard.
+        var peer = sb.Participants.Values.ToArray().FirstOrDefault(p => !ReferenceEquals(p, session));
+
+        if (peer == null)
+        {
+            return false;
+        }
+
+        var listener = TransferRelay.Instance.TryAllocateListener(IPAddress.Any);
+
+        if (listener == null)
+        {
+            // Disabled, at the concurrency cap, or the port range is exhausted: leave the invitation untouched
+            // so the clients fall back to a direct attempt, exactly as with the flag off.
+            return false;
+        }
+
+        var ticket = TransferRelay.MintTicket();
+
+        var advertised = TransferRelay.ResolveAdvertisedAddress(ParseLocalIp(session.Client.LocalIP));
+
+        PendingFileTransfers.TryRemove(cookie, out _);
+
+        try
+        {
+            // Rewrite the receiver's ACCEPT to point the SENDER at the relay, and forward it to the sender.
+            invite.SetField("IP-Address", advertised.ToString());
+            invite.SetField("Port", listener.Port.ToString());
+            invite.SetField("AuthCookie", ticket);
+
+            var rewritten = invite.Serialize();
+
+            await peer.SendPayloadAsync($"MSG {session.Account} {UrlEncode(session.DisplayName)} {rewritten.Length}", rewritten);
+
+            // Inject a role-flip message to the receiver (this session) so it dials the relay too.
+            var inject = BuildRelayAcceptInvite(cookie, advertised.ToString(), listener.Port, ticket);
+
+            await session.SendPayloadAsync($"MSG {peer.Account} {UrlEncode(peer.DisplayName)} {inject.Length}", inject);
+        }
+        catch
+        {
+            // A dead peer mid-rewrite: drop the listener and report unhandled rather than leaking a port.
+            listener.Dispose();
+
+            return false;
+        }
+
+        // Fire-and-forget the relay session; it owns and disposes the listener.
+        _ = MsnFtpRelay.HostAsync(listener, ticket, knownSize, CancellationToken.None);
+
+        return true;
+    }
+
+    // The synthesized "connect to the relay instead" message sent to the receiver: an ACCEPT carrying the
+    // relay endpoint + ticket with Sender-Connect: FALSE, which flips the receiver from listening to dialling
+    // out. This message has no captured reference (MSN never relayed old MSNFTP); it is the one deliberately
+    // unverified piece, isolated here.
+    static byte[] BuildRelayAcceptInvite(string cookie, string host, int port, string ticket)
+    {
+        var body =
+            "MIME-Version: 1.0\r\n" +
+            "Content-Type: text/x-msmsgsinvite; charset=UTF-8\r\n" +
+            "\r\n" +
+            "Application-Name: File Transfer\r\n" +
+            $"Application-GUID: {MsnInvite.FileTransferGuid}\r\n" +
+            "Invitation-Command: ACCEPT\r\n" +
+            $"Invitation-Cookie: {cookie}\r\n" +
+            $"IP-Address: {host}\r\n" +
+            $"Port: {port}\r\n" +
+            $"AuthCookie: {ticket}\r\n" +
+            "Sender-Connect: FALSE\r\n" +
+            "Launch-Application: FALSE\r\n" +
+            "Request-Data: IP-Address:\r\n" +
+            "\r\n";
+
+        return Encoding.UTF8.GetBytes(body);
+    }
+
+    static IPAddress ParseLocalIp(string localIp)
+    {
+        return IPAddress.TryParse(localIp, out var parsed) ? parsed : IPAddress.Loopback;
+    }
+
+    static void PruneExpiredFileTransfers()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var pair in PendingFileTransfers.ToArray())
+        {
+            if (now - pair.Value.Seen > FileTransferCookieTtl)
+            {
+                PendingFileTransfers.TryRemove(pair.Key, out _);
+            }
         }
     }
 

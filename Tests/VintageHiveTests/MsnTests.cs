@@ -1089,6 +1089,35 @@ public class MsnDisplayNameTests
         Assert.AreEqual("NLN NLN alice The%20Fox", await bob.ReadLineAsync(), "The rename must re-announce presence so already-connected contacts see the new name");
     }
 
+    // A 4.x client renames DURING sign-on, before its first CHG: the session's status is still Offline,
+    // so REA itself deliberately announces nothing - the first CHG is the surface that must carry the
+    // new name to contacts. (If REA had broadcast anyway, bob's first line would be the Offline-status
+    // FLN, so this also pins the no-announce half.)
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rea_BeforeFirstChg_AnnouncesAtTheChg()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var bob = new MsnConn(server);
+
+        await bob.LoginAsync("bob");
+        await bob.SendAsync("CHG 5 NLN");
+        Assert.AreEqual("CHG 5 NLN", await bob.ReadLineAsync());
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("REA 5 alice The%20Fox");
+        Assert.AreEqual("REA 5 2 alice The%20Fox", await alice.ReadLineAsync());
+
+        await alice.SendAsync("CHG 6 NLN");
+        Assert.AreEqual("CHG 6 NLN", await alice.ReadLineAsync());
+        Assert.AreEqual("ILN 6 NLN bob bob", await alice.ReadLineAsync());
+
+        Assert.AreEqual("NLN NLN alice The%20Fox", await bob.ReadLineAsync(), "The sign-on rename must ride the first CHG");
+    }
+
     [TestMethod]
     [Timeout(20000)]
     public async Task Rea_NamingAnotherAccount_IsRefusedAndNotStored()
@@ -1527,6 +1556,170 @@ public class MsnPersistListsTests
 
         Assert.AreEqual(1, Mind.Db!.MsnListGet("alice", "FL").Count, "The ack-only ADD must not have stored anything (only the seeded row remains)");
         Assert.AreEqual(0, Mind.Db!.MsnListGet("bob", "RL").Count, "The ack-only ADD must not have grown anyone's reverse list");
+    }
+
+    // The stored displayname is a snapshot from ADD time; a member who renames while nobody is watching
+    // must still surface under the NEW name when a contact next SYNs - served from the profile store,
+    // not rewritten into the rows (the stored snapshot stays put as the fallback).
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rename_WhileContactIsOffline_SynServesTheCurrentName()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using (var alice = new MsnConn(server))
+        {
+            await alice.LoginAsync("alice");
+            await alice.SendAsync("ADD 5 FL bob bob 0");
+            Assert.AreEqual("ADD 5 FL 2 bob bob 0", await alice.ReadLineAsync(), "The ADD freezes 'bob' into the row - the snapshot this test proves SYN no longer trusts");
+        }
+
+        // Bob renames while alice is offline; only the profile store hears about it.
+        using (var bob = new MsnConn(server))
+        {
+            await bob.LoginAsync("bob");
+            await bob.SendAsync("REA 6 bob DJ%20Nine");
+            Assert.AreEqual("REA 6 3 bob DJ%20Nine", await bob.ReadLineAsync(), "Bob's serial already moved when his RL grew, so the rename acks 3");
+        }
+
+        using var again = new MsnConn(server);
+
+        await again.LoginAsync("alice");
+        await again.SendAsync("SYN 7");
+
+        Assert.AreEqual("SYN 7 2", await again.ReadLineAsync());
+        Assert.AreEqual("GTC 7 2 A", await again.ReadLineAsync());
+        Assert.AreEqual("BLP 7 2 AL", await again.ReadLineAsync());
+        Assert.AreEqual("LSG 7 2 1 1 0 Other%20Contacts 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 FL 2 1 1 bob DJ%20Nine 0", await again.ReadLineAsync(), "SYN must serve bob's CURRENT profile name, not the snapshot the ADD froze");
+        Assert.AreEqual("LST 7 AL 2 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 BL 2 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 7 RL 2 0 0", await again.ReadLineAsync());
+
+        Assert.AreEqual("bob", Mind.Db!.MsnListGet("alice", "FL")[0].DisplayName, "The overlay is serve-time only; the stored snapshot remains the fallback, not rewritten");
+    }
+
+    // The FL row and the RL row of one contact were written at different moments, so they can disagree
+    // with each other; live resolution must render both under the same current name.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Rename_FlAndRlServeTheSameContactIdentically()
+    {
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using (var alice = new MsnConn(server))
+        {
+            await alice.LoginAsync("alice");
+            await alice.SendAsync("ADD 5 FL bob bob 0");
+            Assert.AreEqual("ADD 5 FL 2 bob bob 0", await alice.ReadLineAsync());
+        }
+
+        // Bob's ADD FL writes alice's RL row (a second snapshot of bob's name), then he renames.
+        using (var bob = new MsnConn(server))
+        {
+            await bob.LoginAsync("bob");
+            await bob.SendAsync("ADD 6 FL alice alice 0");
+            Assert.AreEqual("ADD 6 FL 3 alice alice 0", await bob.ReadLineAsync());
+
+            await bob.SendAsync("REA 7 bob DJ%20Nine");
+            Assert.AreEqual("REA 7 4 bob DJ%20Nine", await bob.ReadLineAsync());
+        }
+
+        using var again = new MsnConn(server);
+
+        await again.LoginAsync("alice");
+        await again.SendAsync("SYN 8");
+
+        Assert.AreEqual("SYN 8 3", await again.ReadLineAsync());
+        Assert.AreEqual("GTC 8 3 A", await again.ReadLineAsync());
+        Assert.AreEqual("BLP 8 3 AL", await again.ReadLineAsync());
+        Assert.AreEqual("LSG 8 3 1 1 0 Other%20Contacts 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 8 FL 3 1 1 bob DJ%20Nine 0", await again.ReadLineAsync(), "The FL row's snapshot must give way to the current name");
+        Assert.AreEqual("LST 8 AL 3 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 8 BL 3 0 0", await again.ReadLineAsync());
+        Assert.AreEqual("LST 8 RL 3 1 1 bob DJ%20Nine", await again.ReadLineAsync(), "The RL row's snapshot must render identically to the FL's - one contact, one name");
+    }
+
+    // The fallback chain below the live name: a member with no chosen profile name keeps the stored
+    // snapshot; a contact resolving to no account keeps the stored snapshot; a row with no snapshot
+    // at all falls to the account token. Nothing about non-member contacts changes.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task Syn_NoProfileName_FallsBackToStoredNameThenAddress()
+    {
+        Mind.Db!.MsnListUpsert("alice", "FL", "bob", "Bobby", 0);
+        Mind.Db!.MsnListUpsert("alice", "FL", "ghost", "CustomName", 0);
+        Mind.Db!.MsnListUpsert("alice", "FL", "phantom", null, 0);
+        Mind.Db!.MsnListBumpSerial("alice");
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("SYN 5");
+
+        Assert.AreEqual("SYN 5 2", await alice.ReadLineAsync());
+        Assert.AreEqual("GTC 5 2 A", await alice.ReadLineAsync());
+        Assert.AreEqual("BLP 5 2 AL", await alice.ReadLineAsync());
+        Assert.AreEqual("LSG 5 2 1 1 0 Other%20Contacts 0", await alice.ReadLineAsync());
+        Assert.AreEqual("LST 5 FL 2 1 3 bob Bobby 0", await alice.ReadLineAsync(), "A member with no chosen profile name must keep the stored snapshot");
+        Assert.AreEqual("LST 5 FL 2 2 3 ghost CustomName 0", await alice.ReadLineAsync(), "A contact resolving to no account must keep the stored snapshot");
+        Assert.AreEqual("LST 5 FL 2 3 3 phantom phantom 0", await alice.ReadLineAsync(), "No snapshot either means the account token, exactly as before");
+        Assert.AreEqual("LST 5 AL 2 0 0", await alice.ReadLineAsync());
+        Assert.AreEqual("LST 5 BL 2 0 0", await alice.ReadLineAsync());
+        Assert.AreEqual("LST 5 RL 2 0 0", await alice.ReadLineAsync());
+    }
+
+    // The flag-off contract holds: the autoroster SYN keeps serving the account token as the display
+    // name even when the contact HAS a chosen profile name - live resolution is a persist-lists behavior.
+    [TestMethod]
+    [Timeout(20000)]
+    public async Task FlagOff_SynStillServesTheAccountToken()
+    {
+        Mind.Db!.ConfigSet(ConfigNames.MsnPersistLists, false);
+        Mind.Db!.UserSetDisplayName("bob", "DJ Nine");
+
+        var server = new MsnServer(IPAddress.Loopback, 0);
+
+        using var alice = new MsnConn(server);
+
+        await alice.LoginAsync("alice");
+        await alice.SendAsync("SYN 5");
+
+        Assert.AreEqual("SYN 5 1", await alice.ReadLineAsync());
+        Assert.AreEqual("GTC 5 1 A", await alice.ReadLineAsync());
+        Assert.AreEqual("BLP 5 1 AL", await alice.ReadLineAsync());
+        Assert.AreEqual("LSG 5 1 1 1 0 Other%20Contacts 0", await alice.ReadLineAsync());
+
+        // The autoroster totals depend on how many accounts other test classes left in the shared store,
+        // so walk all four lists and hold every entry to display == token instead of pinning exact lines.
+        var sawBob = false;
+
+        foreach (var list in new[] { "FL", "AL", "BL", "RL" })
+        {
+            var head = (await alice.ReadLineAsync()).Split(' ');
+
+            Assert.AreEqual(list, head[2], "The four lists must arrive in SYN order");
+
+            if (head[4] == "0")
+            {
+                continue;
+            }
+
+            var total = int.Parse(head[5]);
+
+            for (var i = 0; i < total; i++)
+            {
+                var parts = i == 0 ? head : (await alice.ReadLineAsync()).Split(' ');
+
+                Assert.AreEqual(parts[6], parts[7], $"Flag off must serve the account token as the display name ({list} entry {parts[6]})");
+
+                sawBob |= list == "FL" && parts[6] == "bob";
+            }
+        }
+
+        Assert.IsTrue(sawBob, "The autoroster FL must still contain bob - otherwise the token assertion proved nothing");
     }
 }
 

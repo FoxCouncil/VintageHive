@@ -107,6 +107,17 @@ public sealed class PagerSession : YahooSession
         return Task.FromResult(true);
     }
 
+    // Best-effort on the pre-YMSG wire: enqueue a YpnsService.FileTransfer (70) packet carrying the same
+    // fields the YMSG notify does. This protocol generation was not captured doing file transfer, so the shape
+    // is not asserted against a reference; a client that does not recognise the service just skips the packet
+    // (it resyncs on the YHOO magic), which is why this is harmless rather than a fabricated IM.
+    public override Task<bool> DeliverFileTransferAsync(string from, string fileName, long fileSize, string message, string url)
+    {
+        var content = $"{SanitiseIdentifier(from)},{SanitiseIdentifier(Username)},{fileSize},{fileName},{url}";
+
+        return Enqueue(new YpnsPacket(YpnsService.FileTransfer, Username, Username, content));
+    }
+
     public override Task SupersedeAsync()
     {
         // Revoking the token is what actually ends this session: the old client keeps polling, and its next

@@ -62,6 +62,11 @@ services:
       # --- Streaming ---
       - "1755:1755"                 # MMS (Windows Media)
       - "7070:7070"                 # PNA (RealPlayer)
+      # --- File transfer relay (relaytransfers) ---
+      # Per-transfer listeners for MSN/AIM file transfers, from the RelayPortLow-RelayPortHigh range set in
+      # the admin panel. Must be published like the FTP passive range, or a relayed transfer's data channel
+      # cannot be reached. Off by default; only needed when File Transfer Relay is enabled.
+      - "1810-1819:1810-1819"       # File transfer relay range (match RelayPortLow/High in the admin panel)
 
 volumes:
   vintagehive-data:

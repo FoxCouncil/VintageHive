@@ -14,6 +14,10 @@ public enum YmsgService : ushort
     Ping = 0x12,
     AddBuddy = 0x83,
     RemoveBuddy = 0x84,
+    // File transfer (relaytransfers). YMSG 5.x transfer is not P2P: the sender HTTP-POSTs the file to a Yahoo
+    // filetransfer host and the recipient is told a URL to fetch. This is the server->client notify carrying
+    // that URL; see YahooFileTransferProcessor. Value from libyahoo2 / the ymsg dissector.
+    FileTransfer = 0x46,
     KeepAlive = 0x8A,
     AuthResp = 0x54,
     List = 0x55,

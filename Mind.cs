@@ -273,6 +273,9 @@ public static class Mind
             // Claims the Yahoo! Pager's compiled-in hostnames ahead of the outward-reaching processors, so a
             // sign-on is answered here instead of being looked up in the archive.
             .Use(YahooPagerProcessor.ProcessHttpRequest)
+            // Claims the Yahoo! filetransfer hosts for relaytransfers; only when the flag is on, otherwise it
+            // declines and the request falls through untouched.
+            .Use(YahooFileTransferProcessor.ProcessHttpRequest)
             .Use(ProtoWebProcessor.ProcessHttpRequest)
             .Use(InternetArchiveProcessor.ProcessHttpRequest);
 
